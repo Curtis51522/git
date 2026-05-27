@@ -4,14 +4,22 @@ Download pre-trained model files from GitHub Releases.
 
 Usage: python download_models.py
 
-This downloads and extracts the model files needed to run the system:
+Downloads and extracts:
   - models/distilbert/   (~519 MB, intent classifier)
   - models/yolo/         (~50 MB,  freshness detector)
+
+For private repos, set a GitHub Personal Access Token:
+  PowerShell: $env:GITHUB_TOKEN = "ghp_xxxx"
+  bash:       export GITHUB_TOKEN="ghp_xxxx"
+
+Create a token at: https://github.com/settings/tokens
+Required scope: repo (for private repos)
 """
 import os
 import sys
 import zipfile
 import urllib.request
+import ssl
 
 # ---- Config ----------------------------------------------------------
 REPO_OWNER = "Curtis51522"
@@ -27,20 +35,6 @@ DOWNLOAD_URL = (
 
 
 # ---- Helpers ---------------------------------------------------------
-def _progress(count: int, block_size: int, total_size: int):
-    """Display a simple download progress bar."""
-    if total_size > 0:
-        percent = min(int(count * block_size * 100 / total_size), 100)
-        bar_len = 40
-        filled = int(bar_len * percent / 100)
-        bar = chr(9608) * filled + chr(9617) * (bar_len - filled)
-        mb_done = count * block_size / (1024 * 1024)
-        mb_total = total_size / (1024 * 1024)
-        print(f"\r  [{bar}] {percent:3d}%  {mb_done:.0f}/{mb_total:.0f} MB", end="")
-        if percent == 100:
-            print()
-
-
 def _check_existing() -> bool:
     """Return True if model files already exist (skip download)."""
     required = [
@@ -57,6 +51,49 @@ def _check_existing() -> bool:
     return False
 
 
+def _download(url: str, dest: str):
+    """Download a file with progress bar, using GITHUB_TOKEN if set."""
+    token = os.environ.get("GITHUB_TOKEN", "")
+
+    if not token:
+        print("Note: GITHUB_TOKEN not set. Private repos will fail.")
+        print("Set: $env:GITHUB_TOKEN = 'ghp_xxxx'")
+        print("Create token: https://github.com/settings/tokens\n")
+
+    req = urllib.request.Request(url)
+    req.add_header("Accept", "application/octet-stream")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+
+    ctx = ssl.create_default_context()
+
+    with urllib.request.urlopen(req, context=ctx) as resp:
+        total = int(resp.headers.get("Content-Length", 0))
+        downloaded = 0
+        chunk_size = 8192
+
+        with open(dest, "wb") as f:
+            while True:
+                chunk = resp.read(chunk_size)
+                if not chunk:
+                    break
+                f.write(chunk)
+                downloaded += len(chunk)
+
+                if total > 0:
+                    percent = min(int(downloaded * 100 / total), 100)
+                    bar_len = 40
+                    filled = int(bar_len * percent / 100)
+                    bar = chr(9608) * filled + chr(9617) * (bar_len - filled)
+                    mb_done = downloaded / (1024 * 1024)
+                    mb_total = total / (1024 * 1024)
+                    print(
+                        f"\r  [{bar}] {percent:3d}%  {mb_done:.0f}/{mb_total:.0f} MB",
+                        end="",
+                    )
+        print()
+
+
 # ---- Main ------------------------------------------------------------
 def main():
     os.chdir(PROJECT_ROOT)
@@ -67,15 +104,18 @@ def main():
     zip_path = os.path.join(PROJECT_ROOT, ASSET_NAME)
 
     print("Downloading models from GitHub Releases...")
-    print(f"  URL: {DOWNLOAD_URL}")
+    print(f"  {DOWNLOAD_URL}\n")
     try:
-        urllib.request.urlretrieve(DOWNLOAD_URL, zip_path, _progress)
+        _download(DOWNLOAD_URL, zip_path)
+    except urllib.request.HTTPError as e:
+        print(f"\nHTTP {e.code}: {e.reason}")
+        if e.code == 404:
+            print("Release not found. Check TAG and ASSET_NAME in this script.")
+        elif e.code == 401 or e.code == 403:
+            print("Authentication failed. Set GITHUB_TOKEN for private repos.")
+        sys.exit(1)
     except Exception as e:
         print(f"\nDownload failed: {e}")
-        print("\nManual download instructions:")
-        print(f"  1. Open: {DOWNLOAD_URL}")
-        print(f"  2. Save to: {zip_path}")
-        print(f"  3. Run: python download_models.py")
         sys.exit(1)
 
     print("Extracting...")
@@ -84,9 +124,9 @@ def main():
 
     os.remove(zip_path)
 
-    print("\nModels installed successfully!")
-    print("  - models/distilbert/  (intent classifier)")
-    print("  - models/yolo/        (freshness detector)")
+    print("\nDone! Models installed:")
+    print("  models/distilbert/  (intent classifier)")
+    print("  models/yolo/        (freshness detector)")
 
 
 if __name__ == "__main__":
