@@ -2,14 +2,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
-PLANNER_MODEL = "deepseek-chat"
-VERIFIER_MODEL = "qwen2.5-72b-instruct"
-COMPOSER_MODEL = "gpt-4o-mini"
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 480
@@ -18,7 +11,6 @@ YOLO_CONFIDENCE_THRESHOLD = 0.5
 TRAY_GREEN_THRESHOLD = 150
 TRAY_ORANGE_BLUE_MAX = 80
 
-# 6 bakery product types matching the Roboflow bakery-hbr5t dataset
 PRODUCT_TYPES = [
     "donut",
     "croissant",
