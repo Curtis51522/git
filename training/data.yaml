@@ -1,0 +1,23 @@
+﻿# Roboflow Bakery Dataset - data.yaml
+# Dataset: bakeryresearch/bakery-hbr5t
+# https://universe.roboflow.com/bakeryresearch/bakery-hbr5t
+#
+# To download: use the Roboflow export (YOLOv8 format) or pip install roboflow
+#   from roboflow import Roboflow
+#   rf = Roboflow(api_key="YOUR_KEY")
+#   project = rf.workspace("bakeryresearch").project("bakery-hbr5t")
+#   dataset = project.version(1).download("yolov8")
+
+path: datasets/bakery-hbr5t
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 6
+names:
+  0: donut
+  1: croissant
+  2: bread_coconut
+  3: bread_roll
+  4: chiffon
+  5: croissant_chocolate

@@ -1,0 +1,60 @@
+{
+  "product": "croissant_chocolate",
+  "best_params": {
+    "subsample": 1.0,
+    "reg_lambda": 5.0,
+    "reg_alpha": 0.1,
+    "n_estimators": 200,
+    "min_child_weight": 3,
+    "max_depth": 7,
+    "learning_rate": 0.08,
+    "gamma": 0.5,
+    "colsample_bytree": 0.6
+  },
+  "best_cv_mae": 4.393567419052124,
+  "metrics": [
+    {
+      "set": "train",
+      "mae": 2.666722536087036,
+      "mape_pct": 9.951128007774598,
+      "rmse": 3.4734078142182025,
+      "r2": 0.7850560545921326,
+      "n": 1012
+    },
+    {
+      "set": "val",
+      "mae": 3.2572855949401855,
+      "mape_pct": 13.044852187398225,
+      "rmse": 4.314381948965866,
+      "r2": 0.5962517261505127,
+      "n": 120
+    },
+    {
+      "set": "test",
+      "mae": 3.0457351207733154,
+      "mape_pct": 10.89411152441404,
+      "rmse": 3.8185001122960545,
+      "r2": 0.6896530389785767,
+      "n": 120
+    }
+  ],
+  "feature_importance": {
+    "discount_rate": 0.3029443919658661,
+    "is_weekend": 0.24473625421524048,
+    "weather_storm": 0.09506195783615112,
+    "weather_rainy": 0.08946233987808228,
+    "rainfall": 0.08063460886478424,
+    "day_of_week": 0.04521786421537399,
+    "weather_cloudy": 0.04046672582626343,
+    "is_public_holiday": 0.03184891492128372,
+    "month": 0.022175168618559837,
+    "weather_sunny": 0.020206399261951447,
+    "temperature": 0.010060025379061699,
+    "humidity": 0.007858644239604473,
+    "day_of_month": 0.006797769572585821,
+    "is_rainy": 0.002528911456465721,
+    "is_ramadan": 0.0
+  },
+  "trained_on_rows": 1132,
+  "test_rows": 120
+}

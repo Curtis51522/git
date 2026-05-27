@@ -1,1 +1,103 @@
+# Secrets & environment
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+
+# Large model files
+models/distilbert/
+models/yolo/
+
+# Root-level temp debug scripts (NOT legit build files)
+/_fix*.py
+/_chk*.py
+/_t[0-9]*.py
+/_debug*.py
+/_find*.py
+/_clean*.py
+/_final*.py
+/_full*.py
+/_js*.py
+/_lint*.py
+/_ngrok*
+/_node*.py
+/_revert*.py
+/_rm*.py
+/_run*.py
+/_seed*.py
+/_swap*.py
+/_verify*.py
+/_ck*.py
+/_gen.py
+/_audit*.py
+/_e2.log
+/_s2.log
+/_server*.log
+/_server*.txt
+/_srv*.log
+/_srv*.txt
+/_swap_backup.txt
+/_fix.txt
+/_tmp.js
+/_test_*.json
+/_tq.py
+
+# Backup & version files
+*.bak
+*.backup
+*.backup[0-9]
+*.v[0-9]
+*.working
+
+# Log files
+*.log
+
+# YOLO training data
+bakery.v1i.yolov8/
+bakery.v1i.yolov8.zip
+yolo*.pt
+
+# Database files
+bakery.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# IDE
+.vscode/
+.idea/
+.codex/
+
+# Node
 node_modules/
+
+# Training artifacts
+runs/
+
+# Temp / misc
+temp_*
+gen_arch_content.json
+api/module4_frontend/static/login_test.html
+api/module4_frontend/static/test_*.html
+api/module4_frontend/static/_full.js
+migration.sql
+schema.sql
+start.bat
+=
+docs/
+
+# Remaining temp
+_js_dump.js
+_test_*.py
+
+# Runtime cache files
+models/anomaly_history.json
+models/cache.json
+models/elasticity_cache.json
+
+models.zip

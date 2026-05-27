@@ -1,0 +1,60 @@
+{
+  "product": "chiffon",
+  "best_params": {
+    "subsample": 0.9,
+    "reg_lambda": 1.0,
+    "reg_alpha": 0.01,
+    "n_estimators": 300,
+    "min_child_weight": 1,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "gamma": 0.1,
+    "colsample_bytree": 0.6
+  },
+  "best_cv_mae": 2.4282577276229858,
+  "metrics": [
+    {
+      "set": "train",
+      "mae": 1.549480676651001,
+      "mape_pct": 10.301102883315673,
+      "rmse": 1.9563469518457337,
+      "r2": 0.7888956665992737,
+      "n": 1012
+    },
+    {
+      "set": "val",
+      "mae": 2.021914005279541,
+      "mape_pct": 13.390135806568562,
+      "rmse": 2.680994365750247,
+      "r2": 0.5720722079277039,
+      "n": 120
+    },
+    {
+      "set": "test",
+      "mae": 1.7522860765457153,
+      "mape_pct": 11.179942026606728,
+      "rmse": 2.211306483882689,
+      "r2": 0.677496075630188,
+      "n": 120
+    }
+  ],
+  "feature_importance": {
+    "is_weekend": 0.20053718984127045,
+    "rainfall": 0.13907507061958313,
+    "discount_rate": 0.12977288663387299,
+    "weather_rainy": 0.10360810160636902,
+    "weather_storm": 0.0991903617978096,
+    "weather_cloudy": 0.09224480390548706,
+    "day_of_week": 0.05804303660988808,
+    "weather_sunny": 0.049151141196489334,
+    "is_public_holiday": 0.04309631884098053,
+    "month": 0.037150848656892776,
+    "temperature": 0.01628715917468071,
+    "humidity": 0.012980849482119083,
+    "day_of_month": 0.012847252190113068,
+    "is_rainy": 0.0060150111094117165,
+    "is_ramadan": 0.0
+  },
+  "trained_on_rows": 1132,
+  "test_rows": 120
+}
