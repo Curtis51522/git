@@ -72,13 +72,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .drink-btn .drink-name{font-weight:700;font-size:16px}
 .drink-btn .drink-desc{font-size:11px;color:#8b6914;margin-top:1px}
 .drink-btn .drink-price{font-size:15px;font-weight:700;color:#8b6914;margin-top:2px}
-.weights-bar{display:flex;flex-direction:column;gap:4px;margin-top:6px}
-.weights-item{display:flex;align-items:center;gap:8px;font-size:11px}
-.weights-item .w-label{width:90px;text-align:right;color:#8b6914;font-weight:600;font-size:10px}
-.weights-item .w-track{flex:1;height:6px;background:#f0e8d8;border-radius:3px;overflow:hidden}
-.weights-item .w-fill{height:100%;border-radius:4px}
-.w-fill-flavor{background:#27ae60}.w-fill-discount{background:#f39c12}.w-fill-freshness{background:#3498db}.w-fill-inventory{background:#e74c3c}.w-fill-context{background:#8e44ad}
-.weights-item .w-pct{width:28px;font-weight:700;font-size:10px;color:#8b6914}
 .cart-summary{background:#fdfaf5;border-radius:8px;padding:8px 10px;margin-top:6px;max-height:40vh;overflow-y:auto}
 .cart-summary .cart-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:16px;border-bottom:1px solid #f0e8d8;min-height:44px}
 .cart-summary .cart-row:last-child{border-bottom:none;font-size:17px;font-weight:700;color:#8b6914;padding-top:8px}
@@ -265,13 +258,6 @@ var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:3.5,bread_roll:3.5,chi
 var PRODUCT_COSTS={donut:1.35,croissant:1.9,bread_coconut:1.05,bread_roll:1.05,chiffon:1.75,croissant_chocolate:1.9};
 var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
 var DISCOUNT_RATE=0.3;
-var WEIGHTS=[
-{label:'Flavor Pairing',pct:25,css:'flavor'},
-{label:'Discount Value',pct:20,css:'discount'},
-{label:'Freshness',pct:20,css:'freshness'},
-{label:'Inventory Pressure',pct:20,css:'inventory'},
-{label:'Order Context',pct:15,css:'context'}
-];
 var COFFEE_DRINKS=[
 {name:'Latte',desc:'Smooth espresso with steamed milk',price:'8.50',key:'latte'},
 {name:'Americano',desc:'Espresso with hot water',price:'6.50',key:'americano'},
@@ -417,15 +403,6 @@ bundleHTML+='<div class="bundle-save">Save RM '+b.savings.toFixed(2)+'</div></di
 }
 }else{bundleHTML='<div class="bundle-hint">Select drinks to generate recommendations</div>';}
 
-// Weights
-var weightsHTML='';
-for(var i=0;i<WEIGHTS.length;i++){
-var w=WEIGHTS[i];
-weightsHTML+='<div class="weights-item">';
-weightsHTML+='<span class="w-label">'+w.label+'</span>';
-weightsHTML+='<div class="w-track"><div class="w-fill w-fill-'+w.css+'" style="width:'+w.pct+'%"></div></div>';
-weightsHTML+='<span class="w-pct">'+w.pct+'%</span></div>';
-}
 
 // Coffee buttons
 var coffeeBtns='';
@@ -539,8 +516,7 @@ h+='<div class="panel"><h4>Bakery Products</h4>';
 h+='<div class="drink-grid">'+bakeryBtns+'</div></div>';
 h+='<div class="panel"><h4>Coffee - Quick Drink Order</h4>';
 h+='<div class="drink-grid">'+coffeeBtns+'</div></div>';
-h+='<div class="panel"><h4>AI - Model Weights</h4>';
-h+='<div class="weights-bar">'+weightsHTML+'</div></div>';
+
 h+='<div class="panel"><h4>Cart - Current Order</h4>';
 h+='<div class="cart-summary">';
 if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>Total</span><span>RM '+total.toFixed(2)+'</span></div>';}
