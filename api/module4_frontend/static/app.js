@@ -702,8 +702,11 @@ if(EDITING_IDX===-2){
 var nn=document.getElementById('edit-name').value;
 if(!nn){alert('Please select a product');return;}
 var nq=parseInt(document.getElementById('edit-qty').value)||1;
-detections.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:'green',status:'confirmed',stock:'--'});
-cartItems.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:'green',status:'confirmed'});
+var nf=document.getElementById("edit-freshness").value;
+var ncMap={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
+var ntc=nf!=="auto"?ncMap[nf]||"green":"green";
+detections.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:ntc,status:"confirmed",stock:"--",freshness:nf!=="auto"?nf:"Fresh"});
+cartItems.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:ntc,status:"confirmed",freshness:nf!=="auto"?nf:"Fresh"});
 hitlLog.push({action:'Added manually: '+nn+' x'+nq,product:nn,time:new Date().toLocaleTimeString()});
 closeEditModal();loadStock();renderPOS(document.getElementById('content-area'));return;
 }
@@ -718,9 +721,13 @@ var d=detections[EDITING_IDX];if(!d)return;
 var oldName=d.product_name;
 d.product_name=document.getElementById('edit-name').value;
 d.quantity=parseInt(document.getElementById('edit-qty').value)||1;
+var df=document.getElementById("edit-freshness").value;
+var cMap={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
+if(df!=="auto"){d.tray_color=cMap[df]||d.tray_color;d.freshness=df;}
 var changes=[];
 if(oldName!==d.product_name)changes.push('name: '+oldName+' -> '+d.product_name);
 changes.push('qty: '+d.quantity);
+if(df!=="auto")changes.push('freshness: '+df);
 hitlLog.push({action:'Detect edit: '+changes.join(', '),product:d.product_name,time:new Date().toLocaleTimeString()});
 EDITING_DETECT=false;
 closeEditModal();
@@ -731,9 +738,14 @@ var item=cartItems[EDITING_IDX];if(!item)return;
 var oldName=item.product_name;
 item.product_name=document.getElementById('edit-name').value;
 item.quantity=parseInt(document.getElementById('edit-qty').value)||1;
+var if2=document.getElementById("edit-freshness").value;
+var cMap2={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
+var drMap={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+if(if2!=="auto"){item.tray_color=cMap2[if2]||item.tray_color;item.freshness=if2;item.discount_rate=drMap[if2]||0;}
 var changes=[];
 if(oldName!==item.product_name)changes.push('name: '+oldName+' -> '+item.product_name);
 changes.push('qty: '+item.quantity);
+if(if2!=="auto")changes.push('freshness: '+if2);
 hitlLog.push({action:'Cart edit: '+changes.join(', '),product:item.product_name,time:new Date().toLocaleTimeString()});
 closeEditModal();
 renderPOS(document.getElementById('content-area'));
@@ -848,6 +860,8 @@ cOpts+='<option value="'+cKeys[i]+'"'+sel+'>'+capName(cKeys[i])+'</option>';
 }
 document.getElementById('edit-name').innerHTML='<optgroup label="-- Bakery --">'+bOpts+'</optgroup><optgroup label="-- Coffee --">'+cOpts+'</optgroup>';
 document.getElementById('edit-qty').value=item.quantity;
+var fMap2={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};
+document.getElementById("edit-freshness").value=item.freshness||fMap2[item.tray_color]||"auto";
 document.getElementById('edit-modal').classList.add('show');
 }
 function removeCartItem(idx){
