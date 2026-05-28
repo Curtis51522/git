@@ -949,7 +949,7 @@ cachedInventory=tbl;
 
 function renderAgent(c){
 c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
-+'<div style="margin-bottom:12px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px"></div>'
++'<div style="margin-bottom:12px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px" onkeydown="if(event.key==='Enter')runAgentQuery()"></div>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
 +'<button class="btn btn-primary btn-sm" onclick="runAgentQuery()">Ask</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'How many croissants should I bake tomorrow?\')" >Restock</button>'
