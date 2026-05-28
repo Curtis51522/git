@@ -450,9 +450,9 @@ var bk=bkeys[i];
 var bp=PRODUCT_PRICES[bk]||5;
 var stockInfo=stockMap&&stockMap[bk]?stockMap[bk]:'--';
 var fsMap=freshnessStockMap&&freshnessStockMap[bk]?freshnessStockMap[bk]:{"Fresh":0,"Day-1":0,"Day-2":0,"Near-Expired":0};
-// Default: oldest available (FIFO)
+// Default: freshest available first
 var selFresh="Fresh";
-for(var fi=fOrder.length-1;fi>=0;fi--){if(fsMap[fOrder[fi]]>0){selFresh=fOrder[fi];break;}}
+for(var fi=0;fi<fOrder.length;fi++){if(fsMap[fOrder[fi]]>0){selFresh=fOrder[fi];break;}}
 window._selFreshness=window._selFreshness||{};
 window._selFreshness[bk]=selFresh;
 var discountRate=dr1[selFresh]||0;
