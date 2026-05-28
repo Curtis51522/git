@@ -764,7 +764,7 @@ function triggerScan(){console.log("1.triggerScan");var inp=document.getElementB
 function capName(name){
 return name.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}).replace(/\b\w/g,function(c){return c.toUpperCase();});
 }
-function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=item.quantity||0;var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(frank[f]>frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=item.quantity||0;var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;
