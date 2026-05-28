@@ -352,8 +352,9 @@ document.getElementById('scan-file').value='';
 }
 async function completePayment(){
 if(!cartItems.length){alert('Cart is empty');return}
+for(var i=0;i<cartItems.length;i++){var ci=cartItems[i];if(!stockMap||!stockMap[ci.product_name]||stockMap[ci.product_name]<=0){alert('No stock for '+ci.product_name+'. Cannot checkout.');return;}}
 var total=0;for(var i=0;i<cartItems.length;i++)total+=getItemPrice(cartItems[i])*cartItems[i].quantity;
-var items=[];for(var i=0;i<cartItems.length;i++)items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity});
+var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
@@ -365,7 +366,7 @@ else{alert('Partial: '+(d.errors||[]).join('; '));}
 }
 async function generateBundle(){
 if(!cartItems.length){alert('Add items to cart first');return}
-var items=[];for(var i=0;i<cartItems.length;i++)items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity});
+var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/combo',{method:'POST',headers:hdrs,body:JSON.stringify({items:items})});

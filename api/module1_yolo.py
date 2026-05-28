@@ -40,20 +40,8 @@ def get_model() -> YOLO:
 # ======================================================================
 # Tray color detection
 # ======================================================================
-def detect_tray_color(image: np.ndarray, bboxes: list) -> str:
-    """Extract dominant colour from the region around detected objects."""
-    if not bboxes:
-        return "unknown"
-    x1, y1, x2, y2 = bboxes[0]
-    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-    h, w = image.shape[:2]
-    x1, y1 = max(0, x1 - 30), max(0, y1 - 30)
-    x2, y2 = min(w, x2 + 30), min(h, y2 + 30)
-    tray_region = image[y1:y2, x1:x2]
-    if tray_region.size == 0:
-        return "unknown"
-    mean_color = cv2.mean(tray_region)
-    b, g, r = mean_color[0], mean_color[1], mean_color[2]
+def _classify_color(b: float, g: float, r: float) -> str:
+    """Classify BGR mean into tray colour label."""
     if g > TRAY_GREEN_THRESHOLD and g > r and g > b:
         return "green"
     if r > TRAY_YELLOW_CHANNEL_MIN and g > TRAY_YELLOW_CHANNEL_MIN and b < TRAY_YELLOW_BLUE_MAX:
@@ -63,6 +51,31 @@ def detect_tray_color(image: np.ndarray, bboxes: list) -> str:
     if r > 150 and g > 100 and b < TRAY_ORANGE_BLUE_MAX:
         return "orange"
     return "unknown"
+
+
+def detect_tray_color(image: np.ndarray, bboxes: list) -> str:
+    """Extract tray colour from pixels NOT occupied by detected products.
+
+    Builds a mask that excludes all product bounding boxes (with padding),
+    then computes mean colour only from the remaining tray-visible area.
+    """
+    if not bboxes:
+        return "unknown"
+    h, w = image.shape[:2]
+    mask = np.ones((h, w), dtype=np.uint8) * 255
+    for bbox in bboxes:
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        pad = 15
+        x1 = max(0, x1 - pad)
+        y1 = max(0, y1 - pad)
+        x2 = min(w, x2 + pad)
+        y2 = min(h, y2 + pad)
+        mask[y1:y2, x1:x2] = 0
+    if cv2.countNonZero(mask) < 100:
+        return "unknown"
+    mean_color = cv2.mean(image, mask=mask)
+    b, g, r = mean_color[0], mean_color[1], mean_color[2]
+    return _classify_color(b, g, r)
 
 
 # ======================================================================
@@ -278,16 +291,6 @@ async def deduct_inventory(req: DeductRequest):
             query = query.eq("freshness_status", requested_freshness)
         batches = query.order("production_time", desc=False).execute()
 
-        # Fallback: if freshness filter yields no results, use all batches (FIFO)
-        if (not batches.data) and requested_freshness:
-            batches = (
-                q(db, "batch_inventory")
-                .select("*")
-                .eq("product_name", product_name)
-                .gt("quantity", 0)
-                .order("production_time", desc=False)
-                .execute()
-            )
 
         if not batches.data:
             errors.append(
