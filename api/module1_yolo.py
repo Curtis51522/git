@@ -8,7 +8,10 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import (
     YOLO_MODEL_PATH, YOLO_CONFIDENCE_THRESHOLD,
-    TRAY_GREEN_THRESHOLD, TRAY_ORANGE_BLUE_MAX, PRODUCT_TYPES,
+    TRAY_GREEN_THRESHOLD, TRAY_ORANGE_BLUE_MAX,
+    TRAY_YELLOW_CHANNEL_MIN, TRAY_YELLOW_BLUE_MAX,
+    TRAY_RED_CHANNEL_MIN, TRAY_RED_GREEN_MAX, TRAY_RED_BLUE_MAX,
+    PRODUCT_TYPES,
 )
 from db.mysql_client import get_db, q
 from models.schemas import (
@@ -53,6 +56,10 @@ def detect_tray_color(image: np.ndarray, bboxes: list) -> str:
     b, g, r = mean_color[0], mean_color[1], mean_color[2]
     if g > TRAY_GREEN_THRESHOLD and g > r and g > b:
         return "green"
+    if r > TRAY_YELLOW_CHANNEL_MIN and g > TRAY_YELLOW_CHANNEL_MIN and b < TRAY_YELLOW_BLUE_MAX:
+        return "yellow"
+    if r > TRAY_RED_CHANNEL_MIN and g < TRAY_RED_GREEN_MAX and b < TRAY_RED_BLUE_MAX:
+        return "red"
     if r > 150 and g > 100 and b < TRAY_ORANGE_BLUE_MAX:
         return "orange"
     return "unknown"
