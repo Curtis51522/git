@@ -497,7 +497,7 @@ h+='<div class="panel"><h4>Camera - Visual Recognition</h4>';
 h+='<div class="scan-area" style="padding:20px;margin-bottom:12px" onclick="triggerScan()">';
 h+='<div class="icon">&#128247;</div><p>Click to scan / upload image</p></div>';
 h+='<div id="detect-list">';
-h+=detections.length>0?detectHTML:'<p style="color:#8b6914;font-size:13px;text-align:center;padding:20px">Reading recognition results...</p>';
+if(detections.length>0){h+=detectHTML;}else if(scanning){h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:20px"><span class="spinner"></span> Scanning tray...</p>';}else{h+='<p style="color:#ccc;font-size:13px;text-align:center;padding:20px">Scan a tray to begin</p>';}
 h+='</div>';
 h+='';
 h+='<div class="panel" style="border:2px solid #8b6914"><h4>Fresh Batch Inflow</h4>';
@@ -656,6 +656,7 @@ renderPOS(document.getElementById('content-area'));
 }
 function handleScan(e){
 var file=e.target.files[0];if(!file)return;
+scanning=true;renderPOS(document.getElementById('content-area'));
 var fd=new FormData();fd.append('file',file);
 fetch(API+'/s1/checkout',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd}).then(function(r){return r.json();}).then(function(d){
 lastScanResult=d.detections||[];detections=[];
@@ -663,8 +664,8 @@ for(var i=0;i<lastScanResult.length;i++){
 var det=lastScanResult[i];
 detections.push({product_name:det.product_name,quantity:det.quantity||1,confidence:det.confidence||0.5,bbox:det.bbox||[],tray_color:det.tray_color||'green',status:det.confidence>=0.85?'confirmed':(det.confidence>=0.7?'review':'pending'),stock:det.stock||'--'});
 }
-hitlLog=[];renderPOS(document.getElementById('content-area'));
-}).catch(function(err){alert('Scan error: '+err.message);});
+scanning=false;hitlLog=[];renderPOS(document.getElementById('content-area'));
+}).catch(function(err){scanning=false;alert('Scan error: '+err.message);renderPOS(document.getElementById('content-area'));});
 document.getElementById('scan-file').value='';
 }
 async function completePayment(){
