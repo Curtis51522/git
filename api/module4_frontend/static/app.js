@@ -191,7 +191,7 @@ var fColor={"Fresh":"#4caf50","Day-1":"#ff9800","Day-2":"#ef6c00","Near-Expired"
 var fLabel={"Fresh":"","Day-1":" 10%OFF","Day-2":" 20%OFF","Near-Expired":" 30%OFF"};
 var fci=fColor[freshInfo]||"#4caf50";
 var fli=fLabel[freshInfo]||"";
-bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"'"+')" style="border-left:4px solid '+fci+'">';
+bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"','"+freshInfo+"'"+')" style="border-left:4px solid '+fci+'">';
 bakeryBtns+='<span class="drink-name">'+capName(bk)+'<span style="color:'+fci+';font-size:11px;margin-left:4px">'+fli+'</span></span>';
 var bp=PRODUCT_PRICES[bk]||5;
 var fresh1=freshnessMap&&freshnessMap[bk]?freshnessMap[bk]:'Fresh';
@@ -324,10 +324,10 @@ if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tr
 renderPOS(document.getElementById('content-area'));
 }
 
-function quickAddBakery(name){
+function quickAddBakery(name,fresh){
 var found=false;
 for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name){cartItems[i].quantity+=1;found=true;break;}}
-var fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:'Fresh';
+if(!fresh||fresh==="undefined")fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh";
 var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
 var dr={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
 var tray=tc[fresh]||"green";
@@ -394,7 +394,7 @@ for(var i=0;i<b.items.length;i++){
     var isBread=!!BAKERY_KEYS[name];
     if(isBread){
         // Replace: set bread quantity to exactly 1, keep freshness info
-        var fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:'Fresh';
+if(!fresh||fresh==="undefined")fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh";
         var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
         var dr={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
         var found=false;

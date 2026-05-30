@@ -17,6 +17,7 @@ Script flow (POST /s5/script):
 """
 
 import json
+import time
 import logging
 from fastapi import APIRouter, HTTPException
 
@@ -48,6 +49,7 @@ MAX_AUDIT_RETRIES = 2
 # ======================================================================
 @router.post("/query")
 async def handle_query(payload: dict):
+    t_start = time.perf_counter()
     query  = payload.get("query", "")
     params = payload.get("params", {})
 
@@ -88,6 +90,7 @@ async def handle_query(payload: dict):
                 # Skip the return, continue to DAG
             else:
                 return {
+                    "_elapsed_ms": round((time.perf_counter() - t_start) * 1000, 1),
                     "status": "out_of_scope",
                     "intent": intent,
                     "confidence": round(confidence, 2),
@@ -99,6 +102,7 @@ async def handle_query(payload: dict):
                 }
         else:
             return {
+                "_elapsed_ms": round((time.perf_counter() - t_start) * 1000, 1),
                 "status": "out_of_scope",
                 "intent": intent,
                 "confidence": round(confidence, 2),
@@ -130,6 +134,7 @@ async def handle_query(payload: dict):
             confidence = 0.6
         else:
             return {
+                "_elapsed_ms": round((time.perf_counter() - t_start) * 1000, 1),
                 "status": "out_of_scope",
                 "intent": intent,
                 "confidence": round(confidence, 2),
@@ -314,6 +319,25 @@ async def handle_query(payload: dict):
             data.get("schedule", []),
             data.get("transactions", []),
         )
+    elif intent == "profit_analysis":
+        # Directly query DB for transactions and product costs
+        from db.mysql_client import get_db
+        db = get_db()
+        # Fetch all outflow transactions (sales)
+        txn_cursor = db.cursor(dictionary=True)
+        txn_cursor.execute(
+            "SELECT product_name, quantity, unit_price, transaction_time "
+            "FROM inventory_transactions WHERE transaction_type = %s "
+            "ORDER BY transaction_time DESC",
+            ("outflow",)
+        )
+        transactions = txn_cursor.fetchall()
+        # Fetch product cost prices
+        prod_cursor = db.cursor(dictionary=True)
+        prod_cursor.execute("SELECT product_name, selling_price, cost_price FROM products")
+        products_rows = prod_cursor.fetchall()
+        products_map = {r["product_name"]: r for r in products_rows}
+        result = fusion.compute_profit(transactions, products_map)
     elif intent == "cross_source_audit":
         result = fusion.compute_cross_audit(
             data.get("forecast", 0),
@@ -335,6 +359,7 @@ async def handle_query(payload: dict):
     l1_ok, l1_warnings, l1_results = verifier.verify_integrity(result)
     if not l1_ok:
         return {
+            "_elapsed_ms": round((time.perf_counter() - t_start) * 1000, 1),
             "status": "rejected",
             "reason": "L1 data-integrity check failed",
             "audit": {"rule_results": l1_results, "audit_warnings": l1_warnings},
@@ -384,9 +409,51 @@ async def handle_query(payload: dict):
     r12_shap = audit_results.get("L4_R12_shap", [])
     r12_top = audit_results.get("L4_R12_top_driver", "")
 
-    summary = composer.compose_summary({
-        **result,
-        "audit_warnings": all_warnings,
+    if intent == "profit_analysis":
+        by_prod = result.get("by_product", [])
+        # Check if user is asking about a specific product
+        target = params.get("product", "")
+        if not target:
+            # Try to extract product name from query
+            ql = query.lower()
+            for p in ["croissant_chocolate", "bread_coconut", "bread_roll", "croissant", "chiffon", "donut"]:
+                if p.replace("_", " ") in ql or p in ql:
+                    target = p
+                    break
+        if target and by_prod:
+            # Show specific product profit
+            match = None
+            for p in by_prod:
+                if p.get("product_name") == target:
+                    match = p
+                    break
+            if match:
+                summary = (
+                    f"{target.replace('_',' ').title()}: revenue RM {match['revenue']:.2f}, "
+                    f"cost RM {match['cost']:.2f}, profit RM {match['profit']:.2f}, "
+                    f"margin {match['margin_pct']}%. "
+                    f"({match['quantity_sold']} units sold across {match['transactions']} transactions)"
+                )
+            else:
+                summary = f"No sales data found for {target}."
+        else:
+            # Full profit overview
+            rev = result.get("total_revenue", 0)
+            cost = result.get("total_cost", 0)
+            profit = result.get("gross_profit", 0)
+            margin = result.get("margin_pct", 0)
+            top = by_prod[0]["product_name"] if by_prod else "N/A"
+            top_profit = by_prod[0]["profit"] if by_prod else 0
+            summary = (
+                f"Total revenue: RM {rev:.2f}, cost: RM {cost:.2f}. "
+                f"Gross profit: RM {profit:.2f} (margin {margin}%). "
+                f"Top product: {top} (profit RM {top_profit:.2f}). "
+                f"Based on {result.get('transaction_count', 0)} sales transactions."
+            )
+    else:
+        summary = composer.compose_summary({
+            **result,
+            "audit_warnings": all_warnings,
         "multi_products": multi_products if len(multi_products) >= 2 else [],
         "target_product": product_hint,
         "target_date": params.get("date", ""),
@@ -394,7 +461,8 @@ async def handle_query(payload: dict):
         "L4_R12_shap": r12_shap,
         "L4_R12_top_driver": r12_top,
         "L4_R12_external_context": audit_results.get("L4_R12_external_context", {}),
-    }, query=enriched_query, intent=intent)
+            }, query=enriched_query, intent=intent)
+
 
     # ---- Step 7: Store episode to memory ---------------------------------
     try:
@@ -425,6 +493,7 @@ async def handle_query(payload: dict):
             show_table = True
 
     return {
+        "_elapsed_ms": round((time.perf_counter() - t_start) * 1000, 1),
         "status": "ok" if final_passed else "degraded",
         "intent": intent,
         "confidence": confidence,

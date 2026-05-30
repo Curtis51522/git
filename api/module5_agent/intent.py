@@ -14,7 +14,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config.settings import INTENT_CONFIDENCE_THRESHOLD
 
-INTENT_LABELS = ["stock_query", "waste_analysis", "promo_eval", "schedule_audit", "cross_source_audit", "out_of_scope"]
+INTENT_LABELS = ["stock_query", "waste_analysis", "promo_eval", "schedule_audit", "cross_source_audit", "profit_analysis", "out_of_scope"]
 
 # Keyword fallback rules (used when DistilBERT model is unavailable)
 _KEYWORD_RULES = {
@@ -23,6 +23,7 @@ _KEYWORD_RULES = {
     "promo_eval":      ["promo", "promotion", "discount", "marketing", "effective", "combo", "diskaun", "tawaran", "jualan"],
     "schedule_audit":  ["schedule", "shift", "staffing", "roster", "anomal", "enough staff", "who is working", "baker", "bakers", "barista", "cashier", "cleaner", "who working", "staff today", "staff tomorrow", "working today", "working tomorrow", "on duty", "staffed", "understaffed", "overstaffed", "enough baker", "jadual", "syif", "kerja"],
     "cross_source_audit": ["audit everything", "full audit", "health check", "cross check", "any problem", "any issue", "diagnostics", "overview", "sweep", "kpi", "operations report", "all system", "any alert", "risks today", "integrity check", "consistency check", "compliance check", "expiry check", "dashboard summary"],
+    "profit_analysis": ["profit", "revenue", "margin", "income", "earnings", "earn", "make money", "untung", "pendapatan", "keuntungan", "margin", "jualan", "sales revenue", "gross profit", "net profit", "how much profit", "how much revenue", "cost analysis", "profit breakdown", "product margin"],
 }
 
 

@@ -10,9 +10,13 @@ import holidays
 from hijri_converter import convert
 from datetime import datetime, timedelta, date
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import json
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR = os.path.join(ROOT, "models", "xgboost")
@@ -52,9 +56,12 @@ FEATURE_COLS = [
     "is_ramadan",
     "temperature","rainfall","humidity","is_rainy",
     "weather_sunny","weather_cloudy","weather_rainy","weather_storm",
+    "freshness_Fresh","freshness_Day-1","freshness_Day-2","freshness_Discount",
+    "lag_1","lag_7","rolling_7d_mean",
 ]
 
 RANDOM_SEED = 42
+FRESHNESS_STATES = ["Fresh", "Day-1", "Day-2", "Discount"]
 np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 
@@ -96,6 +103,10 @@ def get_holiday_boost(dt: date) -> float:
 def random_weather(m):
     p = KL_WEATHER_PROB[m]
     return random.choices(list(p.keys()), weights=list(p.values()))[0]
+
+def freshness_oh(status):
+    return {"freshness_Fresh": int(status == "Fresh"), "freshness_Day-1": int(status == "Day-1"), "freshness_Day-2": int(status == "Day-2"), "freshness_Discount": int(status == "Discount")}
+
 
 def weather_oh(wt):
     return {"weather_sunny": int(wt=="sunny"), "weather_cloudy": int(wt=="cloudy"),
@@ -150,7 +161,29 @@ def generate_sales_data(days=365):
                     "sales": max(1, round(dem)),
                 })
     print(f"       Skipped {monday_count} Mondays (shop closed)")
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    df["freshness_Fresh"] = (df["freshness"] == "Fresh").astype(int)
+    df["freshness_Day-1"] = (df["freshness"] == "Day-1").astype(int)
+    df["freshness_Day-2"] = (df["freshness"] == "Day-2").astype(int)
+    df["freshness_Discount"] = (df["freshness"] == "Discount").astype(int)
+    df["lag_1"] = 0.0
+    df["lag_7"] = 0.0
+    df["rolling_7d_mean"] = 0.0
+    return df
+
+def add_lag_features(df):
+    df = df.sort_values(["product","freshness","date"]).reset_index(drop=True)
+    for col in ["lag_1","lag_7","rolling_7d_mean"]:
+        df[col] = 0.0
+    for (prod, fresh), grp in df.groupby(["product","freshness"]):
+        idx = grp.index
+        s = grp["sales"].values
+        n = len(s)
+        df.loc[idx,"lag_1"] = np.concatenate([[0], s[:-1]])
+        df.loc[idx,"lag_7"] = np.concatenate([np.zeros(min(7,n)), s[:-7]]) if n > 7 else np.zeros(n)
+        df.loc[idx,"rolling_7d_mean"] = pd.Series(s).rolling(window=7,min_periods=1).mean().values
+    return df
+
 
 # ---- 2. Clean -------------------------------------------------------
 def clean_data(df):
@@ -189,8 +222,11 @@ def split_data(df, test_days=30, val_days=30):
             df.loc[tt, FEATURE_COLS], df.loc[tt, "sales"])
 
 # ---- 5. Tune (XGBoost 3.2.0 idiomatic) ------------------------------
+TUNE_HOLDOUT_RATIO = 0.8  # holdout ratio for early stopping in hyperparameter tuning
+
+
 def tune_hyperparameters(X_train, y_train, n_iter=50):
-    cutoff = int(len(X_train) * 0.8)
+    cutoff = int(len(X_train) * TUNE_HOLDOUT_RATIO)
     X_cv, X_es = X_train.iloc[:cutoff], X_train.iloc[cutoff:]
     y_cv, y_es = y_train.iloc[:cutoff], y_train.iloc[cutoff:]
     tscv = TimeSeriesSplit(n_splits=5)
@@ -213,14 +249,28 @@ def tune_hyperparameters(X_train, y_train, n_iter=50):
     search.fit(X_cv, y_cv, eval_set=[(X_es, y_es)], verbose=False)
     return search.best_estimator_, search.best_params_, search.best_score_
 
-# ---- 6. Evaluate ----------------------------------------------------
+# ---- 6. Model Comparison
+def model_comparison(X_train, y_train, X_val, y_val, product_name):
+    models = {"LinearRegression": LinearRegression(), "RandomForest": RandomForestRegressor(n_estimators=100, random_state=RANDOM_SEED, n_jobs=-1), "XGBoost": xgb.XGBRegressor(n_estimators=200, max_depth=6, learning_rate=0.05, random_state=RANDOM_SEED, n_jobs=-1)}
+    results = []
+    for name, m in models.items():
+        m.fit(X_train, y_train)
+        yp = m.predict(X_val)
+        results.append({"model": name, "MAE": round(mean_absolute_error(y_val, yp), 2), "RMSE": round(np.sqrt(mean_squared_error(y_val, yp)), 2), "R2": round(r2_score(y_val, yp), 4)})
+    results.sort(key=lambda x: x["R2"], reverse=True)
+    with open(os.path.join(MODEL_DIR, f"{product_name}_comparison.json"), "w") as f: json.dump(results, f, indent=2)
+    return results
+
+
+# ---- 7. Evaluate ----------------------------------------------------
 def evaluate(model, X, y, label):
     p = model.predict(X)
     mae = mean_absolute_error(y, p)
     mape = np.mean(np.abs((y - p) / np.maximum(y, 1))) * 100
     rmse = np.sqrt(mean_squared_error(y, p))
     r2 = r2_score(y, p)
-    return {"set": label, "mae": mae, "mape_pct": mape, "rmse": rmse, "r2": r2, "n": len(y)}
+    wape = np.sum(np.abs(y - p)) / np.maximum(np.sum(y), 1) * 100
+    return {"set": label, "mae": mae, "mape_pct": mape, "rmse": rmse, "r2": r2, "wape_pct": wape, "n": len(y)}
 
 # ---- 7. Main --------------------------------------------------------
 def main():
@@ -240,14 +290,31 @@ def main():
     df = validate_features(df)
     dates = sorted(df["date"].unique())
     print(f"       Range: {dates[0]} -> {dates[-1]}")
+    def save_error_stats(y_true, y_pred, df_val, product_name):
+        errors = {}
+        for freshness in FRESHNESS_STATES:
+            mf = df_val["freshness"] == freshness
+            if mf.sum() < 2: continue
+            r = (y_true[mf] - y_pred[mf]).values
+            errors[freshness] = {"std_dev": float(np.std(r)), "p5": float(np.percentile(r,5)), "p95": float(np.percentile(r,95)), "mae": float(np.mean(np.abs(r))), "n_samples": int(mf.sum())}
+        with open(os.path.join(MODEL_DIR, f"{product_name}_errors.json"), "w") as f: json.dump(errors, f, indent=2)
+        return errors
+
     all_metrics = {}
     for prod in PRODUCT_TYPES:
         print(f"\n{'=' * 60}")
         print(f"  {prod}")
         print(f"{'=' * 60}")
         pdf = df[df["product"] == prod].sort_values("date").reset_index(drop=True)
+        pdf = add_lag_features(pdf)
+        for fs in FRESHNESS_STATES:
+            pdf[f"freshness_{fs}"] = (pdf["freshness"] == fs).astype(int)
         X_tr, y_tr, X_val, y_val, X_test, y_test = split_data(pdf)
         print(f"  Train={len(X_tr)}  Val={len(X_val)}  Test={len(X_test)}")
+        print(f"  Multi-model comparison (LR/RF/XGBoost)...")
+        cmp = model_comparison(X_tr, y_tr, X_val, y_val, prod)
+        for r in cmp:
+            print(f"  {r["model"]}: MAE={r["MAE"]:.2f}  R2={r["R2"]:.4f}")
         print(f"  Tuning (50 iters, 5-fold TimeSeriesSplit, early_stop=20)...")
         model, best, cv_score = tune_hyperparameters(X_tr, y_tr, n_iter=50)
         print(f"  Best: {json.dumps(best)}")
@@ -257,7 +324,9 @@ def main():
             m = evaluate(model, Xs, ys, lbl)
             metrics.append(m)
             print(f"  {lbl:5s}  MAE={m['mae']:.2f}  MAPE={m['mape_pct']:.1f}%  RMSE={m['rmse']:.2f}  R2={m['r2']:.4f}  n={m['n']}")
-        all_metrics[prod] = {"best_params": best, "best_cv_mae": -cv_score, "metrics": metrics}
+        val_preds = model.predict(X_val)
+        err_stats = save_error_stats(y_val, val_preds, pdf.iloc[list(y_val.index)], prod)
+        all_metrics[prod] = {"best_params": best, "best_cv_mae": -cv_score, "metrics": metrics, "error_stats": err_stats}
         imp = sorted(zip(FEATURE_COLS, model.feature_importances_), key=lambda x: x[1], reverse=True)
         print(f"  Top-5: {', '.join(f'{f}={v:.3f}' for f, v in imp[:5])}")
         X_final = pd.concat([X_tr, X_val])

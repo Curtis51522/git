@@ -84,6 +84,73 @@ class FusionModule:
 
         return result
 
+
+    # ------------------------------------------------------------------
+    # profit_analysis: total revenue, cost, and profit from transactions
+    # ------------------------------------------------------------------
+    def compute_profit(self, transactions: list, products: dict = None) -> dict:
+        """Calculate profit breakdown from inventory_transactions.
+        
+        transactions: list of outflow records from inventory_transactions
+        products: dict of {product_name: {selling_price, cost_price}} from products table
+        """
+        from collections import defaultdict
+        if not transactions:
+            return {"total_revenue": 0, "total_cost": 0, "gross_profit": 0,
+                    "margin_pct": 0, "by_product": [], "transaction_count": 0}
+        
+        products = products or {}
+        by_product = defaultdict(lambda: {"revenue": 0.0, "cost": 0.0, "quantity": 0, "transactions": 0})
+        total_revenue = 0.0
+        total_cost = 0.0
+        
+        for txn in transactions:
+            pn = txn.get("product_name", "")
+            qty = txn.get("quantity", 0)
+            price = float(txn.get("unit_price", 0) or 0)
+            revenue = price * qty
+            # Cost: prefer from products table, fallback to price * 0.3
+            prod_info = products.get(pn, {})
+            cost_price = float(prod_info.get("cost_price", 0) or 0)
+            if cost_price <= 0:
+                cost_price = price * 0.3  # fallback: 30% cost ratio
+            cost = cost_price * qty
+            
+            by_product[pn]["revenue"] += revenue
+            by_product[pn]["cost"] += cost
+            by_product[pn]["quantity"] += qty
+            by_product[pn]["transactions"] += 1
+            total_revenue += revenue
+            total_cost += cost
+        
+        gross_profit = total_revenue - total_cost
+        margin_pct = round((gross_profit / total_revenue * 100), 1) if total_revenue > 0 else 0.0
+        
+        # Sort products by profit descending
+        product_list = []
+        for pn, data in sorted(by_product.items(), key=lambda x: x[1]["revenue"] - x[1]["cost"], reverse=True):
+            prod_profit = data["revenue"] - data["cost"]
+            prod_margin = round((prod_profit / data["revenue"] * 100), 1) if data["revenue"] > 0 else 0.0
+            product_list.append({
+                "product_name": pn,
+                "revenue": round(data["revenue"], 2),
+                "cost": round(data["cost"], 2),
+                "profit": round(prod_profit, 2),
+                "margin_pct": prod_margin,
+                "quantity_sold": data["quantity"],
+                "transactions": data["transactions"],
+            })
+        
+        return {
+            "status": "ok",
+            "total_revenue": round(total_revenue, 2),
+            "total_cost": round(total_cost, 2),
+            "gross_profit": round(gross_profit, 2),
+            "margin_pct": margin_pct,
+            "by_product": product_list,
+            "transaction_count": len(transactions),
+        }
+
     # ------------------------------------------------------------------
     # waste_analysis: deviation between forecast and actual
     # ------------------------------------------------------------------

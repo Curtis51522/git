@@ -1,22 +1,28 @@
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from fastapi import APIRouter, UploadFile, File, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from typing import Optional
 from datetime import datetime
 import sys, os
+import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import (
     YOLO_MODEL_PATH, YOLO_CONFIDENCE_THRESHOLD,
     TRAY_GREEN_THRESHOLD, TRAY_ORANGE_BLUE_MAX,
     TRAY_YELLOW_CHANNEL_MIN, TRAY_YELLOW_BLUE_MAX,
     TRAY_RED_CHANNEL_MIN, TRAY_RED_GREEN_MAX, TRAY_RED_BLUE_MAX,
-    PRODUCT_TYPES,
+    PRODUCT_TYPES, TRAY_BBOX_PADDING,
 )
 from db.mysql_client import get_db, q
+
+logger = logging.getLogger("s1.yolo")
+
 from models.schemas import (
     YOLOResult, DeductRequest, DeductResponse, ImageSearchResult,
 )
+
+logger = logging.getLogger("s1.yolo")
 
 router = APIRouter(prefix="/s1", tags=["Module 1 - Visual Perception"])
 
@@ -30,10 +36,12 @@ def get_model() -> YOLO:
     global _model
     if _model is None:
         if not os.path.exists(YOLO_MODEL_PATH):
+            logger.error("YOLO model not found: %s", YOLO_MODEL_PATH)
             raise FileNotFoundError(
                 f"YOLO model not found: {YOLO_MODEL_PATH}. Run training first."
             )
         _model = YOLO(YOLO_MODEL_PATH)
+        logger.info("YOLO model loaded from %s", YOLO_MODEL_PATH)
     return _model
 
 
@@ -94,11 +102,14 @@ def detect_products(image: np.ndarray) -> list[YOLOResult]:
                 conf = float(box.conf[0])
                 bbox = box.xyxy[0].tolist()
                 all_bboxes.append(bbox)
+                if conf < 0.6:
+                    logger.warning("Low confidence detection: %s (%.2f)", cls_name, conf)
                 detections.append({
                     "product_name": cls_name,
                     "confidence": conf,
                     "bbox": bbox,
                 })
+    logger.info("Detected %d products across %d unique types", len(detections), len(set(d["product_name"] for d in detections)))
     tray_color = detect_tray_color(image, all_bboxes) if all_bboxes else "unknown"
     results_list = []
     for d in detections:
@@ -120,21 +131,27 @@ def aggregate_results(results: list[YOLOResult]) -> list[dict]:
             counts[key] = {
                 "product_name": key,
                 "quantity": 0,
-                "confidence": 0.0,
+                "confidences": [],
                 "tray_color": r.tray_color,
             }
         counts[key]["quantity"] += 1
-        counts[key]["confidence"] += r.confidence
+        counts[key]["confidences"].append(r.confidence)
     for key in counts:
-        counts[key]["confidence"] = round(
-            counts[key]["confidence"] / counts[key]["quantity"], 3
-        )
+        confs = counts[key]["confidences"]
+        counts[key]["avg_confidence"] = round(sum(confs) / len(confs), 3)
+        counts[key]["min_confidence"] = round(min(confs), 3)
+        counts[key]["confidence"] = counts[key]["avg_confidence"]  # backward compat
+        del counts[key]["confidences"]
     return list(counts.values())
+
 
 
 # ======================================================================
 # POST /s1/checkout -- Outbound: recognize tray items + tray colour
 # ======================================================================
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/bmp", "image/webp"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
 @router.post("/checkout")
 async def checkout_scan(file: UploadFile = File(...)):
     """Scan a customer tray at checkout.
@@ -144,9 +161,17 @@ async def checkout_scan(file: UploadFile = File(...)):
     Inventory deduction happens separately via POST /s1/deduct
     after payment is confirmed by S4.
     """
+    # Validate before reading stream
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, f"Unsupported file type: {file.content_type}")
     contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, f"File too large ({len(contents)} bytes, max 10MB)")
     nparr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(400, "Cannot decode image")
+    logger.info("Checkout scan: %dx%d", image.shape[1], image.shape[0])
     results = detect_products(image)
     aggregated = aggregate_results(results)
     return {"status": "ok", "detections": aggregated}
@@ -163,9 +188,17 @@ async def inflow_scan(file: UploadFile = File(...)):
     Each unique product in the image gets its own batch record with
     ``quantity`` == ``quantity``.
     """
+    # Validate before reading stream
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, f"Unsupported file type: {file.content_type}")
     contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, f"File too large ({len(contents)} bytes, max 10MB)")
     nparr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(400, "Cannot decode image")
+    logger.info("Inflow scan: %dx%d", image.shape[1], image.shape[0])
     results = detect_products(image)
     aggregated = aggregate_results(results)
 
@@ -269,6 +302,35 @@ async def deduct_inventory(req: DeductRequest):
     deducted = []
     errors = []
 
+    # Collect all product names for a single batch query (N+1 fix)
+    product_names = list(set(
+        item.get("product_name", "")
+        for item in req.items
+        if item.get("product_name", "") and int(item.get("quantity", 0)) > 0
+    ))
+    if not product_names:
+        return DeductResponse(status="ok", deducted=[], errors=["No valid items"])
+
+    # Single query: fetch all batches for all products at once (raw SQL for IN clause)
+    placeholders = ", ".join(["%s"] * len(product_names))
+    sql = f"SELECT * FROM batch_inventory WHERE product_name IN ({placeholders}) AND quantity > 0 ORDER BY production_time ASC"
+    cur = db.cursor(dictionary=True)
+    cur.execute(sql, tuple(product_names))
+    all_batches_data = cur.fetchall()
+    cur.close()
+    # Wrap to match .data API
+    class AllBatches:
+        data = all_batches_data
+    all_batches = AllBatches()
+
+    # Group batches by product_name for O(1) lookup
+    batches_by_product = {}
+    for b in (all_batches.data or []):
+        pn = b["product_name"]
+        if pn not in batches_by_product:
+            batches_by_product[pn] = []
+        batches_by_product[pn].append(b)
+
     for item in req.items:
         product_name = item.get("product_name", "")
         qty_needed   = int(item.get("quantity", 0))
@@ -279,24 +341,23 @@ async def deduct_inventory(req: DeductRequest):
 
         requested_freshness = item.get("freshness")
 
-        # Fetch batches with remaining stock, FIFO order
-        query = (
-            q(db, "batch_inventory")
-            .select("*")
-            .eq("product_name", product_name)
-            .gt("quantity", 0)
-        )
-        # If customer selected a specific freshness, prioritize matching batches
+        # Look up from pre-fetched map (N+1 eliminated)
+        batches_data = batches_by_product.get(product_name, [])
         if requested_freshness:
-            query = query.eq("freshness_status", requested_freshness)
-        batches = query.order("production_time", desc=False).execute()
+            batches_data = [b for b in batches_data if b.get("freshness_status") == requested_freshness]
+            # Re-sort by production_time to maintain FIFO after filtering
+            batches_data.sort(key=lambda b: b.get("production_time", ""))
 
-
-        if not batches.data:
+        if not batches_data:
             errors.append(
                 f"No stock available for '{product_name}' (needed {qty_needed})"
             )
             continue
+        
+        # Wrap in a simple object to match the old .data API
+        class BatchResult:
+            data = batches_data
+        batches = BatchResult()
 
         remaining_to_deduct = qty_needed
 
@@ -377,7 +438,7 @@ async def search_products(
                 ImageSearchResult(
                     product_name=r["product_name"],
                     batch_id=r["batch_id"],
-                    quantity=r.get("quantity", r.get("quantity", 0)),
+                    quantity=r.get("quantity", 0),
                     freshness_status=r.get("freshness_status", "Fresh"),
                     sales_area=r.get("sales_area", "Fresh Area"),
                     production_time=r.get("production_time", ""),
@@ -404,7 +465,7 @@ async def search_products(
             ImageSearchResult(
                 product_name=r["product_name"],
                 batch_id=r["batch_id"],
-                quantity=r.get("quantity", r.get("quantity", 0)),
+                quantity=r.get("quantity", 0),
                 freshness_status=r.get("freshness_status", "Fresh"),
                 sales_area=r.get("sales_area", "Fresh Area"),
                 production_time=r.get("production_time", ""),

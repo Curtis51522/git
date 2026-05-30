@@ -249,3 +249,13 @@ def _monthly_fallback(dt: datetime) -> dict:
         "is_rainy": rain > 100,
         "is_weekend": dt.weekday() >= 5,
     }
+
+
+def weather_one_hot(weather_type: str) -> dict:
+    """Shared weather one-hot encoding used by S2 training and inference."""
+    return {
+        "weather_sunny": int(weather_type == "sunny"),
+        "weather_cloudy": int(weather_type == "cloudy"),
+        "weather_rainy": int(weather_type == "rainy"),
+        "weather_storm": int(weather_type in ("storm", "thunderstorm")),
+    }

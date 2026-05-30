@@ -254,8 +254,20 @@ console.log("JS loaded v1779702860");
 var token='', role='', username='', currentPanel='pos';
 var API='';
 var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, freshnessStockMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false;
-var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:3.5,bread_roll:3.5,chiffon:5.0,croissant_chocolate:5.5};
-var PRODUCT_COSTS={donut:1.35,croissant:1.9,bread_coconut:1.05,bread_roll:1.05,chiffon:1.75,croissant_chocolate:1.9};
+var PRODUCT_PRICES={donut:6.5,croissant:7.5,bread_coconut:5.5,bread_roll:5.0,chiffon:8.0,croissant_chocolate:8.5};
+var PRODUCT_COSTS={donut:2.0,croissant:2.5,bread_coconut:1.8,bread_roll:1.5,chiffon:2.5,croissant_chocolate:2.8};
+(async function loadPrices(){
+  try{
+    var r=await fetch(API+'/s4/products');
+    var d=await r.json();
+    if(d.products){
+      d.products.forEach(function(p){
+        PRODUCT_PRICES[p.product_name]=p.unit_price;
+        PRODUCT_COSTS[p.product_name]=p.cost_price||0;
+      });
+    }
+  }catch(e){console.log('Failed to fetch product prices from API, using defaults');}
+})();
 var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
 var DISCOUNT_RATE=0.3;
 var COFFEE_DRINKS=[
@@ -393,6 +405,10 @@ cartHTML+='</div></div>';
 // Bundle
 var bundleHTML='';
 if(bundleRecs.length>0){
+// Check if loading
+if(bundleRecs[0]._loading){
+bundleHTML='<div class="bundle-card" style="text-align:center;padding:16px;opacity:0.7"><div class="bundle-rank">Generating...</div><div style="font-size:12px;color:#999;margin-top:4px">AI is scoring 5-dimension bundles</div></div>';
+}else{
 for(var i=0;i<bundleRecs.length;i++){
 var b=bundleRecs[i];
 bundleHTML+='<div class="bundle-card" onclick="addBundleToCart('+i+')">';
@@ -400,6 +416,7 @@ bundleHTML+='<div class="bundle-rank">#'+(i+1)+' Top-3 Bundle</div>';
 bundleHTML+='<div class="bundle-products">'+b.products+'</div>';
 bundleHTML+='<div class="bundle-price">RM '+b.total_price.toFixed(2)+'</div>';
 bundleHTML+='<div class="bundle-save">Save RM '+b.savings.toFixed(2)+'</div></div>';
+}
 }
 }else{bundleHTML='<div class="bundle-hint">Select drinks to generate recommendations</div>';}
 
@@ -436,7 +453,7 @@ var discountRate=dr1[selFresh]||0;
 var selColor=fColor[selFresh]||"#4caf50";
 var fli=fLabel[selFresh]||"";
 // Original button + left color bar
-bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery(\''+bk+'\',\''+selFresh+'\')" style="border-left:4px solid '+selColor+'" id="bakery-'+bk.replace(/\s/g,'_')+'">';
+bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery(\''+bk+'\')" style="border-left:4px solid '+selColor+'" id="bakery-'+bk.replace(/\s/g,'_')+'">';
 bakeryBtns+='<span class="drink-name">'+capName(bk)+'<span style="color:'+selColor+';font-size:11px;margin-left:4px" id="flabel-'+bk.replace(/\s/g,'_')+'">'+fli+'</span></span>';
 bakeryBtns+='<span class="drink-desc">Stock: '+stockInfo+'</span>';
 if(discountRate>0){
@@ -660,6 +677,9 @@ else{alert('Partial: '+(d.errors||[]).join('; '));}
 async function generateBundle(){
 if(!cartItems.length){alert('Add items to cart first');return}
 var items=[];for(var i=0;i<cartItems.length;i++)items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:cartItems[i].freshness||null});
+// Show loading state
+bundleRecs=[{_loading:true}];
+renderPOS(document.getElementById('content-area'));
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/combo',{method:'POST',headers:hdrs,body:JSON.stringify({items:items})});
@@ -678,7 +698,7 @@ total_score:rc.total_score
 });
 }
 renderPOS(document.getElementById('content-area'));
-}catch(e){alert('Bundle error: '+e.message);}
+}catch(e){bundleRecs=[];renderPOS(document.getElementById('content-area'));alert('Bundle error: '+e.message);}
 }
 function addBundleToCart(idx){
 var b=bundleRecs[idx];if(!b)return;
@@ -1046,7 +1066,7 @@ function triggerScan(){console.log("1.triggerScan");var inp=document.getElementB
 function capName(name){
 return name.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}).replace(/\b\w/g,function(c){return c.toUpperCase();});
 }
-function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};freshnessStockMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";freshnessStockMap[pn]={"Fresh":0,"Day-1":0,"Day-2":0,"Near-Expired":0};}stockMap[pn]+=item.quantity||0;var f=item.freshness_status||"Fresh";if(f!=="Expired"){freshnessStockMap[pn][f]=(freshnessStockMap[pn][f]||0)+(item.quantity||0);}var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};freshnessStockMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";freshnessStockMap[pn]={"Fresh":0,"Day-1":0,"Day-2":0,"Near-Expired":0};}var f=item.freshness_status||"Fresh";if(f!=="Expired"){stockMap[pn]+=item.quantity||0;freshnessStockMap[pn][f]=(freshnessStockMap[pn][f]||0)+(item.quantity||0);}var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;

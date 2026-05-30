@@ -1,15 +1,12 @@
-import httpx, asyncio, logging
+﻿import httpx, asyncio, logging
 from collections import deque
 
 logger = logging.getLogger("s5.executor")
-
-BASE = "http://localhost:8000"
 
 ENDPOINT_HANDLERS = {
     "/s1/batch_inventory":        {"method": "GET", "params": []},
     "/s2/forecast":               {"method": "GET", "params": ["days", "product", "date"]},
     "/s3/schedule":               {"method": "GET", "params": ["date"]},
-    "/s3/capacity":               {"method": "GET", "params": []},
 }
 
 
@@ -64,13 +61,13 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
             if resp.status_code == 200:
                 return resp.json()
             body = resp.text[:200] if resp.text else "(empty)"
-            print(f"[S5 executor] {endpoint} returned {resp.status_code}: {body}")
+            logger.warning("Endpoint %s returned %d: %s", endpoint, resp.status_code, body)
         except httpx.TimeoutException as e:
-            print(f"[S5 executor] {endpoint} TIMEOUT: {type(e).__name__}")
+            logger.warning("Endpoint %s TIMEOUT: %s", endpoint, type(e).__name__)
         except httpx.HTTPStatusError as e:
-            print(f"[S5 executor] {endpoint} HTTP {e.response.status_code}: {e.response.text[:200]}")
+            logger.warning("Endpoint %s HTTP %d: %s", endpoint, e.response.status_code, e.response.text[:200])
         except Exception as e:
-            print(f"[S5 executor] {endpoint} FAILED [{type(e).__name__}]: {e}")
+            logger.error("Endpoint %s FAILED [%s]: %s", endpoint, type(e).__name__, e)
         return None
 
     async with httpx.AsyncClient() as client:
@@ -81,7 +78,7 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
                 continue
             handler = ENDPOINT_HANDLERS.get(ep)
             if not handler:
-                print(f"[S5 executor] unknown endpoint: {ep}")
+                logger.warning("Unknown endpoint: %s", ep)
                 continue
 
             qp = {}
@@ -153,13 +150,13 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
 
 
     if not collected:
-        print("[S5 executor] ALL endpoints failed, using mock fallback")
+        logger.error("ALL endpoints failed, using mock fallback")
         return _mock_fallback(params)
 
     collected.setdefault("product", params.get("product", "croissant"))
     if "forecast" not in collected:
         collected["forecast"] = 45.0
-        print("[S5 executor] forecast not found, using default 45")
+        logger.warning("Forecast not found, using default 45")
     collected.setdefault("inventory", 12)
     collected.setdefault("capacity", 50)
     collected.setdefault("predictions", [40, 45, 38, 42, 44, 40, 43])

@@ -104,6 +104,7 @@ def seed_defaults(db):
     db.commit()
 
 
+
 class FakeResponse:
     def __init__(self, data):
         self.data = data

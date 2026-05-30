@@ -98,6 +98,31 @@ def get_tray_color(freshness: str) -> str:
     """Get tray color for a freshness level."""
     return FRESHNESS_COLORS.get(freshness, "green")
 
+
+def cleanup_expired_batches(retention_days: int = 30):
+    """Delete Expired batch_inventory records older than retention_days.
+    
+    Keeps expired records for the retention period to support waste analysis
+    and audit, then removes them to prevent unbounded table growth.
+    Returns count of deleted records.
+    """
+    db = get_db()
+    cutoff = (datetime.now() - timedelta(days=retention_days)).strftime("%Y-%m-%d %H:%M:%S")
+    cursor = db.cursor()
+    # Count before delete
+    cursor.execute(
+        "SELECT COUNT(*) FROM batch_inventory WHERE freshness_status = %s AND production_time < %s",
+        ("Expired", cutoff)
+    )
+    count = cursor.fetchone()[0]
+    if count > 0:
+        cursor.execute(
+            "DELETE FROM batch_inventory WHERE freshness_status = %s AND production_time < %s",
+            ("Expired", cutoff)
+        )
+        db.commit()
+    return {"deleted": count, "retention_days": retention_days, "cutoff": cutoff}
+
 def get_sellable_batches():
     """Get all sellable batches (not expired), ordered by freshness (oldest first = FIFO)."""
     db = get_db()

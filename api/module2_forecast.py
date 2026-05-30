@@ -1,5 +1,8 @@
 import os, sys, asyncio, time
+import logging
 from concurrent.futures import ThreadPoolExecutor
+import threading
+from collections import OrderedDict
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -14,6 +17,8 @@ import holidays
 from hijri_converter import convert
 from db.mysql_client import get_db, q
 from models.schemas import SalesForecast
+
+logger = logging.getLogger("s2.forecast")
 
 _my_holidays = holidays.MY()
 
@@ -32,8 +37,25 @@ _model_cache: Dict[str, xgb.XGBRegressor] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
 
 # Forecast cache (keyed by "product:days", TTL 1 hour)
-_forecast_cache: Dict[str, dict] = {}
+_forecast_cache: OrderedDict = OrderedDict()
+_MAX_CACHE_SIZE = 100
+_cache_lock = threading.Lock()
 _FORECAST_CACHE_TTL = 3600
+
+def _cache_get(key: str):
+    with _cache_lock:
+        if key in _forecast_cache:
+            entry = _forecast_cache.pop(key)
+            if time.time() - entry["ts"] < _FORECAST_CACHE_TTL:
+                _forecast_cache[key] = entry
+                return dict(entry["data"])
+    return None
+
+def _cache_set(key: str, data: dict):
+    with _cache_lock:
+        _forecast_cache[key] = {"ts": time.time(), "data": data}
+        if len(_forecast_cache) > _MAX_CACHE_SIZE:
+            _forecast_cache.popitem(last=False)
 
 def _model_path(product_name: str) -> str:
     safe = product_name.replace(" ", "_").lower()
@@ -48,6 +70,7 @@ def load_product_model(product_name: str) -> xgb.XGBRegressor:
     model = xgb.XGBRegressor()
     model.load_model(path)
     _model_cache[product_name] = model
+    logger.info("Loaded model for %s from %s", product_name, path)
     return model
 
 def get_available_products() -> list:
@@ -58,7 +81,9 @@ def build_forecast_features(forecast_date: datetime, freshness: str, product: st
     dow = forecast_date.weekday()
     wt = weather.get("weather_type", "cloudy")
     dt_date = forecast_date.date() if hasattr(forecast_date, 'date') else date(forecast_date.year, forecast_date.month, forecast_date.day)
-    return {
+    from config.settings import FORECAST_FEATURE_COLS
+
+    features_dict = {
         "day_of_week": dow,
         "is_weekend": 1 if dow >= 5 else 0,
         "day_of_month": forecast_date.day,
@@ -74,17 +99,29 @@ def build_forecast_features(forecast_date: datetime, freshness: str, product: st
         "weather_cloudy": 1 if wt == "cloudy" else 0,
         "weather_rainy": 1 if wt == "rainy" else 0,
         "weather_storm": 1 if wt in ("storm", "thunderstorm") else 0,
+        "freshness_Fresh": 1 if freshness == "Fresh" else 0,
+        "freshness_Day-1": 1 if freshness == "Day-1" else 0,
+        "freshness_Day-2": 1 if freshness == "Day-2" else 0,
+        "freshness_Discount": 1 if freshness == "Discount" else 0,
+        "lag_1": 0.0,  # cold-start default; replace with DB query for production
+        "lag_7": 0.0,
+        "rolling_7d_mean": 0.0,
     }
+    # Ensure all expected columns present
+    for col in FORECAST_FEATURE_COLS:
+        if col not in features_dict:
+            features_dict[col] = 0
+    return features_dict
 
 def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, start_date: Optional[str] = None) -> dict:
+    logger.info("Forecast request: product=%s, days=%d, start=%s", product or "all", days, start_date or "today")
     # --- cache check ---
     cache_key = f"{product or 'all'}:{days}:{start_date or 'today'}"
-    if use_cache and cache_key in _forecast_cache:
-        entry = _forecast_cache[cache_key]
-        if time.time() - entry["ts"] < _FORECAST_CACHE_TTL:
-            data = dict(entry["data"])
-            data["cached"] = True
-            return data
+    if use_cache:
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            cached["cached"] = True
+            return cached
     # --- end cache check ---
 
     products_to_forecast = [product] if product else get_available_products()
@@ -151,7 +188,8 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
         response["model_errors"] = model_errors
 
     # --- cache store ---
-    _forecast_cache[cache_key] = {"ts": time.time(), "data": response}
+    _cache_set(cache_key, response)
+    logger.info("Forecast complete: %d products, %d forecasts", len(products_to_forecast), len(forecasts))
     return response
 
 @router.get("/forecast")

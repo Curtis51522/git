@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -201,8 +201,8 @@ async def get_combo(order: dict):
                 cart_boost
             )
 
-            bundle_price = (PRODUCT_PRICES.get(pn, 5.0) * (1 - discount)) + coffee["price"]
-            regular_price = PRODUCT_PRICES.get(pn, 5.0) + coffee["price"]
+            bundle_price = (get_product_prices().get(pn, 5.0) * (1 - discount)) + coffee["price"]
+            regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
             savings = regular_price - bundle_price
 
             all_scores.append({
@@ -255,14 +255,103 @@ async def get_combo(order: dict):
         "order_context": int(W_CONTEXT*100),
     }}
 
-# Product prices (duplicated here for combo scoring)
-PRODUCT_PRICES = {"donut": 4.5, "croissant": 5.5, "bread_coconut": 4.0, "bread_roll": 3.5, "chiffon": 6.0, "croissant_chocolate": 6.5}
+# Product prices - read from DB (single source of truth)
+_product_prices_cache = None
+
+# Default Malaysian bakery prices (fallback when DB not available)
+_DEFAULT_PRICES = {
+    "donut": 6.50, "croissant": 7.50, "bread_coconut": 5.50,
+    "bread_roll": 5.00, "chiffon": 8.00, "croissant_chocolate": 8.50
+}
+
+def get_product_prices():
+    """Return {product_name: unit_price} dict, cached after first successful DB read."""
+    global _product_prices_cache
+    if _product_prices_cache is not None and len(_product_prices_cache) > 0:
+        return _product_prices_cache
+    try:
+        db = get_db()
+        r = q(db, "products").select("*").execute()
+        if r.data and len(r.data) > 0:
+            _product_prices_cache = {}
+            for row in r.data:
+                _product_prices_cache[row["product_name"]] = float(row.get("selling_price", row.get("unit_price", 0)))
+            return _product_prices_cache
+    except Exception:
+        pass
+    # DB not ready or empty -- use defaults (retry DB on next call)
+    _product_prices_cache = None
+    return dict(_DEFAULT_PRICES)
+
+_product_costs_cache = None
+
+_DEFAULT_COSTS = {
+    "donut": 2.00, "croissant": 2.50, "bread_coconut": 1.80,
+    "bread_roll": 1.50, "chiffon": 2.50, "croissant_chocolate": 2.80
+}
+
+def get_product_costs():
+    """Return {product_name: cost_price} dict, cached after first successful DB read."""
+    global _product_costs_cache
+    if _product_costs_cache is not None and len(_product_costs_cache) > 0:
+        return _product_costs_cache
+    try:
+        db = get_db()
+        r = q(db, "products").select("*").execute()
+        if r.data and len(r.data) > 0:
+            _product_costs_cache = {}
+            for row in r.data:
+                _product_costs_cache[row["product_name"]] = float(row.get("cost_price", 0))
+            return _product_costs_cache
+    except Exception:
+        pass
+    _product_costs_cache = None
+    return dict(_DEFAULT_COSTS)
+
+# Use get_product_prices() directly; this module-level reference is kept for backward compat
+# but will only be populated after first successful DB read
+PRODUCT_PRICES = {}
 
 
 
 
 
 # ======================================================================
+
+# ======================================================================
+# GET /s4/products -- Return product prices from DB
+# ======================================================================
+@router.get("/products")
+async def list_products():
+    """Return all product prices from the database."""
+    try:
+        db = get_db()
+        r = q(db, "products").select("*").eq("category", "bakery").execute()
+        if r.data:
+            products = []
+            for row in r.data:
+                products.append({
+                    "product_name": row["product_name"],
+                    "unit_price": float(row.get("selling_price", row.get("unit_price", 0))),
+                    "cost_price": float(row.get("cost_price", 0)),
+                })
+            return {"status": "ok", "products": products}
+    except Exception:
+        pass
+    # Fallback: return only bakery from cached prices
+    bakery = {"donut","croissant","bread_coconut","bread_roll","chiffon","croissant_chocolate"}
+    prices = get_product_prices()
+    costs = get_product_costs()
+    products = []
+    for name, price in prices.items():
+        if name in bakery:
+            products.append({
+                "product_name": name,
+                "unit_price": float(price) if price else 0,
+                "cost_price": float(costs.get(name, 0)),
+            })
+    return {"status": "ok", "products": products}
+
 # POST /s4/checkout/complete -- Complete payment + deduct inventory
 # ======================================================================
 @router.post("/checkout/complete")

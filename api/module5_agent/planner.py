@@ -11,7 +11,6 @@ ENDPOINT_WHITELIST = frozenset({
     "/s1/batch_inventory",
     "/s2/forecast",
     "/s3/schedule",
-    "/s3/capacity",
     "/db/sql_query",
 })
 
@@ -49,6 +48,11 @@ INTENT_TEMPLATES: Dict[str, dict] = {
         ]
     },
     "promo_eval": {
+        "nodes": [
+            {"id": "step_1", "endpoint": "/s1/batch_inventory"},
+        ]
+    },
+    "profit_analysis": {
         "nodes": [
             {"id": "step_1", "endpoint": "/s1/batch_inventory"},
         ]

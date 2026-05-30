@@ -66,12 +66,6 @@ TIME_SLOTS = ["08:00-14:00", "14:00-20:00"]
 ROLES = ["baker", "cashier", "barista", "cleaner"]
 SLOT_HOURS = {"08:00-14:00": 6, "14:00-20:00": 6}
 
-# Capacity: 1 baker can produce ~60 units per shift
-BAKER_CAPACITY_PER_SHIFT = 60
-# 1 cashier handles ~50 transactions per shift
-CASHIER_CAPACITY_PER_SHIFT = 50
-# 1 barista handles ~40 drinks per shift
-BARISTA_CAPACITY_PER_SHIFT = 40
 
 
 # ======================================================================
@@ -110,8 +104,8 @@ def load_employees() -> List[Employee]:
 def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
     """Fetch S2 forecast, aggregate by date, and compute data-driven demand levels.
 
-    Thresholds: P25/P75 from historical actual sales (last 30 days).
-    Falls back to forecast-based percentiles if < 7 days of history exist.
+    Within-week relative ranking via S2 forecast: top 1/3 = high, bottom 1/3 = low, middle = normal.
+    Historical absolute thresholds (P25/P75) pending real transaction data.
 
     Returns: {date: {"total_units": int, "coffee_units": int, "demand_level": str}}
     """
@@ -446,6 +440,59 @@ async def get_schedule(
 # ======================================================================
 # POST /s3/solve -- Demand-driven generation
 # ======================================================================
+
+
+def _persist_schedule(results, base, num_days):
+    db = get_db()
+    for i in range(num_days):
+        d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
+        q(db, "shift_schedule").delete().eq("schedule_date", d).execute()
+    for r in results:
+        q(db, "shift_schedule").insert({
+            "schedule_date": r.date,
+            "time_slot": r.time_slot,
+            "employee_id": r.employee_id,
+            "employee_name": r.employee_name,
+            "role": r.role,
+            "staff_count": 1,
+            "demand_level": r.demand_level,
+            "production_target": r.production_target,
+        }).execute()
+
+
+def _rebuild_from_employees(start_date, num_days, employees):
+    base = datetime.strptime(start_date, "%Y-%m-%d")
+    week_start = base - timedelta(days=base.weekday())
+    demand_forecast = _fetch_demand_forecast(week_start.strftime("%Y-%m-%d"), 7)
+    results = solve_shift_schedule(
+        employees, week_start.strftime("%Y-%m-%d"), 7,
+        demand_forecast=demand_forecast,
+        shop_closed_weekdays={0},
+    )
+    requested_end = base + timedelta(days=num_days)
+    results = [r for r in results if r.date >= start_date and r.date < requested_end.strftime("%Y-%m-%d")]
+    try:
+        _persist_schedule(results, base, num_days)
+    except Exception:
+        logger.error("Failed to persist schedule: %s", sys.exc_info())
+        raise
+    return results
+
+
+def _build_schedule_response(results):
+    emp_summary = {}
+    for s in results:
+        eid = s.employee_id
+        if eid not in emp_summary:
+            emp_summary[eid] = {"name": s.employee_name, "hours": 0, "role": s.role}
+        emp_summary[eid]["hours"] += SLOT_HOURS[s.time_slot]
+    return {
+        "status": "ok",
+        "total_shifts": len(results),
+        "schedule": [r.model_dump() for r in results],
+        "employee_summary": emp_summary,
+    }
+
 def _solve_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", datetime.now().strftime("%Y-%m-%d"))
     num_days = min(payload.get("days", 7), 14)
@@ -456,54 +503,8 @@ def _solve_impl(payload: dict) -> dict:
         if e.id in unavailable_map:
             e.unavailable_dates = unavailable_map[e.id]
 
-    # Fetch S2 forecast for demand-driven scheduling
-    base = datetime.strptime(start_date, "%Y-%m-%d")
-    week_start = base - timedelta(days=base.weekday())
-    demand_forecast = _fetch_demand_forecast(week_start.strftime("%Y-%m-%d"), 7)
-
-    results = solve_shift_schedule(
-        employees, week_start.strftime("%Y-%m-%d"), 7,
-        demand_forecast=demand_forecast,
-        shop_closed_weekdays={0},
-    )
-
-    # Filter to requested range
-    requested_end = base + timedelta(days=num_days)
-    results = [r for r in results if r.date >= start_date and r.date < requested_end.strftime("%Y-%m-%d")]
-
-    # Store to database
-    try:
-        db = get_db()
-        for i in range(num_days):
-            d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
-            q(db, "shift_schedule").delete().eq("schedule_date", d).execute()
-        for r in results:
-            q(db, "shift_schedule").insert({
-                "schedule_date": r.date,
-                "time_slot": r.time_slot,
-                "employee_id": r.employee_id,
-                "employee_name": r.employee_name,
-                "role": r.role,
-                "staff_count": 1,
-                "demand_level": r.demand_level,
-                "production_target": r.production_target,
-            }).execute()
-    except Exception:
-        pass
-
-    emp_summary = {}
-    for s in results:
-        eid = s.employee_id
-        if eid not in emp_summary:
-            emp_summary[eid] = {"name": s.employee_name, "hours": 0, "role": s.role}
-        emp_summary[eid]["hours"] += SLOT_HOURS[s.time_slot]
-
-    return {
-        "status": "ok",
-        "total_shifts": len(results),
-        "schedule": [r.model_dump() for r in results],
-        "employee_summary": emp_summary,
-    }
+    results = _rebuild_from_employees(start_date, num_days, employees)
+    return _build_schedule_response(results)
 
 import asyncio, concurrent.futures
 _s3_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
@@ -569,19 +570,29 @@ async def swap_employees(payload: dict):
         return {"status": "rejected", "reason": f"{to_emp.name} is unavailable on {to_date}"}
 
     try:
-        q(db, "shift_schedule").update({
-            "employee_id": to_id, "employee_name": to_emp.name,
-        }).eq("id", from_shift["id"]).execute()
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("START TRANSACTION")
+        try:
+            q(db, "shift_schedule").update({
+                "employee_id": to_id, "employee_name": to_emp.name,
+            }).eq("id", from_shift["id"]).execute()
 
-        q(db, "shift_schedule").update({
-            "employee_id": from_id, "employee_name": from_emp.name,
-        }).eq("id", to_shift["id"]).execute()
+            q(db, "shift_schedule").update({
+                "employee_id": from_id, "employee_name": from_emp.name,
+            }).eq("id", to_shift["id"]).execute()
+
+            cur.execute("COMMIT")
+        except Exception:
+            cur.execute("ROLLBACK")
+            raise
 
         return {
             "status": "ok",
             "message": f"Swapped: {from_emp.name} ({date} {time_slot}) <-> {to_emp.name} ({to_date} {to_shift.get('time_slot','')})",
         }
     except Exception as e:
+        logger.error("Swap transaction failed: %s", e, exc_info=True)
         return {"status": "error", "message": str(e)}
 
 
@@ -604,7 +615,7 @@ def _add_sick_date(employee_id: str, date: str):
                 current.append(date)
             q(db, "employees").update({"unavailable_dates": json.dumps(current)}).eq("id", employee_id).execute()
     except Exception:
-        pass
+        logger.error("Failed to add sick date for employee %s", employee_id, exc_info=True)
 
 def _remove_sick_date(employee_id: str, date: str):
     """Remove a date from an employee's unavailable_dates in the DB."""
@@ -621,7 +632,7 @@ def _remove_sick_date(employee_id: str, date: str):
                 current.remove(date)
             q(db, "employees").update({"unavailable_dates": json.dumps(current)}).eq("id", employee_id).execute()
     except Exception:
-        pass
+        logger.error("Failed to add sick date for employee %s", employee_id, exc_info=True)
 
 def _clear_all_sick_dates():
     """Clear all employees' unavailable_dates."""
@@ -637,49 +648,11 @@ def _clear_all_sick_dates():
 def _resync_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", datetime.now().strftime("%Y-%m-%d"))
     num_days = min(payload.get("days", 7), 14)
-
-    # Re-sync = restore baseline: clear all sick, then re-solve
     _clear_all_sick_dates()
-
     employees = load_employees()
+    results = _rebuild_from_employees(start_date, num_days, employees)
+    return _build_schedule_response(results)
 
-    base = datetime.strptime(start_date, "%Y-%m-%d")
-    week_start = base - timedelta(days=base.weekday())
-    demand_forecast = _fetch_demand_forecast(week_start.strftime("%Y-%m-%d"), 7)
-
-    results = solve_shift_schedule(
-        employees, week_start.strftime("%Y-%m-%d"), 7,
-        demand_forecast=demand_forecast,
-        shop_closed_weekdays={0},
-    )
-
-    requested_end = base + timedelta(days=num_days)
-    results = [r for r in results if r.date >= start_date and r.date < requested_end.strftime("%Y-%m-%d")]
-
-    try:
-        db = get_db()
-        for i in range(num_days):
-            d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
-            q(db, "shift_schedule").delete().eq("schedule_date", d).execute()
-        for r in results:
-            q(db, "shift_schedule").insert({
-                "schedule_date": r.date,
-                "time_slot": r.time_slot,
-                "employee_id": r.employee_id,
-                "employee_name": r.employee_name,
-                "role": r.role,
-                "staff_count": 1,
-                "demand_level": r.demand_level,
-                "production_target": r.production_target,
-            }).execute()
-    except Exception:
-        pass
-
-    return {
-        "status": "ok",
-        "total_shifts": len(results),
-        "schedule": [r.model_dump() for r in results],
-    }
 
 @router.post("/resync")
 async def resync_schedule(payload: dict):
@@ -696,51 +669,11 @@ def _sick_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", date or datetime.now().strftime("%Y-%m-%d"))
     if not employee_id or not date:
         return {"status": "error", "message": "employee_id and date required"}
-
-    # Persist to employees table
     _add_sick_date(employee_id, date)
-
-    # Reload employees (now with persisted sick date) and resync
     num_days = min(payload.get("days", 7), 14)
     employees = load_employees()
-
-    base = datetime.strptime(start_date, "%Y-%m-%d")
-    week_start = base - timedelta(days=base.weekday())
-    demand_forecast = _fetch_demand_forecast(week_start.strftime("%Y-%m-%d"), 7)
-
-    results = solve_shift_schedule(
-        employees, week_start.strftime("%Y-%m-%d"), 7,
-        demand_forecast=demand_forecast,
-        shop_closed_weekdays={0},
-    )
-
-    requested_end = base + timedelta(days=num_days)
-    results = [r for r in results if r.date >= start_date and r.date < requested_end.strftime("%Y-%m-%d")]
-
-    try:
-        db = get_db()
-        for i in range(num_days):
-            d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
-            q(db, "shift_schedule").delete().eq("schedule_date", d).execute()
-        for r in results:
-            q(db, "shift_schedule").insert({
-                "schedule_date": r.date,
-                "time_slot": r.time_slot,
-                "employee_id": r.employee_id,
-                "employee_name": r.employee_name,
-                "role": r.role,
-                "staff_count": 1,
-                "demand_level": r.demand_level,
-                "production_target": r.production_target,
-            }).execute()
-    except Exception:
-        pass
-
-    return {
-        "status": "ok",
-        "total_shifts": len(results),
-        "schedule": [r.model_dump() for r in results],
-    }
+    results = _rebuild_from_employees(start_date, num_days, employees)
+    return _build_schedule_response(results)
 
 
 @router.post("/sick")
@@ -758,51 +691,11 @@ def _unsick_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", date or datetime.now().strftime("%Y-%m-%d"))
     if not employee_id or not date:
         return {"status": "error", "message": "employee_id and date required"}
-
-    # Remove from employees table
     _remove_sick_date(employee_id, date)
-
-    # Reload employees and resync
     num_days = min(payload.get("days", 7), 14)
     employees = load_employees()
-
-    base = datetime.strptime(start_date, "%Y-%m-%d")
-    week_start = base - timedelta(days=base.weekday())
-    demand_forecast = _fetch_demand_forecast(week_start.strftime("%Y-%m-%d"), 7)
-
-    results = solve_shift_schedule(
-        employees, week_start.strftime("%Y-%m-%d"), 7,
-        demand_forecast=demand_forecast,
-        shop_closed_weekdays={0},
-    )
-
-    requested_end = base + timedelta(days=num_days)
-    results = [r for r in results if r.date >= start_date and r.date < requested_end.strftime("%Y-%m-%d")]
-
-    try:
-        db = get_db()
-        for i in range(num_days):
-            d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
-            q(db, "shift_schedule").delete().eq("schedule_date", d).execute()
-        for r in results:
-            q(db, "shift_schedule").insert({
-                "schedule_date": r.date,
-                "time_slot": r.time_slot,
-                "employee_id": r.employee_id,
-                "employee_name": r.employee_name,
-                "role": r.role,
-                "staff_count": 1,
-                "demand_level": r.demand_level,
-                "production_target": r.production_target,
-            }).execute()
-    except Exception:
-        pass
-
-    return {
-        "status": "ok",
-        "total_shifts": len(results),
-        "schedule": [r.model_dump() for r in results],
-    }
+    results = _rebuild_from_employees(start_date, num_days, employees)
+    return _build_schedule_response(results)
 
 
 @router.post("/unsick")

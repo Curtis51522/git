@@ -1,4 +1,4 @@
-﻿import os
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -15,6 +15,7 @@ TRAY_YELLOW_BLUE_MAX = 80
 TRAY_RED_CHANNEL_MIN = 150
 TRAY_RED_GREEN_MAX = 100
 TRAY_RED_BLUE_MAX = 80
+TRAY_BBOX_PADDING = 15
 
 PRODUCT_TYPES = [
     "donut",
@@ -30,6 +31,15 @@ COFFEE_TYPES = [
     "Espresso", "Flat White", "Mocha",
 ]
 FRESHNESS_STATES = ["Fresh", "Day-1", "Day-2", "Discount"]
+FORECAST_FEATURE_COLS = [
+    "day_of_week", "is_weekend", "day_of_month", "month",
+    "discount_rate", "is_public_holiday", "is_ramadan",
+    "temperature", "rainfall", "humidity", "is_rainy",
+    "weather_sunny", "weather_cloudy", "weather_rainy", "weather_storm",
+    "freshness_Fresh", "freshness_Day-1", "freshness_Day-2", "freshness_Discount",
+    "lag_1", "lag_7", "rolling_7d_mean",
+]
+
 INTENT_CONFIDENCE_THRESHOLD = 0.75
 MAX_RETRIES = 2
 MODEL_CACHE_DIR = "models"
