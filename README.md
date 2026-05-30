@@ -6,11 +6,11 @@ Multi-agent AI operations system for a Malaysian bakery-cafe.
 
 | Module | Function | Tech |
 |--------|----------|------|
-| S1 | Visual perception -- YOLO-based product detection + tray color classification | YOLOv8, OpenCV |
-| S2 | 7-day sales forecasting with confidence bounds | XGBoost, TimeSeriesSplit |
-| S3 | CP-SAT shift scheduling with demand-aware role coverage | OR-Tools CP-SAT |
-| S4 | BFF layer -- JWT auth, combo scoring, web UI | FastAPI, JWT, HTML/CSS/JS |
-| S5 | Agentic decision pipeline -- intent classification, DAG planning, 12-rule audit, causal explanation | DistilBERT, DeepSeek, SHAP |
+| S1 | Visual perception -- YOLO-based product detection + tray color classification + FIFO deduction | YOLOv8/YOLO26m, OpenCV |
+| S2 | 7-day sales forecasting with confidence bounds + multi-model comparison | XGBoost, TimeSeriesSplit, WAPE |
+| S3 | CP-SAT shift scheduling with demand-aware role coverage + swap support | OR-Tools CP-SAT |
+| S4 | BFF layer -- JWT auth, 5-dim combo scoring, checkout + receipt, web POS | FastAPI, JWT, HTML/CSS/JS |
+| S5 | Agentic pipeline -- 6 intents (stock/waste/promo/schedule/audit/profit), 12-rule audit, SHAP causal | DistilBERT, DeepSeek, SHAP |
 
 ## Quick Start
 
@@ -69,11 +69,37 @@ Open http://localhost:8000 for the web UI.
 | GET | /s3/capacity | Production capacity |
 | POST | /s4/login | JWT login |
 | POST | /s4/combo | Combo recommendations |
-| POST | /s5/query | Agent query (main endpoint) |
+| POST | /s4/checkout/complete | Payment + FIFO deduction + receipt |
+| GET | /s4/products | Product prices (bakery only) |
+| POST | /s5/query | Agent query (6 intents incl. profit_analysis) |
 | POST | /s5/script | Sales script generation |
 | GET | /s5/alerts/list | Anomaly alerts |
 | GET | /s5/alerts/count | Unacknowledged alert count |
 | GET | /s5/reflections | Reflective memory insights |
+
+
+
+## Features
+
+### POS and Receipt
+- Real-time POS checkout with freshness-aware pricing (Fresh/Day-1/Day-2/Near-Expired)
+- Thermal-style receipt generation with print support
+- Receipts stored in receipts table for audit trail
+
+### AI Bundle Recommendations
+- 5-dimension scoring: flavor pairing, discount value, freshness urgency, inventory pressure, order context
+- Top-3 bundles with savings breakdown
+
+### Agent Intelligence (S5)
+- 6 intents: stock_query, waste_analysis, promo_eval, schedule_audit, cross_source_audit, profit_analysis
+- 4-tier audit (L1-L4) with SHAP causal attribution
+- Profit analysis: revenue/cost/margin by product from real transaction data
+- Expired batch auto-cleanup (30-day retention)
+
+### Inventory
+- FIFO batch deduction with freshness tracking
+- 4-stage aging: Fresh to Day-1 to Day-2 to Near-Expired to Expired
+- Product prices unified in database (single source of truth)
 
 ## Training Models
 
