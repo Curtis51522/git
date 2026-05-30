@@ -135,6 +135,33 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .alert-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#fdf2f2;border:1px solid #f5c6cb;border-radius:6px;cursor:pointer;font-size:12px;color:#721c24;margin-top:8px}
 .alert-badge .count{background:#e74c3c;color:#fff;border-radius:50%;min-width:20px;height:20px;text-align:center;line-height:20px;font-weight:bold;font-size:11px}
 .alert-badge:hover{background:#f8d7da}
+
+.receipt-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center}
+.receipt-panel{background:#fff;border-radius:12px;width:380px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);font-family:monospace}
+.receipt-header{background:#8b6914;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;text-align:center}
+.receipt-header h3{margin:0;font-size:18px}
+.receipt-header .receipt-id{font-size:11px;opacity:0.85;margin-top:4px}
+.receipt-body{padding:16px 20px}
+.receipt-line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dotted #e0d5c0;font-size:13px}
+.receipt-line .item-name{flex:1}
+.receipt-line .item-qty{color:#888;margin:0 8px}
+.receipt-line .item-discount{color:#d32f2f;font-size:11px}
+.receipt-divider{border-top:2px dashed #ccc;margin:10px 0}
+.receipt-total{display:flex;justify-content:space-between;font-size:18px;font-weight:700;padding:8px 0;color:#8b6914}
+.receipt-savings{text-align:center;color:#27ae60;font-size:13px;padding:4px 0}
+.receipt-footer{text-align:center;padding:12px 20px 20px}
+.receipt-footer button{margin:4px 6px;padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:14px}
+.receipt-btn-print{background:#8b6914;color:#fff}
+.receipt-btn-close{background:#eee;color:#333}
+@media print{
+  body>*{display:none!important}
+  .receipt-overlay{position:static!important;background:none!important;display:flex!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important}
+  .receipt-overlay *{visibility:visible!important}
+  .receipt-panel{box-shadow:none!important;width:100%!important;max-width:100%!important;max-height:none!important;border-radius:0!important}
+  .receipt-btn-close{display:none!important}
+  .receipt-footer{display:block!important}
+}
+
 </style>
 </head>
 <body>
@@ -670,7 +697,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert('Payment Complete - RM '+total.toFixed(2)+'\n'+d.deducted.length+' items deducted');cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));}
+if(d.status==='ok'){showReceipt(d.receipt);cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -707,8 +734,22 @@ for(var i=0;i<b.items.length;i++){
     var name=b.items[i];
     var isBread=!!BAKERY_KEYS[name];
     if(isBread){
-        // Replace: set bread quantity to exactly 1, keep freshness info
-        var fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:'Fresh';
+        // Use cart freshness > user-selected freshness > stock freshness > Fresh
+        var fresh='Fresh';
+        // 1. Check if bread already in cart
+        for(var j=0;j<cartItems.length;j++){
+            if(cartItems[j].product_name===name&&cartItems[j].freshness){
+                fresh=cartItems[j].freshness;break;
+            }
+        }
+        // 2. Check user-selected freshness from Bakery Products dots
+        if(fresh==='Fresh'&&window._selFreshness&&window._selFreshness[name]){
+            fresh=window._selFreshness[name];
+        }
+        // 3. Fallback to stock freshness
+        if(fresh==='Fresh'&&freshnessMap&&freshnessMap[name]){
+            fresh=freshnessMap[name];
+        }
         var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
         var dr={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
         var found=false;
@@ -1385,6 +1426,69 @@ function openWhatIfFromAlert(product, scenarioType, val){
     document.getElementById('whatif-value').value=val||'';
     runWhatIf();
   },300);
+}
+
+
+function showReceipt(receipt){
+  if(!receipt)return;
+  var html='<div class="receipt-overlay" id="receipt-overlay" onclick="if(event.target===this)closeReceipt()">';
+  html+='<div class="receipt-panel">';
+  html+='<div class="receipt-header"><h3>Bakery AI</h3><div class="receipt-id">'+receipt.receipt_id+' | '+receipt.date+'</div></div>';
+  html+='<div class="receipt-body">';
+  for(var i=0;i<receipt.items.length;i++){
+    var it=receipt.items[i];
+    html+='<div class="receipt-line">';
+    html+='<span class="item-name">'+it.product_name.replace(/_/g,' ')+'</span>';
+    html+='<span class="item-qty">x'+it.quantity+'</span>';
+    html+='<span class="item-price">RM '+it.line_total.toFixed(2)+'</span></div>';
+    if(it.discount_pct>0)html+='<div class="receipt-line" style="padding-left:16px;font-size:11px;color:#d32f2f">('+it.discount_pct+'% off: -RM '+it.discount_amount.toFixed(2)+')</div>';
+  }
+  html+='<div class="receipt-divider"></div>';
+  html+='<div class="receipt-sub"><span>Subtotal</span><span>RM '+receipt.subtotal.toFixed(2)+'</span></div>';
+  if(receipt.discount_total>0)html+='<div class="receipt-sub" style="color:#d32f2f"><span>Discount</span><span>-RM '+receipt.discount_total.toFixed(2)+'</span></div>';
+  html+='<div class="receipt-total"><span>TOTAL</span><span>RM '+receipt.total.toFixed(2)+'</span></div>';
+  if(receipt.savings>0)html+='<div class="receipt-savings">You saved RM '+receipt.savings.toFixed(2)+'</div>';
+  html+='<div class="receipt-thanks">Thank you! Please come again</div>';
+  html+='</div>';
+  html+='<div class="receipt-footer"><button class="receipt-btn-print" onclick="printReceipt()">Print</button><button class="receipt-btn-close" onclick="closeReceipt()">Close</button></div>';
+  html+='</div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function printReceipt(){
+  var header=document.querySelector('.receipt-header');
+  var body=document.querySelector('.receipt-body');
+  if(!header||!body)return;
+  var w=window.open('','_blank','width=420,height=750');
+  w.document.write('<!DOCTYPE html><html><head><title>Receipt</title>');
+  w.document.write('<meta name="viewport" content="width=device-width,initial-scale=1">');
+  w.document.write('<style>');
+  w.document.write('*{margin:0;padding:0;box-sizing:border-box}');
+  w.document.write('body{font-family:"Courier New",Courier,monospace;padding:36px 32px;width:100%;max-width:420px;margin:0 auto;color:#333;background:#fff;font-size:14px}');
+  w.document.write('.receipt-header{text-align:center;padding-bottom:14px;border-bottom:2px dashed #999;margin-bottom:16px}');
+  w.document.write('.receipt-header h3{font-size:24px;font-weight:700;color:#5d4037;letter-spacing:1px;margin-bottom:4px}');
+  w.document.write('.receipt-id{font-size:11px;color:#888;margin-top:2px}');
+  w.document.write('.receipt-body{font-size:14px;line-height:1.8}');
+  w.document.write('.receipt-line{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}');
+  w.document.write('.item-name{flex:1;text-transform:capitalize;font-size:14px}');
+  w.document.write('.item-qty{color:#888;margin:0 10px;font-size:13px}');
+  w.document.write('.item-price{min-width:80px;text-align:right;font-size:14px}');
+  w.document.write('.item-discount{color:#d32f2f;font-size:12px;padding:1px 0 1px 18px}');
+  w.document.write('.receipt-divider{border:none;border-top:1px dashed #bbb;margin:10px 0}');
+  w.document.write('.receipt-sub{display:flex;justify-content:space-between;font-size:14px;color:#666;padding:4px 0}');
+  w.document.write('.receipt-total{display:flex;justify-content:space-between;font-size:24px;font-weight:700;padding:12px 0 6px;color:#5d4037;border-top:2px solid #5d4037;margin-top:10px}');
+  w.document.write('.receipt-savings{text-align:center;color:#27ae60;font-size:13px;padding:4px 0 8px}');
+  w.document.write('.receipt-thanks{text-align:center;color:#aaa;font-size:12px;font-style:italic;padding-top:20px;margin-top:10px;border-top:1px dashed #ddd}');
+  w.document.write('@page{margin:0;size:auto}@media print{body{width:100%;max-width:none;margin:16px}}');
+  w.document.write('</style></head><body>');
+  w.document.write('<div class="receipt-header">'+header.innerHTML+'</div>');
+  w.document.write('<div class="receipt-body">'+body.innerHTML+'</div>');
+  w.document.write('</body></html>');
+  w.document.close();
+  setTimeout(function(){w.print();w.close();},400);
+}
+function closeReceipt(){
+  var el=document.getElementById('receipt-overlay');
+  if(el)el.remove();
 }
 
 </script>

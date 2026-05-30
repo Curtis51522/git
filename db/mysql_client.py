@@ -74,7 +74,17 @@ def init_db():
             freshness_status VARCHAR(30),
             transaction_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
-    ]
+    
+        """CREATE TABLE IF NOT EXISTS receipts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            receipt_id VARCHAR(50) UNIQUE NOT NULL,
+            items JSON NOT NULL,
+            subtotal FLOAT NOT NULL DEFAULT 0,
+            discount_total FLOAT NOT NULL DEFAULT 0,
+            total FLOAT NOT NULL DEFAULT 0,
+            savings FLOAT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",]
     
     for t in tables:
         cursor.execute(t)

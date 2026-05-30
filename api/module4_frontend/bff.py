@@ -356,7 +356,7 @@ async def list_products():
 # ======================================================================
 @router.post("/checkout/complete")
 async def checkout_complete(payload: dict):
-    """Process checkout: deduct inventory via FIFO, apply freshness discounts."""
+    """Process checkout: deduct inventory via FIFO, apply freshness discounts, generate receipt."""
     items = payload.get("items", [])
     if not items:
         raise HTTPException(400, "No items in cart")
@@ -365,14 +365,115 @@ async def checkout_complete(payload: dict):
     from api.module1_yolo import deduct_inventory
     from models.schemas import DeductRequest
 
-    # Build DeductRequest for the FIFO deduction engine
-    req = DeductRequest(items=items)
-    result = await deduct_inventory(req)
+    # Split items: bakery (deduct from inventory) vs coffee (no inventory limit)
+    bakery_items = []
+    coffee_items = []
+    BAKERY_KEYS = {"donut","croissant","bread_coconut","bread_roll","chiffon","croissant_chocolate"}
+    for item in items:
+        pn = item.get("product_name", "")
+        if pn in BAKERY_KEYS:
+            bakery_items.append(item)
+        else:
+            coffee_items.append(item)
+    
+    # Deduct bakery items via FIFO
+    result = None
+    if bakery_items:
+        req = DeductRequest(items=bakery_items)
+        result = await deduct_inventory(req)
+    
+    # Record coffee items as direct outflow transactions (no inventory limit)
+    coffee_deducted = []
+    for item in coffee_items:
+        pn = item.get("product_name", "")
+        qty = item.get("quantity", 1)
+        price = get_product_prices().get(pn, 8.0)  # coffee price from products or default
+        q(db, "inventory_transactions").insert({
+            "transaction_type": "outflow",
+            "batch_id": f"COFFEE_{pn}",
+            "product_name": pn,
+            "quantity": qty,
+            "unit_price": price,
+            "discount_applied": 0,
+            "freshness_status": "Fresh",
+        }).execute()
+        coffee_deducted.append({
+            "product_name": pn,
+            "batch_id": f"COFFEE_{pn}",
+            "quantity_deducted": qty,
+            "remaining_after": 0,
+        })
+    
+    # Merge results
+    deducted = (result.deducted if result else []) + coffee_deducted
+    all_errors = (result.errors if result else [])
+    status = result.status if result else "ok"
 
+    # ---- Build receipt ----
+    prices = get_product_prices()
+    costs = get_product_costs()
+    from api.freshness_service import get_discount_rate
+    
+    receipt_items = []
+    subtotal = 0.0
+    discount_total = 0.0
+    
+    for item in items:
+        pn = item.get("product_name", "")
+        qty = item.get("quantity", 1)
+        freshness = item.get("freshness", "Fresh")
+        unit_price = prices.get(pn, 5.0)
+        discount_rate = get_discount_rate(freshness) if freshness in ("Day-1","Day-2","Near-Expired") else 0.0
+        line_total = unit_price * qty
+        line_discount = line_total * discount_rate
+        line_final = line_total - line_discount
+        
+        receipt_items.append({
+            "product_name": pn,
+            "quantity": qty,
+            "unit_price": round(unit_price, 2),
+            "discount_pct": int(discount_rate * 100),
+            "discount_amount": round(line_discount, 2),
+            "line_total": round(line_final, 2),
+        })
+        subtotal += line_total
+        discount_total += line_discount
+    
+    total = subtotal - discount_total
+    savings = discount_total
+    
+    # Generate receipt ID
+    from datetime import datetime
+    now = datetime.now()
+    receipt_id = f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{now.microsecond // 1000:03d}"
+    
+    # Store receipt in DB
+    import json
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            "INSERT INTO receipts(receipt_id, items, subtotal, discount_total, total, savings) VALUES(%s,%s,%s,%s,%s,%s)",
+            (receipt_id, json.dumps(receipt_items), round(subtotal,2), round(discount_total,2), round(total,2), round(savings,2))
+        )
+        db.commit()
+    except Exception:
+        pass  # receipt storage is non-critical
+    
+    receipt = {
+        "receipt_id": receipt_id,
+        "date": now.strftime("%Y-%m-%d %H:%M"),
+        "items": receipt_items,
+        "subtotal": round(subtotal, 2),
+        "discount_total": round(discount_total, 2),
+        "total": round(total, 2),
+        "savings": round(savings, 2),
+    }
+    
     return {
-        "status": result.status,
-        "deducted": result.deducted,
-        "errors": result.errors,
+        "status": status,
+        "deducted": deducted,
+        "errors": all_errors,
+        "receipt": receipt,
         "message": f"{len(result.deducted)} items deducted" + 
                    (f", {len(result.errors)} items failed" if result.errors else ""),
     }
