@@ -118,7 +118,7 @@ async def get_combo(order: dict):
         inventory[pn]["batches"].append(b)
         # Track "worst" freshness (for discount scoring)
         f = b.get("freshness_status", "Fresh")
-        f_rank = {"Fresh": 0, "Day-1": 1, "Day-2": 2, "Near-Expired": 3}
+        f_rank = {"Fresh": 0, "Day-1": 1, "Expired": 2}
         if f_rank.get(f, 0) > f_rank.get(inventory[pn]["min_freshness"], 0):
             inventory[pn]["min_freshness"] = f
     
@@ -179,7 +179,7 @@ async def get_combo(order: dict):
             discount_score = discount * 3.33
 
             # 3. Freshness score (older = more urgent)
-            f_map = {"Fresh": 0.2, "Day-1": 0.6, "Day-2": 0.8, "Near-Expired": 1.0}
+            f_map = {"Fresh": 0.3, "Day-1": 0.8, "Expired": 1.0}
             freshness_score = f_map.get(freshness, 0.5)
 
             # 4. Inventory pressure
@@ -218,7 +218,7 @@ async def get_combo(order: dict):
                 "total_score": round(total, 3),
                 "total_price": round(bundle_price, 2),
                 "savings": round(savings, 2),
-                "tray_color": {"Fresh": "green", "Day-1": "yellow", "Day-2": "orange", "Near-Expired": "red"}.get(freshness, "green"),
+                "tray_color": {"Fresh": "green", "Day-1": "yellow", "Expired": "black"}.get(freshness, "green"),
                 "freshness_status": freshness,
                 "stock_qty": inv_data["total_qty"],
             })
@@ -390,7 +390,7 @@ async def checkout_complete(payload: dict):
         price = get_product_prices().get(pn, 8.0)  # coffee price from products or default
         q(db, "inventory_transactions").insert({
             "transaction_type": "outflow",
-            "batch_id": f"COFFEE_{pn}",
+            "batch_id": None,  # coffee has no batch inventory
             "product_name": pn,
             "quantity": qty,
             "unit_price": price,
@@ -399,7 +399,7 @@ async def checkout_complete(payload: dict):
         }).execute()
         coffee_deducted.append({
             "product_name": pn,
-            "batch_id": f"COFFEE_{pn}",
+            "batch_id": None,
             "quantity_deducted": qty,
             "remaining_after": 0,
         })
@@ -423,7 +423,7 @@ async def checkout_complete(payload: dict):
         qty = item.get("quantity", 1)
         freshness = item.get("freshness", "Fresh")
         unit_price = prices.get(pn, 5.0)
-        discount_rate = get_discount_rate(freshness) if freshness in ("Day-1","Day-2","Near-Expired") else 0.0
+        discount_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
         line_total = unit_price * qty
         line_discount = line_total * discount_rate
         line_final = line_total - line_discount
@@ -474,6 +474,6 @@ async def checkout_complete(payload: dict):
         "deducted": deducted,
         "errors": all_errors,
         "receipt": receipt,
-        "message": f"{len(result.deducted)} items deducted" + 
-                   (f", {len(result.errors)} items failed" if result.errors else ""),
+        "message": f"{len(deducted)} items deducted" + 
+                   (f", {len(all_errors)} items failed" if all_errors else ""),
     }

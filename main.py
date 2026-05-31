@@ -40,12 +40,7 @@ async def startup_freshness():
                 update_all_freshness()
             except Exception:
                 pass
-            # Cleanup expired records older than 30 days (run once per hour)
-            try:
-                from api.freshness_service import cleanup_expired_batches
-                cleanup_expired_batches(retention_days=30)
-            except Exception:
-                pass
+
     
     asyncio.create_task(periodic_freshness())
 

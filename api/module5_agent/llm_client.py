@@ -249,7 +249,7 @@ def _build_script_prompt(combo_data: list) -> str:
             line += f" | save RM{savings:.2f}"
         line += f" | {freshness}"
         if freshness != "Fresh":
-            pct = {"Day-1": "10%", "Day-2": "20%", "Near-Expired": "30%"}.get(freshness, "")
+            pct = {"Day-1": "10%"}.get(freshness, "")
             line += f" ({pct} off)"
         line += f" | stock: {stock}"
         lines.append(line)

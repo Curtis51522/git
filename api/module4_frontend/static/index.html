@@ -240,8 +240,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <option value="auto">Auto (from tray color)</option>
 <option value="Fresh">Fresh (green tray)</option>
 <option value="Day-1">Day-1 (yellow tray)</option>
-<option value="Day-2">Day-2 (orange tray)</option>
-<option value="Near-Expired">Near-Expired (red tray)</option>
+
+
 </select>
 
 <label>Error Type</label>
@@ -462,15 +462,15 @@ coffeeBtns+='<span class="drink-price">RM '+cd.price+'</span></button>';
 // Bakery buttons with freshness dots
 var bakeryBtns='';
 var bkeys=Object.keys(PRODUCT_PRICES).sort();
-var fColor={"Fresh":"#4caf50","Day-1":"#ff9800","Day-2":"#ef6c00","Near-Expired":"#d32f2f"};
-var fLabel={"Fresh":"","Day-1":" 10%OFF","Day-2":" 20%OFF","Near-Expired":" 30%OFF"};
-var fOrder=["Fresh","Day-1","Day-2","Near-Expired"];
-var dr1={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
+var fLabel={"Fresh":"","Day-1":" 10%OFF"};
+var fOrder=["Fresh","Day-1"];
+var dr1={"Fresh":0,"Day-1":0.10};
 for(var i=0;i<bkeys.length;i++){
 var bk=bkeys[i];
 var bp=PRODUCT_PRICES[bk]||5;
 var stockInfo=stockMap&&stockMap[bk]?stockMap[bk]:'--';
-var fsMap=freshnessStockMap&&freshnessStockMap[bk]?freshnessStockMap[bk]:{"Fresh":0,"Day-1":0,"Day-2":0,"Near-Expired":0};
+var fsMap=freshnessStockMap&&freshnessStockMap[bk]?freshnessStockMap[bk]:{"Fresh":0,"Day-1":0};
 // Default: freshest available first
 var selFresh="Fresh";
 for(var fi=0;fi<fOrder.length;fi++){if(fsMap[fOrder[fi]]>0){selFresh=fOrder[fi];break;}}
@@ -602,7 +602,7 @@ for(var i=0;i<bKeys.length;i++){var sel=bKeys[i]===d.product_name?" selected":""
 for(var i=0;i<cKeys.length;i++){var sel=cKeys[i]===d.product_name?" selected":"";cOpts+="<option value=\""+cKeys[i]+"\""+sel+">"+capName(cKeys[i])+"</option>";}
 document.getElementById("edit-name").innerHTML="<optgroup label=\"-- Bakery --\">"+bOpts+"</optgroup><optgroup label=\"-- Coffee --\">"+cOpts+"</optgroup>";
 document.getElementById("edit-qty").value=d.quantity;
-var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};
+var fMap={"green":"Fresh","yellow":"Day-1"};
 document.getElementById("edit-freshness").value=d.freshness||fMap[d.tray_color]||"auto";
 document.querySelector("#edit-modal h3").textContent="Edit Detection";
 document.getElementById("edit-modal").classList.add("show");
@@ -623,9 +623,9 @@ renderPOS(document.getElementById('content-area'));
 
 function selectFreshness(product,freshness){
 var bk=product;var bp=PRODUCT_PRICES[bk]||5;
-var fColor={"Fresh":"#4caf50","Day-1":"#ff9800","Day-2":"#ef6c00","Near-Expired":"#d32f2f"};
-var fLabel={"Fresh":"","Day-1":" 10%OFF","Day-2":" 20%OFF","Near-Expired":" 30%OFF"};
-var dr1={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
+var fLabel={"Fresh":"","Day-1":" 10%OFF"};
+var dr1={"Fresh":0,"Day-1":0.10};
 var discountRate=dr1[freshness]||0;
 var selColor=fColor[freshness]||"#4caf50";
 // Update border color
@@ -639,7 +639,7 @@ var curPrice=discountRate>0?(bp*(1-discountRate)).toFixed(2):bp.toFixed(2);
 var pel=document.getElementById('price-'+bk.replace(/\s/g,'_'));
 if(pel)pel.innerHTML=discountRate>0?'<s style="color:#999;font-size:11px">RM '+bp.toFixed(2)+'</s> RM '+curPrice:'RM '+curPrice;
 // Update dots
-var fOrder=["Fresh","Day-1","Day-2","Near-Expired"];
+var fOrder=["Fresh","Day-1"];
 var dots=document.getElementById('dots-'+bk.replace(/\s/g,'_'));
 if(dots){
 var spans=dots.getElementsByTagName('span');
@@ -667,8 +667,8 @@ if(!freshness)freshness=(window._selFreshness&&window._selFreshness[name])||'Fre
 var found=false;
 for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name&&(cartItems[i].freshness||'Fresh')===freshness){cartItems[i].quantity+=1;found=true;break;}}
 var fresh=freshness||(freshnessMap&&freshnessMap[name]?freshnessMap[name]:'Fresh');
-var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-var dr={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+var tc={"Fresh":"green","Day-1":"yellow"};
+var dr={"Fresh":0,"Day-1":0.10};
 var tray=tc[fresh]||"green";
 var disc=dr[fresh]||0;
 if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tray,discount_rate:disc,freshness:fresh,status:'confirmed'});
@@ -750,8 +750,8 @@ for(var i=0;i<b.items.length;i++){
         if(fresh==='Fresh'&&freshnessMap&&freshnessMap[name]){
             fresh=freshnessMap[name];
         }
-        var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-        var dr={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+        var tc={"Fresh":"green","Day-1":"yellow"};
+        var dr={"Fresh":0,"Day-1":0.10};
         var found=false;
         for(var j=0;j<cartItems.length;j++){
             if(cartItems[j].product_name===name){
@@ -967,7 +967,7 @@ for(var i=0;i<items.length;i++){
 var it=items[i];var q=it.quantity_remaining!=null?it.quantity_remaining:it.quantity;
 if(q<=0)continue;
 var f=it.freshness_status||'Fresh';
-var fc={'Fresh':'#4caf50','Day-1':'#ff9800','Day-2':'#ef6c00','Near-Expired':'#d32f2f','Expired':'#999'};
+var fc={'Fresh':'#4caf50','Day-1':'#ff9800','Day-1':'#ff9800','Expired':'#999'};
 var fcol=fc[f]||'#4caf50';
 tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
 tbl+='<td style="padding:8px 6px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.product_name.replace(/_/g,' ').replace(/\b\w/g,function(x){return x.toUpperCase()})+'</td>';
@@ -1045,7 +1045,7 @@ var nn=document.getElementById('edit-name').value;
 if(!nn){alert('Please select a product');return;}
 var nq=parseInt(document.getElementById('edit-qty').value)||1;
 var nf=document.getElementById("edit-freshness").value;
-var ncMap={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
+var ncMap={"Fresh":"green","Day-1":"yellow"};
 var ntc=nf!=="auto"?ncMap[nf]||"green":"green";
 detections.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:ntc,status:"confirmed",stock:"--",freshness:nf!=="auto"?nf:"Fresh"});
 cartItems.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:ntc,status:"confirmed",freshness:nf!=="auto"?nf:"Fresh"});
@@ -1064,7 +1064,7 @@ var oldName=d.product_name;
 d.product_name=document.getElementById('edit-name').value;
 d.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var df=document.getElementById("edit-freshness").value;
-var cMap={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
+var cMap={"Fresh":"green","Day-1":"yellow"};
 if(df!=="auto"){d.tray_color=cMap[df]||d.tray_color;d.freshness=df;}
 var changes=[];
 if(oldName!==d.product_name)changes.push('name: '+oldName+' -> '+d.product_name);
@@ -1081,8 +1081,8 @@ var oldName=item.product_name;
 item.product_name=document.getElementById('edit-name').value;
 item.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var if2=document.getElementById("edit-freshness").value;
-var cMap2={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-var drMap={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+var cMap2={"Fresh":"green","Day-1":"yellow"};
+var drMap={"Fresh":0,"Day-1":0.10};
 if(if2!=="auto"){item.tray_color=cMap2[if2]||item.tray_color;item.freshness=if2;item.discount_rate=drMap[if2]||0;}
 var changes=[];
 if(oldName!==item.product_name)changes.push('name: '+oldName+' -> '+item.product_name);
@@ -1107,7 +1107,7 @@ function triggerScan(){console.log("1.triggerScan");var inp=document.getElementB
 function capName(name){
 return name.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}).replace(/\b\w/g,function(c){return c.toUpperCase();});
 }
-function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};freshnessStockMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";freshnessStockMap[pn]={"Fresh":0,"Day-1":0,"Day-2":0,"Near-Expired":0};}var f=item.freshness_status||"Fresh";if(f!=="Expired"){stockMap[pn]+=item.quantity||0;freshnessStockMap[pn][f]=(freshnessStockMap[pn][f]||0)+(item.quantity||0);}var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};freshnessStockMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";freshnessStockMap[pn]={"Fresh":0,"Day-1":0};}var f=item.freshness_status||"Fresh";if(f!=="Expired"){stockMap[pn]+=item.quantity||0;freshnessStockMap[pn][f]=(freshnessStockMap[pn][f]||0)+(item.quantity||0);}var frank={"Expired":0,"Fresh":1,"Day-1":2,"Expired":2};if(frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;
@@ -1202,7 +1202,7 @@ cOpts+='<option value="'+cKeys[i]+'"'+sel+'>'+capName(cKeys[i])+'</option>';
 }
 document.getElementById('edit-name').innerHTML='<optgroup label="-- Bakery --">'+bOpts+'</optgroup><optgroup label="-- Coffee --">'+cOpts+'</optgroup>';
 document.getElementById('edit-qty').value=item.quantity;
-var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};
+var fMap={"green":"Fresh","yellow":"Day-1"};
 document.getElementById("edit-freshness").value=item.freshness||fMap[item.tray_color]||"auto";
 document.getElementById('edit-modal').classList.add('show');
 }

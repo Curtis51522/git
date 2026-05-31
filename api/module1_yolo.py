@@ -486,8 +486,8 @@ async def get_batch_inventory():
     AREA_MAP = {
         "Fresh": "Fresh Area",
         "Day-1": "Day-1 Area",
-        "Day-2": "Day-2 Area",
-        "Near-Expired": "Discount Area",
+        
+        "Expired": "Destroyed",
         "Expired": "Expired",
     }
 
