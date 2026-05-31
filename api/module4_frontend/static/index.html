@@ -804,7 +804,7 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>Sales Forecast <button class=
 +'<div id="forecast-result" class="result-box"><span class="spinner"></span>Loading forecast...</div></div>';
 loadForecast(false);
 }
-async function loadForecast(force){if(!window._s2Mae){try{var r=await fetch("/s2/accuracy").then(function(x){return x.json()});if(r.metrics)window._s2Mae=r.metrics;}catch(e){}}if(!window._s2Mae){try{var r=await fetch(chr(47)+chr(115)+chr(50)+chr(47)+chr(97)+chr(99)+chr(99)+chr(117)+chr(114)+chr(97)+chr(99)+chr(121)).then(function(x){return x.json()});if(r.metrics)window._s2Mae=r.metrics;}catch(e){}}
+async function loadForecast(force){if(!window._s2Mae){try{var r=await fetch("/s2/accuracy").then(function(x){return x.json()});if(r.metrics)window._s2Mae=r.metrics;}catch(e){}}if(!window._s2Mae){try{var r=await fetch("/s2/accuracy").then(function(x){return x.json()});if(r.metrics)window._s2Mae=r.metrics;}catch(e){}}
 var url=force?'/s2/forecast/refresh?days=7':'/s2/forecast?days=7';
 var el=document.getElementById('forecast-result');
 if(!force) el.innerHTML='<span class="spinner"></span>Loading forecast...';
@@ -825,7 +825,7 @@ tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
 tbl+='<td style="padding:8px;font-weight:600">'+dates[d]+'</td>';
 for(var p=0;p<prods.length;p++){
 var v=byDay[dates[d]][prods[p]]||'-';
-var txt='-';if(v&&typeof v==='object'&&typeof v.predicted==='number'){txt=v.predicted;var m=window._s2Mae&&window._s2Mae[prods[p]]?window._s2Mae[prods[p]].MAE:null;if(m)txt=v.predicted+chr(177)+m;}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
+var txt='-';if(v&&typeof v==='object'&&typeof v.predicted==='number'){txt=v.predicted;var m=window._s2Mae&&window._s2Mae[prods[p]]?window._s2Mae[prods[p]].MAE:null;if(m)txt=v.predicted+±+m;}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
 }
 tbl+='</tr>';
 }
