@@ -1,6 +1,6 @@
-﻿# -*- coding: utf-8 -*-
-"""XGBoost quantile regression: P2.5 / P50 / P97.5 per product = 18 models.
-Prediction intervals from model-native quantiles — no hand-crafted coefficients."""
+# -*- coding: utf-8 -*-
+"""XGBoost quantile regression: P10 / P50 / P90 per product = 18 models.
+Prediction intervals from model-native quantiles - no hand-crafted coefficients."""
 
 import sys, os, json, warnings
 import numpy as np
@@ -16,7 +16,7 @@ DATA_PATH = os.path.join(ROOT, 'data', 'synthetic_sales_1year.csv')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 PRODUCTS = ['croissant','donut','chiffon','bread_coconut','bread_roll','croissant_chocolate']
-QUANTILES = {'lower': 0.025, 'median': 0.5, 'upper': 0.975}
+QUANTILES = {'lower': 0.10, 'median': 0.5, 'upper': 0.90}
 RANDOM_SEED = 42
 
 FEATURES = [
@@ -58,7 +58,6 @@ def main():
             )
             model.fit(X, y)
 
-            # Evaluate on all splits
             results = []
             for lbl, subset in [('train',train),('val',val),('test',test)]:
                 spdf = subset[subset['product']==prod]
