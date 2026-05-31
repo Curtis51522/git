@@ -8,20 +8,20 @@
   "donut": {
     "learning_rate": 0.03,
     "max_depth": 2,
-    "min_child_weight": 10,
+    "min_child_weight": 5,
     "n_estimators": 100
   },
   "chiffon": {
     "learning_rate": 0.01,
-    "max_depth": 2,
+    "max_depth": 4,
     "min_child_weight": 10,
     "n_estimators": 200
   },
   "bread_coconut": {
-    "learning_rate": 0.05,
+    "learning_rate": 0.03,
     "max_depth": 2,
-    "min_child_weight": 5,
-    "n_estimators": 200
+    "min_child_weight": 10,
+    "n_estimators": 100
   },
   "bread_roll": {
     "learning_rate": 0.03,
@@ -30,9 +30,9 @@
     "n_estimators": 100
   },
   "croissant_chocolate": {
-    "learning_rate": 0.03,
-    "max_depth": 2,
-    "min_child_weight": 10,
-    "n_estimators": 100
+    "learning_rate": 0.01,
+    "max_depth": 4,
+    "min_child_weight": 5,
+    "n_estimators": 200
   }
 }

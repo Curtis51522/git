@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Synthetic 1-year sales dataset with random daily weather.
-Bootstrap sales from real DB, daily weather drawn from realistic distributions."""
+Bootstrap from real DB, stratified by (product x day_of_week x weather_type)."""
 
 import sys, os, json, warnings
 import numpy as np
@@ -34,25 +34,14 @@ def is_ramadan(d):
     except: return 0
 
 def get_weather(dt):
-    """Random daily weather within monthly climatology bounds."""
     m = dt.month; t_mean, r_mean, h_mean = KL_CLIMATE[m]
-
-    # Temperature: normal around monthly mean, +/- 3C
     temp = round(np.clip(np.random.normal(t_mean, 1.8), t_mean-4, t_mean+4), 1)
-
-    # Rainfall: exponential distribution (most days dry, occasional heavy)
-    # Scale such that mean matches monthly average / 30
     daily_rate = r_mean / 30.0
     rain = round(np.random.exponential(daily_rate), 1)
-
-    # Humidity: normal around mean
     hum = round(np.clip(np.random.normal(h_mean, 5), 60, 98), 1)
-
-    # Weather type from daily rain amount
     if rain > 15:   wt = 'rainy'
     elif rain > 3:  wt = 'cloudy'
     else:           wt = 'sunny'
-
     return {
         'temperature': temp, 'rainfall': rain, 'humidity': hum,
         'is_rainy': 1 if rain > 5 else 0,
@@ -73,16 +62,29 @@ def load_real_sales():
         ('outflow',)+tuple(PRODUCTS)
     )
     rows = c.fetchall()
+    # Stratified: (product, dow, weather_type) -> [sales]
+    wt_buckets = defaultdict(list)
+    # Fallback: (product, dow) -> [sales]
     dow_buckets = defaultdict(list)
     for r in rows:
-        dow_buckets[(r['product_name'], r['dt'].weekday())].append(float(r['qty']))
-    return dow_buckets
+        d = r['dt']; m = d.month
+        _, rain_mean, _ = KL_CLIMATE[m]
+        if rain_mean > 250: wt = 'rainy'
+        elif rain_mean > 180: wt = 'cloudy'
+        else: wt = 'sunny'
+        wt_buckets[(r['product_name'], d.weekday(), wt)].append(float(r['qty']))
+        dow_buckets[(r['product_name'], d.weekday())].append(float(r['qty']))
+    return wt_buckets, dow_buckets
 
-def generate_sales(product, dow, dow_buckets):
+def generate_sales(product, dow, weather_type, wt_buckets, dow_buckets):
     if dow == 0: return 0
-    key = (product, dow)
-    if key in dow_buckets and len(dow_buckets[key]) >= 3:
-        return int(round(np.random.choice(dow_buckets[key])))
+    key = (product, dow, weather_type)
+    if key in wt_buckets and len(wt_buckets[key]) >= 2:
+        return int(round(np.random.choice(wt_buckets[key])))
+    # Fallback to day-of-week only
+    dow_key = (product, dow)
+    if dow_key in dow_buckets and len(dow_buckets[dow_key]) >= 2:
+        return int(round(np.random.choice(dow_buckets[dow_key])))
     return 0
 
 def _calendar_lag(sales_lookup, prod, fd, days_back):
@@ -105,24 +107,22 @@ def _calendar_rolling_7d(sales_lookup, prod, fd):
 
 def main():
     print("Loading real sales patterns...")
-    dow_buckets = load_real_sales()
-    print(f"  {sum(len(v) for v in dow_buckets.values())} data points")
+    wt_buckets, dow_buckets = load_real_sales()
+    print(f"  {sum(len(v) for v in wt_buckets.values())} points in {len(wt_buckets)} (product,dow,weather) buckets")
 
     start = date(2025, 6, 1)
     end = date(2026, 5, 31)
     all_dates = [start + timedelta(days=i) for i in range((end-start).days+1)]
     print(f"  Date range: {start} to {end} ({len(all_dates)} days)")
 
-    records = []
-    sales_lookup = {}
-    weather_counts = {'sunny':0, 'cloudy':0, 'rainy':0}
+    records = []; sales_lookup = {}; wc = {'sunny':0, 'cloudy':0, 'rainy':0}
 
     for d in all_dates:
         dow = d.weekday()
         w = get_weather(d)
-        weather_counts[w['weather_type']] += 1
+        wc[w['weather_type']] += 1
         for prod in PRODUCTS:
-            sales = generate_sales(prod, dow, dow_buckets)
+            sales = generate_sales(prod, dow, w['weather_type'], wt_buckets, dow_buckets)
             key = d.strftime('%Y-%m-%d')
             sales_lookup[(prod, key)] = float(sales)
             records.append({
@@ -139,9 +139,8 @@ def main():
             })
 
     df = pd.DataFrame(records)
-    print(f"  Weather: {weather_counts}")
+    print(f"  Weather: {wc}")
     print(f"  Generated {len(df)} rows")
-
     print("Computing lag features...")
     for i, row in df.iterrows():
         prod = row['product']; d = row['date']
@@ -149,30 +148,12 @@ def main():
         df.at[i, 'lag_7'] = _calendar_lag(sales_lookup, prod, d, 7)
         df.at[i, 'rolling_7d_mean'] = _calendar_rolling_7d(sales_lookup, prod, d)
 
-    non_monday = df[df['day_of_week'] != 0]
-    print(f"\nPer-product mean sales (non-Monday):")
-    for prod in PRODUCTS:
-        pdf = df[(df['product']==prod) & (df['day_of_week'] != 0)]
-        print(f"  {prod}: mean={pdf['sales'].mean():.1f}, std={pdf['sales'].std():.1f}")
-
-    features = [
-        'day_of_week','is_weekend','day_of_month','month','is_public_holiday',
-        'is_ramadan','temperature','rainfall','humidity','is_rainy',
-        'weather_sunny','weather_cloudy','weather_rainy','weather_storm',
-        'lag_1','lag_7','rolling_7d_mean',
-    ]
-    print(f"\nAll 17 features: {all(f in df.columns for f in features)}")
-
+    # Show weather-sales relationship
+    for prod in ['croissant','donut']:
+        print(f'\n{prod} sales by weather:')
     out_path = os.path.join(ROOT, 'data', 'synthetic_sales_1year.csv')
     df.to_csv(out_path, index=False)
-    print(f"Saved: {out_path}\n")
-
-    print("Sample weather variation (first 10 days of January):")
-    jan = df[(df['product']=='croissant') & (df['month']==1)].head(10)
-    for _, r in jan.iterrows():
-        d = r['date'].strftime('%Y-%m-%d') if hasattr(r['date'], 'strftime') else str(r['date'])
-        wt = 'rainy' if r['weather_rainy'] else ('cloudy' if r['weather_cloudy'] else 'sunny')
-        print(f"  {d}: {wt:7s} temp={r['temperature']:.1f}C rain={r['rainfall']:.1f}mm hum={r['humidity']:.0f}%")
+    print(f'\nSaved: {out_path}')
 
 if __name__=='__main__':
     main()
