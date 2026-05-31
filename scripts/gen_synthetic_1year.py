@@ -14,7 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 PRODUCTS = ['croissant','donut','chiffon','bread_coconut','bread_roll','croissant_chocolate']
-RANDOM_SEED = 77
+RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 
 _my_holidays = holidays.MY()
