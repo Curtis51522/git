@@ -6,33 +6,33 @@
     "n_estimators": 200
   },
   "donut": {
-    "learning_rate": 0.03,
+    "learning_rate": 0.01,
     "max_depth": 2,
     "min_child_weight": 5,
-    "n_estimators": 100
+    "n_estimators": 200
   },
   "chiffon": {
-    "learning_rate": 0.01,
-    "max_depth": 4,
-    "min_child_weight": 10,
-    "n_estimators": 200
-  },
-  "bread_coconut": {
     "learning_rate": 0.03,
     "max_depth": 2,
     "min_child_weight": 10,
     "n_estimators": 100
   },
-  "bread_roll": {
-    "learning_rate": 0.03,
-    "max_depth": 4,
-    "min_child_weight": 5,
-    "n_estimators": 100
-  },
-  "croissant_chocolate": {
+  "bread_coconut": {
     "learning_rate": 0.01,
-    "max_depth": 4,
+    "max_depth": 2,
+    "min_child_weight": 10,
+    "n_estimators": 200
+  },
+  "bread_roll": {
+    "learning_rate": 0.01,
+    "max_depth": 2,
     "min_child_weight": 5,
     "n_estimators": 200
+  },
+  "croissant_chocolate": {
+    "learning_rate": 0.03,
+    "max_depth": 2,
+    "min_child_weight": 5,
+    "n_estimators": 100
   }
 }
