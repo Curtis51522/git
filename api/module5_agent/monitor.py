@@ -195,7 +195,7 @@ async def _run_monitor_cycle(detector: AnomalyDetector):
             **audit_result,
             "forecast": p_forecast,
             "inventory": p_inventory,
-            "actual": audit_result.get("actual", p_forecast),
+            "actual": p_forecast,
             "recommended_restock": max(0, p_forecast - p_inventory),
         }
         

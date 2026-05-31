@@ -1,7 +1,11 @@
 import httpx, asyncio, logging
 from collections import deque
+from datetime import datetime, timedelta
 
 logger = logging.getLogger("s5.executor")
+
+from config.settings import PRODUCTION_CAPACITY
+from db.mysql_client import get_db
 
 ENDPOINT_HANDLERS = {
     "/s1/batch_inventory":        {"method": "GET", "params": []},
@@ -116,17 +120,15 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
                     target_date = params.get("date", "")
                     if not target_date:
                         # Default to tomorrow, skip Monday
-                        from datetime import datetime as dt, timedelta as td
-                        tm = dt.now() + td(days=1)
+                        tm = datetime.now() + timedelta(days=1)
                         if tm.weekday() == 0:
-                            tm += td(days=1)
+                            tm += timedelta(days=1)
                         target_date = tm.strftime("%Y-%m-%d")
                     # Always skip Monday (shop closed)
                     try:
-                        from datetime import datetime as dt2, timedelta as td2
-                        td_date = dt2.strptime(target_date[:10], "%Y-%m-%d")
+                        td_date = datetime.strptime(target_date[:10], "%Y-%m-%d")
                         if td_date.weekday() == 0:
-                            td_date += td2(days=1)
+                            td_date += timedelta(days=1)
                             target_date = td_date.strftime("%Y-%m-%d")
                     except (ValueError, ImportError):
                         pass
@@ -157,14 +159,14 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
                             collected["forecast_low"] = sum(m.get("lower_bound", 0) for m in match_list)
                             collected["forecast_high"] = sum(m.get("upper_bound", 0) for m in match_list)
                     else:
-                        collected["forecast"] = forecasts[0].get("predicted_demand", 45) if forecasts else 45
+                        collected["forecast"] = forecasts[0].get("predicted_demand", 0) if forecasts else 0
                         collected["forecast_low"] = forecasts[0].get("lower_bound", collected["forecast"])
                         collected["forecast_high"] = forecasts[0].get("upper_bound", collected["forecast"])
                     collected["_all_forecasts"] = forecasts
             if "schedule" in data:
                 collected["schedule"] = data.get("schedule", data.get("shifts", []))
             if "capacity" in data:
-                collected["capacity"] = data.get("capacity", 50)
+                collected["capacity"] = data.get("capacity", PRODUCTION_CAPACITY)
             if "transactions" in data:
                 collected["transactions"] = data.get("transactions", [])
 
@@ -175,24 +177,46 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
 
     collected.setdefault("product", params.get("product", "croissant"))
     if "forecast" not in collected:
-        collected["forecast"] = 45.0
-        logger.warning("Forecast not found, using default 45")
-    collected.setdefault("inventory", 12)
-    collected.setdefault("capacity", 50)
-    collected.setdefault("predictions", [40, 45, 38, 42, 44, 40, 43])
-    collected.setdefault("actuals", [35, 40, 20, 45, 42, 38, 44])
-    collected.setdefault("incremental_revenue", 120.0)
-    collected.setdefault("discount_cost", 30.0)
+        collected["forecast"] = 0.0
+        logger.warning("Forecast not found, setting to 0")
+    if "inventory" not in collected:
+        prod = params.get("product", "")
+        collected["inventory"] = _db_inventory_fallback(prod)
+        logger.warning("Inventory not found, using DB fallback")
+    collected.setdefault("capacity", PRODUCTION_CAPACITY)
+    collected.setdefault("predictions", [])
+    collected.setdefault("actuals", [])
+    collected.setdefault("incremental_revenue", 0.0)
+    collected.setdefault("discount_cost", 0.0)
     collected.setdefault("schedule", [])
     collected.setdefault("transactions", [])
 
     return collected
 
 
+def _db_inventory_fallback(product_name: str = "") -> int:
+    """Query DB directly for current inventory when S1 endpoint fails."""
+    try:
+        db = get_db()
+        c = db.cursor()
+        if product_name:
+            c.execute(
+                "SELECT SUM(quantity) FROM inventory_transactions WHERE product_name = %s",
+                (product_name,)
+            )
+        else:
+            c.execute("SELECT SUM(quantity) FROM inventory_transactions WHERE transaction_type = 'inflow'")
+        row = c.fetchone()
+        return int(row[0]) if row and row[0] else 0
+    except Exception as e:
+        logger.warning("DB inventory fallback failed: %s", e)
+        return 0
+
 def _mock_fallback(params: dict) -> dict:
     """Fallback when DAG execution fails."""
+    prod = params.get("product", "")
     return {
-        "forecast": params.get("forecast", 45.0),
-        "inventory": params.get("inventory", 12),
-        "capacity": params.get("capacity", 50),
+        "forecast": 0,
+        "inventory": _db_inventory_fallback(prod),
+        "capacity": PRODUCTION_CAPACITY,
     }

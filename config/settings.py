@@ -47,3 +47,16 @@ COLD_START_WEEKS = 4
 MIN_TRAINING_DAYS = 30
 
 INTENT_LABELS = ["stock_query", "waste_analysis", "promo_eval", "schedule_audit", "cross_source_audit", "out_of_scope"]
+# Coffee-to-bakery demand ratio for staffing estimation
+COFFEE_DEMAND_RATIO = 0.6
+# Daily production capacity per product (units)
+PRODUCTION_CAPACITY = 50
+# --- Verifier thresholds ---
+BAKER_UNITS_PER_HOUR = 15        # units a baker can produce per hour
+BAKER_HOURS_PER_SHIFT = 8        # hours per shift for capacity calc
+STOCKOUT_THRESHOLD = 0.2         # inventory/forecast below this = stockout risk
+OVERSTOCK_THRESHOLD = 2.0        # inventory/forecast above this = overstock
+FORECAST_CHANGE_NORMAL_PCT = 15  # forecast change % within this = normal
+# Demand level absolute thresholds (daily total units)
+DEMAND_HIGH_THRESHOLD = 280
+DEMAND_LOW_THRESHOLD = 230

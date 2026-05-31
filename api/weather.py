@@ -1,4 +1,4 @@
-﻿"""Weather data provider for S2 sales forecasting.
+"""Weather data provider for S2 sales forecasting.
 
 Primary: OpenWeatherMap 5-day/3-hour forecast (free tier, API key required)
 Fallback: Open-Meteo (free, no key)
@@ -21,7 +21,7 @@ KL_LAT = 3.139
 KL_LON = 101.6869
 
 # OpenWeatherMap API key
-_VISUALCROSSING_KEY = "AR6BLBKVF29QPL5RF5EU2H6MH"
+_VISUALCROSSING_KEY = os.getenv("WEATHER_API_KEY", "")
 
 # Monthly fallback (Sultan Abdul Aziz Shah Airport, 1991-2020 normals)
 # Source: Wikipedia / Met Malaysia (temp_C, rainfall_mm, humidity_pct)

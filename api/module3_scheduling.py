@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 import sys, os, logging
 logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import PRODUCT_TYPES
+from config.settings import PRODUCT_TYPES, COFFEE_DEMAND_RATIO, DEMAND_HIGH_THRESHOLD, DEMAND_LOW_THRESHOLD
 from db.mysql_client import get_db, q
 
 router = APIRouter(prefix="/s3", tags=["Module 3 - Shift Scheduling"])
@@ -64,9 +64,9 @@ DEFAULT_EMPLOYEES = [
     Employee(id="E008", name="Lisa",    role="cleaner",  min_hours_per_week=14, max_hours_per_week=42),
 ]
 
-TIME_SLOTS = ["08:00-14:00", "14:00-20:00"]
+TIME_SLOTS = ["09:00-14:00", "14:00-19:00"]
 ROLES = ["baker", "cashier", "barista", "cleaner"]
-SLOT_HOURS = {"08:00-14:00": 6, "14:00-20:00": 6}
+SLOT_HOURS = {"09:00-14:00": 5, "14:00-19:00": 5}
 
 
 
@@ -129,28 +129,24 @@ def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
             freshness = f.get("freshness_status", "Fresh")
 
             # Only count Fresh demand for production planning
-            if freshness == "Fresh":
+            if freshness in ("Fresh", "Total"):
                 daily[d]["baker_units"] += demand
 
-            daily[d]["total_units"] += demand if freshness == "Fresh" else 0
+            daily[d]["total_units"] += demand if freshness in ("Fresh", "Total") else 0
 
             # Estimate coffee demand as proportional to total bakery demand
             # ~60% of bakery customers also buy coffee
-            if freshness == "Fresh":
+            if freshness in ("Fresh", "Total"):
                 daily[d]["coffee_units"] += int(demand * 0.6)
 
         # --- Data-driven demand level classification ---
         # Within-week relative ranking: top 1/3 = high, middle = normal, bottom 1/3 = low.
         # Historical absolute thresholds activate once 90+ days of real ops data exist.
-        sorted_days = sorted(daily.items(), key=lambda x: x[1]["total_units"], reverse=True)
-        n = len(sorted_days)
-        high_cut = max(1, n // 3)
-        low_cut = n - high_cut
-
-        for rank, (d, _) in enumerate(sorted_days):
-            if rank < high_cut:
+        for d, item in daily.items():
+            total = item["total_units"]
+            if total >= DEMAND_HIGH_THRESHOLD:
                 daily[d]["demand_level"] = "high"
-            elif rank >= low_cut:
+            elif total < DEMAND_LOW_THRESHOLD:
                 daily[d]["demand_level"] = "low"
             else:
                 daily[d]["demand_level"] = "normal"
@@ -246,16 +242,29 @@ def solve_shift_schedule(
                     if role_name != emp_role:
                         model.Add(shift[(e_idx, d, s, r_idx)] == 0)
 
-    # --- Constraint 2: Cleaner, Cashier & Barista -- must cover every shift ---
+    # --- Count high-demand days for hour relaxation ---
+    high_day_count = sum(1 for d in range(num_days) if daily_demand[d].get("baker", 0) >= 2)
+
+    # --- Constraint 2: Frontline coverage per slot ---
+    # Cleaner: always 1 per slot.
+    # Cashier & Barista: on high-demand days, all available work both slots.
+    # On normal/low days, 1 per slot.
     for d in range(num_days):
         req = daily_demand[d]
+        is_high = req.get("baker", 0) >= 2
         for s in range(num_slots):
             for role_name in ["cleaner", "cashier", "barista"]:
                 if req.get(role_name, 0) == 0:
                     continue
                 slot_shifts = [shift[(e_idx, d, s, ROLES.index(role_name))]
                                for e_idx in range(num_employees)]
-                model.Add(sum(slot_shifts) == 1)
+                if role_name == "cleaner":
+                    model.Add(sum(slot_shifts) == 1)
+                elif is_high:
+                    role_emps = len(role_to_emps.get(role_name, []))
+                    model.Add(sum(slot_shifts) >= min(2, role_emps))
+                else:
+                    model.Add(sum(slot_shifts) == 1)
 
     # --- Constraint 3: Baker -- morning coverage, flexible afternoon ---
     # Morning always needs at least 1 baker (baking starts early).
@@ -306,13 +315,16 @@ def solve_shift_schedule(
             for d in range(num_days) for s in range(num_slots) for r in range(num_roles)
         )
         model.Add(weekly_hours >= int(emp.min_hours_per_week))
-        # Relax max when colleagues are sick
+        # Relax max when colleagues are sick or during high-demand weeks
         max_h = int(emp.max_hours_per_week)
         sick_in_role = sick_count_by_role.get(emp.role, 0)
         if sick_in_role > 0:
             total_in_role = len(role_to_emps.get(emp.role, []))
             available = max(1, total_in_role - sick_in_role)
             max_h = int(max_h * total_in_role / available)
+        # Frontline roles: allow +6h per extra high-demand day beyond 1
+        if emp.role in ("cashier", "barista") and high_day_count > 1:
+            max_h = min(max_h + (high_day_count - 1) * 6, 48)
         model.Add(weekly_hours <= max_h)
 
     # --- Constraint 6: Unavailable dates ---

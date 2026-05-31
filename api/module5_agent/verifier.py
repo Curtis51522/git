@@ -9,6 +9,7 @@ Architecture (redesigned):
 """
 
 import json, logging
+from config.settings import BAKER_UNITS_PER_HOUR, BAKER_HOURS_PER_SHIFT, STOCKOUT_THRESHOLD, OVERSTOCK_THRESHOLD, FORECAST_CHANGE_NORMAL_PCT
 from typing import Dict, List, Tuple, Optional
 
 logger = logging.getLogger("s5.verifier")
@@ -312,7 +313,7 @@ class VerifierAgent:
 
         except Exception as e:
             # SHAP failed, fall back to basic change check
-            if abs(change_pct) < 15:
+            if abs(change_pct) < FORECAST_CHANGE_NORMAL_PCT:
                 return True, [], {"L4_R12": f"change {change_pct:.0f}% within normal range"}
             ctx = (
                 f"Forecast {forecast} vs today {today_val}{date_info} "
@@ -346,7 +347,7 @@ class VerifierAgent:
                 bakers_per_day[s.get("schedule_date", s.get("date", ""))] += 1
 
         max_bakers = max(bakers_per_day.values()) if bakers_per_day else 0
-        daily_capacity = max_bakers * 8 * 15
+        daily_capacity = max_bakers * BAKER_HOURS_PER_SHIFT * BAKER_UNITS_PER_HOUR
         if daily_capacity <= 0:
             return True, False, "no bakers on schedule"
 
@@ -367,8 +368,8 @@ class VerifierAgent:
             return True, False, "no forecast"
 
         ratio = inventory / forecast
-        stockout = ratio < 0.2
-        overstock = ratio > 2.0
+        stockout = ratio < STOCKOUT_THRESHOLD
+        overstock = ratio > OVERSTOCK_THRESHOLD
 
         if stockout:
             return False, 0.1 <= ratio < 0.25, (

@@ -825,7 +825,7 @@ tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
 tbl+='<td style="padding:8px;font-weight:600">'+dates[d]+'</td>';
 for(var p=0;p<prods.length;p++){
 var v=byDay[dates[d]][prods[p]]||'-';
-var txt='-';if(v&&typeof v==='object'&&typeof v.predicted==='number'){txt=v.predicted;var m=window._s2Mae&&window._s2Mae[prods[p]]?window._s2Mae[prods[p]].MAE:null;if(m)txt=v.predicted+±+m;}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
+var txt='-';if(v&&typeof v==='object'&&typeof v.predicted==='number'){if(v.predicted===0){txt='Closed'}else{txt=v.predicted;var m=window._s2Mae&&window._s2Mae[prods[p]]?window._s2Mae[prods[p]].MAE:null;if(m)txt=Math.round(v.predicted-m)+"-"+Math.round(v.predicted+m);}}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
 }
 tbl+='</tr>';
 }
@@ -1078,7 +1078,7 @@ var sched=r.result&&r.result.schedule;
 if(sched&&sched.length>0&&r.show_table!==false){
 out+='<br><br><strong style="font-size:14px">Schedule</strong><br>';
 var dates=[],seen={};for(var i=0;i<sched.length;i++){if(!seen[sched[i].date]){dates.push(sched[i].date);seen[sched[i].date]=true;}}dates.sort();
-var slots=['08:00-14:00','14:00-20:00'];
+var slots=['09:00-14:00','14:00-19:00'];
 out+='<table class="sched-table" style="font-size:13px;margin-top:8px"><thead><tr><th>Time</th>';
 for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');out+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
 out+='</tr></thead><tbody>';
@@ -1294,7 +1294,7 @@ document.getElementById('edit-modal').classList.add('show');
 }
 function renderScheduleTable(s,r){
 if(!s||!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No feasible schedule. Too many sick or skill gaps. Try different date.';return}
-var slots=['08:00-14:00','14:00-20:00'];
+var slots=['09:00-14:00','14:00-19:00'];
 var dates=[],seen={};for(var i=0;i<s.length;i++){if(!seen[s[i].date]){dates.push(s[i].date);seen[s[i].date]=true;}}dates.sort();
 var tbl='<table class="sched-table" style="font-size:14px"><thead><tr><th>Time</th>';
 for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');tbl+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, date
 from typing import Optional, Dict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import PRODUCT_TYPES, FRESHNESS_STATES
+from config.settings import PRODUCT_TYPES, FRESHNESS_STATES, FORECAST_FEATURE_COLS
 from api.weather import get_weather
 import holidays
 from hijri_converter import convert
@@ -154,7 +154,6 @@ def build_forecast_features(forecast_date: datetime, freshness: str = "", produc
     dow = forecast_date.weekday()
     wt = weather.get("weather_type", "cloudy")
     dt_date = forecast_date.date() if hasattr(forecast_date, 'date') else date(forecast_date.year, forecast_date.month, forecast_date.day)
-    from config.settings import FORECAST_FEATURE_COLS
 
     features_dict = {
         "day_of_week": dow,

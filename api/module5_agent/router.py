@@ -27,6 +27,7 @@ from api.module5_agent.fusion import FusionModule
 from api.module5_agent.verifier import VerifierAgent
 from api.module5_agent.composer import ComposerAgent
 from api.module5_agent.memory import get_memory
+from config.settings import PRODUCTION_CAPACITY
 
 logger = logging.getLogger("s5.router")
 
@@ -265,7 +266,7 @@ async def handle_query(payload: dict):
             all_forecasts = data.get("_all_forecasts", [])
             logger.info("Multi-product: using initial _all_forecasts (%d entries)", len(all_forecasts))
         all_inventory = data.get("_all_inventory", [])
-        capacity = data.get("capacity", 50)
+        capacity = data.get("capacity", PRODUCTION_CAPACITY)
         
         # Determine target date: tomorrow, always skip Monday
         from datetime import datetime as dt, timedelta as td
