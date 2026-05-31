@@ -97,6 +97,8 @@ def main():
         json.dump(FEATURES, f, indent=2)
     with open(os.path.join(MODEL_DIR,'best_params.json'),'w') as f:
         json.dump(best_params_all, f, indent=2)
+    with open(os.path.join(MODEL_DIR,"test_metrics.json"),"w") as f:
+        json.dump(results_all, f, indent=2)
     print('Done - 6 median models saved.\n')
     print('Accuracy reference:')
     for prod in PRODUCTS:
