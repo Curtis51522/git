@@ -234,7 +234,17 @@ class VerifierAgent:
         else:
             change_pct = 0
 
-        date_info = f" for {tomorrow_date}" if tomorrow_date else ""
+        # Apply Monday skip to effective date (shop closed Mondays)
+        effective_date = tomorrow_date or (dates[1] if len(dates) > 1 else dates[0])
+        try:
+            from datetime import datetime as _vdt, timedelta as _vtd
+            _ed = _vdt.strptime(effective_date[:10], "%Y-%m-%d")
+            if _ed.weekday() == 0:
+                _ed += _vtd(days=1)
+                effective_date = _ed.strftime("%Y-%m-%d")
+        except (ValueError, ImportError):
+            pass
+        date_info = f" for {effective_date}" if effective_date else ""
 
         # ---- SHAP-based causal attribution ----
         try:
@@ -242,9 +252,7 @@ class VerifierAgent:
                 compute_shap_attribution, generate_causal_chain,
                 build_llm_causal_prompt,
             )
-            # Use tomorrow (dates[1]) for SHAP to avoid today's holiday context leaking
-            shap_date = tomorrow_date or (dates[1] if len(dates) > 1 else dates[0])
-            attr = compute_shap_attribution(product, shap_date)
+            attr = compute_shap_attribution(product, effective_date)
             if attr.get("error"):
                 raise ValueError(attr["error"])
 

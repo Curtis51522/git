@@ -9,7 +9,7 @@ Designed as an asyncio background task started in main.py.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from api.module5_agent.fusion import FusionModule
@@ -173,8 +173,12 @@ async def _run_monitor_cycle(detector: AnomalyDetector):
     
     for product in products:
         # Per-product forecast (tomorrow''s value)
-        p_forecasts = [f for f in all_forecasts if f.get("product_name", "") == product]
-        p_forecast = p_forecasts[0].get("predicted_demand", 0) if p_forecasts else 0
+        tomorrow = datetime.now() + timedelta(days=1)
+        if tomorrow.weekday() == 0:
+            tomorrow += timedelta(days=1)
+        tomorrow_str = tomorrow.strftime("%Y-%m-%d")
+        p_forecasts = [f for f in all_forecasts if f.get("product_name", "") == product and f.get("forecast_date", "") == tomorrow_str]
+        p_forecast = sum(f.get("predicted_demand", 0) for f in p_forecasts)
         
         # Per-product inventory
         p_inventory = sum(
@@ -183,6 +187,7 @@ async def _run_monitor_cycle(detector: AnomalyDetector):
         )
         
         if p_forecast <= 0:
+            logger.info("Monitor: %s tomorrow forecast=0, skipped", product)
             continue
         
         # Build per-product audit result for feature vector

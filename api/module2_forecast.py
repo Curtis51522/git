@@ -76,7 +76,78 @@ def load_product_model(product_name: str) -> xgb.XGBRegressor:
 def get_available_products() -> list:
     return [p for p in PRODUCT_TYPES if os.path.exists(_model_path(p))]
 
-def build_forecast_features(forecast_date: datetime, freshness: str, product: str = "") -> dict:
+
+# --- Lag feature helpers (DB-backed) ---
+_lag_cache = {}
+_lag_cache_ts = {}
+
+def _get_product_daily_sales(product_name: str) -> dict:
+    """Query DB for daily sales totals per product. Cached for 5 minutes."""
+    global _lag_cache, _lag_cache_ts
+    now = time.time()
+    if product_name in _lag_cache and product_name in _lag_cache_ts and (now - _lag_cache_ts[product_name]) < 300:
+        return _lag_cache[product_name]
+    try:
+        db = get_db()
+        c = db.cursor(dictionary=True)
+        c.execute(
+            "SELECT DATE(transaction_time) as dt, SUM(quantity) as qty "
+            "FROM inventory_transactions "
+            "WHERE transaction_type='outflow' AND product_name=%s "
+            "GROUP BY DATE(transaction_time) ORDER BY dt",
+            (product_name,)
+        )
+        sales = {row['dt'].strftime('%Y-%m-%d') if hasattr(row['dt'], 'strftime') else str(row['dt']): row['qty'] for row in c.fetchall()}
+    except Exception as e:
+        logger.warning("Lag features DB query failed for %s: %s", product_name, e)
+        sales = {}
+    _lag_cache[product_name] = sales
+    _lag_cache_ts[product_name] = now
+    # Cleanup stale entries (older than 10 min)
+    stale = [k for k, ts in list(_lag_cache_ts.items()) if now - ts > 600]
+    for k in stale:
+        _lag_cache.pop(k, None)
+        _lag_cache_ts.pop(k, None)
+    return sales
+
+def _get_lag(product_name: str, forecast_date, days_back: int) -> float:
+    """Get sales from 'days_back' days before forecast_date, skipping closed days."""
+    if not product_name:
+        return 0.0
+    sales = _get_product_daily_sales(product_name)
+    if not sales:
+        return 0.0
+    from datetime import timedelta
+    fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
+    target = fd - timedelta(days=days_back)
+    # Try the exact date first, then back up to find the nearest day with data
+    for _ in range(4):
+        key = target.strftime('%Y-%m-%d')
+        if key in sales:
+            return float(sales[key])
+        target -= timedelta(days=1)
+    return 0.0
+
+def _get_rolling_7d_mean(product_name: str, forecast_date) -> float:
+    """Average daily sales over the 7 days before forecast_date."""
+    if not product_name:
+        return 0.0
+    sales = _get_product_daily_sales(product_name)
+    if not sales:
+        return 0.0
+    from datetime import timedelta
+    fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
+    values = []
+    for d in range(1, 8):
+        target = fd - timedelta(days=d)
+        key = target.strftime('%Y-%m-%d')
+        if key in sales:
+            values.append(sales[key])
+    if not values:
+        return 0.0
+    return float(sum(values) / len(values))
+
+def build_forecast_features(forecast_date: datetime, freshness: str = "", product: str = "") -> dict:
     weather = get_weather(forecast_date)
     dow = forecast_date.weekday()
     wt = weather.get("weather_type", "cloudy")
@@ -88,7 +159,7 @@ def build_forecast_features(forecast_date: datetime, freshness: str, product: st
         "is_weekend": 1 if dow >= 5 else 0,
         "day_of_month": forecast_date.day,
         "month": forecast_date.month,
-        "discount_rate": 0.2 if freshness == "Day-1" else 0.0,
+
         "is_public_holiday": 1 if dt_date in _my_holidays else 0,
         "is_ramadan": 1 if _is_ramadan_date(dt_date) else 0,
         "temperature": weather.get("temperature", 28.0),
@@ -99,11 +170,9 @@ def build_forecast_features(forecast_date: datetime, freshness: str, product: st
         "weather_cloudy": 1 if wt == "cloudy" else 0,
         "weather_rainy": 1 if wt == "rainy" else 0,
         "weather_storm": 1 if wt in ("storm", "thunderstorm") else 0,
-        "freshness_Fresh": 1 if freshness == "Fresh" else 0,
-        "freshness_Day-1": 1 if freshness == "Day-1" else 0,
-        "lag_1": 0.0,  # cold-start default; replace with DB query for production
-        "lag_7": 0.0,
-        "rolling_7d_mean": 0.0,
+        "lag_1": _get_lag(product, forecast_date, 1),
+        "lag_7": _get_lag(product, forecast_date, 7),
+        "rolling_7d_mean": _get_rolling_7d_mean(product, forecast_date),
     }
     # Ensure all expected columns present
     for col in FORECAST_FEATURE_COLS:
@@ -144,37 +213,36 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
             continue
         for d in range(0, days):
             forecast_date = today + timedelta(days=d)
-            # Monday = shop closed, output zero-demand entries
+            # Monday = shop closed, output zero-demand entry
             if forecast_date.weekday() == 0:
-                for freshness in FRESHNESS_STATES:
-                    forecasts.append(SalesForecast(
-                        forecast_date=forecast_date.strftime("%Y-%m-%d"),
-                        product_name=prod,
-                        freshness_status=freshness,
-                        predicted_demand=0,
-                        lower_bound=0,
-                        upper_bound=0,
-                        confidence="closed",
-                    ))
-                continue
-            for freshness in FRESHNESS_STATES:
-                features = build_forecast_features(forecast_date, freshness, prod)
-                X = pd.DataFrame([features]).fillna(0)
-                try:
-                    pred = float(model.predict(X)[0])
-                    pred = max(0.0, pred)
-                except Exception:
-                    pred = 0.0
-                std_dev = pred * 0.15
                 forecasts.append(SalesForecast(
                     forecast_date=forecast_date.strftime("%Y-%m-%d"),
                     product_name=prod,
-                    freshness_status=freshness,
-                    predicted_demand=round(pred),
-                    lower_bound=round(max(0, pred - 1.96 * std_dev)),
-                    upper_bound=round(pred + 1.96 * std_dev),
-                    confidence="today" if d == 0 else ("high" if d <= 2 else ("medium" if d <= 5 else "low")),
+                    freshness_status="Total",
+                    predicted_demand=0,
+                    lower_bound=0,
+                    upper_bound=0,
+                    confidence="closed",
                 ))
+                continue
+            features = build_forecast_features(forecast_date, "", prod)
+            X = pd.DataFrame([features]).fillna(0)
+            try:
+                pred = float(model.predict(X)[0])
+                pred = max(0.0, pred)
+            except Exception as e:
+                logger.warning("Prediction failed for %s on %s: %s", prod, forecast_date.strftime("%%Y-%%m-%%d"), e)
+                pred = 0.0
+            std_dev = pred * 0.15
+            forecasts.append(SalesForecast(
+                forecast_date=forecast_date.strftime("%Y-%m-%d"),
+                product_name=prod,
+                freshness_status="Total",
+                predicted_demand=round(pred),
+                lower_bound=round(max(0, pred - 1.96 * std_dev)),
+                upper_bound=round(pred + 1.96 * std_dev),
+                confidence="today" if d == 0 else ("high" if d <= 2 else ("medium" if d <= 5 else "low")),
+            ))
 
     response = {
         "status": "ok",
@@ -194,9 +262,10 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
 async def get_forecast(
     product: Optional[str] = Query(None, description="Product name or empty for all"),
     days: int = Query(7, ge=1, le=7),
+    date: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
 ):
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_executor, _do_forecast, product, days, True)
+    return await loop.run_in_executor(_executor, _do_forecast, product, days, True, date)
 
 @router.get("/forecast/refresh")
 async def refresh_forecast(
@@ -211,7 +280,16 @@ async def refresh_forecast(
 @router.get("/sales_history")
 async def get_sales_history(days: int = Query(30, ge=1, le=90)):
     db = get_db()
-    r = q(db, "inventory_transactions").select("*").eq("transaction_type", "outflow").order("transaction_time", desc=True).limit(200).execute()
-    return {"status": "ok", "count": len(r.data) if r.data else 0, "transactions": r.data if r.data else []}
+    c = db.cursor(dictionary=True)
+    c.execute(
+        "SELECT * FROM inventory_transactions WHERE transaction_type=%s ORDER BY transaction_time DESC LIMIT 200",
+        ("outflow",)
+    )
+    rows = c.fetchall()
+    for row in rows:
+        for k, v in row.items():
+            if hasattr(v, 'isoformat'):
+                row[k] = v.isoformat()
+    return {"status": "ok", "count": len(rows), "transactions": rows}
 
 

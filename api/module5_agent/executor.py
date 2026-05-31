@@ -1,4 +1,4 @@
-﻿import httpx, asyncio, logging
+import httpx, asyncio, logging
 from collections import deque
 
 logger = logging.getLogger("s5.executor")
@@ -99,6 +99,7 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
 
             if "inventory" in data:
                 prod = params.get("product", "")
+                collected["_all_inventory"] = data["inventory"]
                 if prod:
                     collected["inventory"] = sum(
                         b.get("quantity", 0) for b in data["inventory"]
@@ -108,39 +109,58 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
                     collected["inventory"] = sum(
                         b.get("quantity", 0) for b in data["inventory"]
                     )
-                    collected["_all_inventory"] = data["inventory"]
             if "forecasts" in data or "forecast" in data:
                 forecasts = data.get("forecasts", data.get("forecast", []))
                 if forecasts:
                     prod = params.get("product", "")
-                    if prod:
-                        match = None
+                    target_date = params.get("date", "")
+                    if not target_date:
+                        # Default to tomorrow, skip Monday
+                        from datetime import datetime as dt, timedelta as td
+                        tm = dt.now() + td(days=1)
+                        if tm.weekday() == 0:
+                            tm += td(days=1)
+                        target_date = tm.strftime("%Y-%m-%d")
+                    # Always skip Monday (shop closed)
+                    try:
+                        from datetime import datetime as dt2, timedelta as td2
+                        td_date = dt2.strptime(target_date[:10], "%Y-%m-%d")
+                        if td_date.weekday() == 0:
+                            td_date += td2(days=1)
+                            target_date = td_date.strftime("%Y-%m-%d")
+                    except (ValueError, ImportError):
+                        pass
+                    # Build list of matching forecasts (product + date)
+                    match_list = []
+                    for f in forecasts:
+                        fd = f.get("forecast_date", "")
+                        if isinstance(fd, str) and len(fd) > 10:
+                            fd = fd[:10]
+                        if prod:
+                            if f.get("product_name", "") == prod and fd == target_date:
+                                match_list.append(f)
+                        else:
+                            if fd == target_date:
+                                match_list.append(f)
+                    logger.info("Executor forecast: target_date=%s, match_list=%d entries", target_date, len(match_list))
+                    if match_list:
+                        collected["forecast"] = sum(m.get("predicted_demand", 0) for m in match_list)
+                        collected["forecast_low"] = sum(m.get("lower_bound", 0) for m in match_list)
+                        collected["forecast_high"] = sum(m.get("upper_bound", 0) for m in match_list)
+                    elif prod:
+                        # Fallback: match any date for this product
                         for f in forecasts:
                             if f.get("product_name", "") == prod:
-                                match = f
-                                break
-                        if match:
-                            collected["forecast"] = match.get("predicted_demand", 45)
-                        elif forecasts:
-                            collected["forecast"] = forecasts[0].get("predicted_demand", 45)
+                                match_list.append(f)
+                        if match_list:
+                            collected["forecast"] = sum(m.get("predicted_demand", 0) for m in match_list)
+                            collected["forecast_low"] = sum(m.get("lower_bound", 0) for m in match_list)
+                            collected["forecast_high"] = sum(m.get("upper_bound", 0) for m in match_list)
                     else:
                         collected["forecast"] = forecasts[0].get("predicted_demand", 45) if forecasts else 45
-                    collected["_all_forecasts"] = forecasts
-                    # Extract bounds for interval-based stocking
-                    if prod and forecasts:
-                        match = None
-                        for f in forecasts:
-                            if f.get("product_name", "") == prod:
-                                match = f
-                                break
-                        if match is None and forecasts:
-                            match = forecasts[0]
-                        if match:
-                            collected["forecast_low"] = match.get("lower_bound", collected["forecast"])
-                            collected["forecast_high"] = match.get("upper_bound", collected["forecast"])
-                    elif forecasts:
                         collected["forecast_low"] = forecasts[0].get("lower_bound", collected["forecast"])
                         collected["forecast_high"] = forecasts[0].get("upper_bound", collected["forecast"])
+                    collected["_all_forecasts"] = forecasts
             if "schedule" in data:
                 collected["schedule"] = data.get("schedule", data.get("shifts", []))
             if "capacity" in data:

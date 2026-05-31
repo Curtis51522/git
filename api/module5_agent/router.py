@@ -151,12 +151,18 @@ async def handle_query(payload: dict):
     is_multi_product = any(kw in query_padded for kw in comparison_kw)
     multi_products = []
     if is_multi_product:
-        for pn in PRODUCT_NAMES:
-            pn_display = pn.replace("_", " ")
-            if pn_display in query_lower or pn in query_lower:
-                canonical = pn.replace(" ", "_")
-                if canonical not in multi_products:
-                    multi_products.append(canonical)
+        # Detect "all/every" keyword -> expand to all canonical products
+        all_kw = [" all ", " every ", " each "]
+        has_all = any(kw in query_padded for kw in all_kw)
+        if has_all:
+            multi_products = ["croissant", "croissant_chocolate", "donut", "chiffon", "bread_roll", "bread_coconut"]
+        else:
+            for pn in PRODUCT_NAMES:
+                pn_display = pn.replace("_", " ")
+                if pn_display in query_lower or pn in query_lower:
+                    canonical = pn.replace(" ", "_")
+                    if canonical not in multi_products:
+                        multi_products.append(canonical)
     
     if not params.get("product"):
         for pn in PRODUCT_NAMES:
@@ -237,23 +243,60 @@ async def handle_query(payload: dict):
 
     # ---- Step 4: Fusion (dispatch by intent) --------------------------
     if intent == "stock_query" and len(multi_products) >= 2:
-        # Multi-product comparison: build per-product data from raw executor output
-        all_forecasts = data.get("_all_forecasts", [])
+        # Multi-product comparison: directly fetch all forecasts (bypass executor)
+        import httpx
+        all_forecasts = []
+        try:
+            async with httpx.AsyncClient() as fc_client:
+                fc_resp = await fc_client.get(
+                    "http://localhost:8000/s2/forecast",
+                    params={"days": 7},
+                    timeout=httpx.Timeout(30.0)
+                )
+                if fc_resp.status_code == 200:
+                    fc_data = fc_resp.json()
+                    all_forecasts = fc_data.get("forecasts", fc_data.get("forecast", []))
+                    logger.info("Multi-product refetch: got %d forecast entries", len(all_forecasts))
+                else:
+                    logger.warning("Multi-product refetch HTTP %d, falling back to initial data", fc_resp.status_code)
+        except Exception as e:
+            logger.warning("Multi-product refetch failed: %s, falling back to initial data", e)
+        if not all_forecasts:
+            all_forecasts = data.get("_all_forecasts", [])
+            logger.info("Multi-product: using initial _all_forecasts (%d entries)", len(all_forecasts))
         all_inventory = data.get("_all_inventory", [])
         capacity = data.get("capacity", 50)
         
+        # Determine target date: tomorrow, always skip Monday
+        from datetime import datetime as dt, timedelta as td
+        target_date = params.get("date", "")
+        if target_date:
+            try:
+                td_date = dt.strptime(target_date[:10], "%Y-%m-%d")
+                if td_date.weekday() == 0:
+                    td_date += td(days=1)
+                    target_date = td_date.strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+        else:
+            tm = dt.now() + td(days=1)
+            if tm.weekday() == 0:
+                tm += td(days=1)
+            target_date = tm.strftime("%Y-%m-%d")
         products_data = []
         for p in multi_products:
             p_forecast = 0
             for f in all_forecasts:
-                if f.get("product_name") == p and f.get("freshness_status") in ("Fresh",):
-                    p_forecast = f.get("predicted_demand", 0)
-                    break
+                fd = f.get("forecast_date", "")
+                if isinstance(fd, str) and len(fd) > 10:
+                    fd = fd[:10]
+                if f.get("product_name") == p and fd == target_date:
+                    p_forecast += f.get("predicted_demand", 0)
             if p_forecast == 0:
+                # Fallback: any date for this product
                 for f in all_forecasts:
                     if f.get("product_name") == p:
-                        p_forecast = f.get("predicted_demand", 0)
-                        break
+                        p_forecast += f.get("predicted_demand", 0)
             
             p_inventory = sum(
                 b.get("quantity", 0) for b in all_inventory

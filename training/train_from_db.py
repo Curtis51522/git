@@ -23,9 +23,10 @@ MODEL_DIR = os.path.join(ROOT, "models", "xgboost")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 PRODUCT_TYPES = ["donut","croissant","bread_coconut","bread_roll","chiffon","croissant_chocolate"]
-PRODUCT_BASE = {"donut":35,"croissant":30,"bread_coconut":18,"bread_roll":20,"chiffon":14,"croissant_chocolate":25}  # actual daily sales baseline
+PRODUCT_BASE_WD = {"croissant":44.9,"donut":33.8,"bread_roll":30.0,"croissant_chocolate":25.0,"bread_coconut":20.7,"chiffon":17.7}
+PRODUCT_BASE_WE = {"croissant":65.7,"donut":61.3,"bread_roll":51.0,"croissant_chocolate":43.7,"bread_coconut":37.9,"chiffon":31.8}
 WEATHER_IMPACT = {"sunny":1.0,"cloudy":0.95,"rainy":0.75,"foggy":0.85,"thunderstorm":0.55,"storm":0.55}
-WEEKEND_BOOST = 1.25
+# Weekend boost: built into PRODUCT_BASE_WE
 
 # DOSM-calibrated: Malaysia F&B Services Volume Index (2015=100), annual pattern
 # Source: DOSM Monthly Manufacturing & F&B Services Statistics, 2019-2024 averages
@@ -34,7 +35,7 @@ MONTH_SEASONALITY = {
     7: 1.10, 8: 1.05, 9: 1.02, 10: 1.00, 11: 0.92, 12: 1.18,
 }
 
-COMBINED_UPLIFT = 1.0   # Direct daily sales baseline (no freshness multiplier)
+# Baselines from DB (weekday/weekend split)
 
 KL_WEATHER_PROB = {
     1:{"sunny":0.15,"cloudy":0.45,"rainy":0.35,"thunderstorm":0.05},
@@ -138,9 +139,9 @@ def generate_sales_data(days=365):
         # Ramadan effect: mild daily volume shift
         ramadan_mod = random.uniform(0.92, 1.05) if is_ramadan else 1.0
 
-        for prod, base in PRODUCT_BASE.items():
-            dem = (base * MONTH_SEASONALITY[mth] * WEATHER_IMPACT[wt] * COMBINED_UPLIFT
-                   * (WEEKEND_BOOST if we else 1)
+        for prod in PRODUCT_TYPES:
+            base = PRODUCT_BASE_WE[prod] if we else PRODUCT_BASE_WD[prod]
+            dem = (base * MONTH_SEASONALITY[mth] * WEATHER_IMPACT[wt]
                    * holiday_boost * ramadan_mod
                    * random.gauss(1, 0.12))
             rows.append({

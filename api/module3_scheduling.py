@@ -54,11 +54,11 @@ class ShiftResult(BaseModel):
 # ======================================================================
 
 DEFAULT_EMPLOYEES = [
-    Employee(id="E001", name="Ali",     role="baker",    min_hours_per_week=14, max_hours_per_week=42),
+    Employee(id="E001", name="Ali",     role="baker",    min_hours_per_week=10, max_hours_per_week=42),
     Employee(id="E002", name="Mei",     role="cashier",  min_hours_per_week=14, max_hours_per_week=42),
     Employee(id="E003", name="Raj",     role="barista",  min_hours_per_week=14, max_hours_per_week=42),
     Employee(id="E004", name="Siti",    role="cleaner",  min_hours_per_week=14, max_hours_per_week=42),
-    Employee(id="E005", name="Ahmad",   role="baker",    min_hours_per_week=14, max_hours_per_week=42),
+    Employee(id="E005", name="Ahmad",   role="baker",    min_hours_per_week=10, max_hours_per_week=42),
     Employee(id="E006", name="Priya",   role="cashier",  min_hours_per_week=14, max_hours_per_week=42),
     Employee(id="E007", name="Kumar",   role="barista",  min_hours_per_week=14, max_hours_per_week=42),
     Employee(id="E008", name="Lisa",    role="cleaner",  min_hours_per_week=14, max_hours_per_week=42),
