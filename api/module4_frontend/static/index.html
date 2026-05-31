@@ -825,7 +825,7 @@ tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
 tbl+='<td style="padding:8px;font-weight:600">'+dates[d]+'</td>';
 for(var p=0;p<prods.length;p++){
 var v=byDay[dates[d]][prods[p]]||'-';
-var txt='-';if(v&&typeof v==='object'){var lo=v.low,hi=v.high;if(typeof lo==='number'&&typeof hi==='number')txt=lo+'-'+hi;}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
+var txt='-';if(v&&typeof v==='object'&&typeof v.predicted==='number')txt=v.predicted;tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
 }
 tbl+='</tr>';
 }
