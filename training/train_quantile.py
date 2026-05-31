@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""XGBoost quantile regression with GridSearchCV hyperparameter tuning.
-No hand-picked parameters - every choice driven by cross-validated MAE."""
+"""XGBoost median-only training with GridSearchCV hyperparameter tuning.
+No prediction intervals - data too small for reliable quantile regression."""
 
 import sys, os, json, warnings
 import numpy as np
@@ -17,7 +17,6 @@ DATA_PATH = os.path.join(ROOT, 'data', 'synthetic_sales_1year.csv')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 PRODUCTS = ['croissant','donut','chiffon','bread_coconut','bread_roll','croissant_chocolate']
-QUANTILES = {'lower': 0.10, 'median': 0.5, 'upper': 0.90}
 RANDOM_SEED = 42
 
 FEATURES = [
@@ -50,58 +49,59 @@ def main():
 
     tscv = TimeSeriesSplit(n_splits=3)
     best_params_all = {}
+    results_all = {}
 
     for prod in PRODUCTS:
         pdf = train[train['product']==prod]
         X, y = pdf[FEATURES], pdf['sales']
 
-        # Grid search on median model (most important)
-        base_model = xgb.XGBRegressor(
-            objective='reg:quantileerror', quantile_alpha=0.5,
+        base = xgb.XGBRegressor(
             subsample=0.8, colsample_bytree=0.8,
             reg_alpha=0.1, reg_lambda=1.0, random_state=RANDOM_SEED,
         )
         grid = GridSearchCV(
-            base_model, PARAM_GRID, scoring='neg_mean_absolute_error',
-            cv=tscv, n_jobs=1, verbose=0,
+            base, PARAM_GRID, scoring='neg_mean_absolute_error',
+            cv=tscv, n_jobs=1,
         )
         grid.fit(X, y)
         best = grid.best_params_
         best_params_all[prod] = best
-        print(f'{prod} best params: {best} (CV MAE={-grid.best_score_:.1f})')
 
-        # Train all 3 quantile models with best params
-        for qname, qval in QUANTILES.items():
-            model = xgb.XGBRegressor(
-                objective='reg:quantileerror', quantile_alpha=qval,
-                max_depth=best['max_depth'],
-                learning_rate=best['learning_rate'],
-                n_estimators=best['n_estimators'],
-                min_child_weight=best['min_child_weight'],
-                subsample=0.8, colsample_bytree=0.8,
-                reg_alpha=0.1, reg_lambda=1.0, random_state=RANDOM_SEED,
-            )
-            model.fit(X, y)
+        model = xgb.XGBRegressor(
+            max_depth=best['max_depth'],
+            learning_rate=best['learning_rate'],
+            n_estimators=best['n_estimators'],
+            min_child_weight=best['min_child_weight'],
+            subsample=0.8, colsample_bytree=0.8,
+            reg_alpha=0.1, reg_lambda=1.0, random_state=RANDOM_SEED,
+        )
+        model.fit(X, y)
 
-            results = []
-            for lbl, subset in [('train',train),('val',val),('test',test)]:
-                spdf = subset[subset['product']==prod]
-                Xs, ys = spdf[FEATURES], spdf['sales']
-                preds = model.predict(Xs)
-                mae  = mean_absolute_error(ys, preds)
-                r2   = r2_score(ys, preds)
-                results.append(f'{lbl} MAE={mae:.1f} R2={r2:.3f}')
+        # Evaluate
+        prod_results = {}
+        for lbl, subset in [('train',train),('val',val),('test',test)]:
+            spdf = subset[subset['product']==prod]
+            Xs, ys = spdf[FEATURES], spdf['sales']
+            preds = model.predict(Xs)
+            mae  = mean_absolute_error(ys, preds)
+            mape = np.mean(np.abs((ys-preds)/ys))*100 if len(ys)>0 else 0
+            r2   = r2_score(ys, preds)
+            prod_results[lbl] = {'MAE': round(mae,1), 'MAPE': round(mape,1), 'R2': round(r2,3)}
+            print(f'{prod} CV MAE={-grid.best_score_:.1f} | {lbl} MAE={mae:.1f} MAPE={mape:.1f}% R2={r2:.3f}')
 
-            suffix = 'lower' if qname == 'lower' else ('upper' if qname == 'upper' else 'median')
-            path = os.path.join(MODEL_DIR, f'{prod}_{suffix}_model.json')
-            model.save_model(path)
-            print(f'  [{qname} q={qval}] {", ".join(results)}')
+        results_all[prod] = prod_results
+        model.save_model(os.path.join(MODEL_DIR, f'{prod}_model.json'))
+        print(f'  best: {best}\n')
 
     with open(os.path.join(MODEL_DIR,'feature_columns.json'),'w') as f:
         json.dump(FEATURES, f, indent=2)
     with open(os.path.join(MODEL_DIR,'best_params.json'),'w') as f:
         json.dump(best_params_all, f, indent=2)
-    print('\nDone - 18 models with tuned hyperparameters.')
+    print('Done - 6 median models saved.\n')
+    print('Accuracy reference:')
+    for prod in PRODUCTS:
+        r = results_all[prod]['test']
+        print(f'  {prod}: Test MAE={r["MAE"]}, MAPE={r["MAPE"]}%, R2={r["R2"]}')
 
 if __name__=='__main__':
     main()

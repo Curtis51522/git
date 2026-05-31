@@ -1,4 +1,4 @@
-﻿from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from datetime import datetime
 from enum import Enum
@@ -92,8 +92,8 @@ class SalesForecast(BaseModel):
     product_name: str
     freshness_status: str
     predicted_demand: int
-    lower_bound: int
-    upper_bound: int
+    lower_bound: int = 0
+    upper_bound: int = 0
     confidence: str
 class ComboScore(BaseModel):
     product_name: str

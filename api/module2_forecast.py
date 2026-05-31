@@ -58,26 +58,24 @@ def _cache_set(key: str, data: dict):
         if len(_forecast_cache) > _MAX_CACHE_SIZE:
             _forecast_cache.popitem(last=False)
 
-def _model_path(product_name: str, suffix: str = "") -> str:
+def _model_path(product_name: str) -> str:
     safe = product_name.replace(" ", "_").lower()
-    safe_suffix = f"_{suffix}" if suffix else ""
-    return os.path.join(MODEL_DIR, f"{safe}{safe_suffix}_model.json")
+    return os.path.join(MODEL_DIR, f"{safe}_model.json")
 
-def load_product_model(product_name: str, suffix: str = "") -> xgb.XGBRegressor:
-    cache_key = f"{product_name}_{suffix}" if suffix else product_name
-    if cache_key in _model_cache:
-        return _model_cache[cache_key]
-    path = _model_path(product_name, suffix)
+def load_product_model(product_name: str) -> xgb.XGBRegressor:
+    if product_name in _model_cache:
+        return _model_cache[product_name]
+    path = _model_path(product_name)
     if not os.path.exists(path):
         raise FileNotFoundError(f"No model for '{product_name}' at {path}.")
     model = xgb.XGBRegressor()
     model.load_model(path)
-    _model_cache[cache_key] = model
-    logger.info("Loaded model for %s [%s] from %s", product_name, suffix or "median", path)
+    _model_cache[product_name] = model
+    logger.info("Loaded model for %s from %s", product_name, path)
     return model
 
 def get_available_products() -> list:
-    return [p for p in PRODUCT_TYPES if os.path.exists(_model_path(p, "median"))]
+    return [p for p in PRODUCT_TYPES if os.path.exists(_model_path(p))]
 
 
 # --- Lag feature helpers (DB-backed) ---
@@ -210,9 +208,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
 
     for prod in products_to_forecast:
         try:
-            model_median = load_product_model(prod, "median")
-            model_lower  = load_product_model(prod, "lower")
-            model_upper  = load_product_model(prod, "upper")
+            model = load_product_model(prod)
         except FileNotFoundError as e:
             model_errors.append(str(e))
             continue
@@ -225,17 +221,13 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                     product_name=prod,
                     freshness_status="Total",
                     predicted_demand=0,
-                    lower_bound=0,
-                    upper_bound=0,
                     confidence="closed",
                 ))
                 continue
             features = build_forecast_features(forecast_date, "", prod)
             X = pd.DataFrame([features]).fillna(0)
             try:
-                pred = float(model_median.predict(X)[0])
-                pred_lower = float(model_lower.predict(X)[0])
-                pred_upper = float(model_upper.predict(X)[0])
+                pred = float(model.predict(X)[0])
                 pred = max(0.0, pred)
             except Exception as e:
                 logger.warning("Prediction failed for %s on %s: %s", prod, forecast_date.strftime("%%Y-%%m-%%d"), e)
@@ -246,8 +238,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 product_name=prod,
                 freshness_status="Total",
                 predicted_demand=round(pred),
-                lower_bound=round(max(0, pred_lower)),
-                upper_bound=round(pred_upper),
+                
                 confidence="today" if d == 0 else ("high" if d <= 2 else ("medium" if d <= 5 else "low")),
             ))
 
