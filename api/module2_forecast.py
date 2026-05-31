@@ -291,3 +291,12 @@ async def get_sales_history(days: int = Query(30, ge=1, le=90)):
     return {"status": "ok", "count": len(rows), "transactions": rows}
 
 
+
+@router.get("/accuracy")
+async def get_accuracy():
+    """Return per-product test MAE for prediction intervals."""
+    path = os.path.join(MODEL_DIR, "test_metrics.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            return {"status": "ok", "metrics": json.load(f)}
+    return {"status": "no_data", "message": "test_metrics.json not found"}

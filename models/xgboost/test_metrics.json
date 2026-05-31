@@ -1,0 +1,32 @@
+{
+  "croissant": {
+    "MAE": 19.0,
+    "MAPE": 26.6,
+    "R2": 0.755
+  },
+  "donut": {
+    "MAE": 12.8,
+    "MAPE": 44.6,
+    "R2": 0.508
+  },
+  "chiffon": {
+    "MAE": 7.3,
+    "MAPE": 47.7,
+    "R2": 0.605
+  },
+  "bread_coconut": {
+    "MAE": 4.3,
+    "MAPE": 16.4,
+    "R2": 0.805
+  },
+  "bread_roll": {
+    "MAE": 6.6,
+    "MAPE": 11.8,
+    "R2": 0.894
+  },
+  "croissant_chocolate": {
+    "MAE": 15.0,
+    "MAPE": 26.4,
+    "R2": 0.703
+  }
+}
