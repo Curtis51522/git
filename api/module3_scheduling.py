@@ -1,4 +1,4 @@
-﻿"""
+"""
 S3 Shift Scheduling -- Demand-driven CP-SAT solver (8 employees, 4 roles).
 
 Connects to S2 forecast to determine required staff per shift.
@@ -15,12 +15,14 @@ from typing import Optional, List, Dict
 import json
 from ortools.sat.python import cp_model
 from datetime import datetime, timedelta
-import sys, os
+import sys, os, logging
+logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import PRODUCT_TYPES
 from db.mysql_client import get_db, q
 
 router = APIRouter(prefix="/s3", tags=["Module 3 - Shift Scheduling"])
+BASELINE_FILE = os.path.join(os.path.dirname(__file__), "..", "models", "schedule_baseline.json")
 
 
 # ======================================================================
@@ -442,6 +444,20 @@ async def get_schedule(
 # ======================================================================
 
 
+def _save_baseline(results):
+    """Save role-level shift counts as baseline after a healthy solve."""
+    counts = {}
+    for r in results:
+        role = r.role if hasattr(r, 'role') else r.get('role', '')
+        counts[role] = counts.get(role, 0) + 1
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(BASELINE_FILE)), exist_ok=True)
+        with open(os.path.abspath(BASELINE_FILE), 'w') as f:
+            json.dump(counts, f)
+        logger.info("Baseline saved: %s", counts)
+    except Exception:
+        logger.error("Failed to save baseline: %s", sys.exc_info())
+
 def _persist_schedule(results, base, num_days):
     db = get_db()
     for i in range(num_days):
@@ -702,3 +718,226 @@ def _unsick_impl(payload: dict) -> dict:
 async def unmark_sick(payload: dict):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_s3_executor, _unsick_impl, payload)
+
+# ======================================================================
+# GET /s3/kpi -- Scheduling KPIs
+# ======================================================================
+
+@router.get("/kpi")
+async def get_kpi(
+    start_date: str = Query(None),
+    days: int = Query(7, ge=1, le=14),
+):
+    """Compute coverage, fairness, and compliance KPIs for the schedule."""
+    try:
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+        base = datetime.strptime(start_date, "%Y-%m-%d")
+        # Reject future periods: KPI only measures up to today
+        period_end = (base + timedelta(days=days - 1)).date()
+        if period_end > datetime.now().date():
+            return {"status": "error", "message": f"KPI period ends {period_end} which is in the future. Use /s3/schedule for future schedules."}
+        end_date = (base + timedelta(days=days - 1)).strftime("%Y-%m-%d")
+
+        db = get_db()
+        r = q(db, "shift_schedule").select("*")\
+            .gte("schedule_date", start_date)\
+            .lte("schedule_date", end_date)\
+            .order("schedule_date,time_slot").execute()
+        rows = r.data if r.data else []
+
+        if not rows:
+            return {
+                "status": "ok",
+                "period": {"start": start_date, "end": end_date, "days": days},
+                "message": "No schedule for this period. Run /s3/solve first.",
+            }
+
+        # ---- working days (exclude Monday) ----
+        expected_dates = set()
+        for i in range(days):
+            d = base + timedelta(days=i)
+            if d.weekday() != 0:
+                expected_dates.add(d.strftime("%Y-%m-%d"))
+        n_working = len(expected_dates)
+
+        # ---- build lookup: (date, slot, role) -> row ----
+        schedule_map = {}
+        for row in rows:
+            ds = row["schedule_date"]
+            if hasattr(ds, "strftime"):
+                ds = ds.strftime("%Y-%m-%d")
+            schedule_map[(ds, row["time_slot"], row.get("role", ""))] = row
+
+        # ---- 2. Employee hours ----
+        emp_hours = {}
+        for row in rows:
+            eid = row["employee_id"]
+            if eid not in emp_hours:
+                emp_hours[eid] = {
+                    "name": row["employee_name"],
+                    "role": row.get("role", ""),
+                    "hours": 0,
+                    "shifts": 0,
+                }
+            emp_hours[eid]["hours"] += SLOT_HOURS.get(row["time_slot"], 6)
+            emp_hours[eid]["shifts"] += 1
+
+        # ---- 1. Coverage (per-employee, real-time from schedule) ----
+        coverage = []
+        role_shifts = {}
+        role_emp_count = {}
+        for row in rows:
+            rl = row.get("role", "")
+            role_shifts[rl] = role_shifts.get(rl, 0) + 1
+        all_emps = load_employees()
+        for e in all_emps:
+            role_emp_count[e.role] = role_emp_count.get(e.role, 0) + 1
+        # Check if anyone has unavailable_dates in this period
+        start_date_obj = base.date()
+        end_date_obj = (base + timedelta(days=days - 1)).date()
+        has_unavailable = False
+        for e in all_emps:
+            if e.unavailable_dates:
+                for ud in e.unavailable_dates:
+                    try:
+                        ud_date = datetime.strptime(ud, "%Y-%m-%d").date()
+                        if start_date_obj <= ud_date <= end_date_obj:
+                            has_unavailable = True
+                            break
+                    except ValueError:
+                        pass
+            if has_unavailable:
+                break
+        # Build per-employee coverage
+        for e in all_emps:
+            eid = e.id
+            info = emp_hours.get(eid, {"shifts": 0})
+            filled = info.get("shifts", 0)
+            if not has_unavailable:
+                # No sick leaves: solver's assignment IS the expected
+                expected = filled
+            else:
+                # Sick leaves exist: expected = even split of role total
+                role_total = role_shifts.get(e.role, 0)
+                emp_count = role_emp_count.get(e.role, 1)
+                base = role_total // emp_count
+                rem = role_total % emp_count
+                role_emp_list = [x for x in all_emps if x.role == e.role]
+                role_idx = role_emp_list.index(e)
+                expected = base + (1 if role_idx < rem else 0) if emp_count > 0 else 0
+            coverage.append({
+                "employee": e.name,
+                "role": e.role,
+                "filled": filled,
+                "expected": expected,
+                "rate_pct": round(filled / expected * 100, 1) if expected else (100.0 if filled == 0 else 0),
+            })
+
+        # ---- 2. Employee hours ----
+        emp_hours = {}
+        for row in rows:
+            eid = row["employee_id"]
+            if eid not in emp_hours:
+                emp_hours[eid] = {
+                    "name": row["employee_name"],
+                    "role": row.get("role", ""),
+                    "hours": 0,
+                    "shifts": 0,
+                }
+            emp_hours[eid]["hours"] += SLOT_HOURS.get(row["time_slot"], 6)
+            emp_hours[eid]["shifts"] += 1
+
+        # ---- 3. Fairness (hours gap within same role) ----
+        fairness = {}
+        for role in ROLES:
+            role_emps = {eid: info for eid, info in emp_hours.items() if info["role"] == role}
+            if len(role_emps) >= 2:
+                hrs = [info["hours"] for info in role_emps.values()]
+                fairness[role] = {
+                    "employees": {info["name"]: info["hours"] for _, info in role_emps.items()},
+                    "gap_hours": max(hrs) - min(hrs),
+                    "fair": (max(hrs) - min(hrs)) <= 6,
+                }
+            elif len(role_emps) == 1:
+                info = list(role_emps.values())[0]
+                fairness[role] = {
+                    "employees": {info["name"]: info["hours"]},
+                    "gap_hours": 0,
+                    "note": "single employee in role",
+                }
+
+        # ---- 4. Compliance ----
+        employees = load_employees()
+        emp_lookup = {e.id: e for e in employees}
+        violations = []
+
+        for eid, info in emp_hours.items():
+            emp = emp_lookup.get(eid)
+            if not emp:
+                continue
+            if info["hours"] < emp.min_hours_per_week:
+                violations.append({
+                    "employee": info["name"],
+                    "type": "under_min_hours",
+                    "actual": info["hours"],
+                    "required": emp.min_hours_per_week,
+                })
+            if info["hours"] > emp.max_hours_per_week:
+                violations.append({
+                    "employee": info["name"],
+                    "type": "over_max_hours",
+                    "actual": info["hours"],
+                    "allowed": emp.max_hours_per_week,
+                })
+
+        # consecutive days > 5
+        for eid, info in emp_hours.items():
+            emp_dates = sorted(set(
+                row["schedule_date"].strftime("%Y-%m-%d") if hasattr(row["schedule_date"], "strftime")
+                else row["schedule_date"]
+                for row in rows if row["employee_id"] == eid
+            ))
+            max_consec = 1
+            cur = 1
+            for i in range(1, len(emp_dates)):
+                d1 = datetime.strptime(emp_dates[i - 1], "%Y-%m-%d")
+                d2 = datetime.strptime(emp_dates[i], "%Y-%m-%d")
+                cur = cur + 1 if (d2 - d1).days == 1 else 1
+                max_consec = max(max_consec, cur)
+            if max_consec > 5:
+                violations.append({
+                    "employee": info["name"],
+                    "type": "consecutive_days",
+                    "days": max_consec,
+                    "max_allowed": 5,
+                })
+
+        total_hours = sum(info["hours"] for info in emp_hours.values())
+        n_emps = len(emp_hours)
+
+        return {
+            "status": "ok",
+            "period": {
+                "start": start_date,
+                "end": end_date,
+                "days": days,
+                "working_days": n_working,
+            },
+            "coverage": coverage,
+            "fairness": fairness,
+            "compliance": {
+                "violations": violations,
+                "all_pass": len(violations) == 0,
+            },
+            "summary": {
+                "total_shifts": len(rows),
+                "total_hours": total_hours,
+                "avg_hours_per_emp": round(total_hours / n_emps, 1) if n_emps else 0,
+                "employees_scheduled": n_emps,
+            },
+        }
+
+    except Exception as e:
+        logger.error("KPI error: %s", e)
+        return {"status": "error", "message": str(e)}

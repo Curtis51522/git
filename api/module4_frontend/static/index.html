@@ -465,7 +465,7 @@ var bkeys=Object.keys(PRODUCT_PRICES).sort();
 var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
 var fLabel={"Fresh":"","Day-1":" 10%OFF"};
 var fOrder=["Fresh","Day-1"];
-var dr1={"Fresh":0,"Day-1":0.10};
+var dr1={"Fresh":0,"Day-1":0.20};
 for(var i=0;i<bkeys.length;i++){
 var bk=bkeys[i];
 var bp=PRODUCT_PRICES[bk]||5;
@@ -625,7 +625,7 @@ function selectFreshness(product,freshness){
 var bk=product;var bp=PRODUCT_PRICES[bk]||5;
 var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
 var fLabel={"Fresh":"","Day-1":" 10%OFF"};
-var dr1={"Fresh":0,"Day-1":0.10};
+var dr1={"Fresh":0,"Day-1":0.20};
 var discountRate=dr1[freshness]||0;
 var selColor=fColor[freshness]||"#4caf50";
 // Update border color
@@ -668,7 +668,7 @@ var found=false;
 for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name&&(cartItems[i].freshness||'Fresh')===freshness){cartItems[i].quantity+=1;found=true;break;}}
 var fresh=freshness||(freshnessMap&&freshnessMap[name]?freshnessMap[name]:'Fresh');
 var tc={"Fresh":"green","Day-1":"yellow"};
-var dr={"Fresh":0,"Day-1":0.10};
+var dr={"Fresh":0,"Day-1":0.20};
 var tray=tc[fresh]||"green";
 var disc=dr[fresh]||0;
 if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tray,discount_rate:disc,freshness:fresh,status:'confirmed'});
@@ -751,7 +751,7 @@ for(var i=0;i<b.items.length;i++){
             fresh=freshnessMap[name];
         }
         var tc={"Fresh":"green","Day-1":"yellow"};
-        var dr={"Fresh":0,"Day-1":0.10};
+        var dr={"Fresh":0,"Day-1":0.20};
         var found=false;
         for(var j=0;j<cartItems.length;j++){
             if(cartItems[j].product_name===name){
@@ -838,11 +838,11 @@ el.innerHTML=tbl;
 function renderSchedule(c){
 c.innerHTML='<div class="panel" style="flex:1"><h4>Shift Schedule</h4>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
-+'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate Schedule</button>'
++'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate Schedule</button>'+'<button class="btn btn-outline btn-sm" onclick="loadKPI()" style="background:#fff;color:#8b7d6b;border:1px solid #d4c5b2;margin-left:6px">KPI Dashboard</button>'
 +'<button class="btn btn-outline btn-sm" onclick="resyncSchedule()" style="background:#fff;color:#8b7d6b;border:1px solid #d4c5b2;margin-left:6px">Re-sync</button>'
 +'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="'+(new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0'))+'">'
 +'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:70vh"><span class="spinner"></span>Loading schedule...</div>'
-+'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div></div>';
++'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'+'<div id="kpi-result" class="result-box" style="overflow-x:auto;max-height:40vh;margin-top:12px;display:none"></div></div>';
 loadSchedule();
 }
 
@@ -854,7 +854,7 @@ try{
 var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
 var r=await api('/s3/solve',{method:'POST',body:{start_date:sd,days:7}});
 var s=r.schedule||[];if(!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No schedule';return}
-renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
+renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;loadKPI();
 }catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
 }
 
@@ -871,15 +871,81 @@ document.getElementById('swap-msg').textContent='';
 try{
 var r=await api('/s3/schedule?date='+sd+'&days=7');
 var s=r.schedule||[];if(!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No schedule';return}
-renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
+renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;loadKPI();
 }catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
 }
 async function resyncSchedule(){
 if(!confirm('Regenerate entire schedule from S2 forecast?'))return;
 try{var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-05-27';
 await api('/s3/resync',{method:'POST',body:{start_date:sd,days:7}});cachedSchedule=null;cachedSummary=null;await loadSchedule();
-document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule regenerated from forecast</span>';}
+document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule regenerated from forecast</span>';loadKPI();}
 catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
+}
+
+
+async function loadKPI(){
+var kpiDiv=document.getElementById('kpi-result');
+kpiDiv.style.display='block';
+kpiDiv.innerHTML='<span class="spinner"></span>Loading KPI...';
+try{
+var past=new Date();past.setDate(past.getDate()-7);var sd=past.toISOString().slice(0,10);
+var r=await api('/s3/kpi?start_date='+sd+'&days=7');
+renderKPI(r,kpiDiv);
+}catch(e){kpiDiv.innerHTML='<span style="color:#e74c3c">Error: '+e.message+'</span>';}
+}
+
+function renderKPI(d,div){
+if(d.status!=='ok'){div.innerHTML='<span style="color:#e74c3c">'+d.message+'</span>';return;}
+var cov=d.coverage, fair=d.fairness, comp=d.compliance, sum=d.summary, per=d.period;
+var passIcon=comp.all_pass?'<span style="color:#27ae60;font-size:18px">&#10003;</span>':'<span style="color:#e74c3c;font-size:18px">&#10007;</span>';
+var h='<h4 style="margin:0 0 12px">KPI Dashboard <small style="color:#999;font-weight:400">'+per.start+' ~ '+per.end+' ('+per.working_days+' working days)</small></h4>';
+
+// Summary cards
+h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">';
+h+='<div style="flex:1;min-width:120px;background:#f0faf5;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#27ae60">'+sum.total_shifts+'</div><div style="font-size:12px;color:#666">Total Shifts</div></div>';
+h+='<div style="flex:1;min-width:120px;background:#f0f0fa;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#5b5ea6">'+sum.total_hours+'h</div><div style="font-size:12px;color:#666">Total Hours</div></div>';
+h+='<div style="flex:1;min-width:120px;background:#faf5f0;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#e67e22">'+sum.avg_hours_per_emp+'h</div><div style="font-size:12px;color:#666">Avg / Employee</div></div>';
+h+='<div style="flex:1;min-width:120px;background:'+(comp.all_pass?'#f0faf5':'#faf0f0')+';border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px">'+passIcon+'</div><div style="font-size:12px;color:#666">Compliance</div></div>';
+h+='</div>';
+
+// Coverage table
+h+='<h5 style="margin:0 0 8px">Coverage <small style="color:#999;font-weight:400">(per-employee, real-time)</small></h5>';
+h+='<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px"><tr style="background:#f5f0eb"><th style="padding:6px 10px;text-align:left">Employee</th><th style="padding:6px 10px;text-align:left">Role</th><th style="padding:6px 10px">Filled</th><th style="padding:6px 10px">Expected</th><th style="padding:6px 10px">Rate</th><th style="padding:6px 10px"></th></tr>';
+var covArr=d.coverage||[];
+for(var i=0;i<covArr.length;i++){
+var c=covArr[i];
+var barW=c.rate_pct||0;
+var barColor=barW>=90?'#27ae60':barW>=50?'#f39c12':'#e74c3c';
+h+='<tr style="border-bottom:1px solid #eee"><td style="padding:6px 10px;font-weight:600">'+c.employee+'</td><td style="padding:6px 10px;text-transform:capitalize;color:#888">'+c.role+'</td><td style="padding:6px 10px;text-align:center">'+c.filled+'</td><td style="padding:6px 10px;text-align:center">'+c.expected+'</td><td style="padding:6px 10px;text-align:center;font-weight:600;color:'+barColor+'">'+barW+'%</td><td style="padding:6px 10px"><div style="background:#eee;border-radius:4px;height:6px;width:100%"><div style="background:'+barColor+';border-radius:4px;height:6px;width:'+Math.min(barW,100)+'%"></div></div></td></tr>';
+}
+h+='</table>';
+
+// Fairness table
+h+='<h5 style="margin:0 0 8px">Fairness</h5>';
+h+='<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px"><tr style="background:#f5f0eb"><th style="padding:6px 10px;text-align:left">Role</th><th style="padding:6px 10px;text-align:left">Employees</th><th style="padding:6px 10px">Gap</th><th style="padding:6px 10px">Status</th></tr>';
+var roles=['baker','cashier','barista','cleaner'];for(var i=0;i<roles.length;i++){
+var r=roles[i], f=fair[r]||{};
+var emps=f.employees||{};
+var empStr=Object.keys(emps).map(function(n){return n+' ('+emps[n]+'h)';}).join(', ');
+var gap=f.gap_hours||0;
+var fairIcon=gap<=6?'<span style="color:#27ae60">Fair &#10003;</span>':'<span style="color:#e74c3c">Gap: '+gap+'h</span>';
+h+='<tr style="border-bottom:1px solid #eee"><td style="padding:6px 10px;text-transform:capitalize">'+r+'</td><td style="padding:6px 10px">'+empStr+'</td><td style="padding:6px 10px;text-align:center">'+gap+'h</td><td style="padding:6px 10px;text-align:center">'+fairIcon+'</td></tr>';
+}
+h+='</table>';
+
+// Violations
+if(comp.violations&&comp.violations.length>0){
+h+='<h5 style="margin:0 0 8px;color:#e74c3c">Violations</h5>';
+h+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#fde8e8"><th style="padding:6px 10px;text-align:left">Employee</th><th style="padding:6px 10px;text-align:left">Type</th><th style="padding:6px 10px">Detail</th></tr>';
+for(var i=0;i<comp.violations.length;i++){
+var v=comp.violations[i];
+var detail=v.type==='under_min_hours'?'Actual '+v.actual+'h < Min '+v.required+'h':v.type==='over_max_hours'?'Actual '+v.actual+'h > Max '+v.allowed+'h':v.type==='consecutive_days'?v.days+' days (max '+v.max_allowed+')':JSON.stringify(v);
+h+='<tr style="border-bottom:1px solid #fdd"><td style="padding:6px 10px">'+v.employee+'</td><td style="padding:6px 10px;color:#c0392b">'+v.type.replace(/_/g,' ')+'</td><td style="padding:6px 10px">'+detail+'</td></tr>';
+}
+h+='</table>';
+}
+
+div.innerHTML=h;
 }
 async function undoSick(id,date){
 try{
@@ -1082,7 +1148,7 @@ item.product_name=document.getElementById('edit-name').value;
 item.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var if2=document.getElementById("edit-freshness").value;
 var cMap2={"Fresh":"green","Day-1":"yellow"};
-var drMap={"Fresh":0,"Day-1":0.10};
+var drMap={"Fresh":0,"Day-1":0.20};
 if(if2!=="auto"){item.tray_color=cMap2[if2]||item.tray_color;item.freshness=if2;item.discount_rate=drMap[if2]||0;}
 var changes=[];
 if(oldName!==item.product_name)changes.push('name: '+oldName+' -> '+item.product_name);
@@ -1246,13 +1312,7 @@ tbl+='</td>';}
 tbl+='</tr>';}
 tbl+='</tbody></table>';
 document.getElementById('schedule-result').innerHTML=tbl;
-if(r&&r.employee_summary){
-var sumHtml='<div style="margin-top:8px;padding:8px 12px;background:#fdfaf5;border-radius:8px;border:1px solid #e8dcc8;font-size:13px"><strong>Hours: </strong>';
-var eids=Object.keys(r.employee_summary).sort();
-for(var i=0;i<eids.length;i++){var es=r.employee_summary[eids[i]];sumHtml+='<span style="display:inline-block;margin:2px 6px;padding:2px 8px;background:#f0e8d8;border-radius:4px;font-weight:600">'+es.name+' '+es.hours+'h</span>';}
-sumHtml+='</div>';
-document.getElementById('swap-msg').innerHTML=sumHtml;
-}
+
 }
 var EMPLOYEES=[{id:'E001',name:'Ali',role:'baker'},{id:'E002',name:'Mei',role:'cashier'},{id:'E003',name:'Raj',role:'barista'},{id:'E004',name:'Siti',role:'cleaner'},{id:'E005',name:'Ahmad',role:'baker'},{id:'E006',name:'Priya',role:'cashier'},{id:'E007',name:'Kumar',role:'barista'},{id:'E008',name:'Lisa',role:'cleaner'}];
 // Event delegation for sick/swap buttons (on document since schedule-result is recreated)

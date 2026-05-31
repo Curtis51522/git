@@ -1,20 +1,20 @@
 [
   {
     "model": "LinearRegression",
-    "MAE": 2.36,
-    "RMSE": 3.03,
-    "R2": 0.6998
+    "MAE": 2.21,
+    "RMSE": 2.85,
+    "R2": 0.6782
+  },
+  {
+    "model": "XGBoost",
+    "MAE": 2.61,
+    "RMSE": 3.34,
+    "R2": 0.5585
   },
   {
     "model": "RandomForest",
     "MAE": 2.71,
-    "RMSE": 3.68,
-    "R2": 0.5582
-  },
-  {
-    "model": "XGBoost",
-    "MAE": 2.7,
-    "RMSE": 3.72,
-    "R2": 0.5466
+    "RMSE": 3.44,
+    "R2": 0.532
   }
 ]

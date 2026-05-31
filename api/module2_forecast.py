@@ -88,7 +88,7 @@ def build_forecast_features(forecast_date: datetime, freshness: str, product: st
         "is_weekend": 1 if dow >= 5 else 0,
         "day_of_month": forecast_date.day,
         "month": forecast_date.month,
-        "discount_rate": 0.1 if freshness == "Day-1" else 0.0,
+        "discount_rate": 0.2 if freshness == "Day-1" else 0.0,
         "is_public_holiday": 1 if dt_date in _my_holidays else 0,
         "is_ramadan": 1 if _is_ramadan_date(dt_date) else 0,
         "temperature": weather.get("temperature", 28.0),
@@ -101,8 +101,6 @@ def build_forecast_features(forecast_date: datetime, freshness: str, product: st
         "weather_storm": 1 if wt in ("storm", "thunderstorm") else 0,
         "freshness_Fresh": 1 if freshness == "Fresh" else 0,
         "freshness_Day-1": 1 if freshness == "Day-1" else 0,
-        "freshness_Expired": 1 if freshness == "Expired" else 0,
-        "freshness_Discount": 1 if freshness == "Discount" else 0,
         "lag_1": 0.0,  # cold-start default; replace with DB query for production
         "lag_7": 0.0,
         "rolling_7d_mean": 0.0,

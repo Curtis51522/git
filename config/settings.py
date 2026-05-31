@@ -30,13 +30,13 @@ COFFEE_TYPES = [
     "Latte", "Americano", "Cappuccino", "Cold Brew",
     "Espresso", "Flat White", "Mocha",
 ]
-FRESHNESS_STATES = ["Fresh", "Day-1", "Day-2", "Discount"]
+FRESHNESS_STATES = ["Fresh", "Day-1"]
 FORECAST_FEATURE_COLS = [
     "day_of_week", "is_weekend", "day_of_month", "month",
     "discount_rate", "is_public_holiday", "is_ramadan",
     "temperature", "rainfall", "humidity", "is_rainy",
     "weather_sunny", "weather_cloudy", "weather_rainy", "weather_storm",
-    "freshness_Fresh", "freshness_Day-1", "freshness_Day-2", "freshness_Discount",
+    "freshness_Fresh", "freshness_Day-1",
     "lag_1", "lag_7", "rolling_7d_mean",
 ]
 

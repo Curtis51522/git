@@ -10,7 +10,7 @@ from db.mysql_client import get_db, q
 # Discount rates by freshness level
 DISCOUNT_MAP = {
     "Fresh":    0.0,   # full price
-    "Day-1":    0.10,  # 10% off
+    "Day-1":    0.20,  # 20% off
     "Expired":  1.0,   # unsellable / destroyed
 }
 

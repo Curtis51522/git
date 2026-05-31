@@ -34,7 +34,7 @@ MONTH_SEASONALITY = {
     7: 1.10, 8: 1.05, 9: 1.02, 10: 1.00, 11: 0.92, 12: 1.18,
 }
 
-FRESHNESS_UPLIFT = {"Fresh":1.0,"Day-1":1.15,"Day-2":1.25,"Discount":1.30}
+FRESHNESS_UPLIFT = {"Fresh":1.0,"Day-1":1.15}
 
 KL_WEATHER_PROB = {
     1:{"sunny":0.15,"cloudy":0.45,"rainy":0.35,"thunderstorm":0.05},
@@ -56,12 +56,12 @@ FEATURE_COLS = [
     "is_ramadan",
     "temperature","rainfall","humidity","is_rainy",
     "weather_sunny","weather_cloudy","weather_rainy","weather_storm",
-    "freshness_Fresh","freshness_Day-1","freshness_Day-2","freshness_Discount",
+    "freshness_Fresh","freshness_Day-1",
     "lag_1","lag_7","rolling_7d_mean",
 ]
 
 RANDOM_SEED = 42
-FRESHNESS_STATES = ["Fresh", "Day-1", "Day-2", "Discount"]
+FRESHNESS_STATES = ["Fresh", "Day-1"]
 np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 
@@ -105,7 +105,7 @@ def random_weather(m):
     return random.choices(list(p.keys()), weights=list(p.values()))[0]
 
 def freshness_oh(status):
-    return {"freshness_Fresh": int(status == "Fresh"), "freshness_Day-1": int(status == "Day-1"), "freshness_Day-2": int(status == "Day-2"), "freshness_Discount": int(status == "Discount")}
+    return {"freshness_Fresh": int(status == "Fresh"), "freshness_Day-1": int(status == "Day-1")}
 
 
 def weather_oh(wt):
@@ -146,7 +146,7 @@ def generate_sales_data(days=365):
 
         for prod, base in PRODUCT_BASE.items():
             for fresh, upl in FRESHNESS_UPLIFT.items():
-                dr = 0.3 if fresh in ("Day-1", "Day-2", "Discount") else 0.0
+                dr = 0.2 if fresh == "Day-1" else 0.0
                 dem = (base * MONTH_SEASONALITY[mth] * WEATHER_IMPACT[wt] * upl
                        * (WEEKEND_BOOST if we else 1)
                        * holiday_boost * ramadan_mod
@@ -164,8 +164,6 @@ def generate_sales_data(days=365):
     df = pd.DataFrame(rows)
     df["freshness_Fresh"] = (df["freshness"] == "Fresh").astype(int)
     df["freshness_Day-1"] = (df["freshness"] == "Day-1").astype(int)
-    df["freshness_Day-2"] = (df["freshness"] == "Day-2").astype(int)
-    df["freshness_Discount"] = (df["freshness"] == "Discount").astype(int)
     df["lag_1"] = 0.0
     df["lag_7"] = 0.0
     df["rolling_7d_mean"] = 0.0
