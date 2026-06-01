@@ -1,6 +1,6 @@
 """Weather data provider for S2 sales forecasting.
 
-Primary: OpenWeatherMap 5-day/3-hour forecast (free tier, API key required)
+Primary: Visual Crossing Timeline API (free 1000 calls/day)
 Fallback: Open-Meteo (free, no key)
 Last resort: Malaysian Met. Dept. monthly climatology
 Thread-safe: threading.Lock on circuit breaker + in-memory cache (1h TTL)
@@ -12,7 +12,6 @@ import threading
 import httpx
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
 logger = logging.getLogger("weather")
 
@@ -20,8 +19,8 @@ logger = logging.getLogger("weather")
 KL_LAT = 3.139
 KL_LON = 101.6869
 
-# OpenWeatherMap API key
-_VISUALCROSSING_KEY = os.getenv("WEATHER_API_KEY", "")
+# Visual Crossing API key
+_VISUALCROSSING_KEY = os.getenv("VISUALCROSSING_API_KEY", os.getenv("WEATHER_API_KEY", ""))
 
 # Monthly fallback (Sultan Abdul Aziz Shah Airport, 1991-2020 normals)
 # Source: Wikipedia / Met Malaysia (temp_C, rainfall_mm, humidity_pct)
@@ -114,7 +113,7 @@ def _wmo_to_category(code: int) -> str:
 def get_weather(target_date: datetime) -> dict:
     """Return weather dict for a given date.
 
-    Strategy: cache hit > OpenWeatherMap > Open-Meteo > monthly fallback.
+    Strategy: cache hit > Visual Crossing > Open-Meteo > monthly fallback.
     Thread-safe cache + circuit breaker.
     """
     date_key = target_date.strftime("%Y-%m-%d")
@@ -127,7 +126,6 @@ def get_weather(target_date: datetime) -> dict:
 
     # --- fetch (3-tier cascade) ---
     result = None
-    tried_circuit = False
 
     if _api_available():
         try:
@@ -157,7 +155,6 @@ def get_weather(target_date: datetime) -> dict:
 # Tier 1: Visual Crossing (free 1000 calls/day, 15-day forecast, batch fetch)
 # ==================================================================
 # We fetch a 15-day window once and cache all days to minimise API calls.
-_VC_FETCHED_UNTIL = ""  # track which date range we already have
 
 def _call_visualcrossing(dt: datetime) -> dict:
     """Get daily weather from Visual Crossing Timeline API.
@@ -248,14 +245,4 @@ def _monthly_fallback(dt: datetime) -> dict:
         "weather_type": "cloudy",
         "is_rainy": rain > 100,
         "is_weekend": dt.weekday() >= 5,
-    }
-
-
-def weather_one_hot(weather_type: str) -> dict:
-    """Shared weather one-hot encoding used by S2 training and inference."""
-    return {
-        "weather_sunny": int(weather_type == "sunny"),
-        "weather_cloudy": int(weather_type == "cloudy"),
-        "weather_rainy": int(weather_type == "rainy"),
-        "weather_storm": int(weather_type in ("storm", "thunderstorm")),
     }

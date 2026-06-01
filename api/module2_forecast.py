@@ -1,18 +1,17 @@
 import os, sys, asyncio, time
+import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
 import threading
 from collections import OrderedDict
-import numpy as np
 import pandas as pd
-import json
 import xgboost as xgb
 from fastapi import APIRouter, Query
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from typing import Optional, Dict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import PRODUCT_TYPES, FRESHNESS_STATES, FORECAST_FEATURE_COLS
+from config.settings import PRODUCT_TYPES, FORECAST_FEATURE_COLS
 from api.weather import get_weather
 import holidays
 from hijri_converter import convert
@@ -33,7 +32,8 @@ def _is_ramadan_date(dt):
 
 router = APIRouter(prefix="/s2", tags=["Module 2 - Sales Forecast"])
 
-MODEL_DIR = "models/xgboost"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_DIR = os.path.join(ROOT, "models", "xgboost")
 
 _model_cache: Dict[str, xgb.XGBRegressor] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -119,7 +119,6 @@ def _get_lag(product_name: str, forecast_date, days_back: int) -> float:
     sales = _get_product_daily_sales(product_name)
     if not sales:
         return 0.0
-    from datetime import timedelta
     fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
     target = fd - timedelta(days=days_back)
     # Try the exact date first, then back up to find the nearest day with data
@@ -137,7 +136,6 @@ def _get_rolling_7d_mean(product_name: str, forecast_date) -> float:
     sales = _get_product_daily_sales(product_name)
     if not sales:
         return 0.0
-    from datetime import timedelta
     fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
     values = []
     for d in range(1, 8):
@@ -153,7 +151,7 @@ def build_forecast_features(forecast_date: datetime, freshness: str = "", produc
     weather = get_weather(forecast_date)
     dow = forecast_date.weekday()
     wt = weather.get("weather_type", "cloudy")
-    dt_date = forecast_date.date() if hasattr(forecast_date, 'date') else date(forecast_date.year, forecast_date.month, forecast_date.day)
+    dt_date = forecast_date.date() if hasattr(forecast_date, 'date') else datetime(forecast_date.year, forecast_date.month, forecast_date.day).date()
 
     features_dict = {
         "day_of_week": dow,
@@ -191,6 +189,20 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
             cached["cached"] = True
             return cached
     # --- end cache check ---
+
+    # Load per-product MAE for prediction intervals
+    mae_map = {}
+    metrics_path = os.path.join(MODEL_DIR, "test_metrics.json")
+    if os.path.exists(metrics_path):
+        try:
+            with open(metrics_path) as f:
+                metrics = json.load(f)
+            for prod_name, vals in metrics.items():
+                test_metrics = vals.get("test", vals)
+                if isinstance(test_metrics, dict):
+                    mae_map[prod_name] = test_metrics.get("MAE", 0)
+        except Exception:
+            pass
 
     products_to_forecast = [product] if product else get_available_products()
     if not products_to_forecast:
@@ -233,12 +245,14 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 logger.warning("Prediction failed for %s on %s: %s", prod, forecast_date.strftime("%%Y-%%m-%%d"), e)
                 pred = 0.0
 
+            mae = mae_map.get(prod, 0)
             forecasts.append(SalesForecast(
                 forecast_date=forecast_date.strftime("%Y-%m-%d"),
                 product_name=prod,
                 freshness_status="Total",
                 predicted_demand=round(pred),
-                
+                lower_bound=max(0, round(pred - mae)),
+                upper_bound=round(pred + mae),
                 confidence="today" if d == 0 else ("high" if d <= 2 else ("medium" if d <= 5 else "low")),
             ))
 

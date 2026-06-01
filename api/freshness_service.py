@@ -4,7 +4,7 @@ Freshness & Discount Engine
 - Applies automatic discounts based on age
 - Assigns tray_color for visual recognition
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from db.mysql_client import get_db, q
 
 # Discount rates by freshness level
@@ -25,7 +25,7 @@ def get_freshness(production_time_str: str, reference_date: str = None) -> str:
     """Determine freshness status based on days since production.
     
     Day 0-1 (0-24h):    Fresh (full price)
-    Day 1-2 (24-48h):   Day-1 (10% off)
+    Day 1-2 (24-48h):   Day-1 (20% off)
     Day 2+ (>48h):       Expired (destroyed, recorded as waste)
     """
     if not production_time_str:
@@ -113,4 +113,4 @@ def get_tray_color(freshness: str) -> str:
 def get_sellable_batches():
     """Get all sellable batches (not expired), ordered by freshness (oldest first = FIFO)."""
     db = get_db()
-    return q(db, "batch_inventory").select("*")         .gt("quantity", 0)         .neq("freshness_status", "Expired")         .order("production_time", desc=False)         .execute()
+    return q(db, "batch_inventory").select("*").gt("quantity", 0).neq("freshness_status", "Expired").order("production_time", desc=False).execute()

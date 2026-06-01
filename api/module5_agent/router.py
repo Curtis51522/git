@@ -574,7 +574,7 @@ def _canned_dag(intent: str) -> dict:
             "nodes": [
                 {"id": "s2_forecast",  "endpoint": "/s2/forecast"},
                 {"id": "s1_inventory", "endpoint": "/s1/batch_inventory"},
-                {"id": "s3_capacity",  "endpoint": "/s3/capacity", "depends_on": ["s2_forecast"]},
+                {"id": "s3_capacity",  "endpoint": "/s3/schedule", "depends_on": ["s2_forecast"]},
             ],
         },
         "waste_analysis": {

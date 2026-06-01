@@ -148,80 +148,76 @@ async def get_combo(order: dict):
             if pn == c["key"] or pn == c["name"]:
                 cart_coffee_keys.add(c["key"])
 
-    # Determine which breads to score:
-    # If cart has breads -> recommend coffee for THOSE breads (cart-driven)
-    # If cart empty or only coffee -> score all inventory (fallback)
-    if cart_breads:
-        target_breads = cart_breads
-    else:
-        target_breads = set(inventory.keys())
-
+    # Determine scoring direction:
+    # Cart has bread -> recommend coffee pairings (bread->coffee)
+    # Cart has coffee -> recommend bread pairings (coffee->bread)  
+    # Cart has both -> both directions
     all_scores = []
     max_inv = max(inv["total_qty"] for inv in inventory.values()) if inventory else 1
 
-    for pn, inv_data in inventory.items():
-        if pn not in target_breads:
-            continue  # skip breads not in cart
+    # --- Direction 1: Bread -> Coffee (cart has bread or empty) ---
+    if cart_breads or not cart_coffee_keys:
+        target_breads = cart_breads if cart_breads else set(inventory.keys())
+        for pn, inv_data in inventory.items():
+            if pn not in target_breads:
+                continue
+            pairings = PAIRING_MATRIX.get(pn, {})
+            freshness = inv_data.get("min_freshness", "Fresh")
+            discount = get_discount_rate(freshness)
+            inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
+            for coffee in COFFEE_DRINKS:
+                ck = coffee["key"]
+                flavor_score = pairings.get(ck, 0.3)
+                discount_score = discount * 3.33
+                f_map = {"Fresh": 0.3, "Day-1": 0.8, "Expired": 1.0}
+                freshness_score = f_map.get(freshness, 0.5)
+                inv_score = min(inv_pressure, 1.0)
+                context_score = 1.0 if ck not in cart_coffee_keys else 0.3
+                cart_boost = 0.15 if pn in cart_breads else 0.0
+                total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score + cart_boost)
+                bundle_price = (get_product_prices().get(pn, 5.0)*(1-discount)) + coffee["price"]
+                regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
+                savings = regular_price - bundle_price
+                all_scores.append({
+                    "product_name": pn, "coffee_name": coffee["name"], "coffee_key": ck,
+                    "products": f"{pn.replace('_',' ').title()} + {coffee['name']}",
+                    "direction": "bread_to_coffee",
+                    "total_score": round(total, 3), "total_price": round(bundle_price, 2),
+                    "savings": round(savings, 2), "freshness_status": freshness,
+                    "stock_qty": inv_data["total_qty"],
+                })
 
-        pairings = PAIRING_MATRIX.get(pn, {})
-        freshness = inv_data.get("min_freshness", "Fresh")
-        discount = get_discount_rate(freshness)
-        inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
-        in_cart_bonus = 1.0 if pn in cart_breads else 0.7
-
-        for coffee in COFFEE_DRINKS:
-            ck = coffee["key"]
-
-            # 1. Flavor pairing score
-            flavor_score = pairings.get(ck, 0.3)
-
-            # 2. Discount score (higher discount = better deal)
-            discount_score = discount * 3.33
-
-            # 3. Freshness score (older = more urgent)
-            f_map = {"Fresh": 0.3, "Day-1": 0.8, "Expired": 1.0}
+    # --- Direction 2: Coffee -> Bread (cart has coffee) ---
+    if cart_coffee_keys:
+        for pn, inv_data in inventory.items():
+            pairings = PAIRING_MATRIX.get(pn, {})
+            freshness = inv_data.get("min_freshness", "Fresh")
+            discount = get_discount_rate(freshness)
+            inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
+            # Day-1 bread gets strong discount signal
+            discount_score = discount * 5.0
+            f_map = {"Fresh": 0.3, "Day-1": 0.9, "Expired": 1.0}
             freshness_score = f_map.get(freshness, 0.5)
-
-            # 4. Inventory pressure
             inv_score = min(inv_pressure, 1.0)
-
-            # 5. Order context: boost if coffee NOT already in cart
-            context_score = 1.0 if ck not in cart_coffee_keys else 0.3
-
-            # 6. Cart-relevance bonus: bread already in cart gets higher weight
-            #    This ensures cart-driven recommendations rank above fallback ones
-            cart_boost = 0.15 if pn in cart_breads else 0.0
-
-            total = (
-                W_FLAVOR * flavor_score +
-                W_DISCOUNT * discount_score +
-                W_FRESH * freshness_score +
-                W_INV * inv_score +
-                W_CONTEXT * context_score +
-                cart_boost
-            )
-
-            bundle_price = (get_product_prices().get(pn, 5.0) * (1 - discount)) + coffee["price"]
-            regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
-            savings = regular_price - bundle_price
-
-            all_scores.append({
-                "product_name": pn,
-                "coffee_name": coffee["name"],
-                "coffee_key": ck,
-                "products": f"{pn.replace('_',' ').title()} + {coffee['name']}",
-                "flavor_pairing": round(flavor_score, 2),
-                "discount_value": round(discount_score, 2),
-                "freshness": round(freshness_score, 2),
-                "inventory_pressure": round(inv_score, 2),
-                "order_context_match": round(context_score, 2),
-                "total_score": round(total, 3),
-                "total_price": round(bundle_price, 2),
-                "savings": round(savings, 2),
-                "tray_color": {"Fresh": "green", "Day-1": "yellow", "Expired": "black"}.get(freshness, "green"),
-                "freshness_status": freshness,
-                "stock_qty": inv_data["total_qty"],
-            })
+            for coffee in COFFEE_DRINKS:
+                ck = coffee["key"]
+                if ck not in cart_coffee_keys:
+                    continue
+                flavor_score = pairings.get(ck, 0.3)
+                # Bread NOT in cart = higher context (new recommendation)
+                context_score = 1.0 if pn not in cart_breads else 0.3
+                total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score)
+                bundle_price = (get_product_prices().get(pn, 5.0)*(1-discount)) + coffee["price"]
+                regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
+                savings = regular_price - bundle_price
+                all_scores.append({
+                    "product_name": pn, "coffee_name": coffee["name"], "coffee_key": ck,
+                    "products": f"{pn.replace('_',' ').title()} + {coffee['name']}",
+                    "direction": "coffee_to_bread",
+                    "total_score": round(total, 3), "total_price": round(bundle_price, 2),
+                    "savings": round(savings, 2), "freshness_status": freshness,
+                    "stock_qty": inv_data["total_qty"],
+                })
 
     # Sort by score descending
     all_scores.sort(key=lambda x: x["total_score"], reverse=True)

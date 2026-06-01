@@ -275,28 +275,82 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 
 
 
-<script>
-console.log("JS loaded v1779702860");
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script>
+var token='', role='', username='', currentPanel='pos';
+var API='';
+var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null;
+var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:4.0,bread_roll:3.5,chiffon:6.0,croissant_chocolate:6.5};
+var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
+var DISCOUNT_RATE=0.3;
+
+async function doLogin(){
+var u=document.getElementById('username').value.trim();
+var p=document.getElementById('password').value;
+if(!u||!p){document.getElementById('error-msg').textContent='Enter username and password';return}
+document.getElementById('signin-btn').disabled=true;
+document.getElementById('signin-btn').textContent='Signing in...';
+try{
+var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+if(!r.ok){var txt=await r.text();throw new Error(txt||'Invalid credentials')}
+var d=await r.json();
+token=d.access_token;role=d.role;username=d.username;
+document.getElementById('login-page').classList.add('hidden');
+document.getElementById('dashboard').classList.remove('hidden');
+document.getElementById('user-display').textContent=username;
+var badge=document.getElementById('role-badge');
+badge.textContent=role==='manager'?'Manager':'Staff';
+badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
+var mb=document.querySelectorAll('.manager-only');
+for(var i=0;i<mb.length;i++)mb[i].style.display=role==='manager'?'':'none';
+showPanel('pos');
+}catch(e){
+document.getElementById('error-msg').textContent='Error: '+e.message;
+document.getElementById('signin-btn').disabled=false;
+document.getElementById('signin-btn').textContent='Sign In';
+}
+}
+function doLogout(){
+token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];
+document.getElementById('dashboard').classList.add('hidden');
+document.getElementById('login-page').classList.remove('hidden');
+document.getElementById('signin-btn').disabled=false;
+document.getElementById('signin-btn').textContent='Sign In';
+}
+function showPanel(panel){
+currentPanel=panel;
+var btns=document.querySelectorAll('.sidebar nav button');
+for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
+var btn=document.querySelector('[data-panel='+panel+']');
+if(btn)btn.classList.add('active');
+var titles={pos:'POS Checkout',forecast:'Sales Forecast',schedule:'Shift Schedule',inventory:'Inventory',agent:'Agent Query'};
+document.getElementById('panel-title').textContent=titles[panel]||panel;
+var ca=document.getElementById('content-area');
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,agent:renderAgent};
+if(panels[panel])panels[panel](ca);
+}
+async function api(url,opts){
+opts=opts||{};
+var headers={'Authorization':'Bearer '+token};
+if(opts.body&&!opts.bodyIsForm){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body);}
+var r=await fetch(API+url,{method:opts.method||'GET',headers:headers,body:opts.body});
+if(!r.ok){var txt=await r.text();throw new Error(txt||'Request failed');}
+return r.json();
+}
+function getItemPrice(item){
+var base=PRODUCT_PRICES[item.product_name]||COFFEE_PRICES[item.product_name]||5.0;
+return item.tray_color==='orange'?base*(1-DISCOUNT_RATE):base;
+}
+
+console.log("JS loaded v1779702768");
 
 var token='', role='', username='', currentPanel='pos';
 var API='';
-var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, freshnessStockMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false;
-var PRODUCT_PRICES={donut:6.5,croissant:7.5,bread_coconut:5.5,bread_roll:5.0,chiffon:8.0,croissant_chocolate:8.5};
-var PRODUCT_COSTS={donut:2.0,croissant:2.5,bread_coconut:1.8,bread_roll:1.5,chiffon:2.5,croissant_chocolate:2.8};
-(async function loadPrices(){
-  try{
-    var r=await fetch(API+'/s4/products');
-    var d=await r.json();
-    if(d.products){
-      d.products.forEach(function(p){
-        PRODUCT_PRICES[p.product_name]=p.unit_price;
-        PRODUCT_COSTS[p.product_name]=p.cost_price||0;
-      });
-    }
-  }catch(e){console.log('Failed to fetch product prices from API, using defaults');}
-})();
+var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false;
+var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:3.5,bread_roll:3.5,chiffon:5.0,croissant_chocolate:5.5};
+var PRODUCT_COSTS={donut:1.35,croissant:1.9,bread_coconut:1.05,bread_roll:1.05,chiffon:1.75,croissant_chocolate:1.9};
 var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
-var DISCOUNT_RATE=0.3;
+var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.py
+
 var COFFEE_DRINKS=[
 {name:'Latte',desc:'Smooth espresso with steamed milk',price:'8.50',key:'latte'},
 {name:'Americano',desc:'Espresso with hot water',price:'6.50',key:'americano'},
@@ -325,7 +379,7 @@ badge.textContent=role==='manager'?'Manager':'Staff';
 badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
 var mb=document.querySelectorAll('.manager-only');
 for(var i=0;i<mb.length;i++)mb[i].style.display=role==='manager'?'':'none';
-showPanel('pos');loadStock();startAlertPoll();
+showPanel('pos');loadStock();loadPrices();
 }catch(e){
 document.getElementById('error-msg').textContent='Error: '+e.message;
 document.getElementById('signin-btn').disabled=false;
@@ -421,7 +475,6 @@ if(item.discount_rate&&item.discount_rate>0){
     cartHTML+='<span>RM '+(pr*item.quantity).toFixed(2)+'</span>';
 }
 cartHTML+='<span class="detect-status '+stColors[st]+'" style="font-size:11px">'+stLabels[st]+'</span>';
-if(item.freshness){cartHTML+='<span style="font-size:10px;color:#8b6914;margin-left:4px">['+item.freshness+']</span>';}
 cartHTML+='</div>';
 cartHTML+='<div class="detect-actions" style="margin-top:4px">';
 cartHTML+='<button class="detect-confirm" onclick="editCartItem('+i+')">Edit</button>';
@@ -432,9 +485,9 @@ cartHTML+='</div></div>';
 // Bundle
 var bundleHTML='';
 if(bundleRecs.length>0){
-// Check if loading
-if(bundleRecs[0]._loading){
-bundleHTML='<div class="bundle-card" style="text-align:center;padding:16px;opacity:0.7"><div class="bundle-rank">Generating...</div><div style="font-size:12px;color:#999;margin-top:4px">AI is scoring 5-dimension bundles</div></div>';
+var isGenerating=bundleRecs.length===1&&bundleRecs[0].products==='Generating...';
+if(isGenerating){
+bundleHTML='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px"><span class="spinner"></span> Generating...</p>';
 }else{
 for(var i=0;i<bundleRecs.length;i++){
 var b=bundleRecs[i];
@@ -445,7 +498,8 @@ bundleHTML+='<div class="bundle-price">RM '+b.total_price.toFixed(2)+'</div>';
 bundleHTML+='<div class="bundle-save">Save RM '+b.savings.toFixed(2)+'</div></div>';
 }
 }
-}else{bundleHTML='<div class="bundle-hint">Select drinks to generate recommendations</div>';}
+}else{bundleHTML='<div class="bundle-hint">Add items to cart then generate Top-3 bundles</div>';}
+
 
 
 // Coffee buttons
@@ -462,45 +516,34 @@ coffeeBtns+='<span class="drink-price">RM '+cd.price+'</span></button>';
 // Bakery buttons with freshness dots
 var bakeryBtns='';
 var bkeys=Object.keys(PRODUCT_PRICES).sort();
-var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
-var fLabel={"Fresh":"","Day-1":" 10%OFF"};
-var fOrder=["Fresh","Day-1"];
-var dr1={"Fresh":0,"Day-1":0.20};
+if(!window._bakeryFreshness)window._bakeryFreshness={};
 for(var i=0;i<bkeys.length;i++){
 var bk=bkeys[i];
-var bp=PRODUCT_PRICES[bk]||5;
+if(window._bakeryFreshness[bk]===undefined)window._bakeryFreshness[bk]="Fresh";
+var curFresh=window._bakeryFreshness[bk];
 var stockInfo=stockMap&&stockMap[bk]?stockMap[bk]:'--';
-var fsMap=freshnessStockMap&&freshnessStockMap[bk]?freshnessStockMap[bk]:{"Fresh":0,"Day-1":0};
-// Default: freshest available first
-var selFresh="Fresh";
-for(var fi=0;fi<fOrder.length;fi++){if(fsMap[fOrder[fi]]>0){selFresh=fOrder[fi];break;}}
-window._selFreshness=window._selFreshness||{};
-window._selFreshness[bk]=selFresh;
-var discountRate=dr1[selFresh]||0;
-var selColor=fColor[selFresh]||"#4caf50";
-var fli=fLabel[selFresh]||"";
-// Original button + left color bar
-bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery(\''+bk+'\')" style="border-left:4px solid '+selColor+'" id="bakery-'+bk.replace(/\s/g,'_')+'">';
-bakeryBtns+='<span class="drink-name">'+capName(bk)+'<span style="color:'+selColor+';font-size:11px;margin-left:4px" id="flabel-'+bk.replace(/\s/g,'_')+'">'+fli+'</span></span>';
+var freshQty=window._freshStock&&window._freshStock[bk]?window._freshStock[bk]:0;
+var day1Qty=window._day1Stock&&window._day1Stock[bk]?window._day1Stock[bk]:0;
+var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
+var fci=fColor[curFresh]||"#4caf50";
+var bp=PRODUCT_PRICES[bk]||5;
+var dr={"Fresh":0,"Day-1":DISCOUNT_RATE};
+var discountRate=dr[curFresh]||0;
+bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"','"+curFresh+"'"+')" style="border-left:4px solid '+fci+'">';
+bakeryBtns+='<span class="drink-name">'+capName(bk)+'</span>';
 bakeryBtns+='<span class="drink-desc">Stock: '+stockInfo+'</span>';
 if(discountRate>0){
-    bakeryBtns+='<span class="drink-price" id="price-'+bk.replace(/\s/g,'_')+'"><s style="color:#999;font-size:11px">RM '+bp.toFixed(2)+'</s> RM '+(bp*(1-discountRate)).toFixed(2)+'</span>';
+    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">RM '+bp.toFixed(2)+'</s> RM '+(bp*(1-discountRate)).toFixed(2)+'</span>';
 }else{
-    bakeryBtns+='<span class="drink-price" id="price-'+bk.replace(/\s/g,'_')+'">RM '+bp.toFixed(2)+'</span>';
+    bakeryBtns+='<span class="drink-price">RM '+bp.toFixed(2)+'</span>';
 }
-// Freshness dots
-bakeryBtns+='<div style="display:flex;gap:6px;margin-top:2px" id="dots-'+bk.replace(/\s/g,'_')+'">';
-for(var fj=0;fj<fOrder.length;fj++){
-var f=fOrder[fj];var q=fsMap[f]||0;
-if(q>0){
-var isSel=f===selFresh;
-var dotColor=fColor[f]||"#ccc";
-bakeryBtns+='<span onclick="event.stopPropagation();selectFreshness(\''+bk+'\',\''+f+'\')" title="'+f+fLabel[f]+' x'+q+'" style="cursor:pointer;display:inline-block;width:'+(isSel?'14px':'10px')+';height:'+(isSel?'14px':'10px')+';border-radius:50%;background:'+dotColor+';'+(isSel?'box-shadow:0 0 0 2px #fff, 0 0 0 3px '+dotColor+';':'opacity:0.7')+';transition:all .15s"></span>';
+bakeryBtns+='<div style="margin-top:4px;display:flex;gap:6px;align-items:center">';
+bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Fresh'"+')" title="Fresh stock: '+freshQty+'" style="width:14px;height:14px;border-radius:50%;background:#4caf50;cursor:pointer'+(curFresh==='Fresh'?'box-shadow:0 0 0 3px rgba(76,175,80,.4)':'opacity:0.5')+'"></div>';
+bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Day-1'"+')" title="Day-1 stock: '+day1Qty+'" style="width:14px;height:14px;border-radius:50%;background:#ff9800;cursor:pointer'+(curFresh==='Day-1'?'box-shadow:0 0 0 3px rgba(255,152,0,.4)':'opacity:0.5')+'"></div>';
+bakeryBtns+='<span style="font-size:9px;color:#888">'+(curFresh==='Day-1'?'Day-1 '+(DISCOUNT_RATE*100)+'%OFF':'Fresh')+'</span>';
+bakeryBtns+='</div></button>';
 }
-}
-bakeryBtns+='</div>';
-bakeryBtns+='</button>';
-}
+
 // HITL
 var hitlHTML='';
 if(hitlLog.length>0){
@@ -602,8 +645,6 @@ for(var i=0;i<bKeys.length;i++){var sel=bKeys[i]===d.product_name?" selected":""
 for(var i=0;i<cKeys.length;i++){var sel=cKeys[i]===d.product_name?" selected":"";cOpts+="<option value=\""+cKeys[i]+"\""+sel+">"+capName(cKeys[i])+"</option>";}
 document.getElementById("edit-name").innerHTML="<optgroup label=\"-- Bakery --\">"+bOpts+"</optgroup><optgroup label=\"-- Coffee --\">"+cOpts+"</optgroup>";
 document.getElementById("edit-qty").value=d.quantity;
-var fMap={"green":"Fresh","yellow":"Day-1"};
-document.getElementById("edit-freshness").value=d.freshness||fMap[d.tray_color]||"auto";
 document.querySelector("#edit-modal h3").textContent="Edit Detection";
 document.getElementById("edit-modal").classList.add("show");
 }
@@ -621,54 +662,17 @@ if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tr
 renderPOS(document.getElementById('content-area'));
 }
 
-function selectFreshness(product,freshness){
-var bk=product;var bp=PRODUCT_PRICES[bk]||5;
-var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
-var fLabel={"Fresh":"","Day-1":" 10%OFF"};
-var dr1={"Fresh":0,"Day-1":0.20};
-var discountRate=dr1[freshness]||0;
-var selColor=fColor[freshness]||"#4caf50";
-// Update border color
-var card=document.getElementById('bakery-'+bk.replace(/\s/g,'_'));
-if(card)card.style.borderLeftColor=selColor;
-// Update freshness label
-var fl=document.getElementById('flabel-'+bk.replace(/\s/g,'_'));
-if(fl){fl.style.color=selColor;fl.textContent=fLabel[freshness]||'';}
-// Update price
-var curPrice=discountRate>0?(bp*(1-discountRate)).toFixed(2):bp.toFixed(2);
-var pel=document.getElementById('price-'+bk.replace(/\s/g,'_'));
-if(pel)pel.innerHTML=discountRate>0?'<s style="color:#999;font-size:11px">RM '+bp.toFixed(2)+'</s> RM '+curPrice:'RM '+curPrice;
-// Update dots
-var fOrder=["Fresh","Day-1"];
-var dots=document.getElementById('dots-'+bk.replace(/\s/g,'_'));
-if(dots){
-var spans=dots.getElementsByTagName('span');
-for(var i=0;i<spans.length;i++){
-var s=spans[i];var title=s.title||'';
-for(var fj=0;fj<fOrder.length;fj++){
-if(title.indexOf(fOrder[fj])===0){
-var dc=fColor[fOrder[fj]]||"#ccc";
-if(fOrder[fj]===freshness){
-s.style.width='14px';s.style.height='14px';s.style.boxShadow='0 0 0 2px #fff, 0 0 0 3px '+dc;s.style.opacity='1';
-}else{
-s.style.width='10px';s.style.height='10px';s.style.boxShadow='none';s.style.opacity='0.7';
+function selectFreshness(name,fresh){
+if(!window._bakeryFreshness)window._bakeryFreshness={};
+window._bakeryFreshness[name]=fresh;
+renderPOS(document.getElementById('content-area'));
 }
-break;
-}
-}
-}
-}
-// Store selection
-window._selFreshness=window._selFreshness||{};
-window._selFreshness[bk]=freshness;
-}
-function quickAddBakery(name,freshness){
-if(!freshness)freshness=(window._selFreshness&&window._selFreshness[name])||'Fresh';
+function quickAddBakery(name,fresh){
 var found=false;
-for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name&&(cartItems[i].freshness||'Fresh')===freshness){cartItems[i].quantity+=1;found=true;break;}}
-var fresh=freshness||(freshnessMap&&freshnessMap[name]?freshnessMap[name]:'Fresh');
-var tc={"Fresh":"green","Day-1":"yellow"};
-var dr={"Fresh":0,"Day-1":0.20};
+for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name){cartItems[i].quantity+=1;found=true;break;}}
+if(!fresh||fresh==="undefined")fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh";
+var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
+var dr={"Fresh":0,"Day-1":DISCOUNT_RATE,"Day-2":DISCOUNT_RATE,"Near-Expired":DISCOUNT_RATE};
 var tray=tc[fresh]||"green";
 var disc=dr[fresh]||0;
 if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tray,discount_rate:disc,freshness:fresh,status:'confirmed'});
@@ -690,23 +694,23 @@ document.getElementById('scan-file').value='';
 }
 async function completePayment(){
 if(!cartItems.length){alert('Cart is empty');return}
+for(var i=0;i<cartItems.length;i++){var ci=cartItems[i];if(!stockMap||!stockMap[ci.product_name]||stockMap[ci.product_name]<=0){alert('No stock for '+ci.product_name+'. Cannot checkout.');return;}}
 var total=0;for(var i=0;i<cartItems.length;i++)total+=getItemPrice(cartItems[i])*cartItems[i].quantity;
-var items=[];for(var i=0;i<cartItems.length;i++)items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:cartItems[i].freshness||null});
+var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){showReceipt(d.receipt);cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));}
+if(d.status==='ok'){alert('Payment Complete - RM '+total.toFixed(2)+'\n'+d.deducted.length+' items deducted');cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
 async function generateBundle(){
 if(!cartItems.length){alert('Add items to cart first');return}
-var items=[];for(var i=0;i<cartItems.length;i++)items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:cartItems[i].freshness||null});
-// Show loading state
-bundleRecs=[{_loading:true}];
+bundleRecs=[{products:'Generating...',total_price:0,savings:0,items:[]}];
 renderPOS(document.getElementById('content-area'));
+var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/combo',{method:'POST',headers:hdrs,body:JSON.stringify({items:items})});
@@ -725,7 +729,7 @@ total_score:rc.total_score
 });
 }
 renderPOS(document.getElementById('content-area'));
-}catch(e){bundleRecs=[];renderPOS(document.getElementById('content-area'));alert('Bundle error: '+e.message);}
+}catch(e){alert('Bundle error: '+e.message);}
 }
 function addBundleToCart(idx){
 var b=bundleRecs[idx];if(!b)return;
@@ -734,22 +738,7 @@ for(var i=0;i<b.items.length;i++){
     var name=b.items[i];
     var isBread=!!BAKERY_KEYS[name];
     if(isBread){
-        // Use cart freshness > user-selected freshness > stock freshness > Fresh
-        var fresh='Fresh';
-        // 1. Check if bread already in cart
-        for(var j=0;j<cartItems.length;j++){
-            if(cartItems[j].product_name===name&&cartItems[j].freshness){
-                fresh=cartItems[j].freshness;break;
-            }
-        }
-        // 2. Check user-selected freshness from Bakery Products dots
-        if(fresh==='Fresh'&&window._selFreshness&&window._selFreshness[name]){
-            fresh=window._selFreshness[name];
-        }
-        // 3. Fallback to stock freshness
-        if(fresh==='Fresh'&&freshnessMap&&freshnessMap[name]){
-            fresh=freshnessMap[name];
-        }
+        var fresh=window._bakeryFreshness&&window._bakeryFreshness[name]?window._bakeryFreshness[name]:(freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh");
         var tc={"Fresh":"green","Day-1":"yellow"};
         var dr={"Fresh":0,"Day-1":0.20};
         var found=false;
@@ -804,7 +793,7 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>Sales Forecast <button class=
 +'<div id="forecast-result" class="result-box"><span class="spinner"></span>Loading forecast...</div></div>';
 loadForecast(false);
 }
-async function loadForecast(force){if(!window._s2Mae){try{var r=await fetch("/s2/accuracy").then(function(x){return x.json()});if(r.metrics)window._s2Mae=r.metrics;}catch(e){}}if(!window._s2Mae){try{var r=await fetch("/s2/accuracy").then(function(x){return x.json()});if(r.metrics)window._s2Mae=r.metrics;}catch(e){}}
+async function loadForecast(force){
 var url=force?'/s2/forecast/refresh?days=7':'/s2/forecast?days=7';
 var el=document.getElementById('forecast-result');
 if(!force) el.innerHTML='<span class="spinner"></span>Loading forecast...';
@@ -825,7 +814,7 @@ tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
 tbl+='<td style="padding:8px;font-weight:600">'+dates[d]+'</td>';
 for(var p=0;p<prods.length;p++){
 var v=byDay[dates[d]][prods[p]]||'-';
-var txt='-';if(v&&typeof v==='object'&&typeof v.predicted==='number'){if(v.predicted===0){txt='Closed'}else{txt=v.predicted;var m=window._s2Mae&&window._s2Mae[prods[p]]?window._s2Mae[prods[p]].MAE:null;if(m)txt=Math.round(v.predicted-m)+"-"+Math.round(v.predicted+m);}}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
+var txt='-';if(v&&typeof v==='object'){var lo=v.low,hi=v.high;if(typeof lo==='number'&&typeof hi==='number')txt=lo+'-'+hi;}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
 }
 tbl+='</tr>';
 }
@@ -838,24 +827,33 @@ el.innerHTML=tbl;
 function renderSchedule(c){
 c.innerHTML='<div class="panel" style="flex:1"><h4>Shift Schedule</h4>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
-+'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate Schedule</button>'+'<button class="btn btn-outline btn-sm" onclick="loadKPI()" style="background:#fff;color:#8b7d6b;border:1px solid #d4c5b2;margin-left:6px">KPI Dashboard</button>'
-+'<button class="btn btn-outline btn-sm" onclick="resyncSchedule()" style="background:#fff;color:#8b7d6b;border:1px solid #d4c5b2;margin-left:6px">Re-sync</button>'
-+'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="'+(new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0'))+'">'
-+'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:70vh"><span class="spinner"></span>Loading schedule...</div>'
-+'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'+'<div id="kpi-result" class="result-box" style="overflow-x:auto;max-height:40vh;margin-top:12px;display:none"></div></div>';
++'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate</button>'
++'<button class="btn btn-secondary btn-sm" onclick="resyncSchedule()" title="Full regeneration">Re-sync</button>'
++'<button class="btn btn-secondary btn-sm" onclick="loadKPI()">KPI</button>'
++'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="2026-06-01">'
++'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:60vh"><span class="spinner"></span>Loading schedule...</div>'
++'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'
++'<div id="kpi-result" style="margin-top:8px"></div></div>';
 loadSchedule();
 }
 
 async function generateSchedule(){
-document.getElementById('schedule-result').innerHTML='<span class="spinner"></span>Solving...';
+var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
+// Warn if schedule already exists
+try{
+var check=await api('/s3/schedule?date='+sd+'&days=1');
+if(check.schedule&&check.schedule.length>0){
+  if(!confirm('A schedule already exists. Generate will overwrite all sick/swap changes. Continue?'))return;
+}
+}catch(e){}
+document.getElementById('schedule-result').innerHTML='<span class="spinner"></span>Generating...';
 document.getElementById('swap-msg').textContent='';
 cachedSchedule=null;cachedDate=null;
 try{
-var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
-var r=await api('/s3/solve',{method:'POST',body:{start_date:sd,days:7}});
-var s=r.schedule||[];if(!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No schedule';return}
-renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;loadKPI();
-}catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
+await api('/s3/solve',{method:'POST',body:{start_date:sd,days:7}});
+loadSchedule();loadKPI();
+document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule generated for '+sd+'</span>';
+}catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
 
 async function loadSchedule(){
@@ -871,87 +869,23 @@ document.getElementById('swap-msg').textContent='';
 try{
 var r=await api('/s3/schedule?date='+sd+'&days=7');
 var s=r.schedule||[];if(!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No schedule';return}
-renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;loadKPI();
+renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
 }catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
 }
 async function resyncSchedule(){
-if(!confirm('Regenerate entire schedule from S2 forecast?'))return;
-try{var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-05-27';
-await api('/s3/resync',{method:'POST',body:{start_date:sd,days:7}});cachedSchedule=null;cachedSummary=null;await loadSchedule();
-document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule regenerated from forecast</span>';loadKPI();}
+if(!confirm('Clear all sick leaves and regenerate from scratch?'))return;
+try{var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
+await api('/s3/resync',{method:'POST',body:{start_date:sd,days:7}});cachedSchedule=null;cachedSummary=null;loadSchedule();loadKPI();
+document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Re-sync complete (fresh schedule)</span>';}
 catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
-
-
-async function loadKPI(){
-var kpiDiv=document.getElementById('kpi-result');
-kpiDiv.style.display='block';
-kpiDiv.innerHTML='<span class="spinner"></span>Loading KPI...';
-try{
-var past=new Date();past.setDate(past.getDate()-7);var sd=past.toISOString().slice(0,10);
-var r=await api('/s3/kpi?start_date='+sd+'&days=7');
-renderKPI(r,kpiDiv);
-}catch(e){kpiDiv.innerHTML='<span style="color:#e74c3c">Error: '+e.message+'</span>';}
-}
-
-function renderKPI(d,div){
-if(d.status!=='ok'){div.innerHTML='<span style="color:#e74c3c">'+d.message+'</span>';return;}
-var cov=d.coverage, fair=d.fairness, comp=d.compliance, sum=d.summary, per=d.period;
-var passIcon=comp.all_pass?'<span style="color:#27ae60;font-size:18px">&#10003;</span>':'<span style="color:#e74c3c;font-size:18px">&#10007;</span>';
-var h='<h4 style="margin:0 0 12px">KPI Dashboard <small style="color:#999;font-weight:400">'+per.start+' ~ '+per.end+' ('+per.working_days+' working days)</small></h4>';
-
-// Summary cards
-h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">';
-h+='<div style="flex:1;min-width:120px;background:#f0faf5;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#27ae60">'+sum.total_shifts+'</div><div style="font-size:12px;color:#666">Total Shifts</div></div>';
-h+='<div style="flex:1;min-width:120px;background:#f0f0fa;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#5b5ea6">'+sum.total_hours+'h</div><div style="font-size:12px;color:#666">Total Hours</div></div>';
-h+='<div style="flex:1;min-width:120px;background:#faf5f0;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:700;color:#e67e22">'+sum.avg_hours_per_emp+'h</div><div style="font-size:12px;color:#666">Avg / Employee</div></div>';
-h+='<div style="flex:1;min-width:120px;background:'+(comp.all_pass?'#f0faf5':'#faf0f0')+';border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px">'+passIcon+'</div><div style="font-size:12px;color:#666">Compliance</div></div>';
-h+='</div>';
-
-// Coverage table
-h+='<h5 style="margin:0 0 8px">Coverage <small style="color:#999;font-weight:400">(per-employee, real-time)</small></h5>';
-h+='<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px"><tr style="background:#f5f0eb"><th style="padding:6px 10px;text-align:left">Employee</th><th style="padding:6px 10px;text-align:left">Role</th><th style="padding:6px 10px">Filled</th><th style="padding:6px 10px">Expected</th><th style="padding:6px 10px">Rate</th><th style="padding:6px 10px"></th></tr>';
-var covArr=d.coverage||[];
-for(var i=0;i<covArr.length;i++){
-var c=covArr[i];
-var barW=c.rate_pct||0;
-var barColor=barW>=90?'#27ae60':barW>=50?'#f39c12':'#e74c3c';
-h+='<tr style="border-bottom:1px solid #eee"><td style="padding:6px 10px;font-weight:600">'+c.employee+'</td><td style="padding:6px 10px;text-transform:capitalize;color:#888">'+c.role+'</td><td style="padding:6px 10px;text-align:center">'+c.filled+'</td><td style="padding:6px 10px;text-align:center">'+c.expected+'</td><td style="padding:6px 10px;text-align:center;font-weight:600;color:'+barColor+'">'+barW+'%</td><td style="padding:6px 10px"><div style="background:#eee;border-radius:4px;height:6px;width:100%"><div style="background:'+barColor+';border-radius:4px;height:6px;width:'+Math.min(barW,100)+'%"></div></div></td></tr>';
-}
-h+='</table>';
-
-// Fairness table
-h+='<h5 style="margin:0 0 8px">Fairness</h5>';
-h+='<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px"><tr style="background:#f5f0eb"><th style="padding:6px 10px;text-align:left">Role</th><th style="padding:6px 10px;text-align:left">Employees</th><th style="padding:6px 10px">Gap</th><th style="padding:6px 10px">Status</th></tr>';
-var roles=['baker','cashier','barista','cleaner'];for(var i=0;i<roles.length;i++){
-var r=roles[i], f=fair[r]||{};
-var emps=f.employees||{};
-var empStr=Object.keys(emps).map(function(n){return n+' ('+emps[n]+'h)';}).join(', ');
-var gap=f.gap_hours||0;
-var fairIcon=gap<=6?'<span style="color:#27ae60">Fair &#10003;</span>':'<span style="color:#e74c3c">Gap: '+gap+'h</span>';
-h+='<tr style="border-bottom:1px solid #eee"><td style="padding:6px 10px;text-transform:capitalize">'+r+'</td><td style="padding:6px 10px">'+empStr+'</td><td style="padding:6px 10px;text-align:center">'+gap+'h</td><td style="padding:6px 10px;text-align:center">'+fairIcon+'</td></tr>';
-}
-h+='</table>';
-
-// Violations
-if(comp.violations&&comp.violations.length>0){
-h+='<h5 style="margin:0 0 8px;color:#e74c3c">Violations</h5>';
-h+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#fde8e8"><th style="padding:6px 10px;text-align:left">Employee</th><th style="padding:6px 10px;text-align:left">Type</th><th style="padding:6px 10px">Detail</th></tr>';
-for(var i=0;i<comp.violations.length;i++){
-var v=comp.violations[i];
-var detail=v.type==='under_min_hours'?'Actual '+v.actual+'h < Min '+v.required+'h':v.type==='over_max_hours'?'Actual '+v.actual+'h > Max '+v.allowed+'h':v.type==='consecutive_days'?v.days+' days (max '+v.max_allowed+')':JSON.stringify(v);
-h+='<tr style="border-bottom:1px solid #fdd"><td style="padding:6px 10px">'+v.employee+'</td><td style="padding:6px 10px;color:#c0392b">'+v.type.replace(/_/g,' ')+'</td><td style="padding:6px 10px">'+detail+'</td></tr>';
-}
-h+='</table>';
-}
-
-div.innerHTML=h;
-}
-async function undoSick(id,date){
+async function undoSick(id,name,date){
+if(!confirm('Undo sick leave for '+name+' on '+date+'?'))return;
 try{
 await api('/s3/unsick',{method:'POST',body:{employee_id:id,date:date,start_date:date,days:7}});
-cachedSchedule=null;cachedSummary=null;await loadSchedule();
-document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Sick leave undone for '+date+'. Schedule restored.</span>';
+cachedSchedule=null;cachedDate=null;
+loadSchedule();loadKPI();
+document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Sick leave undone for '+name+'</span>';
 }catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
 async function markSick(id,name,date){
@@ -959,9 +893,10 @@ if(!confirm('Mark '+name+' as sick on '+date+'?'))return;
 try{
 var sdEl=document.getElementById('sched-date');
 if(sdEl)sdEl.value=date;
-await api('/s3/sick',{method:'POST',body:{employee_id:id,date:date,start_date:date,days:7}});cachedSchedule=null;cachedSummary=null;
-await loadSchedule();
-document.getElementById('swap-msg').innerHTML='<span style="color:#e67e22">'+name+' marked sick on '+date+'.</span> <a href="#" onclick="undoSick(\''+id+'\',\''+date+'\');return false" style="color:#3498db;font-size:12px;margin-left:8px">[Undo]</a>';
+var ua={};ua[id]=[date];
+await api('/s3/sick',{method:'POST',body:{employee_id:id,date:date,start_date:date,days:7}});cachedSchedule=null;cachedDate=null;
+loadSchedule();loadKPI();
+document.getElementById('swap-msg').innerHTML='<span style="color:#e67e22">'+name+' marked sick on '+date+'</span> <button onclick="undoSick(&apos;'+id+'&apos;,&apos;'+name+'&apos;,&apos;'+date+'&apos;)" style="background:none;border:none;color:#8b6914;cursor:pointer;text-decoration:underline;font-size:12px">Undo</button>';
 }catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
 var SWAP_DATA=null;
@@ -997,8 +932,8 @@ evt.preventDefault();
 document.getElementById('swap-modal').classList.remove('show');
 document.getElementById('swap-msg').innerHTML='<span class="spinner"></span>Swapping...';
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
-fetch(API+'/s3/swap',{method:'POST',headers:hdrs,body:JSON.stringify({date:SWAP_DATA.date,time_slot:SWAP_DATA.slot,from_employee_id:SWAP_DATA.fromId,to_employee_id:eid,to_date:toDate,to_time_slot:toSlot})}).then(function(r){return r.json();}).then(async function(r){
-if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;await loadSchedule();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
+fetch(API+'/s3/swap',{method:'POST',headers:hdrs,body:JSON.stringify({date:SWAP_DATA.date,time_slot:SWAP_DATA.slot,from_employee_id:SWAP_DATA.fromId,to_employee_id:eid,to_date:toDate,to_time_slot:toSlot})}).then(function(r){return r.json();}).then(function(r){
+if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;cachedDate=null;loadSchedule();loadKPI();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
 else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+(r.reason||r.message)+'</span>';}
 }).catch(function(e){document.getElementById('swap-msg').textContent='Error: '+e.message;});
 }
@@ -1009,8 +944,8 @@ if(!SWAP_DATA){alert('Swap data lost, please try again');return;}
 document.getElementById('swap-modal').classList.remove('show');
 document.getElementById('swap-msg').innerHTML='<span class="spinner"></span>Swapping...';
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
-fetch(API+'/s3/swap',{method:'POST',headers:hdrs,body:JSON.stringify({date:SWAP_DATA.date,time_slot:SWAP_DATA.slot,from_employee_id:SWAP_DATA.fromId,to_employee_id:toId})}).then(function(r){return r.json();}).then(async function(r){
-if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;await loadSchedule();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
+fetch(API+'/s3/swap',{method:'POST',headers:hdrs,body:JSON.stringify({date:SWAP_DATA.date,time_slot:SWAP_DATA.slot,from_employee_id:SWAP_DATA.fromId,to_employee_id:toId})}).then(function(r){return r.json();}).then(function(r){
+if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;cachedDate=null;loadSchedule();loadKPI();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
 else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+(r.reason||r.message)+'</span>';}
 }).catch(function(e){document.getElementById('swap-msg').textContent='Error: '+e.message;});
 }
@@ -1033,7 +968,7 @@ for(var i=0;i<items.length;i++){
 var it=items[i];var q=it.quantity_remaining!=null?it.quantity_remaining:it.quantity;
 if(q<=0)continue;
 var f=it.freshness_status||'Fresh';
-var fc={'Fresh':'#4caf50','Day-1':'#ff9800','Day-1':'#ff9800','Expired':'#999'};
+var fc={'Fresh':'#4caf50','Day-1':'#ff9800','Day-2':'#ef6c00','Near-Expired':'#d32f2f','Expired':'#999'};
 var fcol=fc[f]||'#4caf50';
 tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
 tbl+='<td style="padding:8px 6px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.product_name.replace(/_/g,' ').replace(/\b\w/g,function(x){return x.toUpperCase()})+'</td>';
@@ -1052,43 +987,61 @@ cachedInventory=tbl;
 
 function renderAgent(c){
 c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
-+'<div style="margin-bottom:12px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px" onkeydown="if(event.keyCode===13)runAgentQuery()"></div>'
++'<div style="margin-bottom:12px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px"></div>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
 +'<button class="btn btn-primary btn-sm" onclick="runAgentQuery()">Ask</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'How many croissants should I bake tomorrow?\')" >Restock</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Why is waste high this week?\')" >Waste</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Check schedule for anomalies\')" >Schedule</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Run a full store health check\')" >Audit</button>'
-+'</div><div id="agent-result" class="result-box" style="overflow-y:auto;max-height:80vh"><span class="status-dot dot-warn"></span>Type a question</div>'
++'</div><div id="agent-result" class="result-box"><span class="status-dot dot-warn"></span>Type a question</div>'
++'<hr style="border:0;border-top:2px solid #e0d5c7;margin:20px 0">'
++'<h4 style="margin:0 0 10px 0">What-If Simulator</h4>'
++'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
++'<select id="whatif-type" style="padding:6px 10px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px">'
++'<option value="discount">Discount %</option>'
++'<option value="production">Production Target</option>'
++'<option value="staffing">Staffing (+/-)</option>'
++'</select>'
++'<select id="whatif-product" style="padding:6px 10px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px">'
++'<option value="croissant">Croissant</option>'
++'<option value="donut">Donut</option>'
++'<option value="chiffon">Chiffon</option>'
++'<option value="bread_roll">Bread Roll</option>'
++'<option value="bread_coconut">Bread Coconut</option>'
++'<option value="croissant_chocolate">Croissant Chocolate</option>'
++'</select>'
++'<input id="whatif-value" type="number" placeholder="e.g. 30" style="width:80px;padding:6px 10px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px">'
++'<button class="btn btn-primary btn-sm" onclick="runWhatIf()">Simulate</button>'
++'</div>'
++'<div id="whatif-result" class="result-box" style="font-size:12px"><span class="status-dot dot-warn"></span>Adjust parameters and click Simulate</div>'
 +'</div>';
 }
 function runQuickAgent(q){document.getElementById('agent-query').value=q;runAgentQuery();}
-var AGENT_SESSION_ID='agent_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
 async function runAgentQuery(){
 var q=document.getElementById('agent-query').value.trim();
 if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>Enter a question';return}
 document.getElementById('agent-result').innerHTML='<span class="spinner"></span>Processing...';
-try{var r=await api('/s5/query',{method:'POST',body:{query:q,params:{},session_id:AGENT_SESSION_ID}});
+try{var r=await api('/s5/query',{method:'POST',body:{query:q,params:{}}});
 var out='<div style="font-size:13px;line-height:1.6">';
 out+='<strong>Intent:</strong> '+r.intent+' ('+Math.round(r.confidence*100)+'%)<br>';
 out+='<hr style="border:0;border-top:1px solid #e0d5c7;margin:8px 0">';
 if(r.audit&&r.audit.audit_warnings&&r.audit.audit_warnings.length>0){out+='<strong style="color:#e67e22">Warnings:</strong><br>';for(var i=0;i<r.audit.audit_warnings.length;i++)out+='  <span style="color:#e74c3c">!</span> '+r.audit.audit_warnings[i]+'<br>';out+='<br>';}
 out+='<strong>Summary:</strong> '+r.summary;
 var sched=r.result&&r.result.schedule;
-if(sched&&sched.length>0&&r.show_table!==false){
-out+='<br><br><strong style="font-size:14px">Schedule</strong><br>';
+if(sched&&sched.length>0){
+out+='<br><br><strong>Schedule Table:</strong><br>';
 var dates=[],seen={};for(var i=0;i<sched.length;i++){if(!seen[sched[i].date]){dates.push(sched[i].date);seen[sched[i].date]=true;}}dates.sort();
 var slots=['09:00-14:00','14:00-19:00'];
-out+='<table class="sched-table" style="font-size:13px;margin-top:8px"><thead><tr><th>Time</th>';
-for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');out+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
+out+='<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:6px"><thead><tr><th style="padding:4px;border:1px solid #e0d5c7;background:#fdfaf5">Time</th>';
+for(var i=0;i<dates.length;i++){out+='<th style="padding:4px;border:1px solid #e0d5c7;background:#fdfaf5">'+dates[i].slice(5)+'</th>';}
 out+='</tr></thead><tbody>';
-for(var si=0;si<slots.length;si++){var slot=slots[si];out+='<tr><td><strong>'+slot+'</strong></td>';
-for(var di=0;di<dates.length;di++){var d=dates[di];out+='<td>';
+for(var si=0;si<slots.length;si++){out+='<tr><td style="padding:4px;border:1px solid #e0d5c7;font-weight:600;background:#fdfaf5">'+slots[si]+'</td>';
+for(var di=0;di<dates.length;di++){out+='<td style="padding:4px;border:1px solid #e0d5c7;font-size:10px">';
 var found=false;
-for(var i=0;i<sched.length;i++){if(sched[i].date===d&&sched[i].time_slot===slot){
-var dl=sched[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';
-out+='<div style="font-size:12px;padding:4px"><strong>'+sched[i].employee_name+'</strong><br>'+sched[i].role+' <span style="font-size:10px;background:'+dc+';color:#fff;padding:1px 5px;border-radius:3px">'+dl+'</span></div>';found=true;}}
-if(!found)out+='<span style="color:#ccc">-</span>';
+for(var i=0;i<sched.length;i++){if(sched[i].date===dates[di]&&sched[i].time_slot===slots[si]){
+out+='<strong>'+sched[i].employee_name+'</strong><br>'+sched[i].role;found=true;}}
+if(!found)out+='-';
 out+='</td>';}
 out+='</tr>';}
 out+='</tbody></table>';
@@ -1111,7 +1064,7 @@ var nn=document.getElementById('edit-name').value;
 if(!nn){alert('Please select a product');return;}
 var nq=parseInt(document.getElementById('edit-qty').value)||1;
 var nf=document.getElementById("edit-freshness").value;
-var ncMap={"Fresh":"green","Day-1":"yellow"};
+var ncMap={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
 var ntc=nf!=="auto"?ncMap[nf]||"green":"green";
 detections.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:ntc,status:"confirmed",stock:"--",freshness:nf!=="auto"?nf:"Fresh"});
 cartItems.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:ntc,status:"confirmed",freshness:nf!=="auto"?nf:"Fresh"});
@@ -1130,7 +1083,7 @@ var oldName=d.product_name;
 d.product_name=document.getElementById('edit-name').value;
 d.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var df=document.getElementById("edit-freshness").value;
-var cMap={"Fresh":"green","Day-1":"yellow"};
+var cMap={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
 if(df!=="auto"){d.tray_color=cMap[df]||d.tray_color;d.freshness=df;}
 var changes=[];
 if(oldName!==d.product_name)changes.push('name: '+oldName+' -> '+d.product_name);
@@ -1147,8 +1100,8 @@ var oldName=item.product_name;
 item.product_name=document.getElementById('edit-name').value;
 item.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var if2=document.getElementById("edit-freshness").value;
-var cMap2={"Fresh":"green","Day-1":"yellow"};
-var drMap={"Fresh":0,"Day-1":0.20};
+var cMap2={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
+var drMap={"Fresh":0,"Day-1":DISCOUNT_RATE,"Day-2":DISCOUNT_RATE,"Near-Expired":DISCOUNT_RATE};
 if(if2!=="auto"){item.tray_color=cMap2[if2]||item.tray_color;item.freshness=if2;item.discount_rate=drMap[if2]||0;}
 var changes=[];
 if(oldName!==item.product_name)changes.push('name: '+oldName+' -> '+item.product_name);
@@ -1173,7 +1126,18 @@ function triggerScan(){console.log("1.triggerScan");var inp=document.getElementB
 function capName(name){
 return name.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}).replace(/\b\w/g,function(c){return c.toUpperCase();});
 }
-function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};freshnessStockMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";freshnessStockMap[pn]={"Fresh":0,"Day-1":0};}var f=item.freshness_status||"Fresh";if(f!=="Expired"){stockMap[pn]+=item.quantity||0;freshnessStockMap[pn][f]=(freshnessStockMap[pn][f]||0)+(item.quantity||0);}var frank={"Expired":0,"Fresh":1,"Day-1":2,"Expired":2};if(frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadPrices(){
+fetch(API+'/s4/products').then(function(r){return r.json();}).then(function(d){
+var prods=d.products||[];
+for(var i=0;i<prods.length;i++){
+var p=prods[i];
+if(PRODUCT_PRICES[p.product_name]!==undefined)PRODUCT_PRICES[p.product_name]=p.unit_price||PRODUCT_PRICES[p.product_name];
+if(COFFEE_PRICES[p.product_name]!==undefined)COFFEE_PRICES[p.product_name]=p.unit_price||COFFEE_PRICES[p.product_name];
+}
+if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));
+}).catch(function(e){console.log('Price fetch err',e);});
+}
+function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=item.quantity||0;var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=item.quantity||0;}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=item.quantity||0;}}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;
@@ -1268,8 +1232,8 @@ cOpts+='<option value="'+cKeys[i]+'"'+sel+'>'+capName(cKeys[i])+'</option>';
 }
 document.getElementById('edit-name').innerHTML='<optgroup label="-- Bakery --">'+bOpts+'</optgroup><optgroup label="-- Coffee --">'+cOpts+'</optgroup>';
 document.getElementById('edit-qty').value=item.quantity;
-var fMap={"green":"Fresh","yellow":"Day-1"};
-document.getElementById("edit-freshness").value=item.freshness||fMap[item.tray_color]||"auto";
+var fMap2={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};
+document.getElementById("edit-freshness").value=item.freshness||fMap2[item.tray_color]||"auto";
 document.getElementById('edit-modal').classList.add('show');
 }
 function removeCartItem(idx){
@@ -1312,7 +1276,66 @@ tbl+='</td>';}
 tbl+='</tr>';}
 tbl+='</tbody></table>';
 document.getElementById('schedule-result').innerHTML=tbl;
+}
 
+// === KPI rendering ===
+async function loadKPI(){
+  var el=document.getElementById('kpi-result');
+  el.innerHTML='<span class="spinner"></span> Loading KPI...';
+  try{
+    var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
+    var r=await api('/s3/kpi?days=7&start_date='+sd);
+    if(r.status!=='ok'){el.innerHTML='KPI: '+ (r.message||'unknown error');return}
+    var s=r.summary||{};var comp=r.compliance||{};var fair=r.fairness||{};var cov=r.coverage||[];
+    var h='<div style="margin-top:12px">';
+    h+='<strong>KPI</strong> <span style="font-size:11px;color:#8b7355">('+r.period.start+' to '+r.period.end+', '+r.period.working_days+' working days)</span>';
+    // Summary cards
+    h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">';
+    var cards=[{l:'Total Hours',v:s.total_hours},{l:'Avg Hrs/Emp',v:s.avg_hours_per_emp},{l:'Employees',v:s.employees_scheduled}];
+    for(var i=0;i<cards.length;i++){
+      h+='<div style="flex:1;min-width:80px;background:#f0e8d8;border-radius:8px;padding:10px;text-align:center;border:1px solid #e0d5c7">';
+      h+='<div style="font-size:11px;color:#8b7355">'+cards[i].l+'</div>';
+      h+='<div style="font-size:20px;font-weight:700;color:#4a3728;margin-top:2px">'+cards[i].v+'</div></div>';
+    }
+    var viols=comp.violations||[];
+    h+='<div style="flex:1;min-width:100px;background:'+(comp.all_pass?'#d4edda':'#fce4e4')+';border-radius:8px;padding:10px;text-align:center;border:1px solid '+(comp.all_pass?'#c3e6cb':'#f5c6cb')+'">';
+    h+='<div style="font-size:11px;color:#8b7355">Compliance</div>';
+    h+='<div style="font-size:14px;font-weight:700;margin-top:2px">'+(comp.all_pass?'<span style="color:#27ae60">All Pass</span>':'<span style="color:#e74c3c">'+viols.length+' violations</span>')+'</div></div>';
+    h+='</div>';
+    // Employee coverage table
+    if(cov.length){
+      h+='<div style="margin-top:10px"><strong style="font-size:13px">Employee Coverage</strong></div>';
+      h+='<table style="width:100%;margin-top:6px;border-collapse:collapse;font-size:12px">';
+      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Employee</th><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px;text-align:right">Actual (shifts)</th><th style="padding:4px 8px;text-align:right">Expected (shifts)</th><th style="padding:4px 8px;text-align:right">Rate</th></tr></thead><tbody>';
+      for(var i=0;i<cov.length;i++){
+        var e=cov[i];var rate=e.rate_pct||0;
+        var rc=rate>=90?'#d4edda':rate>=70?'#fff3cd':'#fce4e4';
+        var rtc=rate>=90?'#27ae60':rate>=70?'#e67e22':'#e74c3c';
+        h+='<tr style="background:'+rc+'"><td style="padding:4px 8px;font-weight:600">'+e.employee+'</td><td style="padding:4px 8px;color:#8b7355">'+e.role+'</td><td style="padding:4px 8px;text-align:right">'+e.filled+'</td><td style="padding:4px 8px;text-align:right">'+e.expected+'</td><td style="padding:4px 8px;text-align:right;font-weight:700;color:'+rtc+'">'+rate+'%</td></tr>';
+      }
+      h+='</tbody></table>';
+    }
+    // Fairness table
+    h+='<table style="width:100%;margin-top:10px;border-collapse:collapse;font-size:12px">';
+    h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px;text-align:left">Employees</th><th style="padding:4px 8px">Gap (hrs)</th><th style="padding:4px 8px">Fair</th></tr></thead><tbody>';
+    var roles=Object.keys(fair);
+    for(var i=0;i<roles.length;i++){
+      var f=fair[roles[i]];var ok=f.fair?'<span style="color:#27ae60">Yes</span>':'<span style="color:#e74c3c">No</span>';
+      var emps=f.employees||{};var empStr=Object.entries(emps).map(function(e){return e[0]+' '+e[1]+'h'}).join(', ');
+      h+='<tr><td style="padding:4px 8px;font-weight:600">'+roles[i]+'</td><td style="padding:4px 8px;text-align:left">'+empStr+'</td><td style="padding:4px 8px;text-align:center">'+f.gap_hours+'</td><td style="padding:4px 8px;text-align:center">'+ok+'</td></tr>';
+    }
+    h+='</tbody></table>';
+    // Violations
+    if(viols.length){
+      h+='<div style="margin-top:8px;padding:8px;background:#fef5f5;border-radius:6px;border:1px solid #f5c6cb">';
+      h+='<strong style="font-size:12px;color:#e74c3c">Violations</strong>';
+      h+='<table style="width:100%;margin-top:4px;border-collapse:collapse;font-size:11px">';
+      for(var i=0;i<viols.length;i++){h+='<tr><td style="padding:3px 8px">'+viols[i].employee+'</td><td style="padding:3px 8px">'+viols[i].type+'</td></tr>';}
+      h+='</table></div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='KPI error: '+e.message;}
 }
 var EMPLOYEES=[{id:'E001',name:'Ali',role:'baker'},{id:'E002',name:'Mei',role:'cashier'},{id:'E003',name:'Raj',role:'barista'},{id:'E004',name:'Siti',role:'cleaner'},{id:'E005',name:'Ahmad',role:'baker'},{id:'E006',name:'Priya',role:'cashier'},{id:'E007',name:'Kumar',role:'barista'},{id:'E008',name:'Lisa',role:'cleaner'}];
 // Event delegation for sick/swap buttons (on document since schedule-result is recreated)
@@ -1462,7 +1485,7 @@ async function runWhatIf(){
       h+='</div>';
     }
     
-    // Recommendation
+    // Sensitivity range (forecast interval)
     if(r.attribution&&r.attribution.sensitivity&&r.attribution.sensitivity.forecast_range){
       h+='<div style="margin-top:10px;padding:10px;background:#fef9e7;border-radius:6px;font-size:11px">';
       h+='<strong>Sensitivity (Forecast Range '+r.attribution.sensitivity.forecast_range+'):</strong><br>';
@@ -1471,6 +1494,7 @@ async function runWhatIf(){
       h+='Best Case: <span style="color:#27ae60">RM'+r.attribution.sensitivity.profit_best.toFixed(2)+'</span>';
       h+='</div>';
     }
+    // Recommendation
     if(r.recommendation)h+='<div style="margin-top:10px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:12px;font-weight:bold;color:#2e7d32">'+r.recommendation+'</div>';
     
     document.getElementById('whatif-result').innerHTML=h;
@@ -1487,71 +1511,22 @@ function openWhatIfFromAlert(product, scenarioType, val){
     runWhatIf();
   },300);
 }
-
-
-function showReceipt(receipt){
-  if(!receipt)return;
-  var html='<div class="receipt-overlay" id="receipt-overlay" onclick="if(event.target===this)closeReceipt()">';
-  html+='<div class="receipt-panel">';
-  html+='<div class="receipt-header"><h3>Bakery AI</h3><div class="receipt-id">'+receipt.receipt_id+' | '+receipt.date+'</div></div>';
-  html+='<div class="receipt-body">';
-  for(var i=0;i<receipt.items.length;i++){
-    var it=receipt.items[i];
-    html+='<div class="receipt-line">';
-    html+='<span class="item-name">'+it.product_name.replace(/_/g,' ')+'</span>';
-    html+='<span class="item-qty">x'+it.quantity+'</span>';
-    html+='<span class="item-price">RM '+it.line_total.toFixed(2)+'</span></div>';
-    if(it.discount_pct>0)html+='<div class="receipt-line" style="padding-left:16px;font-size:11px;color:#d32f2f">('+it.discount_pct+'% off: -RM '+it.discount_amount.toFixed(2)+')</div>';
-  }
-  html+='<div class="receipt-divider"></div>';
-  html+='<div class="receipt-sub"><span>Subtotal</span><span>RM '+receipt.subtotal.toFixed(2)+'</span></div>';
-  if(receipt.discount_total>0)html+='<div class="receipt-sub" style="color:#d32f2f"><span>Discount</span><span>-RM '+receipt.discount_total.toFixed(2)+'</span></div>';
-  html+='<div class="receipt-total"><span>TOTAL</span><span>RM '+receipt.total.toFixed(2)+'</span></div>';
-  if(receipt.savings>0)html+='<div class="receipt-savings">You saved RM '+receipt.savings.toFixed(2)+'</div>';
-  html+='<div class="receipt-thanks">Thank you! Please come again</div>';
-  html+='</div>';
-  html+='<div class="receipt-footer"><button class="receipt-btn-print" onclick="printReceipt()">Print</button><button class="receipt-btn-close" onclick="closeReceipt()">Close</button></div>';
-  html+='</div></div>';
-  document.body.insertAdjacentHTML('beforeend',html);
-}
-function printReceipt(){
-  var header=document.querySelector('.receipt-header');
-  var body=document.querySelector('.receipt-body');
-  if(!header||!body)return;
-  var w=window.open('','_blank','width=420,height=750');
-  w.document.write('<!DOCTYPE html><html><head><title>Receipt</title>');
-  w.document.write('<meta name="viewport" content="width=device-width,initial-scale=1">');
-  w.document.write('<style>');
-  w.document.write('*{margin:0;padding:0;box-sizing:border-box}');
-  w.document.write('body{font-family:"Courier New",Courier,monospace;padding:36px 32px;width:100%;max-width:420px;margin:0 auto;color:#333;background:#fff;font-size:14px}');
-  w.document.write('.receipt-header{text-align:center;padding-bottom:14px;border-bottom:2px dashed #999;margin-bottom:16px}');
-  w.document.write('.receipt-header h3{font-size:24px;font-weight:700;color:#5d4037;letter-spacing:1px;margin-bottom:4px}');
-  w.document.write('.receipt-id{font-size:11px;color:#888;margin-top:2px}');
-  w.document.write('.receipt-body{font-size:14px;line-height:1.8}');
-  w.document.write('.receipt-line{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}');
-  w.document.write('.item-name{flex:1;text-transform:capitalize;font-size:14px}');
-  w.document.write('.item-qty{color:#888;margin:0 10px;font-size:13px}');
-  w.document.write('.item-price{min-width:80px;text-align:right;font-size:14px}');
-  w.document.write('.item-discount{color:#d32f2f;font-size:12px;padding:1px 0 1px 18px}');
-  w.document.write('.receipt-divider{border:none;border-top:1px dashed #bbb;margin:10px 0}');
-  w.document.write('.receipt-sub{display:flex;justify-content:space-between;font-size:14px;color:#666;padding:4px 0}');
-  w.document.write('.receipt-total{display:flex;justify-content:space-between;font-size:24px;font-weight:700;padding:12px 0 6px;color:#5d4037;border-top:2px solid #5d4037;margin-top:10px}');
-  w.document.write('.receipt-savings{text-align:center;color:#27ae60;font-size:13px;padding:4px 0 8px}');
-  w.document.write('.receipt-thanks{text-align:center;color:#aaa;font-size:12px;font-style:italic;padding-top:20px;margin-top:10px;border-top:1px dashed #ddd}');
-  w.document.write('@page{margin:0;size:auto}@media print{body{width:100%;max-width:none;margin:16px}}');
-  w.document.write('</style></head><body>');
-  w.document.write('<div class="receipt-header">'+header.innerHTML+'</div>');
-  w.document.write('<div class="receipt-body">'+body.innerHTML+'</div>');
-  w.document.write('</body></html>');
-  w.document.close();
-  setTimeout(function(){w.print();w.close();},400);
-}
-function closeReceipt(){
-  var el=document.getElementById('receipt-overlay');
-  if(el)el.remove();
-}
-
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 </body>
 </html>
 

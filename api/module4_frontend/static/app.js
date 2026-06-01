@@ -7,14 +7,8 @@ var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null,
 var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:3.5,bread_roll:3.5,chiffon:5.0,croissant_chocolate:5.5};
 var PRODUCT_COSTS={donut:1.35,croissant:1.9,bread_coconut:1.05,bread_roll:1.05,chiffon:1.75,croissant_chocolate:1.9};
 var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
-var DISCOUNT_RATE=0.3;
-var WEIGHTS=[
-{label:'Flavor Pairing',pct:25,css:'flavor'},
-{label:'Discount Value',pct:20,css:'discount'},
-{label:'Freshness',pct:20,css:'freshness'},
-{label:'Inventory Pressure',pct:20,css:'inventory'},
-{label:'Order Context',pct:15,css:'context'}
-];
+var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.py
+
 var COFFEE_DRINKS=[
 {name:'Latte',desc:'Smooth espresso with steamed milk',price:'8.50',key:'latte'},
 {name:'Americano',desc:'Espresso with hot water',price:'6.50',key:'americano'},
@@ -43,7 +37,7 @@ badge.textContent=role==='manager'?'Manager':'Staff';
 badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
 var mb=document.querySelectorAll('.manager-only');
 for(var i=0;i<mb.length;i++)mb[i].style.display=role==='manager'?'':'none';
-showPanel('pos');loadStock();
+showPanel('pos');loadStock();loadPrices();
 }catch(e){
 document.getElementById('error-msg').textContent='Error: '+e.message;
 document.getElementById('signin-btn').disabled=false;
@@ -149,6 +143,10 @@ cartHTML+='</div></div>';
 // Bundle
 var bundleHTML='';
 if(bundleRecs.length>0){
+var isGenerating=bundleRecs.length===1&&bundleRecs[0].products==='Generating...';
+if(isGenerating){
+bundleHTML='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px"><span class="spinner"></span> Generating...</p>';
+}else{
 for(var i=0;i<bundleRecs.length;i++){
 var b=bundleRecs[i];
 bundleHTML+='<div class="bundle-card" onclick="addBundleToCart('+i+')">';
@@ -157,17 +155,10 @@ bundleHTML+='<div class="bundle-products">'+b.products+'</div>';
 bundleHTML+='<div class="bundle-price">RM '+b.total_price.toFixed(2)+'</div>';
 bundleHTML+='<div class="bundle-save">Save RM '+b.savings.toFixed(2)+'</div></div>';
 }
-}else{bundleHTML='<div class="bundle-hint">Select drinks to generate recommendations</div>';}
-
-// Weights
-var weightsHTML='';
-for(var i=0;i<WEIGHTS.length;i++){
-var w=WEIGHTS[i];
-weightsHTML+='<div class="weights-item">';
-weightsHTML+='<span class="w-label">'+w.label+'</span>';
-weightsHTML+='<div class="w-track"><div class="w-fill w-fill-'+w.css+'" style="width:'+w.pct+'%"></div></div>';
-weightsHTML+='<span class="w-pct">'+w.pct+'%</span></div>';
 }
+}else{bundleHTML='<div class="bundle-hint">Add items to cart then generate Top-3 bundles</div>';}
+
+
 
 // Coffee buttons
 var coffeeBtns='';
@@ -180,29 +171,35 @@ coffeeBtns+='<span class="drink-price">RM '+cd.price+'</span></button>';
 }
 
 
-// Bakery buttons
+// Bakery buttons with freshness dots
 var bakeryBtns='';
 var bkeys=Object.keys(PRODUCT_PRICES).sort();
+if(!window._bakeryFreshness)window._bakeryFreshness={};
 for(var i=0;i<bkeys.length;i++){
 var bk=bkeys[i];
+if(window._bakeryFreshness[bk]===undefined)window._bakeryFreshness[bk]="Fresh";
+var curFresh=window._bakeryFreshness[bk];
 var stockInfo=stockMap&&stockMap[bk]?stockMap[bk]:'--';
-var freshInfo=freshnessMap&&freshnessMap[bk]?freshnessMap[bk]:'Fresh';
-var fColor={"Fresh":"#4caf50","Day-1":"#ff9800","Day-2":"#ef6c00","Near-Expired":"#d32f2f"};
-var fLabel={"Fresh":"","Day-1":" 10%OFF","Day-2":" 20%OFF","Near-Expired":" 30%OFF"};
-var fci=fColor[freshInfo]||"#4caf50";
-var fli=fLabel[freshInfo]||"";
-bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"','"+freshInfo+"'"+')" style="border-left:4px solid '+fci+'">';
-bakeryBtns+='<span class="drink-name">'+capName(bk)+'<span style="color:'+fci+';font-size:11px;margin-left:4px">'+fli+'</span></span>';
+var freshQty=window._freshStock&&window._freshStock[bk]?window._freshStock[bk]:0;
+var day1Qty=window._day1Stock&&window._day1Stock[bk]?window._day1Stock[bk]:0;
+var fColor={"Fresh":"#4caf50","Day-1":"#ff9800"};
+var fci=fColor[curFresh]||"#4caf50";
 var bp=PRODUCT_PRICES[bk]||5;
-var fresh1=freshnessMap&&freshnessMap[bk]?freshnessMap[bk]:'Fresh';
-var dr1={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
-var discountRate=dr1[fresh1]||0;
+var dr={"Fresh":0,"Day-1":DISCOUNT_RATE};
+var discountRate=dr[curFresh]||0;
+bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"','"+curFresh+"'"+')" style="border-left:4px solid '+fci+'">';
+bakeryBtns+='<span class="drink-name">'+capName(bk)+'</span>';
 bakeryBtns+='<span class="drink-desc">Stock: '+stockInfo+'</span>';
 if(discountRate>0){
-    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">RM '+bp.toFixed(2)+'</s> RM '+(bp*(1-discountRate)).toFixed(2)+'</span></button>';
+    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">RM '+bp.toFixed(2)+'</s> RM '+(bp*(1-discountRate)).toFixed(2)+'</span>';
 }else{
-    bakeryBtns+='<span class="drink-price">RM '+bp.toFixed(2)+'</span></button>';
+    bakeryBtns+='<span class="drink-price">RM '+bp.toFixed(2)+'</span>';
 }
+bakeryBtns+='<div style="margin-top:4px;display:flex;gap:6px;align-items:center">';
+bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Fresh'"+')" title="Fresh stock: '+freshQty+'" style="width:14px;height:14px;border-radius:50%;background:#4caf50;cursor:pointer'+(curFresh==='Fresh'?'box-shadow:0 0 0 3px rgba(76,175,80,.4)':'opacity:0.5')+'"></div>';
+bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Day-1'"+')" title="Day-1 stock: '+day1Qty+'" style="width:14px;height:14px;border-radius:50%;background:#ff9800;cursor:pointer'+(curFresh==='Day-1'?'box-shadow:0 0 0 3px rgba(255,152,0,.4)':'opacity:0.5')+'"></div>';
+bakeryBtns+='<span style="font-size:9px;color:#888">'+(curFresh==='Day-1'?'Day-1 '+(DISCOUNT_RATE*100)+'%OFF':'Fresh')+'</span>';
+bakeryBtns+='</div></button>';
 }
 
 // HITL
@@ -264,8 +261,7 @@ h+='<div class="panel"><h4>Bakery Products</h4>';
 h+='<div class="drink-grid">'+bakeryBtns+'</div></div>';
 h+='<div class="panel"><h4>Coffee - Quick Drink Order</h4>';
 h+='<div class="drink-grid">'+coffeeBtns+'</div></div>';
-h+='<div class="panel"><h4>AI - Model Weights</h4>';
-h+='<div class="weights-bar">'+weightsHTML+'</div></div>';
+
 h+='<div class="panel"><h4>Cart - Current Order</h4>';
 h+='<div class="cart-summary">';
 if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>Total</span><span>RM '+total.toFixed(2)+'</span></div>';}
@@ -324,12 +320,17 @@ if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tr
 renderPOS(document.getElementById('content-area'));
 }
 
+function selectFreshness(name,fresh){
+if(!window._bakeryFreshness)window._bakeryFreshness={};
+window._bakeryFreshness[name]=fresh;
+renderPOS(document.getElementById('content-area'));
+}
 function quickAddBakery(name,fresh){
 var found=false;
 for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name){cartItems[i].quantity+=1;found=true;break;}}
 if(!fresh||fresh==="undefined")fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh";
 var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-var dr={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+var dr={"Fresh":0,"Day-1":DISCOUNT_RATE,"Day-2":DISCOUNT_RATE,"Near-Expired":DISCOUNT_RATE};
 var tray=tc[fresh]||"green";
 var disc=dr[fresh]||0;
 if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tray,discount_rate:disc,freshness:fresh,status:'confirmed'});
@@ -365,6 +366,8 @@ else{alert('Partial: '+(d.errors||[]).join('; '));}
 }
 async function generateBundle(){
 if(!cartItems.length){alert('Add items to cart first');return}
+bundleRecs=[{products:'Generating...',total_price:0,savings:0,items:[]}];
+renderPOS(document.getElementById('content-area'));
 var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
@@ -393,10 +396,9 @@ for(var i=0;i<b.items.length;i++){
     var name=b.items[i];
     var isBread=!!BAKERY_KEYS[name];
     if(isBread){
-        // Replace: set bread quantity to exactly 1, keep freshness info
-if(!fresh||fresh==="undefined")fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh";
-        var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-        var dr={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+        var fresh=window._bakeryFreshness&&window._bakeryFreshness[name]?window._bakeryFreshness[name]:(freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh");
+        var tc={"Fresh":"green","Day-1":"yellow"};
+        var dr={"Fresh":0,"Day-1":0.20};
         var found=false;
         for(var j=0;j<cartItems.length;j++){
             if(cartItems[j].product_name===name){
@@ -483,24 +485,23 @@ el.innerHTML=tbl;
 function renderSchedule(c){
 c.innerHTML='<div class="panel" style="flex:1"><h4>Shift Schedule</h4>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
-+'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate Schedule</button>'
-+''
++'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate</button>'
++'<button class="btn btn-secondary btn-sm" onclick="resyncSchedule()" title="Full regeneration">Re-sync</button>'
++'<button class="btn btn-secondary btn-sm" onclick="loadKPI()">KPI</button>'
 +'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="2026-06-01">'
-+'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:70vh"><span class="spinner"></span>Loading schedule...</div>'
-+'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div></div>';
++'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:60vh"><span class="spinner"></span>Loading schedule...</div>'
++'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'
++'<div id="kpi-result" style="margin-top:8px"></div></div>';
 loadSchedule();
 }
 
 async function generateSchedule(){
-document.getElementById('schedule-result').innerHTML='<span class="spinner"></span>Solving...';
+document.getElementById('schedule-result').innerHTML='<span class="spinner"></span>Loading...';
 document.getElementById('swap-msg').textContent='';
 cachedSchedule=null;cachedDate=null;
-try{
 var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
-var r=await api('/s3/solve',{method:'POST',body:{start_date:sd,days:7}});
-var s=r.schedule||[];if(!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No schedule';return}
-renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
-}catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
+loadSchedule();loadKPI();
+document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule loaded (current state)</span>';
 }
 
 async function loadSchedule(){
@@ -520,10 +521,10 @@ renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
 }catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
 }
 async function resyncSchedule(){
-if(!confirm('Regenerate entire schedule?'))return;
+if(!confirm('Clear all sick leaves and regenerate from scratch?'))return;
 try{var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
-await api('/s3/resync',{method:'POST',body:{start_date:sd,days:7}});cachedSchedule=null;cachedSummary=null;loadSchedule();
-document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule regenerated</span>';}
+await api('/s3/resync',{method:'POST',body:{start_date:sd,days:7}});cachedSchedule=null;cachedSummary=null;loadSchedule();loadKPI();
+document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Re-sync complete (fresh schedule)</span>';}
 catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
 async function markSick(id,name,date){
@@ -532,8 +533,8 @@ try{
 var sdEl=document.getElementById('sched-date');
 if(sdEl)sdEl.value=date;
 var ua={};ua[id]=[date];
-await api('/s3/resync',{method:'POST',body:{start_date:date,days:7,unavailable:ua}});
-loadSchedule();
+await api('/s3/sick',{method:'POST',body:{employee_id:id,date:date,start_date:date,days:7}});cachedSchedule=null;cachedDate=null;
+loadSchedule();loadKPI();
 document.getElementById('swap-msg').innerHTML='<span style="color:#e67e22">'+name+' marked sick on '+date+'</span>';
 }catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
@@ -571,7 +572,7 @@ document.getElementById('swap-modal').classList.remove('show');
 document.getElementById('swap-msg').innerHTML='<span class="spinner"></span>Swapping...';
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 fetch(API+'/s3/swap',{method:'POST',headers:hdrs,body:JSON.stringify({date:SWAP_DATA.date,time_slot:SWAP_DATA.slot,from_employee_id:SWAP_DATA.fromId,to_employee_id:eid,to_date:toDate,to_time_slot:toSlot})}).then(function(r){return r.json();}).then(function(r){
-if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;loadSchedule();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
+if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;cachedDate=null;loadSchedule();loadKPI();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
 else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+(r.reason||r.message)+'</span>';}
 }).catch(function(e){document.getElementById('swap-msg').textContent='Error: '+e.message;});
 }
@@ -583,7 +584,7 @@ document.getElementById('swap-modal').classList.remove('show');
 document.getElementById('swap-msg').innerHTML='<span class="spinner"></span>Swapping...';
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 fetch(API+'/s3/swap',{method:'POST',headers:hdrs,body:JSON.stringify({date:SWAP_DATA.date,time_slot:SWAP_DATA.slot,from_employee_id:SWAP_DATA.fromId,to_employee_id:toId})}).then(function(r){return r.json();}).then(function(r){
-if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;loadSchedule();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
+if(r.status==='ok'){cachedSchedule=null;cachedSummary=null;cachedDate=null;loadSchedule();loadKPI();document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+r.message+'</span>';}
 else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+(r.reason||r.message)+'</span>';}
 }).catch(function(e){document.getElementById('swap-msg').textContent='Error: '+e.message;});
 }
@@ -670,7 +671,7 @@ var sched=r.result&&r.result.schedule;
 if(sched&&sched.length>0){
 out+='<br><br><strong>Schedule Table:</strong><br>';
 var dates=[],seen={};for(var i=0;i<sched.length;i++){if(!seen[sched[i].date]){dates.push(sched[i].date);seen[sched[i].date]=true;}}dates.sort();
-var slots=['08:00-14:00','14:00-20:00'];
+var slots=['09:00-14:00','14:00-19:00'];
 out+='<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:6px"><thead><tr><th style="padding:4px;border:1px solid #e0d5c7;background:#fdfaf5">Time</th>';
 for(var i=0;i<dates.length;i++){out+='<th style="padding:4px;border:1px solid #e0d5c7;background:#fdfaf5">'+dates[i].slice(5)+'</th>';}
 out+='</tr></thead><tbody>';
@@ -739,7 +740,7 @@ item.product_name=document.getElementById('edit-name').value;
 item.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var if2=document.getElementById("edit-freshness").value;
 var cMap2={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-var drMap={"Fresh":0,"Day-1":0.10,"Day-2":0.20,"Near-Expired":0.30};
+var drMap={"Fresh":0,"Day-1":DISCOUNT_RATE,"Day-2":DISCOUNT_RATE,"Near-Expired":DISCOUNT_RATE};
 if(if2!=="auto"){item.tray_color=cMap2[if2]||item.tray_color;item.freshness=if2;item.discount_rate=drMap[if2]||0;}
 var changes=[];
 if(oldName!==item.product_name)changes.push('name: '+oldName+' -> '+item.product_name);
@@ -764,7 +765,18 @@ function triggerScan(){console.log("1.triggerScan");var inp=document.getElementB
 function capName(name){
 return name.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}).replace(/\b\w/g,function(c){return c.toUpperCase();});
 }
-function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=item.quantity||0;var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadPrices(){
+fetch(API+'/s4/products').then(function(r){return r.json();}).then(function(d){
+var prods=d.products||[];
+for(var i=0;i<prods.length;i++){
+var p=prods[i];
+if(PRODUCT_PRICES[p.product_name]!==undefined)PRODUCT_PRICES[p.product_name]=p.unit_price||PRODUCT_PRICES[p.product_name];
+if(COFFEE_PRICES[p.product_name]!==undefined)COFFEE_PRICES[p.product_name]=p.unit_price||COFFEE_PRICES[p.product_name];
+}
+if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));
+}).catch(function(e){console.log('Price fetch err',e);});
+}
+function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=item.quantity||0;var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=item.quantity||0;}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=item.quantity||0;}}if(currentPanel==='pos')renderPOS(document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;
@@ -885,7 +897,7 @@ document.getElementById('edit-modal').classList.add('show');
 }
 function renderScheduleTable(s,r){
 if(!s||!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No feasible schedule. Too many sick or skill gaps. Try different date.';return}
-var slots=['08:00-14:00','14:00-20:00'];
+var slots=['09:00-14:00','14:00-19:00'];
 var dates=[],seen={};for(var i=0;i<s.length;i++){if(!seen[s[i].date]){dates.push(s[i].date);seen[s[i].date]=true;}}dates.sort();
 var tbl='<table class="sched-table" style="font-size:14px"><thead><tr><th>Time</th>';
 for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');tbl+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
@@ -903,13 +915,66 @@ tbl+='</td>';}
 tbl+='</tr>';}
 tbl+='</tbody></table>';
 document.getElementById('schedule-result').innerHTML=tbl;
-if(r&&r.employee_summary){
-var sumHtml='<div style="margin-top:8px;padding:8px 12px;background:#fdfaf5;border-radius:8px;border:1px solid #e8dcc8;font-size:13px"><strong>Hours: </strong>';
-var eids=Object.keys(r.employee_summary).sort();
-for(var i=0;i<eids.length;i++){var es=r.employee_summary[eids[i]];sumHtml+='<span style="display:inline-block;margin:2px 6px;padding:2px 8px;background:#f0e8d8;border-radius:4px;font-weight:600">'+es.name+' '+es.hours+'h</span>';}
-sumHtml+='</div>';
-document.getElementById('swap-msg').innerHTML=sumHtml;
 }
+
+// === KPI rendering ===
+async function loadKPI(){
+  var el=document.getElementById('kpi-result');
+  el.innerHTML='<span class="spinner"></span> Loading KPI...';
+  try{
+    var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
+    var r=await api('/s3/kpi?days=7&start_date='+sd);
+    if(r.status!=='ok'){el.innerHTML='KPI: '+ (r.message||'unknown error');return}
+    var s=r.summary||{};var comp=r.compliance||{};var fair=r.fairness||{};var cov=r.coverage||[];
+    var h='<div style="margin-top:12px">';
+    h+='<strong>KPI</strong> <span style="font-size:11px;color:#8b7355">('+r.period.start+' to '+r.period.end+', '+r.period.working_days+' working days)</span>';
+    // Summary cards
+    h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">';
+    var cards=[{l:'Total Hours',v:s.total_hours},{l:'Avg Hrs/Emp',v:s.avg_hours_per_emp},{l:'Employees',v:s.employees_scheduled}];
+    for(var i=0;i<cards.length;i++){
+      h+='<div style="flex:1;min-width:80px;background:#f0e8d8;border-radius:8px;padding:10px;text-align:center;border:1px solid #e0d5c7">';
+      h+='<div style="font-size:11px;color:#8b7355">'+cards[i].l+'</div>';
+      h+='<div style="font-size:20px;font-weight:700;color:#4a3728;margin-top:2px">'+cards[i].v+'</div></div>';
+    }
+    var viols=comp.violations||[];
+    h+='<div style="flex:1;min-width:100px;background:'+(comp.all_pass?'#d4edda':'#fce4e4')+';border-radius:8px;padding:10px;text-align:center;border:1px solid '+(comp.all_pass?'#c3e6cb':'#f5c6cb')+'">';
+    h+='<div style="font-size:11px;color:#8b7355">Compliance</div>';
+    h+='<div style="font-size:14px;font-weight:700;margin-top:2px">'+(comp.all_pass?'<span style="color:#27ae60">All Pass</span>':'<span style="color:#e74c3c">'+viols.length+' violations</span>')+'</div></div>';
+    h+='</div>';
+    // Employee coverage table
+    if(cov.length){
+      h+='<div style="margin-top:10px"><strong style="font-size:13px">Employee Coverage</strong></div>';
+      h+='<table style="width:100%;margin-top:6px;border-collapse:collapse;font-size:12px">';
+      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Employee</th><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px;text-align:right">Actual (hrs)</th><th style="padding:4px 8px;text-align:right">Expected (hrs)</th><th style="padding:4px 8px;text-align:right">Rate</th></tr></thead><tbody>';
+      for(var i=0;i<cov.length;i++){
+        var e=cov[i];var rate=e.rate_pct||0;
+        var rc=rate>=90?'#d4edda':rate>=70?'#fff3cd':'#fce4e4';
+        var rtc=rate>=90?'#27ae60':rate>=70?'#e67e22':'#e74c3c';
+        h+='<tr style="background:'+rc+'"><td style="padding:4px 8px;font-weight:600">'+e.employee+'</td><td style="padding:4px 8px;color:#8b7355">'+e.role+'</td><td style="padding:4px 8px;text-align:right">'+e.filled+'</td><td style="padding:4px 8px;text-align:right">'+e.expected+'</td><td style="padding:4px 8px;text-align:right;font-weight:700;color:'+rtc+'">'+rate+'%</td></tr>';
+      }
+      h+='</tbody></table>';
+    }
+    // Fairness table
+    h+='<table style="width:100%;margin-top:10px;border-collapse:collapse;font-size:12px">';
+    h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px">Employees</th><th style="padding:4px 8px">Gap (hrs)</th><th style="padding:4px 8px">Fair</th></tr></thead><tbody>';
+    var roles=Object.keys(fair);
+    for(var i=0;i<roles.length;i++){
+      var f=fair[roles[i]];var ok=f.fair?'<span style="color:#27ae60">Yes</span>':'<span style="color:#e74c3c">No</span>';
+      var emps=f.employees||{};var empStr=Object.entries(emps).map(function(e){return e[0]+' '+e[1]+'h'}).join(', ');
+      h+='<tr><td style="padding:4px 8px;font-weight:600">'+roles[i]+'</td><td style="padding:4px 8px">'+empStr+'</td><td style="padding:4px 8px;text-align:center">'+f.gap_hours+'</td><td style="padding:4px 8px;text-align:center">'+ok+'</td></tr>';
+    }
+    h+='</tbody></table>';
+    // Violations
+    if(viols.length){
+      h+='<div style="margin-top:8px;padding:8px;background:#fef5f5;border-radius:6px;border:1px solid #f5c6cb">';
+      h+='<strong style="font-size:12px;color:#e74c3c">Violations</strong>';
+      h+='<table style="width:100%;margin-top:4px;border-collapse:collapse;font-size:11px">';
+      for(var i=0;i<viols.length;i++){h+='<tr><td style="padding:3px 8px">'+viols[i].employee+'</td><td style="padding:3px 8px">'+viols[i].type+'</td></tr>';}
+      h+='</table></div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='KPI error: '+e.message;}
 }
 var EMPLOYEES=[{id:'E001',name:'Ali',role:'baker'},{id:'E002',name:'Mei',role:'cashier'},{id:'E003',name:'Raj',role:'barista'},{id:'E004',name:'Siti',role:'cleaner'},{id:'E005',name:'Ahmad',role:'baker'},{id:'E006',name:'Priya',role:'cashier'},{id:'E007',name:'Kumar',role:'barista'},{id:'E008',name:'Lisa',role:'cleaner'}];
 // Event delegation for sick/swap buttons (on document since schedule-result is recreated)

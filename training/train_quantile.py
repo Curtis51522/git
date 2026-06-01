@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""XGBoost median-only training with GridSearchCV hyperparameter tuning.
-No prediction intervals - data too small for reliable quantile regression."""
+"""XGBoost training with GridSearchCV hyperparameter tuning.
+Comparison models: LinearRegression, RandomForest, XGBoost.
+Prediction intervals use test-set MAE."""
 
 import sys, os, json, warnings
 import numpy as np
@@ -8,7 +9,9 @@ import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.metrics import mean_absolute_error, r2_score
-warnings.filterwarnings('ignore')
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+warnings.filterwarnings('ignore', category=UserWarning)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -16,15 +19,10 @@ MODEL_DIR = os.path.join(ROOT, 'models', 'xgboost')
 DATA_PATH = os.path.join(ROOT, 'data', 'synthetic_sales_1year.csv')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-PRODUCTS = ['croissant','donut','chiffon','bread_coconut','bread_roll','croissant_chocolate']
+from config.settings import PRODUCT_TYPES as PRODUCTS
 RANDOM_SEED = 42
 
-FEATURES = [
-    'day_of_week','is_weekend','day_of_month','month','is_public_holiday',
-    'is_ramadan','temperature','rainfall','humidity','is_rainy',
-    'weather_sunny','weather_cloudy','weather_rainy','weather_storm',
-    'lag_1','lag_7','rolling_7d_mean',
-]
+from config.settings import FORECAST_FEATURE_COLS as FEATURES
 
 PARAM_GRID = {
     'max_depth': [2, 3, 4],
@@ -99,6 +97,69 @@ def main():
         json.dump(best_params_all, f, indent=2)
     with open(os.path.join(MODEL_DIR,"test_metrics.json"),"w") as f:
         json.dump(results_all, f, indent=2)
+    # --- Comparison models: Linear Regression & Random Forest ---
+    # RF param grid for GridSearchCV (LR has no hyperparams to tune)
+    RF_PARAM_GRID = {
+        "n_estimators": [100, 200],
+        "max_depth": [3, 5, 8],
+        "min_samples_split": [2, 5],
+        "min_samples_leaf": [2, 4],
+    }
+    
+    comparison_results = {}
+    rf_best_params_all = {}
+    for prod in PRODUCTS:
+        pdf_train = train[train["product"]==prod]
+        X_train, y_train = pdf_train[FEATURES], pdf_train["sales"]
+        
+        tpdf = test[test["product"]==prod]
+        X_test, y_test = tpdf[FEATURES], tpdf["sales"]
+        
+        prod_comp = {}
+        
+        # Linear Regression (no hyperparams, OLS closed-form)
+        lr = LinearRegression()
+        lr.fit(X_train, y_train)
+        lr_preds = np.maximum(lr.predict(X_test), 0)
+        lr_mae = mean_absolute_error(y_test, lr_preds)
+        lr_mape = np.mean(np.abs((y_test - lr_preds) / y_test)) * 100 if len(y_test) > 0 else 0
+        lr_r2 = r2_score(y_test, lr_preds)
+        prod_comp["LinearRegression"] = {"MAE": round(lr_mae,1), "MAPE": round(lr_mape,1), "R2": round(lr_r2,3)}
+        
+        # Random Forest with GridSearchCV
+        rf_base = RandomForestRegressor(random_state=RANDOM_SEED)
+        rf_grid = GridSearchCV(
+            rf_base, RF_PARAM_GRID, scoring="neg_mean_absolute_error",
+            cv=tscv, n_jobs=1,
+        )
+        rf_grid.fit(X_train, y_train)
+        rf_best = rf_grid.best_estimator_
+        rf_best_params_all[prod] = rf_grid.best_params_
+        rf_preds = np.maximum(rf_best.predict(X_test), 0)
+        rf_mae = mean_absolute_error(y_test, rf_preds)
+        rf_mape = np.mean(np.abs((y_test - rf_preds) / y_test)) * 100 if len(y_test) > 0 else 0
+        rf_r2 = r2_score(y_test, rf_preds)
+        prod_comp["RandomForest"] = {"MAE": round(rf_mae,1), "MAPE": round(rf_mape,1), "R2": round(rf_r2,3)}
+        
+        # XGBoost (reload for fair comparison on same test split)
+        xgb_model = xgb.XGBRegressor()
+        xgb_model.load_model(os.path.join(MODEL_DIR, f"{prod}_model.json"))
+        xgb_preds_arr = np.maximum(xgb_model.predict(X_test), 0)
+        xgb_mae = mean_absolute_error(y_test, xgb_preds_arr)
+        xgb_mape = np.mean(np.abs((y_test - xgb_preds_arr) / y_test)) * 100 if len(y_test) > 0 else 0
+        xgb_r2 = r2_score(y_test, xgb_preds_arr)
+        prod_comp["XGBoost"] = {"MAE": round(xgb_mae,1), "MAPE": round(xgb_mape,1), "R2": round(xgb_r2,3)}
+        
+        comparison_results[prod] = prod_comp
+        best_model = min(prod_comp, key=lambda k: prod_comp[k]["MAE"])
+        print(f"{prod} comparison: LR MAE={lr_mae:.1f}, RF MAE={rf_mae:.1f}, XGB MAE={xgb_mae:.1f} -> Best: {best_model}")
+    
+    with open(os.path.join(MODEL_DIR, "model_comparison.json"), "w") as f:
+        json.dump(comparison_results, f, indent=2)
+    with open(os.path.join(MODEL_DIR, "rf_best_params.json"), "w") as f:
+        json.dump(rf_best_params_all, f, indent=2)
+    print("\nModel comparison saved to model_comparison.json\n")
+
     print('Done - 6 median models saved.\n')
     print('Accuracy reference:')
     for prod in PRODUCTS:

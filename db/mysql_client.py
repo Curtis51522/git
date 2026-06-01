@@ -52,6 +52,21 @@ def init_db():
             staff_count INT NOT NULL DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
+        """CREATE TABLE IF NOT EXISTS detection_log (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            model_version VARCHAR(30) NOT NULL,
+            image_id VARCHAR(100),
+            scenario VARCHAR(30) NOT NULL DEFAULT "checkout",
+            predicted_class VARCHAR(50),
+            bbox JSON,
+            confidence FLOAT,
+            inference_time FLOAT,
+            manual_check_required TINYINT DEFAULT 0,
+            final_class VARCHAR(50),
+            error_type VARCHAR(30) DEFAULT "none",
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+
         """CREATE TABLE IF NOT EXISTS batch_inventory (
             batch_id VARCHAR(50) PRIMARY KEY,
             product_name VARCHAR(50) NOT NULL,
@@ -148,6 +163,8 @@ class QueryBuilder:
         self._where.append(f"{col} >= %s"); self._params.append(val); return self
     def lte(self, col, val):
         self._where.append(f"{col} <= %s"); self._params.append(val); return self
+    def lt(self, col, val):
+        self._where.append(f"{col} < %s"); self._params.append(val); return self
     def order(self, col, desc=False):
         self._order = f"ORDER BY {col} {'DESC' if desc else 'ASC'}"; return self
     def limit(self, n):

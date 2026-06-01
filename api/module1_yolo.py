@@ -4,19 +4,15 @@ from ultralytics import YOLO
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from typing import Optional
 from datetime import datetime
+import time
 import sys, os
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import (
     YOLO_MODEL_PATH, YOLO_CONFIDENCE_THRESHOLD,
-    TRAY_GREEN_THRESHOLD, TRAY_ORANGE_BLUE_MAX,
-    TRAY_YELLOW_CHANNEL_MIN, TRAY_YELLOW_BLUE_MAX,
-    TRAY_RED_CHANNEL_MIN, TRAY_RED_GREEN_MAX, TRAY_RED_BLUE_MAX,
-    PRODUCT_TYPES, TRAY_BBOX_PADDING,
+    PRODUCT_TYPES,
 )
 from db.mysql_client import get_db, q
-
-logger = logging.getLogger("s1.yolo")
 
 from models.schemas import (
     YOLOResult, DeductRequest, DeductResponse, ImageSearchResult,
@@ -46,54 +42,15 @@ def get_model() -> YOLO:
 
 
 # ======================================================================
-# Tray color detection
-# ======================================================================
-def _classify_color(b: float, g: float, r: float) -> str:
-    """Classify BGR mean into tray colour label."""
-    if g > TRAY_GREEN_THRESHOLD and g > r and g > b:
-        return "green"
-    if r > TRAY_YELLOW_CHANNEL_MIN and g > TRAY_YELLOW_CHANNEL_MIN and b < TRAY_YELLOW_BLUE_MAX:
-        return "yellow"
-    if r > TRAY_RED_CHANNEL_MIN and g < TRAY_RED_GREEN_MAX and b < TRAY_RED_BLUE_MAX:
-        return "red"
-    if r > 150 and g > 100 and b < TRAY_ORANGE_BLUE_MAX:
-        return "orange"
-    return "unknown"
-
-
-def detect_tray_color(image: np.ndarray, bboxes: list) -> str:
-    """Extract tray colour from pixels NOT occupied by detected products.
-
-    Builds a mask that excludes all product bounding boxes (with padding),
-    then computes mean colour only from the remaining tray-visible area.
-    """
-    if not bboxes:
-        return "unknown"
-    h, w = image.shape[:2]
-    mask = np.ones((h, w), dtype=np.uint8) * 255
-    for bbox in bboxes:
-        x1, y1, x2, y2 = [int(v) for v in bbox]
-        pad = 15
-        x1 = max(0, x1 - pad)
-        y1 = max(0, y1 - pad)
-        x2 = min(w, x2 + pad)
-        y2 = min(h, y2 + pad)
-        mask[y1:y2, x1:x2] = 0
-    if cv2.countNonZero(mask) < 100:
-        return "unknown"
-    mean_color = cv2.mean(image, mask=mask)
-    b, g, r = mean_color[0], mean_color[1], mean_color[2]
-    return _classify_color(b, g, r)
-
-
-# ======================================================================
 # Product detection
 # ======================================================================
-def detect_products(image: np.ndarray) -> list[YOLOResult]:
+def detect_products(image: np.ndarray, scenario: str = "checkout", image_id: str = "") -> list[YOLOResult]:
     model = get_model()
+    model_version = os.path.basename(YOLO_MODEL_PATH).replace(".pt", "")
+    t0 = time.time()
     results = model(image, conf=YOLO_CONFIDENCE_THRESHOLD)
+    inference_time = round(time.time() - t0, 4)
     detections = []
-    all_bboxes = []
     for r in results:
         for box in r.boxes:
             cls_id = int(box.cls[0])
@@ -101,16 +58,35 @@ def detect_products(image: np.ndarray) -> list[YOLOResult]:
             if cls_name in PRODUCT_TYPES:
                 conf = float(box.conf[0])
                 bbox = box.xyxy[0].tolist()
-                all_bboxes.append(bbox)
-                if conf < 0.6:
+                manual_check = conf < 0.6
+                if manual_check:
                     logger.warning("Low confidence detection: %s (%.2f)", cls_name, conf)
                 detections.append({
                     "product_name": cls_name,
                     "confidence": conf,
                     "bbox": bbox,
+                    "manual_check_required": manual_check,
                 })
     logger.info("Detected %d products across %d unique types", len(detections), len(set(d["product_name"] for d in detections)))
-    tray_color = detect_tray_color(image, all_bboxes) if all_bboxes else "unknown"
+
+    # Write detection_log records
+    try:
+        db = get_db()
+        for d in detections:
+            q(db, "detection_log").insert({
+                "model_version": model_version,
+                "image_id": image_id,
+                "scenario": scenario,
+                "predicted_class": d["product_name"],
+                "bbox": str(d["bbox"]),
+                "confidence": d["confidence"],
+                "inference_time": inference_time,
+                "manual_check_required": 1 if d["manual_check_required"] else 0,
+                "error_type": "none",
+            }).execute()
+    except Exception as e:
+        logger.warning("Failed to write detection_log: %s", e)
+
     results_list = []
     for d in detections:
         results_list.append(YOLOResult(
@@ -118,7 +94,7 @@ def detect_products(image: np.ndarray) -> list[YOLOResult]:
             quantity=1,
             confidence=d["confidence"],
             bbox=d["bbox"],
-            tray_color=tray_color,
+            tray_color="green",
         ))
     return results_list
 
@@ -172,7 +148,8 @@ async def checkout_scan(file: UploadFile = File(...)):
     if image is None:
         raise HTTPException(400, "Cannot decode image")
     logger.info("Checkout scan: %dx%d", image.shape[1], image.shape[0])
-    results = detect_products(image)
+    img_id = f"checkout_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+    results = detect_products(image, scenario="checkout", image_id=img_id)
     aggregated = aggregate_results(results)
     return {"status": "ok", "detections": aggregated}
 
@@ -199,7 +176,8 @@ async def inflow_scan(file: UploadFile = File(...)):
     if image is None:
         raise HTTPException(400, "Cannot decode image")
     logger.info("Inflow scan: %dx%d", image.shape[1], image.shape[0])
-    results = detect_products(image)
+    img_id = f"inbound_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+    results = detect_products(image, scenario="inbound", image_id=img_id)
     aggregated = aggregate_results(results)
 
     db = get_db()
@@ -486,8 +464,6 @@ async def get_batch_inventory():
     AREA_MAP = {
         "Fresh": "Fresh Area",
         "Day-1": "Day-1 Area",
-        
-        "Expired": "Destroyed",
         "Expired": "Expired",
     }
 
@@ -499,3 +475,56 @@ async def get_batch_inventory():
         inventory.append(item)
 
     return {"status": "ok", "inventory": inventory}
+# ======================================================================
+# GET /s1/detection_logs -- Query AI detection logs
+# ======================================================================
+@router.get("/detection_logs")
+async def get_detection_logs(
+    scenario: str = Query(None, description="Filter: inbound / checkout"),
+    limit: int = Query(50, description="Max records to return"),
+):
+    """Return recent AI detection logs for model evaluation (mAP, Precision, Recall, etc.)."""
+    db = get_db()
+    query = q(db, "detection_log").select("*").order("created_at", desc=True).limit(limit)
+    if scenario:
+        query = q(db, "detection_log").select("*").eq("scenario", scenario).order("created_at", desc=True).limit(limit)
+    r = query.execute()
+    return {"status": "ok", "count": len(r.data), "logs": r.data}
+# ======================================================================
+# GET /s1/inventory_transactions -- Query all inventory transactions
+# ======================================================================
+@router.get("/inventory_transactions")
+async def get_inventory_transactions(
+    product_name: str = Query(None),
+    transaction_type: str = Query(None),
+    limit: int = Query(100, description="Max records"),
+):
+    """Return inventory transaction history for S2/S3/S5 consumption."""
+    db = get_db()
+    qb = q(db, "inventory_transactions").select("*").order("transaction_time", desc=True).limit(limit)
+    if product_name:
+        qb = q(db, "inventory_transactions").select("*").eq("product_name", product_name).order("transaction_time", desc=True).limit(limit)
+    if transaction_type:
+        qb = q(db, "inventory_transactions").select("*").eq("transaction_type", transaction_type).order("transaction_time", desc=True).limit(limit)
+    r = qb.execute()
+    return {"status": "ok", "count": len(r.data), "transactions": r.data}
+
+
+# ======================================================================
+# GET /s1/inventory -- Aggregated inventory summary by product
+# ======================================================================
+@router.get("/inventory")
+async def get_inventory_summary():
+    """Return current inventory aggregated by product_name (total qty per product)."""
+    db = get_db()
+    r = q(db, "batch_inventory").select("*").gt("quantity", 0).execute()
+    summary = {}
+    for row in (r.data or []):
+        pn = row.get("product_name", "unknown")
+        qty = row.get("quantity", 0)
+        if pn not in summary:
+            summary[pn] = {"product_name": pn, "total_quantity": 0, "batches": 0}
+        summary[pn]["total_quantity"] += qty
+        summary[pn]["batches"] += 1
+    return {"status": "ok", "inventory": list(summary.values())}
+
