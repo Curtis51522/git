@@ -968,7 +968,7 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Why is waste high this week?\')" >Waste</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Check schedule for anomalies\')" >Schedule</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Run a full store health check\')" >Audit</button>'
-+'</div><div id="agent-result" class="result-box"><span class="status-dot dot-warn"></span>Type a question</div>'
++'</div><div id="agent-result" class="result-box" style="max-height:65vh;min-height:120px"><span class="status-dot dot-warn"></span>Type a question</div>'
 +'</div>';
 }
 function runQuickAgent(q){document.getElementById('agent-query').value=q;runAgentQuery();}
@@ -987,15 +987,17 @@ if(sched&&sched.length>0){
 out+='<br><br><strong>Schedule Table:</strong><br>';
 var dates=[],seen={};for(var i=0;i<sched.length;i++){if(!seen[sched[i].date]){dates.push(sched[i].date);seen[sched[i].date]=true;}}dates.sort();
 var slots=['09:00-14:00','14:00-19:00'];
-out+='<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:6px"><thead><tr><th style="padding:4px;border:1px solid #e0d5c7;background:#fdfaf5">Time</th>';
-for(var i=0;i<dates.length;i++){out+='<th style="padding:4px;border:1px solid #e0d5c7;background:#fdfaf5">'+dates[i].slice(5)+'</th>';}
+out+='<table class="sched-table" style="font-size:13px;margin-top:6px"><thead><tr><th>Time</th>';
+for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');out+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
 out+='</tr></thead><tbody>';
-for(var si=0;si<slots.length;si++){out+='<tr><td style="padding:4px;border:1px solid #e0d5c7;font-weight:600;background:#fdfaf5">'+slots[si]+'</td>';
-for(var di=0;di<dates.length;di++){out+='<td style="padding:4px;border:1px solid #e0d5c7;font-size:10px">';
+for(var si=0;si<slots.length;si++){out+='<tr><td><strong>'+slots[si]+'</strong></td>';
+for(var di=0;di<dates.length;di++){out+='<td>';
 var found=false;
 for(var i=0;i<sched.length;i++){if(sched[i].date===dates[di]&&sched[i].time_slot===slots[si]){
-out+='<strong>'+sched[i].employee_name+'</strong><br>'+sched[i].role;found=true;}}
-if(!found)out+='-';
+var dl=sched[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';
+out+='<div style="font-size:12px"><strong>'+sched[i].employee_name+'</strong><br>'+sched[i].role+' <span style="font-size:9px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span></div>';
+found=true;}}
+if(!found)out+='<span style="color:#ccc">-</span>';
 out+='</td>';}
 out+='</tr>';}
 out+='</tbody></table>';
