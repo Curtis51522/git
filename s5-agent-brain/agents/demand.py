@@ -58,6 +58,15 @@ class DemandAgent(BaseAgent):
 
         # Trend from first product's first 3 days
         trend = "stable"
+        per_product_fc = {}
+        for f in date_matches:
+            pname = f.get("product_name", "")
+            if pname:
+                per_product_fc[pname] = {
+                    "forecast": f.get("predicted_demand", 0),
+                    "lower": f.get("lower_bound", 0),
+                    "upper": f.get("upper_bound", 0),
+                }
         sample = [f for f in forecasts if f.get("product_name") == (date_matches[0].get("product_name", "") if date_matches else "croissant")]
         if len(sample) >= 3:
             vals = [s.get("predicted_demand", 0) for s in sample[:3]]
@@ -72,6 +81,7 @@ class DemandAgent(BaseAgent):
             "constraints": [],
             "data": {
                 "forecast": predicted,
+                "per_product": per_product_fc,
                 "forecast_low": lower,
                 "forecast_high": upper,
                 "trend": trend,

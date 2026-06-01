@@ -1,6 +1,7 @@
 # Arbitrator - cross-agent health audit + final decision
 # Merges Health Agent and Arbitrator into one.
 import logging, time
+from optimizer import optimize_single, optimize_multi, ProductState, CostParams
 from typing import Dict, Any, List
 
 logger = logging.getLogger("s5.arbitrator")
@@ -135,22 +136,24 @@ class Arbitrator:
 
         else:
             # stock_query / cross_source_audit / multi_product
-            if audit["healthy"]:
-                action = f"Bake {recommended} units (match forecast {forecast}, within capacity {max_cap})."
-                priority = "normal"
-            elif any("STOCKOUT" in c for c in audit["conflicts"]):
-                action = f"URGENT: only {stock} in stock for {forecast} demand. {(forecast - stock)} unit gap."
-                priority = "critical"
-            elif any("CAPACITY_GAP" in c for c in audit["conflicts"]):
-                action = f"Capped: demand {forecast} but max capacity {max_cap}. Bake {recommended}."
-                priority = "warning"
-            elif any("NO_BAKERS" in c for c in audit["conflicts"]):
-                action = f"Cannot produce: no bakers scheduled. Demand {forecast} unmet."
-                priority = "critical"
-            else:
-                action = f"Bake {recommended} units. {len(audit['warnings'])} warning(s)."
-                priority = "normal"
+            # Multi-objective optimizer replaces simple if/else
+            cap = max_cap if max_cap > 0 else 75
+            stocks_val = inventory.get("inventory", 0)
+            per_product_inv = inventory.get("per_product", {})
+            per_product_demand = demand.get("per_product", {})
 
+            if per_product_inv and per_product_demand and len(per_product_inv) > 1:
+                prod_states = []
+                for pname, pdata in per_product_inv.items():
+                    p_demand = per_product_demand.get(pname, {}).get("forecast", 0)
+                    prod_states.append(ProductState(pname, demand=p_demand, stock=pdata["qty"]))
+                opt = optimize_multi(prod_states, cap)
+                action = opt["rationale"]
+                priority = "warning" if opt.get("shortage_units", 0) > 0 else "normal"
+            else:
+                opt = optimize_single(forecast, stocks_val, cap)
+                action = opt["rationale"]
+                priority = "warning" if opt["shortage_units"] > 0 else "normal"
         # Reasoning trace
         trace = []
         for name, r in results.items():
