@@ -1,4 +1,4 @@
-"""
+﻿"""
 Intent Classifier for S5 -- hybrid DistilBERT + keyword fallback.
 
 Loads the fine-tuned DistilBERT model if available (models/distilbert/).
@@ -7,10 +7,10 @@ Falls back to keyword rules when:
 - PyTorch/transformers not installed
 - Any loading error
 
-Intent labels: stock_query, waste_analysis, promo_eval, schedule_audit, out_of_scope
+Intent labels: stock_query, waste_analysis, promo_eval, schedule_audit, cross_source_audit, profit_analysis, out_of_scope
 """
 
-import sys, os
+import math, sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config.settings import INTENT_CONFIDENCE_THRESHOLD
 
@@ -51,7 +51,6 @@ class IntentClassifier:
         """
         if self._model_loaded:
             intent, conf = self._classify_dl(query)
-            import math
             if not math.isnan(conf) and conf >= self.threshold:
                 kw_intent, kw_conf = self._classify_keywords(query)
                 # If keywords disagree AND are confident, override DL

@@ -1,11 +1,11 @@
-"""
+﻿"""
 DeepSeek LLM client -- OpenAI-compatible API call.
 
 DeepSeek's API is fully compatible with the OpenAI SDK.
 Just point base_url to https://api.deepseek.com/v1.
 
 Models:
-- deepseek-chat      (DeepSeek-V3, cheap, ~$0.27/M input tokens)
+- deepseek-chat  (DeepSeek-V4-Pro, latest)
 - deepseek-reasoner  (DeepSeek-R1, reasoning model)
 """
 
@@ -327,19 +327,19 @@ Alert:"""
     # Fallback: rule-based description
     reasons = []
     if stock_cov < 0.2:
-        reasons.append(f"Stock critically low ({(stock_cov*100):.0f}% of daily demand) — restock immediately")
+        reasons.append(f"Stock critically low ({(stock_cov*100):.0f}% of daily demand) -- restock immediately")
     elif stock_cov < 0.5:
         reasons.append(f"Stock running low ({(stock_cov*100):.0f}% coverage)")
     if hc_gap >= 1:
-        reasons.append(f"Understaffed by {hc_gap:.0f} people �� adjust schedule")
+        reasons.append(f"Understaffed by {hc_gap:.0f} people -- adjust schedule")
     if deviation > 30:
-        reasons.append(f"Forecast off by {deviation:.0f}% �� verify production plan")
+        reasons.append(f"Forecast off by {deviation:.0f}% -- verify production plan")
     if cap_pres > 1.0:
-        reasons.append(f"Production near capacity ({(cap_pres*100):.0f}%) �� check oven load")
+        reasons.append(f"Production near capacity ({(cap_pres*100):.0f}%) -- check oven load")
     if waste > 20:
-        reasons.append(f"Waste rate {waste:.0f}% — review batch sizes")
+        reasons.append(f"Waste rate {waste:.0f}% -- review batch sizes")
     if not reasons:
-        reasons.append(f"Unusual pattern detected — review store operations")
+        reasons.append(f"Unusual pattern detected -- review store operations")
     return "; ".join(reasons)
 
 

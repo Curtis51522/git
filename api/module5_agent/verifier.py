@@ -1,4 +1,4 @@
-"""
+﻿"""
 Verifier Agent -- Four-tier audit for S5 decision pipeline.
 
 Architecture (redesigned):
@@ -10,6 +10,9 @@ Architecture (redesigned):
 
 import json, logging
 from config.settings import BAKER_UNITS_PER_HOUR, BAKER_HOURS_PER_SHIFT, STOCKOUT_THRESHOLD, OVERSTOCK_THRESHOLD, FORECAST_CHANGE_NORMAL_PCT
+import math
+from collections import OrderedDict, defaultdict
+from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 
 logger = logging.getLogger("s5.verifier")
@@ -76,8 +79,14 @@ class VerifierAgent:
     # ==================================================================
     def verify_integrity(self, result: dict) -> Tuple[bool, list, dict]:
         """L1: Single-pass data integrity check. Fails = reject immediately."""
-        import math
         checks = {}
+        warnings = []
+
+        if not isinstance(result, dict):
+            checks["L1"] = False
+            warnings.append("L1 FAILED: result is not a dict")
+            return False, warnings, checks
+
         warnings = []
 
         # Numeric sanity
@@ -109,10 +118,10 @@ class VerifierAgent:
     def verify_capacity(self, result: dict, use_llm: bool = True) -> Tuple[bool, list, dict]:
         """L2: Restock must not exceed capacity."""
         restock = result.get("recommended_restock", 0)
-        capacity = result.get("capacity", 999999)
+        capacity = result.get("capacity", 0)
 
-        if capacity == 0:
-            return restock == 0, ["L2 FAILED: capacity is zero"], {"L2": restock == 0}
+        if capacity <= 0:
+            return True, ["L2 WARNING: capacity data missing, skipping check"], {"L2": "skipped"}
 
         ratio = restock / capacity if capacity > 0 else 0
         passed = restock <= capacity
@@ -191,7 +200,6 @@ class VerifierAgent:
         forecast changes to specific drivers (weather, holidays, promotions).
         Generates LLM causal report when anomaly is significant.
         """
-        import json, os
 
         forecast = fusion_result.get("forecast", 0)
         product = (executor_data or {}).get("product", "croissant")
@@ -208,7 +216,6 @@ class VerifierAgent:
             return True, [], {"L4_R12": "skipped: no forecast data"}
 
         # Filter to this product and group by date
-        from collections import OrderedDict
         product_forecasts = [
             f for f in forecasts_list
             if f.get("product_name", "") == product
@@ -241,7 +248,7 @@ class VerifierAgent:
             from datetime import datetime as _vdt, timedelta as _vtd
             _ed = _vdt.strptime(effective_date[:10], "%Y-%m-%d")
             if _ed.weekday() == 0:
-                _ed += _vtd(days=1)
+                _ed += timedelta(days=1)
                 effective_date = _ed.strftime("%Y-%m-%d")
         except (ValueError, ImportError):
             pass
@@ -295,7 +302,7 @@ class VerifierAgent:
                     if llm_reason:
                         causal_report = llm_reason
                 except Exception as e:
-                                    logger.warning("LLM causal report generation failed: %s", e)
+                    logger.warning("LLM causal report generation failed: %s", e)
 
             # SHAP explained = PASS (always: SHAP always provides attribution)
             result_data = {
@@ -339,15 +346,18 @@ class VerifierAgent:
         if not schedule or forecast <= 0:
             return True, False, "no schedule or forecast"
 
-        from collections import defaultdict
+        # Count bakers for the target date first, fall back to global max
+        target_date = data.get("target_date", data.get("date", ""))
         bakers_per_day = defaultdict(int)
         for s in schedule:
             role = str(s.get("role", s.get("employee_role", ""))).lower()
             if "baker" in role:
                 bakers_per_day[s.get("schedule_date", s.get("date", ""))] += 1
 
-        max_bakers = max(bakers_per_day.values()) if bakers_per_day else 0
-        daily_capacity = max_bakers * BAKER_HOURS_PER_SHIFT * BAKER_UNITS_PER_HOUR
+        bakers_count = bakers_per_day.get(target_date, 0) if target_date else 0
+        if bakers_count <= 0:
+            bakers_count = max(bakers_per_day.values()) if bakers_per_day else 0
+        daily_capacity = bakers_count * BAKER_HOURS_PER_SHIFT * BAKER_UNITS_PER_HOUR
         if daily_capacity <= 0:
             return True, False, "no bakers on schedule"
 
@@ -355,7 +365,7 @@ class VerifierAgent:
         passed = forecast <= daily_capacity
         is_borderline = 0.85 < ratio <= 1.15
         ctx = (
-            f"Forecast: {forecast}u, Bakers: {max_bakers}, "
+            f"Forecast: {forecast}u, Bakers: {bakers_count}, "
             f"Capacity: {daily_capacity}u/day, Ratio: {ratio:.0%}"
         )
         return passed, is_borderline, ctx
@@ -392,7 +402,6 @@ class VerifierAgent:
         if not schedule:
             return True, False, "no schedule data"
 
-        from collections import defaultdict
         coverage = defaultdict(lambda: defaultdict(lambda: {"roles": set(), "demand": "normal"}))
         for s in schedule:
             date = s.get("schedule_date", s.get("date", ""))
@@ -410,15 +419,19 @@ class VerifierAgent:
             for slot, info in slots.items():
                 demand = info.get("demand", "normal")
                 roles = info.get("roles", set())
+                # Filter out empty role strings
+                roles = {r for r in roles if r.strip()}
                 has_baker = any("baker" in r for r in roles)
                 has_front = any(r in ("cashier", "barista") for r in roles)
-                # Only flag gaps when demand is HIGH (normal/low means intentional)
                 if demand == "high":
                     if not has_baker:
                         gaps.append(f"{date} {slot}: no baker")
                     if not has_front:
                         gaps.append(f"{date} {slot}: no cashier/barista")
+                else:
+                    if len(roles) == 0:
+                        gaps.append(f"{date} {slot}: no staff assigned (low-demand gap)")
 
         if gaps:
             return False, len(gaps) <= 2, "; ".join(gaps[:5])
-        return True, False, "all slots covered (normal/low demand slots may have intentional gaps)"
+        return True, False, "all slots covered"

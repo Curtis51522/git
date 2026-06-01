@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+﻿from dotenv import load_dotenv
 load_dotenv()
 import logging
 
@@ -63,22 +63,6 @@ async def index():
     with open(os.path.join(STATIC, "index.html"), encoding="utf-8") as f:
         return f.read()
 
-
-@app.get("/test_js.html", response_class=HTMLResponse)
-async def test_js():
-    with open(os.path.join(STATIC, "test_js.html"), encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/login_test.html", response_class=HTMLResponse)
-async def login_test():
-    with open(os.path.join(STATIC, "login_test.html"), encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/app.js")
-async def app_js():
-    with open(os.path.join(STATIC, "app.js"), encoding="utf-8") as f:
-        content = f.read()
-    return Response(content=content, media_type="text/javascript", headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 @app.get("/ping")
 async def ping():

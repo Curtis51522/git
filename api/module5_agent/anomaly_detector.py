@@ -1,4 +1,4 @@
-"""Anomaly Detector -- Isolation Forest + severity classifier for B1 Monitor.
+﻿"""Anomaly Detector -- Isolation Forest + severity classifier for B1 Monitor.
 
 No LLM calls.  Pure statistical model, < 100 ms per cycle.
 Uses sklearn IsolationForest for unsupervised anomaly detection
@@ -10,7 +10,7 @@ changing store patterns.
 
 import json
 import logging
-import os
+import os, re
 import pickle
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Optional
@@ -64,7 +64,6 @@ def build_feature_vector(audit_result: dict) -> Optional[np.ndarray]:
             if issue.get("rule") == "R7":
                 # Extract gap from message: "1 staff for 40 transactions"
                 msg = issue.get("message", "")
-                import re
                 m = re.search(r"(\d+)\s+staff\s+for\s+(\d+)\s+transactions", msg)
                 if m:
                     hc = int(m.group(1))
@@ -245,7 +244,7 @@ class AnomalyDetector:
             with open(HISTORY_PATH, "w") as f:
                 json.dump(self._history[-500:], f, default=str)  # keep last 500
         except Exception as e:
-                        logger.warning("Failed to persist anomaly history: %s", e)
+            logger.warning("Failed to persist anomaly history: %s", e)
 
 
 # ---------------------------------------------------------------------------

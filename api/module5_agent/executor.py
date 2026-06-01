@@ -1,10 +1,10 @@
-import httpx, asyncio, logging
+﻿import httpx, logging
 from collections import deque
 from datetime import datetime, timedelta
 
 logger = logging.getLogger("s5.executor")
 
-from config.settings import PRODUCTION_CAPACITY
+from config.settings import PRODUCTION_CAPACITY, get_capacity
 from db.mysql_client import get_db
 
 ENDPOINT_HANDLERS = {
@@ -166,7 +166,7 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
             if "schedule" in data:
                 collected["schedule"] = data.get("schedule", data.get("shifts", []))
             if "capacity" in data:
-                collected["capacity"] = data.get("capacity", PRODUCTION_CAPACITY)
+                collected["capacity"] = data.get("capacity", get_capacity(product.get("name", "")))
             if "transactions" in data:
                 collected["transactions"] = data.get("transactions", [])
 
@@ -178,12 +178,12 @@ async def execute_dag_real(dag: dict, params: dict) -> dict:
     collected.setdefault("product", params.get("product", "croissant"))
     if "forecast" not in collected:
         collected["forecast"] = 0.0
-        logger.warning("Forecast not found, setting to 0")
+        logger.debug("Forecast not found, setting to 0 (expected for non-forecast intents)")
     if "inventory" not in collected:
         prod = params.get("product", "")
         collected["inventory"] = _db_inventory_fallback(prod)
-        logger.warning("Inventory not found, using DB fallback")
-    collected.setdefault("capacity", PRODUCTION_CAPACITY)
+        logger.debug("Inventory not found, using DB fallback")
+    collected.setdefault("capacity", get_capacity(prod))
     collected.setdefault("predictions", [])
     collected.setdefault("actuals", [])
     collected.setdefault("incremental_revenue", 0.0)
@@ -218,5 +218,5 @@ def _mock_fallback(params: dict) -> dict:
     return {
         "forecast": 0,
         "inventory": _db_inventory_fallback(prod),
-        "capacity": PRODUCTION_CAPACITY,
+        "capacity": get_capacity(prod),
     }

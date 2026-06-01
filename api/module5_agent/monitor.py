@@ -1,4 +1,4 @@
-"""Background Monitor -- periodic proactive anomaly detection for B1.
+﻿"""Background Monitor -- periodic proactive anomaly detection for B1.
 
 Runs every N minutes (default: 30), calling cross_source_audit,
 feeding results into AnomalyDetector, and creating alerts for
@@ -21,7 +21,7 @@ from api.module5_agent.memory import get_memory
 from api.module5_agent.alert_store import (
     create_alert, get_unacked_count,
 )
-from api.module5_agent.router import _execute_dag, _self_reflect
+from api.module5_agent.router import _execute_dag
 # Will be set after WebSocket manager is created
 _ws_manager: Optional[object] = None
 

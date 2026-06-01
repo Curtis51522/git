@@ -1,4 +1,4 @@
-"""
+﻿"""
 S5 Router -- FastAPI endpoints for the Store Manager Intelligence Engine.
 
 Query flow (POST /s5/query):
@@ -19,17 +19,31 @@ Script flow (POST /s5/script):
 import json
 import time
 import logging
+import re
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException
+import httpx
+import random
 
 from api.module5_agent.intent import IntentClassifier
 from api.module5_agent.planner import PlannerAgent, DAGValidationError
 from api.module5_agent.fusion import FusionModule
 from api.module5_agent.verifier import VerifierAgent
 from api.module5_agent.composer import ComposerAgent
+from api.module5_agent.alert_store import (
+    list_alerts, acknowledge_alert, acknowledge_all, get_unacked_count,
+)
 from api.module5_agent.memory import get_memory
-from config.settings import PRODUCTION_CAPACITY
+from db.mysql_client import get_db
+from config.settings import PRODUCTION_CAPACITY, get_capacity
+from api.module5_agent.executor import execute_dag_real as _execute_dag
 
 logger = logging.getLogger("s5.router")
+
+
+# -- Product name constants ------------------------------------------------
+PRODUCT_NAMES = ["croissant", "croissant_chocolate", "donut", "chiffon",
+                 "bread_roll", "bread_coconut"]
 
 router = APIRouter(prefix="/s5", tags=["Module 5 - Agent Engine"])
 
@@ -61,10 +75,7 @@ async def handle_query(payload: dict):
     session_id = payload.get("session_id", "default")
     memory = get_memory()
 
-    # Product name list (used by multiple blocks below)
-    PRODUCT_NAMES = ["croissant", "croissant_chocolate", "donut", "chiffon",
-                     "bread_roll", "bread_coconut", "bread roll", "bread coconut",
-                     "chocolate croissant"]
+
 
     # ---- Step 1: Intent classification (on RAW query, not memory-enriched) -
     intent, confidence = intent_clf.classify(query)
@@ -174,27 +185,24 @@ async def handle_query(payload: dict):
     # Auto-extract date from query (e.g. "16th June", "June 16", "2026-06-16")
     # Also resolve relative dates: today, tomorrow, yesterday
     if not params.get("date"):
-        from datetime import datetime as _dt, timedelta as _td
         ql = query.lower()
-        today = _dt.now()
+        today = datetime.now()
         if "lusa" in ql or "next day" in ql or "day after" in ql:
-            params["date"] = (today + _td(days=2)).strftime("%Y-%m-%d")
+            params["date"] = (today + timedelta(days=2)).strftime("%Y-%m-%d")
         elif "esok" in ql or "tomorrow" in ql:
-            params["date"] = (today + _td(days=1)).strftime("%Y-%m-%d")
+            params["date"] = (today + timedelta(days=1)).strftime("%Y-%m-%d")
         elif "hari ini" in ql or "today" in ql:
             params["date"] = today.strftime("%Y-%m-%d")
         elif "semalam" in ql or "yesterday" in ql:
-            params["date"] = (today - _td(days=1)).strftime("%Y-%m-%d")
+            params["date"] = (today - timedelta(days=1)).strftime("%Y-%m-%d")
     
     # Auto-extract date from query (e.g. "16th June", "June 16", "2026-06-16")
     if not params.get("date"):
-        import re as _re
-        from datetime import datetime as _dt
         # Match patterns like "16th June", "June 16", "16 June", "2026-06-16"
         patterns = [
-            _re.search(r'(\d{1,2})(?:st|nd|rd|th)?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*(\d{4})?', query, _re.IGNORECASE),
-            _re.search(r'(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(\d{4})?', query, _re.IGNORECASE),
-            _re.search(r'(\d{4})-(\d{2})-(\d{2})', query),
+            re.search(r'(\d{1,2})(?:st|nd|rd|th)?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*(\d{4})?', query, re.IGNORECASE),
+            re.search(r'(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(\d{4})?', query, re.IGNORECASE),
+            re.search(r'(\d{4})-(\d{2})-(\d{2})', query),
         ]
         MONTH_MAP = {m.lower()[:3]: i for i, m in enumerate(["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"], 1)}
         for m in patterns:
@@ -203,21 +211,21 @@ async def handle_query(payload: dict):
                 try:
                     if len(grp) >= 3 and grp[2] and grp[2].isdigit() and len(grp[2]) == 4:
                         # ISO format: 2026-06-16
-                        params["date"] = _dt(int(grp[0]), int(grp[1]), int(grp[2])).strftime("%Y-%m-%d")
+                        params["date"] = datetime(int(grp[0]), int(grp[1]), int(grp[2])).strftime("%Y-%m-%d")
                     elif grp[0].isdigit():
                         # "16th June" or "16 June 2026"
                         day = int(grp[0])
                         month_str = grp[1][:3].lower()
                         month = MONTH_MAP.get(month_str, 6)
-                        year = int(grp[2]) if len(grp) >= 3 and grp[2] and grp[2].isdigit() else _dt.now().year
-                        params["date"] = _dt(year, month, day).strftime("%Y-%m-%d")
+                        year = int(grp[2]) if len(grp) >= 3 and grp[2] and grp[2].isdigit() else datetime.now().year
+                        params["date"] = datetime(year, month, day).strftime("%Y-%m-%d")
                     else:
                         # "June 16th" or "June 16 2026"
                         month_str = grp[0][:3].lower()
                         month = MONTH_MAP.get(month_str, 6)
                         day = int(grp[1])
-                        year = int(grp[2]) if len(grp) >= 3 and grp[2] and grp[2].isdigit() else _dt.now().year
-                        params["date"] = _dt(year, month, day).strftime("%Y-%m-%d")
+                        year = int(grp[2]) if len(grp) >= 3 and grp[2] and grp[2].isdigit() else datetime.now().year
+                        params["date"] = datetime(year, month, day).strftime("%Y-%m-%d")
                 except (ValueError, IndexError):
                                     pass  # date parsing fallthrough, try next format
                 if params.get("date"):
@@ -245,7 +253,7 @@ async def handle_query(payload: dict):
     # ---- Step 4: Fusion (dispatch by intent) --------------------------
     if intent == "stock_query" and len(multi_products) >= 2:
         # Multi-product comparison: directly fetch all forecasts (bypass executor)
-        import httpx
+        
         all_forecasts = []
         try:
             async with httpx.AsyncClient() as fc_client:
@@ -266,23 +274,22 @@ async def handle_query(payload: dict):
             all_forecasts = data.get("_all_forecasts", [])
             logger.info("Multi-product: using initial _all_forecasts (%d entries)", len(all_forecasts))
         all_inventory = data.get("_all_inventory", [])
-        capacity = data.get("capacity", PRODUCTION_CAPACITY)
+        capacity = data.get("capacity", PRODUCTION_CAPACITY)  # fallback only, per-product below
         
         # Determine target date: tomorrow, always skip Monday
-        from datetime import datetime as dt, timedelta as td
         target_date = params.get("date", "")
         if target_date:
             try:
-                td_date = dt.strptime(target_date[:10], "%Y-%m-%d")
+                td_date = datetime.strptime(target_date[:10], "%Y-%m-%d")
                 if td_date.weekday() == 0:
-                    td_date += td(days=1)
+                    td_date += timedelta(days=1)
                     target_date = td_date.strftime("%Y-%m-%d")
             except ValueError:
                 pass
         else:
-            tm = dt.now() + td(days=1)
+            tm = datetime.now() + timedelta(days=1)
             if tm.weekday() == 0:
-                tm += td(days=1)
+                tm += timedelta(days=1)
             target_date = tm.strftime("%Y-%m-%d")
         products_data = []
         for p in multi_products:
@@ -309,7 +316,7 @@ async def handle_query(payload: dict):
                 "forecast": p_forecast,
                 "inventory": p_inventory,
                 "restock": p_restock,
-                "capacity": capacity,
+                "capacity": get_capacity(p),
             })
         
         result = {
@@ -317,7 +324,7 @@ async def handle_query(payload: dict):
             "products": products_data,
             "forecast": sum(pd["forecast"] for pd in products_data),
             "inventory": sum(pd["inventory"] for pd in products_data),
-            "capacity": capacity,
+            "capacity": sum(get_capacity(pd["name"]) for pd in products_data),
         }
     elif intent == "stock_query":
         # For follow-up queries (e.g. "next day"), chain inventory from memory
@@ -328,7 +335,7 @@ async def handle_query(payload: dict):
             if prev_eps:
                 prev_snap = prev_eps[0].get("data_snapshot", {})
                 if isinstance(prev_snap, str):
-                    try: import json; prev_snap = json.loads(prev_snap)
+                    try: prev_snap = json.loads(prev_snap)
                     except: prev_snap = {}
                 prev_high = prev_snap.get("forecast_high", prev_snap.get("forecast", 0))
                 prev_low = prev_snap.get("forecast_low", 0)
@@ -364,8 +371,6 @@ async def handle_query(payload: dict):
             data.get("transactions", []),
         )
     elif intent == "profit_analysis":
-        # Directly query DB for transactions and product costs
-        from db.mysql_client import get_db
         db = get_db()
         # Fetch all outflow transactions (sales)
         txn_cursor = db.cursor(dictionary=True)
@@ -436,9 +441,7 @@ async def handle_query(payload: dict):
         logger.warning("L4 explainability audit flagged: %s", l4_warnings)
 
     # ---- Step 6: Composer -----------------------------------------------
-    # R9-R12 may add warnings even when R6-R8 passes
-    cross_module_ok = r912_ok if 'r912_ok' in dir() else True
-    final_passed = audit_passed and cross_module_ok
+    final_passed = audit_passed
     all_warnings = audit_warnings if audit_warnings else []
 
     # Build memory-enriched query for LLM context
@@ -520,7 +523,6 @@ async def handle_query(payload: dict):
             data_snapshot=result,
         )
         # Trigger reflection every ~20 episodes (async, fire-and-forget)
-        import random
         if random.random() < 0.05:  # ~5% chance per query
             try:
                 memory.generate_reflection(session_id)
@@ -586,7 +588,6 @@ def _canned_dag(intent: str) -> dict:
         "promo_eval": {
             "nodes": [
                 {"id": "s1_txn",       "endpoint": "/s1/batch_inventory"},
-                {"id": "db_promo",     "endpoint": "/db/sql_query"},
             ],
         },
         "schedule_audit": {
@@ -607,79 +608,6 @@ def _canned_dag(intent: str) -> dict:
     return canned.get(intent, {"nodes": []})
 
 
-def _self_reflect(intent: str, params: dict, result: dict, warnings: list, attempt: int) -> dict:
-    """Ask Planner LLM to revise parameters based on Verifier audit warnings.
-
-    Returns revised params dict, or empty dict if no revision possible.
-    """
-    try:
-        from api.module5_agent.llm_client import call_deepseek
-
-        prompt = f"""You are a Planner Agent for a bakery-cafe system. Your previous plan produced a result that FAILED audit verification.
-
-Intent: {intent}
-Original params: {json.dumps(params, default=str)}
-Current result: {json.dumps(result, default=str)}
-Audit warnings:
-{chr(10).join(f"  - {w}" for w in warnings)}
-
-Self-reflection attempt: {attempt}/{MAX_AUDIT_RETRIES}
-
-What went wrong? How can you fix it?
-Suggest ONE concrete parameter change (e.g., add a product filter, narrow date range, add a data source).
-
-Return ONLY valid JSON:
-{{"revised_params": {{"key": "value"}}, "reasoning": "one sentence"}}"""
-
-        import json as _json
-        system = "You are a Planner doing self-reflection. Be concise. Return only JSON."
-        response = call_deepseek(prompt, system, max_tokens=200)
-
-        if not response:
-            return {}
-
-        response = response.strip()
-        if response.startswith("```"):
-            parts = response.split("```")
-            response = parts[1] if len(parts) > 1 else response
-            if response.startswith("json"):
-                response = response[4:]
-        revised = _json.loads(response)
-        return revised.get("revised_params", {})
-
-    except Exception as exc:
-        logger.warning("Self-reflection failed: %s", exc)
-        return {}
-
-
-def _recompute_fusion(intent: str, data: dict, prev_result: dict) -> dict:
-    """Re-run Fusion with new data, preserving fields not in the new data."""
-    try:
-        if intent == "stock_query":
-            return fusion.compute_restock(
-                data.get("forecast", prev_result.get("forecast", 0)),
-                data.get("inventory", prev_result.get("inventory", 0)),
-                data.get("capacity", prev_result.get("capacity", 0)),
-            )
-        elif intent == "waste_analysis":
-            return fusion.compute_waste(
-                data.get("predictions", prev_result.get("predictions", [])),
-                data.get("actuals", prev_result.get("actuals", [])),
-            )
-        elif intent == "promo_eval":
-            return fusion.compute_promo_roi(
-                data.get("incremental_revenue", prev_result.get("incremental_revenue", 0)),
-                data.get("discount_cost", prev_result.get("discount_cost", 0)),
-            )
-        elif intent == "schedule_audit":
-            return fusion.compute_schedule_audit(
-                data.get("schedule", prev_result.get("schedule", [])),
-                data.get("transactions", prev_result.get("transactions", [])),
-            )
-    except Exception:
-        pass
-    return prev_result
-
 
 
 # ======================================================================
@@ -693,7 +621,6 @@ async def handle_reflections(session_id: str = "", limit: int = 10):
         reflections = memory.get_reflections(session_id, limit=limit)
     else:
         # All recent reflections
-        from db.mysql_client import get_db
         db = get_db()
         cur = db.cursor(dictionary=True)
         cur.execute(
@@ -718,9 +645,6 @@ async def handle_run_reflections():
 # ======================================================================
 # B1 Alert endpoints
 # ======================================================================
-from api.module5_agent.alert_store import (
-    list_alerts, acknowledge_alert, acknowledge_all, get_unacked_count,
-)
 
 @router.get("/alerts/list")
 async def handle_alerts_list(since: str = "", severity: str = "", acked: str = "", limit: int = 50):
@@ -759,75 +683,5 @@ async def handle_alerts_count():
 
 
 
-# ======================================================================
-# B2 What-if Simulator endpoints
-# ======================================================================
-from api.module5_agent.scenario_engine import ScenarioEngine
 
-_scenario_engine = ScenarioEngine()
-
-@router.post("/whatif/compare")
-async def handle_whatif_compare(payload: dict):
-    """POST /s5/whatif/compare
-    
-    Body: {
-      product: "croissant",
-      forecast: 22, inventory: 12, capacity: 50,
-      price: 3.50,
-      scenario_type: "discount" | "staffing" | "production",
-      adjustments: {discount_pct: 30}
-    }
-    Returns: Plan A + Plan B + Plan C comparison + attribution
-    """
-    product = payload.get("product", "croissant")
-    forecast = float(payload.get("forecast", 0))
-    inventory = int(payload.get("inventory", 0))
-    capacity = int(payload.get("capacity", 0))
-    price = float(payload.get("price", 0) or 0)
-    cost_price = float(payload.get("cost_price", 0) or 0)
-    scenario_type = payload.get("scenario_type", "discount")
-    adjustments = payload.get("adjustments", {})
-    forecast_low = payload.get("forecast_low")
-    forecast_high = payload.get("forecast_high")
-
-    if forecast <= 0:
-        return {"ok": False, "error": "Forecast required"}
-
-    report = _scenario_engine.compare(
-        product=product,
-        forecast=forecast,
-        inventory=inventory,
-        capacity=capacity,
-        base_price=price if price > 0 else None,
-        scenario_type=scenario_type,
-        adjustments=adjustments,
-        forecast_low=float(forecast_low) if forecast_low is not None else None,
-        forecast_high=float(forecast_high) if forecast_high is not None else None,
-    )
-
-    def plan_to_dict(p):
-        if p is None: return None
-        return {
-            "label": p.label,
-            "production": p.production,
-            "projected_sales": p.projected_sales,
-            "waste": p.waste,
-            "revenue": p.revenue,
-            "discount_cost": p.discount_cost,
-            "profit": p.profit,
-            "capacity_util_pct": p.capacity_util_pct,
-            "params": p.params,
-        }
-
-    return {
-        "ok": True,
-        "plan_a": plan_to_dict(report.plan_a),
-        "plan_b": plan_to_dict(report.plan_b),
-        "plan_c": plan_to_dict(report.plan_c),
-        "attribution": report.attribution,
-        "recommendation": report.recommendation,
-    }
-
-
-from api.module5_agent.executor import execute_dag_real as _execute_dag
 

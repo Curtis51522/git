@@ -1,5 +1,4 @@
-import httpx
-import json
+﻿import json
 from collections import deque
 from typing import Dict, List, Tuple, Optional
 
@@ -171,7 +170,7 @@ class PlannerAgent:
     """Planner Agent - generates and validates Dependency-Aware DAGs.
 
     Workflow:
-    1. LLM (DeepSeek-V4-Pro) generates a raw DAG from intent + params.
+    1. LLM (DeepSeek-chat / V4-Pro) generates a raw DAG from intent + params.
     2. ``validate_dag()`` runs deterministic structural checks (O(N+E)).
     3. On failure a ``DAGValidationError`` is raised so the router can
        trigger self-reflection / retry or fall back to a canned DAG.
@@ -220,7 +219,6 @@ class PlannerAgent:
     # ------------------------------------------------------------------
     def _call_llm_for_dag(self, intent: str, params: dict) -> dict:
         """Call DeepSeek to generate a DAG for the given intent."""
-        import json
         from api.module5_agent.llm_client import call_deepseek
 
         prompt = f"""Generate a DAG (Directed Acyclic Graph) of API calls for this task.
@@ -267,5 +265,4 @@ Return ONLY the JSON, no other text."""
             return dag
         except (json.JSONDecodeError, IndexError):
             # Fallback to canned DAG
-            from api.mock_llm import mock_planner
             return mock_planner(intent, params).get("dag", mock_planner(intent, params))

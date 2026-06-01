@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -275,7 +275,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 
 
 
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<script>
+<script>
 var token='', role='', username='', currentPanel='pos';
 var API='';
 var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null;
@@ -283,32 +283,6 @@ var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:4.0,bread_roll:3.5,chi
 var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
 var DISCOUNT_RATE=0.3;
 
-async function doLogin(){
-var u=document.getElementById('username').value.trim();
-var p=document.getElementById('password').value;
-if(!u||!p){document.getElementById('error-msg').textContent='Enter username and password';return}
-document.getElementById('signin-btn').disabled=true;
-document.getElementById('signin-btn').textContent='Signing in...';
-try{
-var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-if(!r.ok){var txt=await r.text();throw new Error(txt||'Invalid credentials')}
-var d=await r.json();
-token=d.access_token;role=d.role;username=d.username;
-document.getElementById('login-page').classList.add('hidden');
-document.getElementById('dashboard').classList.remove('hidden');
-document.getElementById('user-display').textContent=username;
-var badge=document.getElementById('role-badge');
-badge.textContent=role==='manager'?'Manager':'Staff';
-badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
-var mb=document.querySelectorAll('.manager-only');
-for(var i=0;i<mb.length;i++)mb[i].style.display=role==='manager'?'':'none';
-showPanel('pos');
-}catch(e){
-document.getElementById('error-msg').textContent='Error: '+e.message;
-document.getElementById('signin-btn').disabled=false;
-document.getElementById('signin-btn').textContent='Sign In';
-}
-}
 function doLogout(){
 token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];
 document.getElementById('dashboard').classList.add('hidden');
@@ -995,26 +969,6 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Check schedule for anomalies\')" >Schedule</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Run a full store health check\')" >Audit</button>'
 +'</div><div id="agent-result" class="result-box"><span class="status-dot dot-warn"></span>Type a question</div>'
-+'<hr style="border:0;border-top:2px solid #e0d5c7;margin:20px 0">'
-+'<h4 style="margin:0 0 10px 0">What-If Simulator</h4>'
-+'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
-+'<select id="whatif-type" style="padding:6px 10px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px">'
-+'<option value="discount">Discount %</option>'
-+'<option value="production">Production Target</option>'
-+'<option value="staffing">Staffing (+/-)</option>'
-+'</select>'
-+'<select id="whatif-product" style="padding:6px 10px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px">'
-+'<option value="croissant">Croissant</option>'
-+'<option value="donut">Donut</option>'
-+'<option value="chiffon">Chiffon</option>'
-+'<option value="bread_roll">Bread Roll</option>'
-+'<option value="bread_coconut">Bread Coconut</option>'
-+'<option value="croissant_chocolate">Croissant Chocolate</option>'
-+'</select>'
-+'<input id="whatif-value" type="number" placeholder="e.g. 30" style="width:80px;padding:6px 10px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px">'
-+'<button class="btn btn-primary btn-sm" onclick="runWhatIf()">Simulate</button>'
-+'</div>'
-+'<div id="whatif-result" class="result-box" style="font-size:12px"><span class="status-dot dot-warn"></span>Adjust parameters and click Simulate</div>'
 +'</div>';
 }
 function runQuickAgent(q){document.getElementById('agent-query').value=q;runAgentQuery();}
@@ -1407,110 +1361,6 @@ async function ackAllAlerts(){
 }
 function closeAlertPanel(){document.getElementById('alert-panel').style.display='none';}
 
-// === B2 What-if functions ===
-async function runWhatIf(){
-  var stype=document.getElementById('whatif-type').value;
-  var prod=document.getElementById('whatif-product').value;
-  var val=parseFloat(document.getElementById('whatif-value').value)||0;
-  if(!val){document.getElementById('whatif-result').innerHTML='<span class="status-dot dot-warn"></span>Enter a value';return}
-  document.getElementById('whatif-result').innerHTML='<span class="spinner"></span>Fetching real data + simulating...';
-  
-  var adj={};
-  if(stype==='discount')adj={discount_pct:val};
-  else if(stype==='production')adj={production_target:val};
-  else if(stype==='staffing')adj={headcount_delta:val};
-  
-  try{
-    // Fetch real forecast + inventory + capacity
-    var forecast=30, inventory=0, capacity=50;
-    try{
-      var fResp=await api('/s2/forecast?days=1&product='+prod);
-      var forecast_low=17, forecast_high=31;
-      if((fResp.status==='ok'||fResp.ok) && fResp.forecasts && fResp.forecasts.length){
-        forecast=fResp.forecasts[0].predicted_demand||30;
-        forecast_low=fResp.forecasts[0].lower_bound||17;
-        forecast_high=fResp.forecasts[0].upper_bound||31;
-        if(typeof forecast!=='number'||forecast<=0) forecast=30;
-      }
-    }catch(e){}
-    try{
-      var invResp=await api('/s1/batch_inventory');
-      if((invResp.status==='ok'||invResp.ok) && invResp.inventory){
-        invResp.inventory.forEach(function(p){
-          if(p.product_name===prod||p.product_name===prod.replace('_',' ')){
-            inventory += (p.quantity||0);
-          }
-        });
-      }
-    }catch(e){}
-    // S3 capacity: use static estimate based on staff count
-    capacity=50;
-    
-    var price=PRODUCT_PRICES[prod]||0;
-    var cost_price=PRODUCT_COSTS[prod]||0;
-    var r=await api('/s5/whatif/compare',{method:'POST',body:{
-      product:prod,forecast:forecast,forecast_low:forecast_low,forecast_high:forecast_high,inventory:inventory,capacity:capacity,price:price,cost_price:cost_price,
-      scenario_type:stype,adjustments:adj
-    }});
-    if(!r.ok){document.getElementById('whatif-result').textContent=r.error;return}
-    
-    var plans=[r.plan_a,r.plan_b,r.plan_c].filter(Boolean);
-    var h='<div style="display:flex;gap:10px;flex-wrap:wrap">';
-    var colors=['#3498db','#e67e22','#27ae60'];
-    plans.forEach(function(p,i){
-      var bestProfit=Math.max.apply(null,plans.map(function(x){return x.profit}));
-      var isBest=p.profit===bestProfit;
-      h+='<div style="flex:1;min-width:180px;border:2px solid '+(isBest?colors[i]:'#e0d5c7')+';border-radius:8px;padding:10px;background:'+(isBest?'#fefdf7':'#fafaf5')+'">';
-      h+='<strong style="color:'+colors[i]+'">'+p.label+'</strong>';
-      if(isBest)h+=' <span style="font-size:10px;background:#27ae60;color:#fff;padding:1px 5px;border-radius:3px">BEST</span>';
-      h+='<table style="width:100%;font-size:11px;margin-top:6px">';
-      h+='<tr><td>Production</td><td style="text-align:right"><strong>'+p.production+'</strong></td></tr>';
-      h+='<tr><td>Sales</td><td style="text-align:right">'+p.projected_sales+'</td></tr>';
-      h+='<tr><td>Waste</td><td style="text-align:right;color:'+(p.waste>0?'#e74c3c':'#27ae60')+'">'+p.waste+'</td></tr>';
-      h+='<tr><td>Revenue</td><td style="text-align:right">RM'+p.revenue.toFixed(2)+'</td></tr>';
-      if(p.discount_cost)h+='<tr><td>Discount Cost</td><td style="text-align:right;color:#e74c3c">-RM'+p.discount_cost.toFixed(2)+'</td></tr>';
-      h+='<tr style="border-top:1px solid #e0d5c7"><td><strong>Profit</strong></td><td style="text-align:right"><strong style="color:'+(p.profit>0?'#27ae60':'#e74c3c')+'">RM'+p.profit.toFixed(2)+'</strong></td></tr>';
-      h+='<tr><td>Capacity</td><td style="text-align:right">'+p.capacity_util_pct+'%</td></tr>';
-      h+='</table></div>';
-    });
-    h+='</div>';
-    
-    // Attribution
-    if(r.attribution&&r.attribution.components&&r.attribution.components.length){
-      h+='<div style="margin-top:12px;padding:10px;background:#f9f8f4;border-radius:6px;font-size:11px">';
-      h+='<strong>Why?</strong> Profit delta: <strong style="color:'+(r.attribution.delta_profit>=0?'#27ae60':'#e74c3c')+'">RM'+r.attribution.delta_profit.toFixed(2)+'</strong>';
-      r.attribution.components.forEach(function(c){
-        h+='<div style="margin:3px 0 0 16px">'+c.factor+': <span style="color:'+(c.impact>=0?'#27ae60':'#e74c3c')+'">'+(c.impact>=0?'+':'')+c.impact.toFixed(1)+'</span> -- '+c.explanation+'</div>';
-      });
-      h+='</div>';
-    }
-    
-    // Sensitivity range (forecast interval)
-    if(r.attribution&&r.attribution.sensitivity&&r.attribution.sensitivity.forecast_range){
-      h+='<div style="margin-top:10px;padding:10px;background:#fef9e7;border-radius:6px;font-size:11px">';
-      h+='<strong>Sensitivity (Forecast Range '+r.attribution.sensitivity.forecast_range+'):</strong><br>';
-      h+='Worst Case: <span style="color:#e74c3c">RM'+r.attribution.sensitivity.profit_worst.toFixed(2)+'</span> | ';
-      h+='Expected: <strong>RM'+r.attribution.sensitivity.profit_expected.toFixed(2)+'</strong> | ';
-      h+='Best Case: <span style="color:#27ae60">RM'+r.attribution.sensitivity.profit_best.toFixed(2)+'</span>';
-      h+='</div>';
-    }
-    // Recommendation
-    if(r.recommendation)h+='<div style="margin-top:10px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:12px;font-weight:bold;color:#2e7d32">'+r.recommendation+'</div>';
-    
-    document.getElementById('whatif-result').innerHTML=h;
-  }catch(e){document.getElementById('whatif-result').textContent='Error: '+e.message;}
-}
-
-// Bridge from alert to what-if
-function openWhatIfFromAlert(product, scenarioType, val){
-  showPanel('agent');
-  setTimeout(function(){
-    document.getElementById('whatif-type').value=scenarioType||'discount';
-    document.getElementById('whatif-product').value=product||'croissant';
-    document.getElementById('whatif-value').value=val||'';
-    runWhatIf();
-  },300);
-}
 </script>
 
 

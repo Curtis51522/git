@@ -1,4 +1,4 @@
-"""Elasticity Estimator for B2 What-if Simulator.
+﻿"""Elasticity Estimator for B2 Scenario Analysis.
 
 Two-phase strategy:
 - Cold-start: DeepSeek LLM synthesizes domain-informed elasticity coefficients

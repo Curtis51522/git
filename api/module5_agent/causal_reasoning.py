@@ -1,4 +1,4 @@
-"""
+﻿"""
 Causal Reasoning Engine for S5 Multi-Agent Bakery System.
 
 Provides per-prediction SHAP-based attribution to explain WHY a forecast
@@ -223,7 +223,7 @@ def _fetch_external_context(dt: datetime) -> Dict:
     if ctx["is_public_holiday"]:
         ctx["holiday_name"] = _my_holidays.get(dt_date, "Unknown")
     if ctx["is_ramadan"]:
-        ctx["ramadan_note"] = "Ramadan period — altered consumption patterns (pre-dawn/iftar demand)"
+        ctx["ramadan_note"] = "Ramadan period -- altered consumption patterns (pre-dawn/iftar demand)"
 
     return ctx
 
@@ -254,7 +254,7 @@ def generate_causal_chain(attribution: Dict) -> List[str]:
     )
 
     for c in attribution.get("shap_contributions", [])[:5]:
-        direction = "↑" if c["effective_sign"] == "+" else "↓"
+        direction = "UP" if c["effective_sign"] == "+" else "DOWN"
         chains.append(
             f"{c['label']} ({direction}{c['abs_impact']:.1f}): {c['explanation']}"
         )
@@ -264,7 +264,7 @@ def generate_causal_chain(attribution: Dict) -> List[str]:
     if ctx.get("is_ramadan"):
         chains.append(ctx.get("ramadan_note", ""))
     if ctx.get("is_public_holiday"):
-        chains.append(f"Public holiday: {ctx.get('holiday_name', '')} — expect demand shift")
+        chains.append(f"Public holiday: {ctx.get('holiday_name', '')} -- expect demand shift")
 
     return chains
 

@@ -1,11 +1,12 @@
-"""
+﻿"""
 Fusion Module -- deterministic cross-module business logic (zero LLM tokens).
 
 Each intent has its own compute method that takes raw data from S1/S2/S3
 and produces the decision-relevant numbers.
 """
 
-from collections import defaultdict
+from collections import defaultdict, Counter
+from datetime import datetime
 
 
 class FusionModule:
@@ -94,7 +95,6 @@ class FusionModule:
         transactions: list of outflow records from inventory_transactions
         products: dict of {product_name: {selling_price, cost_price}} from products table
         """
-        from collections import defaultdict
         if not transactions:
             return {"total_revenue": 0, "total_cost": 0, "gross_profit": 0,
                     "margin_pct": 0, "by_product": [], "transaction_count": 0}
@@ -194,7 +194,6 @@ class FusionModule:
             return {"anomalies": [], "message": "No schedule data found for the requested date."}
         if not transactions:
             # Show schedule summary even without transaction cross-reference
-            from collections import Counter
             dates = sorted(set(s.get("date", "") for s in schedule))
             roles = Counter(s.get("role", "") for s in schedule)
             emp_count = len(set(s.get("employee_name", "") for s in schedule))
@@ -209,6 +208,59 @@ class FusionModule:
                 },
                 "schedule": schedule,
             }
+
+        # Count transactions per date + hour
+        txn_counts = defaultdict(int)
+        for txn in transactions:
+            ts = txn.get("transaction_time", "")
+            try:
+                if isinstance(ts, str):
+                    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    key = dt.strftime("%Y-%m-%d") + "|" + f"{dt.hour:02d}:00"
+                    txn_counts[key] += 1
+            except Exception:
+                pass
+
+        # Map time slots to hours
+        slot_hours = {
+            "07:00-10:00": [7, 8, 9],
+            "10:00-14:00": [10, 11, 12, 13],
+            "14:00-17:00": [14, 15, 16],
+            "17:00-20:00": [17, 18, 19],
+        }
+
+        # Detect anomalies
+        anomalies = []
+        for s in schedule:
+            date = s.get("schedule_date", s.get("date", ""))
+            slot = s.get("time_slot", "")
+            hc = s.get("headcount", s.get("staff_count", 0))
+
+            hours = slot_hours.get(slot, [])
+            total_txn = 0
+            for h in hours:
+                total_txn += txn_counts.get(f"{date}|{h:02d}:00", 0)
+
+            # Heuristic: each staff can handle ~8 transactions per hour
+            capacity = hc * 8 * len(hours)
+            if total_txn > capacity and hc > 0:
+                anomalies.append({
+                    "date": date,
+                    "time_slot": slot,
+                    "headcount": hc,
+                    "transactions": total_txn,
+                    "capacity": capacity,
+                    "severity": "high" if total_txn > capacity * 1.5 else "medium",
+                })
+
+        return {
+            "anomalies": anomalies,
+            "anomaly_count": len(anomalies),
+            "message": (
+                f"Found {len(anomalies)} scheduling anomalies"
+                if anomalies else "No scheduling anomalies detected"
+            ),
+        }
 
     # ------------------------------------------------------------------
     # cross_source_audit: full-store health check across R6-R8
@@ -282,58 +334,4 @@ class FusionModule:
             "medium_count": len(medium),
             "summary": f"Found {len(issues)} issue(s): {len(high)} high, {len(medium)} medium.",
             "issue_count": len(issues),
-        }
-
-        # Count transactions per date + hour
-        from datetime import datetime
-        txn_counts = defaultdict(int)
-        for txn in transactions:
-            ts = txn.get("transaction_time", "")
-            try:
-                if isinstance(ts, str):
-                    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                    key = dt.strftime("%Y-%m-%d") + "|" + f"{dt.hour:02d}:00"
-                    txn_counts[key] += 1
-            except Exception as e:
-                            logger.warning("Failed to count transaction: %s", e)
-
-        # Map time slots to hours
-        slot_hours = {
-            "07:00-10:00": [7, 8, 9],
-            "10:00-14:00": [10, 11, 12, 13],
-            "14:00-17:00": [14, 15, 16],
-            "17:00-20:00": [17, 18, 19],
-        }
-
-        # Detect anomalies
-        anomalies = []
-        for s in schedule:
-            date = s.get("schedule_date", s.get("date", ""))
-            slot = s.get("time_slot", "")
-            hc = s.get("headcount", s.get("staff_count", 0))
-
-            hours = slot_hours.get(slot, [])
-            total_txn = 0
-            for h in hours:
-                total_txn += txn_counts.get(f"{date}|{h:02d}:00", 0)
-
-            # Heuristic: each staff can handle ~8 transactions per hour
-            capacity = hc * 8 * len(hours)
-            if total_txn > capacity and hc > 0:
-                anomalies.append({
-                    "date": date,
-                    "time_slot": slot,
-                    "headcount": hc,
-                    "transactions": total_txn,
-                    "capacity": capacity,
-                    "severity": "high" if total_txn > capacity * 1.5 else "medium",
-                })
-
-        return {
-            "anomalies": anomalies,
-            "anomaly_count": len(anomalies),
-            "message": (
-                f"Found {len(anomalies)} scheduling anomalies"
-                if anomalies else "No scheduling anomalies detected"
-            ),
         }

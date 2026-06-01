@@ -1,4 +1,4 @@
-import os
+﻿import os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -40,8 +40,20 @@ MIN_TRAINING_DAYS = 30
 INTENT_LABELS = ["stock_query", "waste_analysis", "promo_eval", "schedule_audit", "cross_source_audit", "out_of_scope"]
 # Coffee-to-bakery demand ratio for staffing estimation
 COFFEE_DEMAND_RATIO = 0.6
-# Daily production capacity per product (units)
-PRODUCTION_CAPACITY = 50
+# Default production capacity fallback (per product values in products.daily_capacity)
+PRODUCTION_CAPACITY = 50  # fallback only, prefer get_capacity()
+def get_capacity(product_name: str) -> int:
+    """Read daily_capacity from products table, fallback to 50."""
+    try:
+        from db.mysql_client import get_db
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("SELECT daily_capacity FROM products WHERE product_name = %s", (product_name,))
+        row = cur.fetchone()
+        cur.close()
+        return int(row[0]) if row else PRODUCTION_CAPACITY
+    except Exception:
+        return PRODUCTION_CAPACITY
 # --- Verifier thresholds ---
 BAKER_UNITS_PER_HOUR = 15        # units a baker can produce per hour
 BAKER_HOURS_PER_SHIFT = 8        # hours per shift for capacity calc
