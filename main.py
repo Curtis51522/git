@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+﻿from dotenv import load_dotenv
 load_dotenv()
 import logging
 
@@ -46,12 +46,12 @@ async def startup_freshness():
 
     # B1 Proactive Monitor
     # [S5 MOVED to :8001/s5-agent-brain] from api.module5_agent.alert_store import init_alerts_table
-    init_alerts_table()
+    # [S5 MOVED] init_alerts_table()
 
     async def start_b1_monitor():
         await asyncio.sleep(10)  # let other services init first
         # [S5 MOVED] from api.module5_agent.monitor import start_monitor
-        await start_monitor(interval_sec=30*60)  # every 30 min
+        # [S5 MOVED] await start_monitor(interval_sec=30*60)
     
     asyncio.create_task(start_b1_monitor())
 
@@ -97,7 +97,7 @@ app.include_router(s4_router)
 if __name__ == "__main__":
     import hypercorn.asyncio, asyncio
     config = hypercorn.Config()
-    config.bind = ["0.0.0.0:8000"]
+    config.bind = ["0.0.0.0:8002"]
     config.keep_alive_timeout = 300
     config.graceful_timeout = 300
     config.read_timeout = 300

@@ -976,30 +976,32 @@ async function runAgentQuery(){
 var q=document.getElementById('agent-query').value.trim();
 if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>Enter a question';return}
 document.getElementById('agent-result').innerHTML='<span class="spinner"></span>Processing...';
-try{var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{}})}).then(function(x){return x.json()})  // was api('/s5/query',{method:'POST',body:{query:q,params:{}}});
+try{var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{}})}).then(function(x){return x.json()});
 var out='<div style="font-size:13px;line-height:1.6">';
-out+='<strong>Intent:</strong> '+r.intent+' ('+Math.round(r.confidence*100)+'%)<br>';
+var prio=r.priority||'normal';var pc=prio==='critical'?'#e74c3c':prio==='warning'?'#e67e22':'#27ae60';
+out+='<strong>Product:</strong> '+r.product+' | <strong>Decision:</strong> <span style="color:'+pc+';font-weight:700">'+r.decision+'</span> ('+(r.elapsed_ms||0)+'ms)<br>';
 out+='<hr style="border:0;border-top:1px solid #e0d5c7;margin:8px 0">';
-if(r.audit&&r.audit.audit_warnings&&r.audit.audit_warnings.length>0){out+='<strong style="color:#e67e22">Warnings:</strong><br>';for(var i=0;i<r.audit.audit_warnings.length;i++)out+='  <span style="color:#e74c3c">!</span> '+r.audit.audit_warnings[i]+'<br>';out+='<br>';}
-out+='<strong>Summary:</strong> '+r.summary;
+if(r.audit&&r.audit.conflicts&&r.audit.conflicts.length>0){out+='<strong style="color:#e74c3c">Conflicts:</strong><br>';for(var i=0;i<r.audit.conflicts.length;i++)out+='  <span style="color:#e74c3c">!</span> '+r.audit.conflicts[i]+'<br>';}
+if(r.audit&&r.audit.warnings&&r.audit.warnings.length>0){out+='<strong style="color:#e67e22">Warnings:</strong><br>';for(var i=0;i<r.audit.warnings.length;i++)out+='  <span style="color:#e67e22">*</span> '+r.audit.warnings[i]+'<br>';}
+if(r.errors&&r.errors.length>0){out+='<strong style="color:#e74c3c">Agent Errors:</strong><br>';for(var i=0;i<r.errors.length;i++)out+='  '+r.errors[i]+'<br>';}
+out+='<br><strong>Agents:</strong><br>';
+var agents=r.agents||{};var anames=Object.keys(agents);
+for(var i=0;i<anames.length;i++){var a=agents[anames[i]];var icon=a.confidence>=0.9?'#27ae60':a.confidence>=0.7?'#f39c12':'#e74c3c';out+='<div style="margin:4px 0;padding:6px 8px;border-left:3px solid '+icon+';background:#fdfaf5;border-radius:0 6px 6px 0"><strong style="color:#8b6914">'+anames[i]+'</strong> <span style="font-size:11px;color:#999">('+Math.round(a.confidence*100)+'%)</span><br><span style="font-size:12px">'+a.opinion+'</span></div>';}
 var sched=r.result&&r.result.schedule;
 if(sched&&sched.length>0){
-out+='<br><br><strong>Schedule Table:</strong><br>';
+out+='<br><strong>Schedule Table:</strong><br>';
 var dates=[],seen={};for(var i=0;i<sched.length;i++){if(!seen[sched[i].date]){dates.push(sched[i].date);seen[sched[i].date]=true;}}dates.sort();
 var slots=['09:00-14:00','14:00-19:00'];
 out+='<table class="sched-table" style="font-size:13px;margin-top:6px"><thead><tr><th>Time</th>';
 for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');out+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
 out+='</tr></thead><tbody>';
 for(var si=0;si<slots.length;si++){out+='<tr><td><strong>'+slots[si]+'</strong></td>';
-for(var di=0;di<dates.length;di++){out+='<td>';
-var found=false;
+for(var di=0;di<dates.length;di++){out+='<td>';var found=false;
 for(var i=0;i<sched.length;i++){if(sched[i].date===dates[di]&&sched[i].time_slot===slots[si]){
 var dl=sched[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';
-out+='<div style="font-size:12px"><strong>'+sched[i].employee_name+'</strong><br>'+sched[i].role+' <span style="font-size:9px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span></div>';
-found=true;}}
+out+='<div style="font-size:12px"><strong>'+sched[i].employee_name+'</strong><br>'+sched[i].role+' <span style="font-size:9px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span></div>';found=true;}}
 if(!found)out+='<span style="color:#ccc">-</span>';
-out+='</td>';}
-out+='</tr>';}
+out+='</td>';}out+='</tr>';}
 out+='</tbody></table>';
 }
 out+='</div>';

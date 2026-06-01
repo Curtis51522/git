@@ -1,4 +1,4 @@
-# s5-agent-brain - Independent Multi-Agent Service
+﻿# s5-agent-brain - Independent Multi-Agent Service
 # Runs on port 8001, decoupled from the main bakery system (:8000).
 # Orchestrates 5 agents in parallel -> Arbitrator health audit -> final decision.
 import asyncio, logging, time, sys, os
@@ -47,6 +47,8 @@ def parse_query(query: str) -> dict:
     """Keyword-based product, date, and intent extraction from natural language."""
     ql = query.lower()
     params = {"product": "croissant", "days": 7}
+
+    # Date resolution
     from datetime import datetime, timedelta
     today = datetime.now()
     if "tomorrow" in ql or "next day" in ql:
@@ -54,15 +56,21 @@ def parse_query(query: str) -> dict:
     elif "today" in ql:
         target = today
     else:
-        target = today + timedelta(days=1)
+        target = today + timedelta(days=1)  # default: tomorrow
+
+    # Skip Monday (closed)
     while target.weekday() == 0:
         target += timedelta(days=1)
     params["date"] = target.strftime("%Y-%m-%d")
+
+    # Product detection
     product_found = None
     for p in PRODUCT_NAMES:
         if p.replace("_", " ") in ql or p in ql:
             product_found = p
             break
+
+    # Intent detection
     if any(kw in ql for kw in ["schedule", "staff", "shift", "anomalies", "roster"]):
         params["intent"] = "schedule_audit"
     elif any(kw in ql for kw in ["health", "audit", "full", "check"]):
@@ -79,22 +87,23 @@ def parse_query(query: str) -> dict:
             params["intent"] = "stock_query"
         else:
             params["intent"] = "out_of_scope"
+
+    # Product resolution: stock/promo use detected product, cross queries use "all"
     if params.get("intent") in ("schedule_audit", "cross_source_audit", "profit_analysis", "waste_analysis"):
         params["product"] = product_found or "all"
     else:
         params["product"] = product_found or "croissant"
+
     return params
 
 
 @app.post("/query")
 async def handle_query(req: QueryRequest):
-    """Orchestrate all agents in parallel -> Arbitrator -> response."""
+    """Orchestrate agents based on intent -> Arbitrator -> response."""
     t_start = time.perf_counter()
     params = parse_query(req.query)
-
     intent = params.get("intent", "stock_query")
     logger.info("Query: %s -> intent=%s product=%s date=%s", req.query[:60], intent, params["product"], params["date"])
-
     if intent == "out_of_scope":
         return {"status":"out_of_scope","product":"-","decision":"I can help with stock, waste, promo, schedule, and profit questions.","priority":"normal","agents":{},"audit":{"conflicts":[],"warnings":[]},"reasoning_trace":[],"elapsed_ms":0,"errors":[]}
 
@@ -136,8 +145,8 @@ async def handle_query(req: QueryRequest):
             logger.warning("Production re-run failed: %s", e)
 
     # Cross-agent data pass: Promo needs Demand + Inventory
-    if "demand" in results and "inventory" in results and intent in ("promo_eval", "stock_query"):
         merged2 = {
+    if "demand" in results and "inventory" in results and intent in ("promo_eval", "stock_query"):
             "_demand": results["demand"].get("data", {}),
             "_inventory": results["inventory"].get("data", {}),
         }
