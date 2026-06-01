@@ -185,7 +185,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button data-panel="forecast" class="manager-only" onclick="showPanel('forecast')">Sales Forecast</button>
 <button data-panel="schedule" class="manager-only" onclick="showPanel('schedule')">Shift Schedule</button>
 <button data-panel="inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
-<button data-panel="agent" class="manager-only" onclick="showPanel('agent')">Agent Query</button>
+<button data-panel="agent" class="manager-only" onclick="showPanel('agent')">AI Brain</button>
 </nav>
 <button class="logout-btn" onclick="doLogout()">Sign Out</button>
 <div class="alert-badge manager-only" id="alert-badge" onclick="showAlertPanel()" title="System Alerts">
@@ -296,7 +296,7 @@ var btns=document.querySelectorAll('.sidebar nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:'POS Checkout',forecast:'Sales Forecast',schedule:'Shift Schedule',inventory:'Inventory',agent:'Agent Query'};
+var titles={pos:'POS Checkout',forecast:'Sales Forecast',schedule:'Shift Schedule',inventory:'Inventory',agent:'AI Brain'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,agent:renderAgent};
@@ -375,7 +375,7 @@ var btns=document.querySelectorAll('.sidebar nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:'POS Checkout',forecast:'Sales Forecast',schedule:'Shift Schedule',inventory:'Inventory',agent:'Agent Query'};
+var titles={pos:'POS Checkout',forecast:'Sales Forecast',schedule:'Shift Schedule',inventory:'Inventory',agent:'AI Brain'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,agent:renderAgent};
@@ -976,7 +976,7 @@ async function runAgentQuery(){
 var q=document.getElementById('agent-query').value.trim();
 if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>Enter a question';return}
 document.getElementById('agent-result').innerHTML='<span class="spinner"></span>Processing...';
-try{var r=await api('/s5/query',{method:'POST',body:{query:q,params:{}}});
+try{var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{}})}).then(function(x){return x.json()})  // was api('/s5/query',{method:'POST',body:{query:q,params:{}}});
 var out='<div style="font-size:13px;line-height:1.6">';
 out+='<strong>Intent:</strong> '+r.intent+' ('+Math.round(r.confidence*100)+'%)<br>';
 out+='<hr style="border:0;border-top:1px solid #e0d5c7;margin:8px 0">';
