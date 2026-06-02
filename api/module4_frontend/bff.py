@@ -114,13 +114,22 @@ async def get_combo(order: dict):
     inventory = defaultdict(lambda: {"total_qty": 0, "batches": [], "min_freshness": "Fresh"})
     for b in bakery_batches:
         pn = b["product_name"]
-        inventory[pn]["total_qty"] += b.get("quantity", 0)
+        qty = b.get("quantity", 0)
+        inventory[pn]["total_qty"] += qty
         inventory[pn]["batches"].append(b)
-        # Track "worst" freshness (for discount scoring)
         f = b.get("freshness_status", "Fresh")
+        # Track "worst" freshness (for discount scoring)
         f_rank = {"Fresh": 0, "Day-1": 1, "Expired": 2}
         if f_rank.get(f, 0) > f_rank.get(inventory[pn]["min_freshness"], 0):
             inventory[pn]["min_freshness"] = f
+        # Per-product freshness breakdown
+        if "fresh_qty" not in inventory[pn]:
+            inventory[pn]["fresh_qty"] = 0
+            inventory[pn]["day1_qty"] = 0
+        if f == "Day-1":
+            inventory[pn]["day1_qty"] += qty
+        else:
+            inventory[pn]["fresh_qty"] += qty
     
     # Bread-coffee affinity matrix (flavor pairing scores 0-1)
     # LLM-generated bread-coffee affinity matrix (cached, DeepSeek-powered)
@@ -163,7 +172,9 @@ async def get_combo(order: dict):
                 continue
             pairings = PAIRING_MATRIX.get(pn, {})
             freshness = inv_data.get("min_freshness", "Fresh")
-            discount = get_discount_rate(freshness)
+            # Use override discount if provided, otherwise fall back to freshness-based
+            discount_overrides = order.get("discount_overrides", {})
+            discount = (discount_overrides.get(pn, 0) / 100.0) if pn in discount_overrides else get_discount_rate(freshness)
             inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
             for coffee in COFFEE_DRINKS:
                 ck = coffee["key"]
@@ -192,11 +203,12 @@ async def get_combo(order: dict):
         for pn, inv_data in inventory.items():
             pairings = PAIRING_MATRIX.get(pn, {})
             freshness = inv_data.get("min_freshness", "Fresh")
-            discount = get_discount_rate(freshness)
+            # Use override discount if provided, otherwise fall back to freshness-based
+            discount_overrides = order.get("discount_overrides", {})
+            discount = (discount_overrides.get(pn, 0) / 100.0) if pn in discount_overrides else get_discount_rate(freshness)
             inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
-            # Day-1 bread gets strong discount signal
-            discount_score = discount * 5.0
-            f_map = {"Fresh": 0.3, "Day-1": 0.9, "Expired": 1.0}
+            discount_score = discount * 3.33
+            f_map = {"Fresh": 0.3, "Day-1": 0.8, "Expired": 1.0}
             freshness_score = f_map.get(freshness, 0.5)
             inv_score = min(inv_pressure, 1.0)
             for coffee in COFFEE_DRINKS:
@@ -206,7 +218,8 @@ async def get_combo(order: dict):
                 flavor_score = pairings.get(ck, 0.3)
                 # Bread NOT in cart = higher context (new recommendation)
                 context_score = 1.0 if pn not in cart_breads else 0.3
-                total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score)
+                coffee_boost = 0.15 if ck in cart_coffee_keys else 0.0
+                total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score + coffee_boost)
                 bundle_price = (get_product_prices().get(pn, 5.0)*(1-discount)) + coffee["price"]
                 regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
                 savings = regular_price - bundle_price
@@ -242,8 +255,18 @@ async def get_combo(order: dict):
                 break
 
     top3 = top3[:3]
-    
-    return {"status": "ok", "recommendations": top3, "weights": {
+
+    freshness_breakdown = {}
+    for pn, inv_data in inventory.items():
+        total = inv_data.get("total_qty", 1)
+        day1 = inv_data.get("day1_qty", 0)
+        freshness_breakdown[pn] = {
+            "total_qty": total,
+            "day1_qty": day1,
+            "fresh_qty": inv_data.get("fresh_qty", 0),
+            "day1_ratio": round(day1 / max(total, 1), 2),
+        }
+    return {"status": "ok", "recommendations": top3, "freshness": freshness_breakdown, "weights": {
         "flavor_pairing": int(W_FLAVOR*100),
         "discount_value": int(W_DISCOUNT*100),
         "freshness": int(W_FRESH*100),

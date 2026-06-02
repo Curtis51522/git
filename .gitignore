@@ -101,3 +101,9 @@ models/cache.json
 models/elasticity_cache.json
 
 models.zip
+
+s5-agent-brain/memory/
+*_fix*.py
+_test*.py
+_t.py
+_bp.txt

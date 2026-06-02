@@ -344,7 +344,7 @@ try{
 var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
 if(!r.ok){var txt=await r.text();throw new Error(txt||'Invalid credentials')}
 var d=await r.json();
-token=d.access_token;role=d.role;username=d.username;API=window.location.origin;
+token=d.access_token;role=d.role;username=d.username;API=window.location.origin;S5_API=API.replace(":8002",":8001");
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
 document.getElementById('user-display').textContent=username;
@@ -513,7 +513,9 @@ if(discountRate>0){
 }
 bakeryBtns+='<div style="margin-top:4px;display:flex;gap:6px;align-items:center">';
 bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Fresh'"+')" title="Fresh stock: '+freshQty+'" style="width:14px;height:14px;border-radius:50%;background:#4caf50;cursor:pointer'+(curFresh==='Fresh'?'box-shadow:0 0 0 3px rgba(76,175,80,.4)':'opacity:0.5')+'"></div>';
+                    if(day1Qty>0){
 bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Day-1'"+')" title="Day-1 stock: '+day1Qty+'" style="width:14px;height:14px;border-radius:50%;background:#ff9800;cursor:pointer'+(curFresh==='Day-1'?'box-shadow:0 0 0 3px rgba(255,152,0,.4)':'opacity:0.5')+'"></div>';
+                    }
 bakeryBtns+='<span style="font-size:9px;color:#888">'+(curFresh==='Day-1'?'Day-1 '+(DISCOUNT_RATE*100)+'%OFF':'Fresh')+'</span>';
 bakeryBtns+='</div></button>';
 }
@@ -687,7 +689,26 @@ renderPOS(document.getElementById('content-area'));
 var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
-var r=await fetch(API+'/s4/combo',{method:'POST',headers:hdrs,body:JSON.stringify({items:items})});
+// Get dynamic discounts from S5 for accurate savings
+var discountOverride=null;
+try{
+var ALL_BAKERY=['donut','croissant','bread_coconut','bread_roll','chiffon','croissant_chocolate'];
+var productNames=items.map(function(it){return it.product_name;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+// Always query all bakery products for S5 dynamic discounts (even when cart only has coffee)
+var s5Products=ALL_BAKERY.filter(function(b){return productNames.indexOf(b)===-1;});
+var allS5Products=productNames.concat(s5Products);
+var s5r=await fetch(S5_API+'/discounts',{method:'POST',headers:hdrs,body:JSON.stringify({products:allS5Products})});
+if(s5r.ok){
+var s5d=await s5r.json();
+var discounts=s5d.discounts||{};
+// Build per-product discount overrides (only for bakery products in discount results)
+var discountOverrides={};
+for(var k in discounts){if(discounts[k].discount_pct>0)discountOverrides[k]=discounts[k].discount_pct;}
+}
+}catch(ex){console.log('S5 discount lookup failed, using default');}
+var comboBody={items:items};
+if(Object.keys(discountOverrides).length>0)comboBody.discount_overrides=discountOverrides;
+var r=await fetch(API+'/s4/combo',{method:'POST',headers:hdrs,body:JSON.stringify(comboBody)});
 if(!r.ok)throw new Error('Combo failed');
 var d=await r.json();var recos=d.recommendations||[];bundleRecs=[];
 for(var i=0;i<Math.min(recos.length,3);i++){
@@ -699,7 +720,8 @@ savings:rc.savings||0,
 items:[rc.product_name,rc.coffee_key],
 product_name:rc.product_name,
 coffee_key:rc.coffee_key,
-total_score:rc.total_score
+total_score:rc.total_score,
+discount_rate: (discountOverrides[rc.product_name] || 0) / 100
 });
 }
 renderPOS(document.getElementById('content-area'));
@@ -714,22 +736,22 @@ for(var i=0;i<b.items.length;i++){
     if(isBread){
         var fresh=window._bakeryFreshness&&window._bakeryFreshness[name]?window._bakeryFreshness[name]:(freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh");
         var tc={"Fresh":"green","Day-1":"yellow"};
-        var dr={"Fresh":0,"Day-1":0.20};
+        var dynamicDr=b.discount_rate||0;
         var found=false;
         for(var j=0;j<cartItems.length;j++){
             if(cartItems[j].product_name===name){
                 cartItems[j].quantity=1;
                 cartItems[j].tray_color=tc[fresh]||"green";
-                cartItems[j].discount_rate=dr[fresh]||0;
+                cartItems[j].discount_rate=dynamicDr;
                 cartItems[j].freshness=fresh;
                 found=true;break;
             }
         }
-        if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tc[fresh]||'green',discount_rate:dr[fresh]||0,freshness:fresh,status:'confirmed'});
+        if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tc[fresh]||'green',discount_rate:dynamicDr,freshness:fresh,status:'confirmed'});
     }else{
-        // Coffee: add or increment
+        // Coffee: already in cart (it's what triggered the combo) - don't re-add
         var found2=false;
-        for(var k=0;k<cartItems.length;k++){if(cartItems[k].product_name===name){cartItems[k].quantity+=1;found2=true;break;}}
+        for(var k=0;k<cartItems.length;k++){if(cartItems[k].product_name===name){found2=true;break;}}
         if(!found2)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:'green',discount_rate:0,status:'confirmed'});
     }
 }
@@ -804,10 +826,12 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>Shift Schedule</h4>'
 +'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate</button>'
 +'<button class="btn btn-secondary btn-sm" onclick="resyncSchedule()" title="Full regeneration">Re-sync</button>'
 +'<button class="btn btn-secondary btn-sm" onclick="loadKPI()">KPI</button>'
-+'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="2026-06-01">'
++'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="2026-06-01"><span onclick="setSchedToday()" style="font-size:11px;color:#2980b9;cursor:pointer;white-space:nowrap;margin-left:4px" title="Today">Today</span><span onclick="clearSchedDate()" style="font-size:11px;color:#999;cursor:pointer;white-space:nowrap;margin-left:4px" title="Clear">Clear</span>'
 +'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:60vh"><span class="spinner"></span>Loading schedule...</div>'
 +'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'
 +'<div id="kpi-result" style="margin-top:8px"></div></div>';
+function setSchedToday(){var d=document.getElementById('sched-date');var t=new Date();d.value=t.toISOString().slice(0,10);loadSchedule();}
+function clearSchedDate(){document.getElementById('sched-date').value='';loadSchedule();}
 loadSchedule();
 }
 
@@ -960,8 +984,10 @@ cachedInventory=tbl;
 }
 
 function renderAgent(c){
+if(agentState){c.innerHTML=agentState.html;var qEl=document.getElementById('agent-query');if(qEl)qEl.value=agentState.query||'';return;}
 c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
-+'<div style="margin-bottom:12px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px"></div>'
++'<div style="margin-bottom:8px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px"></div>'
++'<div style="margin-bottom:12px;display:flex;align-items:center;gap:6px"><label style="font-size:12px;color:#8b6914;white-space:nowrap">Date:</label><input id="agent-date" type="date" style="padding:6px 8px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px;width:130px"><span onclick="setAgentToday()" style="font-size:11px;color:#2980b9;cursor:pointer;white-space:nowrap" title="Today">Today</span><span onclick="clearAgentDate()" style="font-size:11px;color:#999;cursor:pointer;white-space:nowrap" title="Clear">Clear</span></div>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
 +'<button class="btn btn-primary btn-sm" onclick="runAgentQuery()">Ask</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'How many croissants should I bake tomorrow?\')" >Restock</button>'
@@ -971,19 +997,22 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
 +'</div><div id="agent-result" class="result-box" style="max-height:65vh;min-height:120px"><span class="status-dot dot-warn"></span>Type a question</div>'
 +'</div>';
 }
-function runQuickAgent(q){document.getElementById('agent-query').value=q;runAgentQuery();}
+function setAgentToday(){var dt=document.getElementById('agent-date');var t=new Date();dt.value=t.toISOString().slice(0,10);}function clearAgentDate(){document.getElementById('agent-date').value='';}function runQuickAgent(q){document.getElementById('agent-query').value=q;var dt=document.getElementById('agent-date');if(dt&&!dt.value){var t=new Date();t.setDate(t.getDate()+1);dt.value=t.toISOString().slice(0,10);}runAgentQuery();}
 async function runAgentQuery(){
 var q=document.getElementById('agent-query').value.trim();
 if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>Enter a question';return}
 document.getElementById('agent-result').innerHTML='<span class="spinner"></span>Processing...';
-try{var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{}})}).then(function(x){return x.json()});
+try{var dt=document.getElementById('agent-date');var agentDate=dt?dt.value:'';var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{date:agentDate}})}).then(function(x){return x.json()});
 var out='<div style="font-size:13px;line-height:1.6">';
 var prio=r.priority||'normal';var pc=prio==='critical'?'#e74c3c':prio==='warning'?'#e67e22':'#27ae60';
+out+='<strong>Intent:</strong> '+r.intent+' ('+Math.round((r.intent_confidence||0)*100)+'%)<br>';
 out+='<strong>Product:</strong> '+r.product+' | <strong>Decision:</strong> <span style="color:'+pc+';font-weight:700">'+r.decision+'</span> ('+(r.elapsed_ms||0)+'ms)<br>';
 out+='<hr style="border:0;border-top:1px solid #e0d5c7;margin:8px 0">';
 if(r.audit&&r.audit.conflicts&&r.audit.conflicts.length>0){out+='<strong style="color:#e74c3c">Conflicts:</strong><br>';for(var i=0;i<r.audit.conflicts.length;i++)out+='  <span style="color:#e74c3c">!</span> '+r.audit.conflicts[i]+'<br>';}
 if(r.audit&&r.audit.warnings&&r.audit.warnings.length>0){out+='<strong style="color:#e67e22">Warnings:</strong><br>';for(var i=0;i<r.audit.warnings.length;i++)out+='  <span style="color:#e67e22">*</span> '+r.audit.warnings[i]+'<br>';}
 if(r.errors&&r.errors.length>0){out+='<strong style="color:#e74c3c">Agent Errors:</strong><br>';for(var i=0;i<r.errors.length;i++)out+='  '+r.errors[i]+'<br>';}
+if(r.llm_summary){out+='<br><div style="background:#f0f4ff;border-left:3px solid #2980b9;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#2c3e50"><strong style="color:#2980b9">AI Summary</strong><br>'+r.llm_summary+'</div>';}
+if(r.deliberation&&r.deliberation.consensus){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">Agent Deliberation</strong><br>'+r.deliberation.consensus;if(r.deliberation.votes){out+='<br><small>';var vk=Object.keys(r.deliberation.votes);for(var vi=0;vi<vk.length;vi++){out+=vk[vi]+': '+r.deliberation.votes[vk[vi]]+'<br>';}out+='</small>';}out+='</div>';}
 out+='<br><strong>Agents:</strong><br>';
 var agents=r.agents||{};var anames=Object.keys(agents);
 for(var i=0;i<anames.length;i++){var a=agents[anames[i]];var icon=a.confidence>=0.9?'#27ae60':a.confidence>=0.7?'#f39c12':'#e74c3c';out+='<div style="margin:4px 0;padding:6px 8px;border-left:3px solid '+icon+';background:#fdfaf5;border-radius:0 6px 6px 0"><strong style="color:#8b6914">'+anames[i]+'</strong> <span style="font-size:11px;color:#999">('+Math.round(a.confidence*100)+'%)</span><br><span style="font-size:12px">'+a.opinion+'</span></div>';}
@@ -991,7 +1020,7 @@ var sched=r.result&&r.result.schedule;
 if(sched&&sched.length>0){
 out+='<br><strong>Schedule Table:</strong><br>';
 var dates=[],seen={};for(var i=0;i<sched.length;i++){if(!seen[sched[i].date]){dates.push(sched[i].date);seen[sched[i].date]=true;}}dates.sort();
-var slots=['09:00-14:00','14:00-19:00'];
+var slots=['06:00-13:00','12:00-19:00'];
 out+='<table class="sched-table" style="font-size:13px;margin-top:6px"><thead><tr><th>Time</th>';
 for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');out+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
 out+='</tr></thead><tbody>';
@@ -1005,9 +1034,10 @@ out+='</td>';}out+='</tr>';}
 out+='</tbody></table>';
 }
 out+='</div>';
-document.getElementById('agent-result').innerHTML=out;}
+document.getElementById('agent-result').innerHTML=out;var ca=document.getElementById('content-area');agentState={html:ca.innerHTML,query:q};}
 catch(e){document.getElementById('agent-result').textContent='Error: '+e.message;}
 }
+var agentState=null;
 var inflowMode=false;
 var inflowDets=[];
 var pendingSick={}, pendingSwaps=[];
@@ -1216,7 +1246,7 @@ document.getElementById('edit-modal').classList.add('show');
 }
 function renderScheduleTable(s,r){
 if(!s||!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No feasible schedule. Too many sick or skill gaps. Try different date.';return}
-var slots=['09:00-14:00','14:00-19:00'];
+var slots=['06:00-13:00','12:00-19:00'];
 var dates=[],seen={};for(var i=0;i<s.length;i++){if(!seen[s[i].date]){dates.push(s[i].date);seen[s[i].date]=true;}}dates.sort();
 var tbl='<table class="sched-table" style="font-size:14px"><thead><tr><th>Time</th>';
 for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');tbl+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
@@ -1225,7 +1255,7 @@ for(var si=0;si<slots.length;si++){var slot=slots[si];tbl+='<tr><td><strong>'+sl
 for(var di=0;di<dates.length;di++){var d=dates[di];tbl+='<td>';
 var found=false;
 for(var i=0;i<s.length;i++){if(s[i].date===d&&s[i].time_slot===slot){
-var dl=s[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';tbl+='<div class="shift-cell" style="font-size:13px"><strong>'+s[i].employee_name+'</strong><br>'+s[i].role+' <span style="font-size:10px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span><br>';
+var dl=s[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';var empInfo=(r&&r.employee_summary)?r.employee_summary[s[i].employee_id]:null;var secRoles=empInfo&&empInfo.secondary_roles?empInfo.secondary_roles:[];var dualBadge=secRoles.length?' <span style="font-size:9px;background:#6c5ce7;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px" title="Also: '+secRoles.join(', ')+'">+'+secRoles.join('+')+'</span>':'';tbl+='<div class="shift-cell" style="font-size:13px"><strong>'+s[i].employee_name+'</strong>'+ (s[i].is_deputy?' <span style="font-size:9px;background:#8b6914;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px">DEPUTY</span>':'') +dualBadge+'<br>'+s[i].role+' <span style="font-size:10px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span><br>';
 tbl+=' <button class="sick-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" style="color:#e74c3c;background:none;border:none;cursor:pointer;font-size:11px">Sick</button>';
 tbl+=' <button class="swap-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" data-slot="'+slot+'" style="color:#8b6914;background:none;border:none;cursor:pointer;font-size:11px">Swap</button>';
 tbl+='</div>';found=true;}}
@@ -1365,6 +1395,7 @@ async function ackAllAlerts(){
 }
 function closeAlertPanel(){document.getElementById('alert-panel').style.display='none';}
 
+startAlertPoll();
 </script>
 
 

@@ -1,4 +1,4 @@
-﻿import os
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -37,7 +37,7 @@ CACHE_MANIFEST = "models/cache.json"
 COLD_START_WEEKS = 4
 MIN_TRAINING_DAYS = 30
 
-INTENT_LABELS = ["stock_query", "waste_analysis", "promo_eval", "schedule_audit", "cross_source_audit", "out_of_scope"]
+INTENT_LABELS = ["stock_query", "waste_analysis", "promo_eval", "schedule_audit", "cross_source_audit", "profit_analysis", "out_of_scope"]
 # Coffee-to-bakery demand ratio for staffing estimation
 COFFEE_DEMAND_RATIO = 0.6
 # Default production capacity fallback (per product values in products.daily_capacity)
