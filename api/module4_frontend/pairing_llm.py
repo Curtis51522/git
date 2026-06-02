@@ -9,7 +9,24 @@ Fallback: hardcoded matrix if DeepSeek unavailable.
 
 import json
 import logging
-from api.module5_agent.llm_client import call_deepseek
+import httpx, os
+
+def _call_deepseek(prompt: str, system: str = "", max_tokens: int = 2000) -> str:
+    key = os.getenv("DEEPSEEK_API_KEY", "")
+    if not key:
+        raise RuntimeError("DEEPSEEK_API_KEY not set")
+    url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1") + "/chat/completions"
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+    resp = httpx.post(url,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={"model": os.getenv("DEEPSEEK_MODEL", "deepseek-chat"), "messages": messages,
+              "max_tokens": max_tokens, "temperature": 0.3},
+        timeout=30)
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
 
 logger = logging.getLogger("s4.pairing")
 
@@ -56,7 +73,7 @@ def generate_pairing_matrix() -> dict:
         "Consider flavor complementarity, texture contrast, and traditional pairing wisdom. "
         "Return ONLY valid JSON with no commentary."
     )
-    response = call_deepseek(prompt, system, max_tokens=2000)
+    response = _call_deepseek(prompt, system, max_tokens=2000)
     try:
         matrix = json.loads(response)
         # Validate structure

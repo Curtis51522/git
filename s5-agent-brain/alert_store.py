@@ -31,8 +31,14 @@ def add_alert(source: str, severity: str, title: str, detail: str, ttl_sec: int 
     store = _load()
     now = time.time()
     for a in store["alerts"]:
-        if a.get("title") == title and (now - a.get("created_ts", 0)) < ttl_sec:
-            return None  # duplicate, skip
+        if a.get("title") == title and not a.get("acknowledged"):
+            # Update existing alert with fresh data
+            a["detail"] = detail
+            a["severity"] = severity
+            a["created_at"] = datetime.now().isoformat()
+            a["created_ts"] = now
+            _save(store)
+            return a["alert_id"]
     alert_id = store["next_id"]
     store["next_id"] += 1
     store["alerts"].append({

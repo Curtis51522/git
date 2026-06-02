@@ -194,7 +194,7 @@ def parse_query(query: str) -> dict:
 
     if "tomorrow" in ql or "next day" in ql: target = today + timedelta(days=1)
     elif "today" in ql: target = today
-    while target.weekday() == 0: target += timedelta(days=1)
+    if target.weekday() == 0: target += timedelta(days=1)  # skip Monday
 
     return {"intent": "comparison_analysis" if is_comparison else "pending", "intent_confidence": 0.6 if is_comparison else 0.0, "product": "pending",
             "days": 7, "date": target.strftime("%Y-%m-%d"), "planned_agents": []}

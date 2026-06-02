@@ -11,8 +11,8 @@ logging.basicConfig(
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response, JSONResponse, FileResponse
-import os, sys, traceback
+from fastapi.responses import HTMLResponse, Response
+import os, sys
 import httpx
 
 app = FastAPI(title="Bakery AI System", version="1.0.0")
@@ -50,16 +50,6 @@ async def startup_freshness():
     
     asyncio.create_task(periodic_freshness())
 
-    # B1 Proactive Monitor
-    # [S5 MOVED to :8001/s5-agent-brain] from api.module5_agent.alert_store import init_alerts_table
-    # [S5 MOVED] init_alerts_table()
-
-    async def start_b1_monitor():
-        await asyncio.sleep(10)  # let other services init first
-        # [S5 MOVED] from api.module5_agent.monitor import start_monitor
-        # [S5 MOVED] await start_monitor(interval_sec=30*60)
-    
-    asyncio.create_task(start_b1_monitor())
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(BASE, "api", "module4_frontend", "static")
@@ -92,8 +82,6 @@ from api.module1_yolo import router as s1_router
 from api.module2_forecast import router as s2_router
 from api.module3_scheduling import router as s3_router
 from api.module4_frontend.bff import router as s4_router
-# [S5 MOVED] from api.module5_agent.router import router as s5_router
-
 # S5 proxy: forward all /s5/* requests to AI Brain (:8001)
 @app.api_route("/s5/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_s5(path: str, request: Request):
@@ -118,10 +106,9 @@ app.include_router(s1_router)
 app.include_router(s2_router)
 app.include_router(s3_router)
 app.include_router(s4_router)
-# [S5 MOVED] app.include_router(s5_router)
 
 if __name__ == "__main__":
-    import hypercorn.asyncio, asyncio
+    import hypercorn.asyncio
     config = hypercorn.Config()
     config.bind = ["0.0.0.0:8002"]
     config.keep_alive_timeout = 300
