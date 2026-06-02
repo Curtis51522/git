@@ -512,7 +512,9 @@ if(discountRate>0){
     bakeryBtns+='<span class="drink-price">RM '+bp.toFixed(2)+'</span>';
 }
 bakeryBtns+='<div style="margin-top:4px;display:flex;gap:6px;align-items:center">';
+                    if(freshQty>0){
 bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Fresh'"+')" title="Fresh stock: '+freshQty+'" style="width:14px;height:14px;border-radius:50%;background:#4caf50;cursor:pointer'+(curFresh==='Fresh'?'box-shadow:0 0 0 3px rgba(76,175,80,.4)':'opacity:0.5')+'"></div>';
+                    }
                     if(day1Qty>0){
 bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Day-1'"+')" title="Day-1 stock: '+day1Qty+'" style="width:14px;height:14px;border-radius:50%;background:#ff9800;cursor:pointer'+(curFresh==='Day-1'?'box-shadow:0 0 0 3px rgba(255,152,0,.4)':'opacity:0.5')+'"></div>';
                     }
@@ -1302,16 +1304,18 @@ async function loadKPI(){
       }
       h+='</tbody></table>';
     }
-    // Fairness table
-    h+='<table style="width:100%;margin-top:10px;border-collapse:collapse;font-size:12px">';
-    h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px;text-align:left">Employees</th><th style="padding:4px 8px">Gap (hrs)</th><th style="padding:4px 8px">Fair</th></tr></thead><tbody>';
-    var roles=Object.keys(fair);
-    for(var i=0;i<roles.length;i++){
-      var f=fair[roles[i]];var ok=f.fair?'<span style="color:#27ae60">Yes</span>':'<span style="color:#e74c3c">No</span>';
-      var emps=f.employees||{};var empStr=Object.entries(emps).map(function(e){return e[0]+' '+e[1]+'h'}).join(', ');
-      h+='<tr><td style="padding:4px 8px;font-weight:600">'+roles[i]+'</td><td style="padding:4px 8px;text-align:left">'+empStr+'</td><td style="padding:4px 8px;text-align:center">'+f.gap_hours+'</td><td style="padding:4px 8px;text-align:center">'+ok+'</td></tr>';
+    // Fairness table (same-role only, excludes dual-role)
+    var fairRoles=Object.keys(fair);
+    if(fairRoles.length){
+      h+='<table style="width:100%;margin-top:10px;border-collapse:collapse;font-size:12px">';
+      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px;text-align:left">Employees</th><th style="padding:4px 8px">Gap (hrs)</th><th style="padding:4px 8px">Fair</th></tr></thead><tbody>';
+      for(var i=0;i<fairRoles.length;i++){
+        var f=fair[fairRoles[i]];var ok=f.fair?'<span style="color:#27ae60">Yes</span>':'<span style="color:#e74c3c">No</span>';
+        var emps=f.employees||{};var empStr=Object.entries(emps).map(function(e){return e[0]+' '+e[1]+'h'}).join(', ');
+        h+='<tr><td style="padding:4px 8px;font-weight:600">'+fairRoles[i]+'</td><td style="padding:4px 8px;text-align:left">'+empStr+'</td><td style="padding:4px 8px;text-align:center">'+f.gap_hours+'</td><td style="padding:4px 8px;text-align:center">'+ok+'</td></tr>';
+      }
+      h+='</tbody></table>';
     }
-    h+='</tbody></table>';
     // Violations
     if(viols.length){
       h+='<div style="margin-top:8px;padding:8px;background:#fef5f5;border-radius:6px;border:1px solid #f5c6cb">';

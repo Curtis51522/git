@@ -1,15 +1,15 @@
 {
-  "week_start": "2026-06-01",
+  "week_start": "2026-06-03",
   "employees": {
     "E001": {
       "name": "Ali",
       "role": "baker",
-      "shifts": 6
+      "shifts": 7
     },
     "E004": {
       "name": "Siti",
       "role": "baker",
-      "shifts": 8
+      "shifts": 7
     },
     "E007": {
       "name": "Kumar",
@@ -19,37 +19,37 @@
     "E003": {
       "name": "Raj",
       "role": "barista",
-      "shifts": 8
+      "shifts": 6
     },
     "E006": {
       "name": "Priya",
       "role": "cashier",
-      "shifts": 8
+      "shifts": 7
     },
     "E010": {
       "name": "Fatima",
       "role": "manager",
-      "shifts": 6
+      "shifts": 5
     },
     "E005": {
       "name": "Ahmad",
       "role": "baker",
-      "shifts": 8
-    },
-    "E008": {
-      "name": "David",
-      "role": "baker",
-      "shifts": 8
+      "shifts": 5
     },
     "E009": {
       "name": "Chen",
       "role": "barista",
-      "shifts": 4
+      "shifts": 6
     },
     "E002": {
       "name": "Mei",
       "role": "cashier",
-      "shifts": 8
+      "shifts": 7
+    },
+    "E008": {
+      "name": "David",
+      "role": "baker",
+      "shifts": 7
     }
   }
 }

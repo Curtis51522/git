@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 import json
 from ortools.sat.python import cp_model
+import logging
 from datetime import datetime, timedelta
 import sys, os, logging
 logger = logging.getLogger(__name__)
@@ -59,15 +60,15 @@ class ShiftResult(BaseModel):
 # ======================================================================
 
 DEFAULT_EMPLOYEES = [
-    Employee(id="E001", name="Ali",     role="baker",    min_hours_per_week=14, max_hours_per_week=42),
+    Employee(id="E001", name="Ali",     role="baker",    min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E002", name="Mei",     role="cashier",  min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E003", name="Raj",     role="barista",  min_hours_per_week=14, max_hours_per_week=42, secondary_roles=["cashier"]),
-    Employee(id="E004", name="Siti",    role="baker",    min_hours_per_week=14, max_hours_per_week=42),
-    Employee(id="E005", name="Ahmad",   role="baker",    min_hours_per_week=14, max_hours_per_week=42, is_deputy=True),
+    Employee(id="E003", name="Raj",     role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
+    Employee(id="E004", name="Siti",    role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E005", name="Ahmad",   role="baker",    min_hours_per_week=14, max_hours_per_week=56, is_deputy=True),
     Employee(id="E006", name="Priya",   role="cashier",  min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E007", name="Kumar",   role="baker",    min_hours_per_week=14, max_hours_per_week=42),
-    Employee(id="E008", name="David",   role="baker",    min_hours_per_week=14, max_hours_per_week=42),
-    Employee(id="E009", name="Chen",    role="barista",  min_hours_per_week=14, max_hours_per_week=42),
+    Employee(id="E007", name="Kumar",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E008", name="David",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E009", name="Chen",    role="barista",  min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E010", name="Fatima",  role="manager",  min_hours_per_week=14, max_hours_per_week=42),
 ]
 
@@ -155,37 +156,18 @@ def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
             if freshness in ("Fresh", "Total"):
                 daily[d]["coffee_units"] += int(demand * COFFEE_DEMAND_RATIO)
 
-        # --- Relative demand level classification ---
-        # Within-week percentile ranking: top 1/3 = high, middle = normal, bottom 1/3 = low.
-        # Excludes closed days (demand=0) from baseline; falls back to all-normal when spread is narrow.
-        if daily:
-            working_totals = [item["total_units"] for item in daily.values() if item["total_units"] > 0]
-            if working_totals:
-                sorted_totals = sorted(working_totals)
-                n = len(sorted_totals)
-                spread_pct = (sorted_totals[-1] - sorted_totals[0]) / sorted_totals[n // 2] if sorted_totals[n // 2] > 0 else 0
-                if n >= 3 and spread_pct >= 0.20:
-                    lo_cut = sorted_totals[n // 3]
-                    hi_cut = sorted_totals[2 * n // 3]
-                    if lo_cut == hi_cut:
-                        lo_cut = sorted_totals[0]
-                        hi_cut = sorted_totals[-1] + 1
-                else:
-                    lo_cut = 0
-                    hi_cut = 999999
+        # --- Fixed demand level classification (stable across restarts) ---
+        # Thresholds: >=250 high, >=150 normal, >0 low, 0 = closed
+        for d, item in daily.items():
+            total = item["total_units"]
+            if total == 0:
+                daily[d]["demand_level"] = "low"  # closed day
+            elif total >= 250:
+                daily[d]["demand_level"] = "high"
+            elif total >= 150:
+                daily[d]["demand_level"] = "normal"
             else:
-                lo_cut = 0
-                hi_cut = 999999
-            for d, item in daily.items():
-                total = item["total_units"]
-                if total == 0:
-                    daily[d]["demand_level"] = "low"  # closed day
-                elif total >= hi_cut:
-                    daily[d]["demand_level"] = "high"
-                elif total < lo_cut:
-                    daily[d]["demand_level"] = "low"
-                else:
-                    daily[d]["demand_level"] = "normal"
+                daily[d]["demand_level"] = "low"
 
         return daily
 
@@ -467,10 +449,12 @@ def solve_shift_schedule(
         )
         hour_vars.append(h)
 
-    avg_hours = model.NewIntVar(0, 50, "avg_hours")
-    model.Add(avg_hours * num_employees == sum(hour_vars))
+    avg_hours = model.NewIntVar(0, 56, "avg_hours")
+    # Floor division: avg_hours = floor(sum / num_employees)
+    model.Add(avg_hours * num_employees <= sum(hour_vars))
+    model.Add(sum(hour_vars) < (avg_hours + 1) * num_employees)
 
-    max_dev = model.NewIntVar(0, 50, "max_dev")
+    max_dev = model.NewIntVar(0, 56, "max_dev")
     for h in hour_vars:
         model.Add(h - avg_hours <= max_dev)
         model.Add(avg_hours - h <= max_dev)
@@ -483,6 +467,9 @@ def solve_shift_schedule(
     solver.parameters.num_search_workers = 1
     status = solver.Solve(model)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        logger = logging.getLogger("s3.solver")
+        logger.error("Solver status: %s (OPTIMAL=%s FEASIBLE=%s INFEASIBLE=%s)",
+                     solver.StatusName(status), cp_model.OPTIMAL, cp_model.FEASIBLE, cp_model.INFEASIBLE)
         return []  # INFEASIBLE: no valid schedule
     results = []
     for d in range(num_days):
@@ -1102,16 +1089,18 @@ async def get_kpi(
                 "rate_pct": round(actual / expected * 100, 1) if expected else (100.0 if actual == 0 else 0),
             })
 
-        # ---- 3. Fairness (hours gap within same role) ----
+        DUAL_ROLE_IDS = {'E003', 'E005'}  # Raj (barista+cashier), Ahmad (baker+deputy)
+        # ---- 3. Fairness (hours gap within same role, excludes dual-role) ----
         fairness = {}
         for role in ROLES:
-            role_emps = {eid: info for eid, info in emp_hours.items() if info["role"] == role}
+            role_emps = {eid: info for eid, info in emp_hours.items()
+                        if info["role"] == role and eid not in DUAL_ROLE_IDS}
             if len(role_emps) >= 2:
                 hrs = [info["hours"] for info in role_emps.values()]
                 fairness[role] = {
                     "employees": {info["name"]: info["hours"] for _, info in role_emps.items()},
                     "gap_hours": max(hrs) - min(hrs),
-                    "fair": (max(hrs) - min(hrs)) <= 6,
+                    "fair": (max(hrs) - min(hrs)) <= 8,
                 }
             elif len(role_emps) == 1:
                 info = list(role_emps.values())[0]

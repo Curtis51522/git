@@ -78,43 +78,47 @@
       "severity": "warning",
       "title": "High waste risk: croissant",
       "detail": "44/44 (100%) of croissant is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
-      "acknowledged": false,
-      "created_at": "2026-06-03T02:26:43.346959",
-      "created_ts": 1780424803.3469546,
-      "ttl_sec": 86400
+      "acknowledged": true,
+      "created_at": "2026-06-03T02:33:02.590542",
+      "created_ts": 1780425182.590538,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-03T02:36:42.695560"
     },
     {
       "alert_id": 8,
       "source": "inventory",
       "severity": "warning",
       "title": "High waste risk: bread_coconut",
-      "detail": "50/50 (100%) of bread_coconut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
-      "acknowledged": false,
-      "created_at": "2026-06-03T02:26:43.353216",
-      "created_ts": 1780424803.3532126,
-      "ttl_sec": 86400
+      "detail": "50/65 (77%) of bread_coconut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": true,
+      "created_at": "2026-06-03T02:33:02.596267",
+      "created_ts": 1780425182.5962641,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-03T02:36:42.695566"
     },
     {
       "alert_id": 9,
       "source": "inventory",
       "severity": "warning",
       "title": "High waste risk: bread_roll",
-      "detail": "50/50 (100%) of bread_roll is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
-      "acknowledged": false,
-      "created_at": "2026-06-03T02:26:43.358303",
-      "created_ts": 1780424803.3582964,
-      "ttl_sec": 86400
+      "detail": "50/63 (79%) of bread_roll is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": true,
+      "created_at": "2026-06-03T02:33:02.600970",
+      "created_ts": 1780425182.600968,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-03T02:36:42.695568"
     },
     {
       "alert_id": 10,
       "source": "inventory",
       "severity": "warning",
       "title": "High waste risk: chiffon",
-      "detail": "50/50 (100%) of chiffon is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
-      "acknowledged": false,
-      "created_at": "2026-06-03T02:26:43.363349",
-      "created_ts": 1780424803.3633466,
-      "ttl_sec": 86400
+      "detail": "50/67 (75%) of chiffon is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": true,
+      "created_at": "2026-06-03T02:33:02.605490",
+      "created_ts": 1780425182.6054878,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-03T02:36:42.695568"
     },
     {
       "alert_id": 11,
@@ -122,10 +126,11 @@
       "severity": "warning",
       "title": "High waste risk: croissant_chocolate",
       "detail": "39/39 (100%) of croissant_chocolate is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
-      "acknowledged": false,
-      "created_at": "2026-06-03T02:26:43.368470",
-      "created_ts": 1780424803.3684626,
-      "ttl_sec": 86400
+      "acknowledged": true,
+      "created_at": "2026-06-03T02:33:02.609822",
+      "created_ts": 1780425182.6098182,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-03T02:36:42.695569"
     },
     {
       "alert_id": 12,
@@ -133,11 +138,100 @@
       "severity": "warning",
       "title": "High waste risk: donut",
       "detail": "41/41 (100%) of donut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": true,
+      "created_at": "2026-06-03T02:33:02.614148",
+      "created_ts": 1780425182.6141462,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-03T02:36:42.695570"
+    },
+    {
+      "alert_id": 13,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: croissant",
+      "detail": "44/57 (77%) of croissant is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
       "acknowledged": false,
-      "created_at": "2026-06-03T02:26:43.373719",
-      "created_ts": 1780424803.3737168,
+      "created_at": "2026-06-03T03:20:44.134314",
+      "created_ts": 1780428044.1343107,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 14,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: bread_coconut",
+      "detail": "50/65 (77%) of bread_coconut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-03T03:20:44.140145",
+      "created_ts": 1780428044.1401412,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 15,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: bread_roll",
+      "detail": "50/63 (79%) of bread_roll is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-03T03:20:44.145480",
+      "created_ts": 1780428044.1454778,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 16,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: chiffon",
+      "detail": "50/67 (75%) of chiffon is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-03T03:20:44.150672",
+      "created_ts": 1780428044.1506689,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 17,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: croissant_chocolate",
+      "detail": "39/50 (78%) of croissant_chocolate is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-03T03:20:44.155419",
+      "created_ts": 1780428044.1554163,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 18,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: donut",
+      "detail": "41/54 (76%) of donut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-03T03:20:44.160447",
+      "created_ts": 1780428044.160444,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 19,
+      "source": "schedule",
+      "severity": "critical",
+      "title": "No bakers scheduled today",
+      "detail": "No baker assigned for 2026-06-03. Production impossible.",
+      "acknowledged": false,
+      "created_at": "2026-06-03T03:15:43.696260",
+      "created_ts": 1780427743.6962574,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 20,
+      "source": "schedule",
+      "severity": "critical",
+      "title": "No cashiers scheduled today",
+      "detail": "No cashier assigned for 2026-06-03. Store cannot open.",
+      "acknowledged": false,
+      "created_at": "2026-06-03T03:15:43.701220",
+      "created_ts": 1780427743.7012134,
       "ttl_sec": 86400
     }
   ],
-  "next_id": 13
+  "next_id": 21
 }
