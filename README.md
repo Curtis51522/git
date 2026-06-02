@@ -1,16 +1,16 @@
-﻿# Bakery AI System
+# Bakery AI System
 
-Multi-agent AI operations system for a Malaysian bakery-cafe.
+Multi-agent AI operations system for a medium-sized Malaysian bakery-cafe (6 products, 10 employees, 2 ovens).
 
 ## Architecture
 
-| Module | Function | Tech |
-|--------|----------|------|
-| S1 | Visual perception -- YOLO-based product detection + tray color classification + FIFO deduction | YOLOv8/YOLO26m, OpenCV |
-| S2 | 7-day sales forecasting with confidence bounds + multi-model comparison | XGBoost, TimeSeriesSplit, WAPE |
-| S3 | CP-SAT shift scheduling with demand-aware role coverage + swap support | OR-Tools CP-SAT |
-| S4 | BFF layer -- JWT auth, 5-dim combo scoring, checkout + receipt, web POS | FastAPI, JWT, HTML/CSS/JS |
-| S5 | Agentic pipeline -- 6 intents (stock/waste/promo/schedule/audit/profit), 12-rule audit, SHAP causal | DistilBERT, DeepSeek, SHAP |
+| Module | Function | Tech | Port |
+|--------|----------|------|------|
+| S1 | Visual perception -- YOLO-based product detection + tray color classification + FIFO deduction | YOLOv8/YOLO26m, OpenCV | 8002 |
+| S2 | 7-day demand forecasting with weather integration + multi-model comparison | XGBoost, TimeSeriesSplit, VisualCrossing/Open-Meteo | 8002 |
+| S3 | CP-SAT shift scheduling with demand-aware role coverage + dual-role support | OR-Tools CP-SAT | 8002 |
+| S4 | BFF layer -- JWT auth, 5-dim combo scoring, checkout + receipt, web POS | FastAPI, JWT, HTML/CSS/JS | 8002 |
+| S5 | Multi-agent AI Brain -- 6 agents, 5-dim dynamic discount engine, alert monitoring | DeepSeek, CP-SAT MIP | 8001 |
 
 ## Quick Start
 
@@ -25,7 +25,7 @@ Multi-agent AI operations system for a Malaysian bakery-cafe.
 ```bash
 # 1. Clone
 git clone https://github.com/Curtis51522/git.git
-cd git
+cd bakery-ai-system
 
 # 2. Download pre-trained models (~570 MB)
 python download_models.py
@@ -40,15 +40,16 @@ cp .env.example .env
 # 5. Start MySQL and create database
 # mysql -u root -e "CREATE DATABASE IF NOT EXISTS bakery_ai"
 
-# 6. (Optional) Train models from scratch
-python training/train_xgboost_full.py
-python training/train_distilbert.py
+# 6. Start S5 AI Brain (port 8001)
+cd s5-agent-brain
+python server.py
 
-# 7. Run
+# 7. Start main server (port 8002) in another terminal
+cd ..
 python main.py
 ```
 
-Open http://localhost:8000 for the web UI.
+Open http://localhost:8002 for the web UI.
 
 ### Default Accounts
 
@@ -59,89 +60,152 @@ Open http://localhost:8000 for the web UI.
 
 ## API Endpoints
 
-| Method | Path | Module |
-|--------|------|--------|
-| GET | /s1/batch_inventory | Current inventory with freshness |
-| POST | /s1/checkout | Visual scan (checkout) |
-| POST | /s1/inflow | Visual scan (batch inflow) |
-| GET | /s2/forecast | 7-day forecast (low/median/high) |
-| GET | /s3/schedule | Shift schedule |
-| GET | /s3/capacity | Production capacity |
-| POST | /s4/login | JWT login |
-| POST | /s4/combo | Combo recommendations |
-| POST | /s4/checkout/complete | Payment + FIFO deduction + receipt |
-| GET | /s4/products | Product prices (bakery only) |
-| POST | /s5/query | Agent query (6 intents incl. profit_analysis) |
-| POST | /s5/script | Sales script generation |
-| GET | /s5/alerts/list | Anomaly alerts |
-| GET | /s5/alerts/count | Unacknowledged alert count |
-| GET | /s5/reflections | Reflective memory insights |
+| Method | Path | Module | Description |
+|--------|------|--------|-------------|
+| GET | /s1/batch_inventory | S1 | Current inventory with freshness |
+| POST | /s1/checkout | S1 | Visual scan (checkout) |
+| POST | /s1/inflow | S1 | Visual scan (batch inflow) |
+| GET | /s2/forecast | S2 | 7-day forecast (low/median/high) |
+| POST | /s3/solve | S3 | Generate shift schedule |
+| GET | /s3/schedule | S3 | Current shift schedule |
+| POST | /s3/sick | S3 | Mark employee sick + auto-replace |
+| POST | /s3/unsick | S3 | Clear sick status |
+| POST | /s4/login | S4 | JWT login |
+| POST | /s4/combo | S4 | Combo recommendations (6 breads x 8 coffees) |
+| POST | /s4/checkout/complete | S4 | Payment + FIFO deduction + receipt |
+| GET | /s4/products | S4 | Product prices + freshness |
+| GET | /s4/receipts | S4 | Receipt history |
+| POST | /s5/query | S5 | Agent query (6 intents) |
+| POST | /s5/discounts | S5 | 5-dim dynamic discount engine |
+| GET | /s5/alerts/list | S5 | Anomaly alerts |
+| GET | /s5/alerts/count | S5 | Unacknowledged alert count |
 
+## S5 Multi-Agent Brain
 
+Six specialized agents collaborate on each query:
+
+| Agent | Confidence | Role |
+|-------|-----------|------|
+| demand | 90% | XGBoost forecast with trend analysis (per-product) |
+| inventory | 95% | Stock levels, freshness, waste risk |
+| production | 85% | Capacity (bakers x ovens x hours), batch MIP optimization |
+| staffing | 95% | Shift schedule from S3 CP-SAT solver |
+| promo | 85% | 5-dim dynamic discount (Freshness, Surplus, Margin, Trend, Pairing) |
+| profit | 90% | Revenue/cost/margin from transaction data |
+
+### 5-Dimension Dynamic Discount Engine
+
+Replaces static promo with urgency-weighted scoring:
+
+| Dimension | Weight | Source |
+|-----------|--------|--------|
+| Freshness (F) | 30% | Day-1 stock ratio from S1 inventory |
+| Surplus (S) | 30% | Stock vs forecast gap |
+| Margin (M) | 20% | Product profit margin |
+| Trend (T) | 15% | Demand trend direction from S2 |
+| Pairing (P) | 5% | Combo score from S4 flavor matrix |
+
+Urgency = F*w1 + S*w2 + M*w3 + T*w4 + P*w5  ->  mapped to discount tiers (0%-50%).
+
+## S4 Combo Recommendation
+
+- 6 breads x 8 coffees flavor pairing matrix (LLM-generated by DeepSeek)
+- 5-dim scoring: flavor pairing, discount value, freshness urgency, inventory pressure, order context
+- Top-3 bundles with savings breakdown
+- Discount always on bread (never coffee)
+- Real-time POS checkout with freshness-aware pricing (Fresh/Day-1/Near-Expired)
+
+## S3 Employee Constraints
+
+10 employees with dual-role support:
+
+| ID | Name | Role | Secondary | Max Hrs | Note |
+|----|------|------|-----------|---------|------|
+| E001 | Ali | baker | - | 56h | |
+| E002 | Mei | cashier | - | 56h | |
+| E003 | Raj | barista | cashier | 56h | Dual-role |
+| E004 | Siti | baker | - | 56h | |
+| E005 | Ahmad | baker | - | 56h | Deputy manager |
+| E006 | Priya | cashier | - | 56h | |
+| E007 | Kumar | baker | - | 56h | |
+| E008 | David | baker | - | 56h | |
+| E009 | Chen | barista | - | 56h | |
+| E010 | Fatima | manager | - | 42h | |
+
+Demand-driven staffing levels:
+- **High** (>250 units): baker=4, cashier=2, barista=2, manager=1
+- **Normal** (150-250): baker=3, cashier=2, barista=1, manager=1 (dual-role allowed)
+- **Low** (<150): baker=2, cashier=2, barista=1, manager=1 (dual-role allowed)
+
+Shifts: 06:00-13:00 (morning), 12:00-19:00 (afternoon). Bake prep 6:00-9:00 before store opens at 9:00.
 
 ## Features
 
 ### POS and Receipt
-- Real-time POS checkout with freshness-aware pricing (Fresh/Day-1/Day-2/Near-Expired)
+- Real-time POS checkout with freshness-aware pricing
 - Thermal-style receipt generation with print support
 - Receipts stored in receipts table for audit trail
 
-### AI Bundle Recommendations
-- 5-dimension scoring: flavor pairing, discount value, freshness urgency, inventory pressure, order context
-- Top-3 bundles with savings breakdown
-
-### Agent Intelligence (S5)
-- 6 intents: stock_query, waste_analysis, promo_eval, schedule_audit, cross_source_audit, profit_analysis
-- 4-tier audit (L1-L4) with SHAP causal attribution
-- Profit analysis: revenue/cost/margin by product from real transaction data
-- Expired batch auto-cleanup (30-day retention)
-
 ### Inventory
 - FIFO batch deduction with freshness tracking
-- 4-stage aging: Fresh to Day-1 to Day-2 to Near-Expired to Expired
-- Product prices unified in database (single source of truth)
+- 4-stage aging: Fresh -> Day-1 -> Day-2 -> Near-Expired -> Expired
+- Auto-alert when >50% Day-1 stock
+- Freshness dots hidden when stock=0
+
+### System Alerts (S5)
+- 5-minute monitoring interval
+- Inventory waste warnings (Day-1 stock threshold)
+- Duplicate alerts update instead of duplicate
+- Acknowledge/dismiss from frontend
 
 ## Training Models
 
 ```bash
 python training/train_yolo.py          # YOLOv8 product detection
-python training/train_xgboost_full.py  # XGBoost demand forecasting
-python training/train_distilbert.py    # DistilBERT intent classifier
+python training/train_xgboost_full.py  # XGBoost demand forecasting (6 products)
 ```
 
 ## Project Structure
 
 ```
 bakery-ai-system/
-|-- main.py                     # FastAPI entry point
-|-- download_models.py          # Model downloader (from GitHub Releases)
-|-- config/settings.py          # Configuration
-|-- db/mysql_client.py          # MySQL database client
+|-- main.py                        # FastAPI entry (port 8002)
+|-- download_models.py             # Model downloader (GitHub Releases)
+|-- requirements.txt
+|-- config/settings.py             # Configuration
+|-- db/mysql_client.py             # MySQL database client
 |-- models/
-|   |-- distilbert/             # Intent classifier (516 MB)
-|   |-- xgboost/                # 6 product forecast models
-|   |-- yolo/                   # Freshness detection (~50 MB)
-|   +-- anomaly_isolation_forest.pkl
+|   |-- xgboost/                   # 6 product forecast models
+|   |-- yolo/                      # Freshness detection (~50 MB)
+|   +-- schedule_baseline.json     # S3 schedule persistence
 |-- api/
-|   |-- module1_yolo.py         # Visual perception
-|   |-- module2_forecast.py     # Sales forecasting
-|   |-- module3_scheduling.py   # Shift scheduling
-|   |-- module4_frontend/       # BFF + web UI
-|   |   |-- bff.py
+|   |-- module1_yolo.py            # Visual perception
+|   |-- module2_forecast.py        # Sales forecasting
+|   |-- module3_scheduling.py      # Shift scheduling (CP-SAT)
+|   |-- module4_frontend/          # BFF + web UI
+|   |   |-- bff.py                 # Backend-for-frontend
+|   |   |-- pairing_llm.py         # LLM flavor matrix generator
 |   |   +-- static/
-|   |-- module5_agent/          # S5 decision pipeline
-|   |   |-- router.py           # Main pipeline orchestration
-|   |   |-- intent.py           # DistilBERT + keyword classifier
-|   |   |-- planner.py          # DAG planner + validation
-|   |   |-- executor.py         # API call executor
-|   |   |-- fusion.py           # Deterministic business logic
-|   |   |-- verifier.py         # 12-rule audit (L1-L4)
-|   |   |-- composer.py         # Natural language summary
-|   |   |-- memory.py           # Episodic + reflective memory
-|   |   |-- causal_reasoning.py # SHAP causal attribution
-|   |   |-- anomaly_detector.py # Isolation Forest alerts
-|   |   +-- llm_client.py       # DeepSeek API client
-|   +-- weather.py              # VisualCrossing + fallbacks
-|-- training/                   # Model training scripts
-+-- data/sales_history.csv      # Historical sales data
+|   |       |-- index.html         # Full web POS
+|   |       |-- content_main.js    # Frontend logic
+|   |       +-- frontend_style.css # Styling
+|   +-- weather.py                 # VisualCrossing + Open-Meteo fallback
+|-- s5-agent-brain/                # S5 Multi-Agent Brain (port 8001)
+|   |-- server.py                  # FastAPI entry
+|   |-- agents/
+|   |   |-- demand.py              # Demand forecast agent
+|   |   |-- inventory.py           # Inventory agent
+|   |   |-- production.py          # Production capacity agent
+|   |   |-- staffing.py            # Staffing agent
+|   |   |-- promo.py               # 5-dim dynamic discount agent
+|   |   +-- profit.py              # Profit analysis agent
+|   |-- orchestrator.py            # Multi-agent orchestration + deliberation
+|   |-- alert_store.py             # Alert JSON file store
+|   |-- alert_monitor.py           # Periodic alert monitor
+|   |-- discount_engine.py         # 5-dim urgency-weighted scoring
+|   +-- alerts.json                # Alert persistence
+|-- training/
+|   |-- train_xgboost_full.py
+|   +-- train_yolo.py
++-- data/sales_history.csv
 ```
