@@ -187,8 +187,8 @@ bakery-ai-system/
 |   |   |-- pairing_llm.py         # LLM flavor matrix generator
 |   |   +-- static/
 |   |       |-- index.html         # Full web POS
-|   |       |-- content_main.js    # Frontend logic
-|   |       +-- frontend_style.css # Styling
+|   |       |-- _core.js             # Frontend logic (inline JS in index.html)
+|   |       +-- <style> tag         # CSS inline in index.html
 |   +-- weather.py                 # VisualCrossing + Open-Meteo fallback
 |-- s5-agent-brain/                # S5 Multi-Agent Brain (port 8001)
 |   |-- server.py                  # FastAPI entry
