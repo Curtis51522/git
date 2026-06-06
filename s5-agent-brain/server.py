@@ -1,9 +1,7 @@
 # s5-agent-brain - Independent Multi-Agent Service
 # Runs on port 8001, decoupled from the main bakery system (:8002).
-# Orchestrates 6 agents in parallel -> Deliberate -> Arbitrator -> LLM Synthesis -> Memory.
-# Phase 2: causal cost calibration + multi-objective optimization + counterfactual analysis.
-# Phase 2.5: System Alerts - background monitor + persistent alert history.
-# Phase 3: Agent Memory (session-based) + Agent Deliberation (LLM-mediated consensus).
+# Orchestrates 6 agents in parallel -> Arbitrator -> Optimizer -> LLM Synthesis.
+# System Alerts - background monitor + persistent alert history.
 import asyncio, logging, time, sys, os
 
 # Windows: use SelectorEventLoop to avoid Proactor connection-reset noise
@@ -29,11 +27,7 @@ from arbitrator import Arbitrator
 from s5_config.settings import PORT, HOST, PRODUCT_NAMES
 from alert_store import get_alerts, acknowledge, get_unacked_count, clear_expired
 from monitor import start_monitor, run_full_check
-from memory_store import load_session, save_turn, get_recent_context, get_key_metrics
-from association_engine import get_associations
-from causal_attribution import build_causal_narrative
 from llm_synthesis import synthesize, SYNTHESIS_ENABLED
-from intent_classifier import classify_intent
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("s5.server")
@@ -68,7 +62,7 @@ class AckRequest(BaseModel):
 # Inspired by LLMCompiler (Kim et al., ICML 2024): DAG-based agent planning
 # Uses DeepSeek function calling to select agents + extract parameters
 # ---------------------------------------------------------------------------
-LLM_PLANNER_ENABLED = True  # set False to fall back to DistilBERT only
+LLM_PLANNER_ENABLED = True  # set False to fall back to keyword rules only
 
 AGENT_TOOLS_SCHEMA = [
     {"type": "function", "function": {
@@ -215,8 +209,8 @@ async def handle_query(req: QueryRequest):
                 req.query[:60], intent, params["product"], session_id)
 
     # Load session memory
-    history_text = get_recent_context(session_id, n=5)
-    key_metrics = get_key_metrics(session_id, n=3)
+    history_text = ""
+    key_metrics = ""
 
     # Build agent name->instance map for dynamic LLM-planned routing
     _agent_map = {"demand": demand_agent, "inventory": inventory_agent,
@@ -246,12 +240,23 @@ async def handle_query(req: QueryRequest):
         else:
             intent = params["intent"]
     else:
-        # LLM Planner failed - fall back to DistilBERT
+        # LLM Planner failed - fall back to keyword intent
         ql = req.query.lower()
-        db_intent, db_conf = classify_intent(req.query)
-        intent = db_intent
-        params["intent"] = db_intent
-        params["intent_confidence"] = round(db_conf, 4)
+        _kw_rules = {
+            "stock_query": ["stock","restock","inventory","replenish","bake","prepare","how many","how is the","what is my stock","how is","tell me about","status","check","show","forecast","demand","selling","look","report","summary","what about","should i","do i","need to","doing","issues","update","berapa","banyak","esok","stok","bakar","sediakan"],
+            "waste_analysis": ["waste","loss","expired","expiring","expiry","spoilage","throw","why"],
+            "promo_eval": ["promo","discount","off","sale","markdown","deal","bundle","should i","do i","run a","apply"],
+            "schedule_audit": ["schedule","shift","staff","anomal","who","swap","sick","leave","roster","staff issues","schedule issues","shift issues","coverage gap","understaff"],
+            "cross_source_audit": ["health check","audit","full","cross","all product","store health","overview"],
+            "profit_analysis": ["profit","margin","revenue","cost","earn","income"],
+        }
+        _scores = {k: 0 for k in _kw_rules}
+        for k, kws in _kw_rules.items():
+            _scores[k] = sum(1 for w in kws if w in ql)
+        _best = max(_scores, key=_scores.get)
+        intent = _best if _scores[_best] > 0 else "stock_query"
+        params["intent"] = intent
+        params["intent_confidence"] = 0.6
 
         # Product extraction fallback
         product_found = None
@@ -340,17 +345,7 @@ async def handle_query(req: QueryRequest):
 
     # LLM synthesis
     llm_summary = None
-    associations = []
     if SYNTHESIS_ENABLED:
-        associations = get_associations(params.get("product", "all"))
-        assoc_text = ""
-        if associations:
-            parts = []
-            for a in associations[:3]:
-                pair_label = a.get("pair", a.get("product", ""))
-                parts.append(pair_label + " (" + str(a["confidence"]) + "%)")
-            assoc_text = " | ".join(parts)
-
         llm_summary = await synthesize(
             query=req.query, intent=intent,
             decision=decision["action"], priority=decision["priority"],
@@ -358,30 +353,12 @@ async def handle_query(req: QueryRequest):
             conflicts=decision["audit"].get("conflicts", []),
             counterfactual=decision.get("counterfactual"),
             causal_calibration=decision.get("causal_calibration"),
-            causal_narrative=build_causal_narrative(decision.get("causal_calibration", {})),
-            associations=assoc_text,
         )
 
     agent_summaries = {
         name: {"opinion": r.get("opinion", ""), "confidence": r.get("confidence", 0), "data": r.get("data", {})}
         for name, r in results.items()
     }
-
-    # Save turn to session memory (only if no critical agent errors)
-    has_critical_errors = len(errors) >= 3
-    if not has_critical_errors:
-        save_turn(session_id, {
-            "query": req.query,
-            "intent": intent,
-            "product": params.get("product", "all"),
-            "decision": decision["action"],
-            "priority": decision["priority"],
-            "key_data": {
-                "forecast": results.get("demand", {}).get("data", {}).get("forecast", 0),
-                "inventory": results.get("inventory", {}).get("data", {}).get("inventory", 0),
-                "product_scope": params.get("product", "all"),
-            },
-        })
 
     response = {
         "status": "ok",
@@ -400,8 +377,6 @@ async def handle_query(req: QueryRequest):
         response["causal_calibration"] = decision["causal_calibration"]
     if "counterfactual" in decision:
         response["counterfactual"] = decision["counterfactual"]
-    if associations:
-        response["associations"] = associations
     if llm_summary:
         response["llm_summary"] = llm_summary
     if deliberation.get("consensus"):

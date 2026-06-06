@@ -1,8 +1,10 @@
 # Alert Monitor - background task that checks S1/S2/S3 for anomalies
 # Runs periodically and generates alerts via alert_store.
 import asyncio, logging, time, httpx
-from typing import Dict, Any, List
+from typing import Dict
 from alert_store import add_alert, clear_expired
+from s5_config.settings import PRODUCT_NAMES
+from collections import defaultdict
 
 logger = logging.getLogger("s5.monitor")
 
@@ -31,7 +33,6 @@ async def check_inventory() -> int:
         items = data.get("inventory", [])
 
         # Aggregate by product + freshness
-        from collections import defaultdict
         prod_fresh = defaultdict(lambda: {"total": 0, "Fresh": 0, "Day-1": 0})
         for item in items:
             pname = item.get("product_name", "")
@@ -43,7 +44,6 @@ async def check_inventory() -> int:
         for pname, stats in prod_fresh.items():
             total = stats["total"]
             day1 = stats.get("Day-1", 0)
-            fresh = stats.get("Fresh", 0)
 
             # Stockout
             if total == 0:
@@ -67,6 +67,12 @@ async def check_inventory() -> int:
                     add_alert("inventory", "info", f"Waste watch: {pname}",
                               f"{day1}/{total} ({day1_ratio:.0%}) of {pname} is Day-1. Monitor closely.")
                     count += 1
+        # Check products not returned by S1 (zero inventory, never inflow-ed)
+        for pname in PRODUCT_NAMES:
+            if pname not in prod_fresh:
+                add_alert("inventory", "critical", f"Stockout: {pname}",
+                          f"{pname} has zero inventory across all batches.")
+                count += 1
     except Exception as e:
         logger.warning("Inventory check failed: %s", e)
     return count
@@ -83,7 +89,6 @@ async def check_forecast() -> int:
         # Get batch inventory for comparison
         inv_data = await _fetch(S1_BATCH_URL)
         items = inv_data.get("inventory", [])
-        from collections import defaultdict
         inv_map = defaultdict(int)
         for item in items:
             inv_map[item.get("product_name", "")] += item.get("quantity", 0)

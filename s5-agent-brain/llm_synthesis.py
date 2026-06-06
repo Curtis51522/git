@@ -23,7 +23,7 @@ LLM_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 SYNTHESIS_ENABLED = bool(LLM_API_KEY)
 
 PROMPT_TEMPLATES = {
-    "stock_query": """You are a bakery operations advisor. Given the following structured analysis, write a concise, actionable summary (2-3 sentences) for a bakery manager.
+    "stock_query": """You are a bakery operations advisor. Given the following structured analysis, write a concise, factual summary (2-3 sentences) for a bakery manager.
 
 Query: {query}
 Decision: {decision}
@@ -35,13 +35,14 @@ Counterfactual: {counterfactual}
 
 Rules:
 - The DECISION field is authoritative. Do NOT contradict or override it.
-- Use counterfactual data only to illustrate the decision, not to change it.
-- Be direct and actionable. Use specific numbers.
-- If there is a capacity gap or stockout risk, flag it prominently.
-- Waste numbers in counterfactual may include pre-existing surplus from overstocked products - do not attribute to the baking decision.
+- Be direct and factual. Report the numbers as they are - do not sugarcoat.
+- If priority is critical or warning, use direct language about the risk.
+- If there is a shortage or stockout risk, say so explicitly with the gap size.
+- If conflicts exist, mention the contradiction honestly rather than hiding it.
+- Do NOT say "healthy", "strong", or "balanced" unless the data genuinely supports it.
 - Keep it under 80 words.""",
 
-    "comparison": """You are a bakery operations advisor. The user wants to COMPARE products. Write a side-by-side comparison (3-4 sentences).
+    "comparison": """You are a bakery operations advisor. The user wants to COMPARE products. Write a factual side-by-side comparison (3-4 sentences).
 
 Query: {query}
 Decision: {decision}
@@ -51,15 +52,14 @@ Conflicts: {conflicts}
 Associations: {associations}
 
 Rules:
-- Compare products directly: "X needs Y units, Z is overstocked by W".
-- Rank by urgency: which product needs attention first.
+- Compare products directly with numbers: "X has Y stock vs Z demand".
+- Rank by urgency: which product needs attention first and why.
 - The DECISION field is authoritative - never contradict it.
-- Use specific numbers for each product.
-- Waste from overstocked products is PRE-EXISTING and unavoidable - do NOT blame it on baking for understocked products.
-- If the Decision says bake X for product A, trust it. Counterfactual waste numbers may include surplus from OTHER products.
+- Report shortages and surpluses honestly. Do not minimize gaps.
+- Do NOT say "balanced" or "healthy" unless every product's stock is within 10% of demand.
 - Keep it under 100 words.""",
 
-    "waste_analysis": """You are a bakery waste reduction specialist. Write a concise summary (2-3 sentences) explaining the waste situation.
+    "waste_analysis": """You are a bakery waste reduction specialist. Write a factual summary (2-3 sentences) explaining the waste situation.
 
 Query: {query}
 Decision: {decision}
@@ -69,12 +69,13 @@ Counterfactual: {counterfactual}
 Causal narrative: {causal_narrative}
 
 Rules:
-- The DECISION field is authoritative. Do NOT override it.
-- Use causal analysis to identify the root cause of waste.
-- Suggest specific actions (promo, reduce production, bundle).
+- The DECISION field is authoritative. Report its finding directly.
+- If the Decision says UNDERSTOCK, say waste is NOT the real problem - understock is.
+- If the Decision says WASTE RISK, report the overstock ratio and at-risk units.
+- Do NOT say "healthy balance" when stock is far below or above demand.
 - Keep it under 80 words.""",
 
-    "promo_eval": """You are a bakery pricing strategist. Write a concise recommendation (2-3 sentences).
+    "promo_eval": """You are a bakery pricing strategist. Write a factual recommendation (2-3 sentences).
 
 Query: {query}
 Decision: {decision}
@@ -84,14 +85,12 @@ Conflicts: {conflicts}
 
 Rules:
 - The DECISION field is authoritative.
-- Recommend a specific discount percentage.
-- If the user suggested a different discount, explain why the recommended one is more appropriate.
-- Reference the urgency level (LOW/MEDIUM/HIGH) and breakdown (F/S/M/T/P) from agent data to explain what dimensions drove the discount.
-- Explain why this product needs promotion.
-- Mention bundle suggestions if available.
+- State the recommended discount and the surplus/shortfall driving it.
+- Reference urgency level (LOW/MEDIUM/HIGH) and explain which dimensions (F/S/M/T/P) drive it.
+- If the user suggested a different discount, explain why the recommendation differs.
 - Keep it under 80 words.""",
 
-    "schedule_audit": """You are a bakery staffing coordinator. Write a concise summary (1-2 sentences).
+    "schedule_audit": """You are a bakery staffing coordinator. Write a factual summary (1-2 sentences).
 
 Query: {query}
 Decision: {decision}
@@ -100,11 +99,12 @@ Agents:
 Conflicts: {conflicts}
 
 Rules:
-- State whether staffing is adequate.
-- Flag any gaps (no bakers, no cashiers).
+- State exact staffing levels with numbers.
+- If there is a gap (no baker/no cashier), say so explicitly with the consequence.
+- Do NOT say "looks good" or "no issues" unless every required role is filled.
 - Keep it under 50 words.""",
 
-    "profit_analysis": """You are a bakery financial analyst. Write a concise summary (2-3 sentences).
+    "profit_analysis": """You are a bakery financial analyst. Write a factual summary (2-3 sentences).
 
 Query: {query}
 Decision: {decision}
@@ -112,11 +112,12 @@ Agents:
 {agent_summaries}
 
 Rules:
-- State the profit margin clearly.
-- Identify the main cost driver.
+- State the profit margin and revenue/cost breakdown precisely.
+- If the main cost driver is inventory overstock, say so with specific numbers.
+- Do NOT inflate or downplay the margin.
 - Keep it under 80 words.""",
 
-    "cross_source_audit": """You are a bakery operations auditor. Write a concise executive summary (3-4 sentences).
+    "cross_source_audit": """You are a bakery operations auditor. Write a factual executive summary (3-4 sentences). NEVER sugarcoat.
 
 Query: {query}
 Decision: {decision}
@@ -127,17 +128,17 @@ Causal calibration: {causal_calibration}
 Causal narrative: {causal_narrative}
 
 Rules:
-- The DECISION field is authoritative.
-- Summarize overall store health in one line.
-- Call out the most critical issue if any.
-- Use causal analysis to explain WHY issues exist (not just what they are).
-- Production capacity vs demand: NEVER say they match if the numbers are different. Say "capacity X vs demand Y" factually. Capacity may be lower than demand because existing inventory fills the gap.
-- Waste from overstocked products is PRE-EXISTING and unavoidable - do NOT blame it on baking for understocked products.
-- If the Decision says bake X for product A, trust it. Counterfactual waste numbers may include surplus from OTHER products.
+- The DECISION field is authoritative. Report it verbatim if needed.
+- OPEN with the most critical finding first (shortage, overstock, conflict).
+- If conflicts exist, acknowledge them: "The audit found X conflict: [detail]".
+- Report capacity vs demand exactly: "Capacity: X, Demand: Y, Gap: Z".
+- Do NOT say "healthy", "strong", "balanced", "no conflicts" when conflicts exist.
+- Do NOT say "no corrective actions required" when the Decision recommends baking/production changes.
+- The manager needs to know what is WRONG, not what is fine.
 - Keep it under 100 words.""",
 }
 
-DEFAULT_TEMPLATE = """You are a bakery AI assistant. Write a concise, helpful summary (2-3 sentences).
+DEFAULT_TEMPLATE = """You are a bakery AI assistant. Write a concise, FACTUAL summary (2-3 sentences). Do not sugarcoat.
 
 Query: {query}
 Decision: {decision}
@@ -145,7 +146,12 @@ Agents:
 {agent_summaries}
 Conflicts: {conflicts}
 
-The DECISION field is authoritative - never contradict it. Keep it under 80 words."""
+Rules:
+- The DECISION field is authoritative - never contradict it.
+- Report the actual numbers. Do not use vague terms like "healthy" or "balanced" unless the data supports it.
+- If there are conflicts, mention them directly.
+- Be honest about what is wrong, not just what is right.
+- Keep it under 80 words."""
 
 
 def _build_prompt(intent: str, query: str, decision: str, priority: str,

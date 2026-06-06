@@ -988,7 +988,6 @@ function renderAgent(c){
 if(agentState){c.innerHTML=agentState.html;var qEl=document.getElementById('agent-query');if(qEl)qEl.value=agentState.query||'';return;}
 c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
 +'<div style="margin-bottom:8px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px"></div>'
-+'<div style="margin-bottom:12px;display:flex;align-items:center;gap:6px"><label style="font-size:12px;color:#8b6914;white-space:nowrap">Date:</label><input id="agent-date" type="date" style="padding:6px 8px;border-radius:6px;border:2px solid #e0d5c7;font-size:13px;width:130px"><span onclick="setAgentToday()" style="font-size:11px;color:#2980b9;cursor:pointer;white-space:nowrap" title="Today">Today</span><span onclick="clearAgentDate()" style="font-size:11px;color:#999;cursor:pointer;white-space:nowrap" title="Clear">Clear</span></div>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
 +'<button class="btn btn-primary btn-sm" onclick="runAgentQuery()">Ask</button>'
 +'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'How many croissants should I bake tomorrow?\')" >Restock</button>'
@@ -998,12 +997,12 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
 +'</div><div id="agent-result" class="result-box" style="max-height:65vh;min-height:120px"><span class="status-dot dot-warn"></span>Type a question</div>'
 +'</div>';
 }
-function setAgentToday(){var dt=document.getElementById('agent-date');var t=new Date();dt.value=t.toISOString().slice(0,10);}function clearAgentDate(){document.getElementById('agent-date').value='';}function runQuickAgent(q){document.getElementById('agent-query').value=q;var dt=document.getElementById('agent-date');if(dt&&!dt.value){var t=new Date();t.setDate(t.getDate()+1);dt.value=t.toISOString().slice(0,10);}runAgentQuery();}
+function runQuickAgent(q){document.getElementById('agent-query').value=q;runAgentQuery();}
 async function runAgentQuery(){
 var q=document.getElementById('agent-query').value.trim();
 if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>Enter a question';return}
 document.getElementById('agent-result').innerHTML='<span class="spinner"></span>Processing...';
-try{var dt=document.getElementById('agent-date');var agentDate=dt?dt.value:'';var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{date:agentDate}})}).then(function(x){return x.json()});
+try{var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{}})}).then(function(x){return x.json()});
 var out='<div style="font-size:13px;line-height:1.6">';
 var prio=r.priority||'normal';var pc=prio==='critical'?'#e74c3c':prio==='warning'?'#e67e22':'#27ae60';
 out+='<strong>Intent:</strong> '+r.intent+' ('+Math.round((r.intent_confidence||0)*100)+'%)<br>';
