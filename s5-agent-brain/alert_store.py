@@ -73,8 +73,8 @@ def get_alerts(limit: int = 100, unacked_only: bool = False) -> List[Dict[str, A
     if changed:
         store["alerts"] = active
         _save(store)
-    active.sort(key=lambda x: (SEVERITY_ORDER.get(x.get("severity", "info"), 99), -x.get("created_ts", 0)))
-    return active[-limit:]
+    active.sort(key=lambda x: -x.get("created_ts", 0))
+    return active[:limit]
 
 
 def acknowledge(alert_id: int = None, ack_all: bool = False) -> int:
