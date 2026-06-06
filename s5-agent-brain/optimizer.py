@@ -1,4 +1,4 @@
-﻿# Multi-objective production optimizer with bakery constraints
+# Multi-objective production optimizer with bakery constraints
 # Phase 2: MIP with integer batch sizes + shelf-life + day-1 prioritization.
 # Phase 4: Profit-aware objective + uncertainty-aware (robust) optimization.
 #
@@ -518,4 +518,228 @@ def _optimize_multi_fallback(products: List[ProductState], cap: float,
         "per_product": per_product,
         "rationale": "Proportional fallback (scipy unavailable)",
         "method": "proportional fallback",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pareto Plan Generator (Plan A: LLM-constrained decision)
+# ---------------------------------------------------------------------------
+def generate_pareto_plans(demand: float, stock: float, max_capacity: float,
+                          demand_low: float = None, demand_high: float = None,
+                          costs: CostParams = None, product_name: str = "",
+                          day1_stock: float = 0, config: BakeryConfig = None,
+                          unit_price: float = 5.90) -> Dict[str, Any]:
+    """Generate 4 Pareto plans with cross-scenario payoff matrix.
+
+    Each plan is evaluated under all 3 demand scenarios (low, predicted, high)
+    to expose real risk/reward tradeoffs for LLM decision-making.
+
+    Plans:
+      A - Aggressive:  bake for upper bound (minimize stockout)
+      B - Balanced:    bake for predicted demand
+      C - Conservative: bake for lower bound (minimize waste)
+      D - Baseline:    exact gap fill, zero margin
+
+    Returns {plans: [...], context: {...}} with cross-scenario outcomes.
+    """
+    if costs is None:
+        costs = CostParams()
+    if config is None:
+        config = BakeryConfig()
+    if demand_low is None:
+        demand_low = max(0, demand * 0.7)
+    if demand_high is None:
+        demand_high = demand * 1.3
+
+    # Bake decisions: how much each plan bakes
+    bake_targets = {
+        "A_aggressive": demand_high,
+        "B_balanced": demand,
+        "C_conservative": demand_low,
+        "D_baseline": max(0, demand - stock),
+    }
+
+    # Demand scenarios for cross-evaluation
+    demand_scenarios = [
+        ("low_demand", demand_low, "worst-case: demand hits lower bound"),
+        ("predicted", demand, "expected: demand matches forecast"),
+        ("high_demand", demand_high, "best-case: demand hits upper bound"),
+    ]
+
+    plans = []
+    for label, bake_target in bake_targets.items():
+        result = optimize_single(bake_target, stock, max_capacity, costs,
+                                 product_name, day1_stock, config, unit_price)
+        bake_qty = result["bake_units"]
+
+        # Cross-evaluate: what happens under each demand scenario with this bake?
+        scenario_outcomes = {}
+        total_available = bake_qty + stock
+        for s_label, s_demand, s_desc in demand_scenarios:
+            sold = min(total_available, s_demand)
+            waste = max(0, total_available - s_demand)
+            shortage = max(0, s_demand - sold)
+            profit = sold * unit_price - (bake_qty * costs.production_cost +
+                       waste * costs.waste_loss + shortage * costs.stockout_loss)
+            scenario_outcomes[s_label] = {
+                "demand": round(s_demand),
+                "sold": int(sold),
+                "waste": int(waste),
+                "shortage": int(shortage),
+                "profit_rm": round(profit, 2),
+            }
+
+        # Primary outcome (under predicted demand)
+        primary = scenario_outcomes["predicted"]
+
+        # Risk metrics
+        worst_profit = scenario_outcomes["low_demand"]["profit_rm"]
+        best_profit = scenario_outcomes["high_demand"]["profit_rm"]
+        profit_swing = round(best_profit - worst_profit, 2)
+        max_waste_exposure = scenario_outcomes["low_demand"]["waste"]
+        max_shortage_exposure = scenario_outcomes["high_demand"]["shortage"]
+
+        risk_label = label.split("_")[1] if "_" in label else label
+
+        plan = {
+            "label": label,
+            "bake": bake_qty,
+            "demand_used": round(bake_target),
+            "profit_rm": primary["profit_rm"],
+            "waste": primary["waste"],
+            "shortage": primary["shortage"],
+            "rationale": result["rationale"],
+            "risk": risk_label,
+            # Risk-reward profile
+            "profit_swing_rm": profit_swing,
+            "worst_case_profit": worst_profit,
+            "best_case_profit": best_profit,
+            "max_waste_exposure": max_waste_exposure,
+            "max_shortage_exposure": max_shortage_exposure,
+            # Full scenario matrix
+            "scenarios": scenario_outcomes,
+        }
+
+        # Human-readable description
+        if label == "A_aggressive":
+            plan["desc"] = (f"Bake {bake_qty} for upper bound. "
+                           f"Upside: RM{best_profit:.0f} if demand surges. "
+                           f"Downside: {max_waste_exposure} waste units if demand drops.")
+        elif label == "B_balanced":
+            plan["desc"] = (f"Bake {bake_qty} for forecast. "
+                           f"Balanced: +/- RM{abs(profit_swing):.0f} swing. "
+                           f"{max_shortage_exposure} shortage if demand spikes.")
+        elif label == "C_conservative":
+            plan["desc"] = (f"Bake {bake_qty} for lower bound. "
+                           f"Safest: {max_waste_exposure} max waste. "
+                           f"But {max_shortage_exposure} lost sales if busy day.")
+        else:
+            plan["desc"] = (f"Exact gap ({bake_qty}). "
+                           f"Zero margin. {max_shortage_exposure} shortage if any spike.")
+
+        plans.append(plan)
+
+    context = {
+        "product": product_name or "all",
+        "stock": round(stock),
+        "day1_stock": round(day1_stock),
+        "max_capacity": round(max_capacity),
+        "forecast": round(demand),
+        "forecast_range": f"{round(demand_low)}-{round(demand_high)}",
+        "unit_price": unit_price,
+    }
+
+    return {"plans": plans, "context": context}
+
+# ---------------------------------------------------------------------------
+# Multi-Period Projection: 7-day rolling simulation
+# ---------------------------------------------------------------------------
+def project_multi_period(daily_forecasts: list, initial_fresh: float, initial_day1: float,
+                         bake_today: float, unit_price: float = 5.90,
+                         costs=None) -> dict:
+    """Simulate 7-day stock evolution from today's decision.
+
+    Args:
+        daily_forecasts: list of 7 daily demand forecasts [d0, d1, ..., d6]
+        initial_fresh: current fresh stock
+        initial_day1: current day-1 (yesterday's) stock
+        bake_today: units baked today (from selected plan)
+        unit_price: per-unit selling price
+        costs: CostParams or None for defaults
+
+    Returns:
+        {"days": [...], "cumulative_waste": int, "cumulative_shortage": int,
+         "final_stock": int, "avg_stock_coverage_pct": float, "risk_trend": str}
+    """
+    if costs is None:
+        costs = CostParams()
+
+    days = []
+    fresh = initial_fresh + bake_today
+    day1 = initial_day1
+    cum_waste = 0
+    cum_shortage = 0
+    coverages = []
+
+    for i, demand in enumerate(daily_forecasts[:7]):
+        demand = max(0, demand)
+        total_avail = fresh + day1
+
+        # Sell day-1 first (FIFO), then fresh
+        sold_day1 = min(day1, demand)
+        remaining_demand = demand - sold_day1
+        sold_fresh = min(fresh, remaining_demand)
+        total_sold = sold_day1 + sold_fresh
+        shortage = max(0, demand - total_sold)
+
+        # Day-1 that wasn't sold becomes waste
+        wasted = max(0, day1 - sold_day1)
+        cum_waste += wasted
+
+        # Unsold fresh becomes next day's day-1
+        next_day1 = max(0, fresh - sold_fresh)
+
+        # Profit for the day
+        revenue = total_sold * unit_price
+        cost = wasted * costs.waste_loss + shortage * costs.stockout_loss + bake_today * costs.production_cost
+        day_profit = round(revenue - cost, 2)
+
+        # Coverage
+        coverage = round((total_avail / demand * 100) if demand > 0 else 999, 1)
+        coverages.append(coverage)
+
+        days.append({
+            "day": i,
+            "demand": round(demand),
+            "fresh_start": round(fresh),
+            "day1_start": round(day1),
+            "sold": int(total_sold),
+            "waste": int(wasted),
+            "shortage": int(shortage),
+            "day_profit_rm": day_profit,
+            "coverage_pct": coverage,
+        })
+
+        # Roll forward (no new baking on future days in baseline projection)
+        fresh = 0  # Assume no future baking in this projection
+        day1 = next_day1
+        bake_today = 0  # Only day 0 has baking
+        cum_shortage += shortage
+
+    # Trend analysis
+    avg_coverage = round(sum(coverages) / len(coverages), 1) if coverages else 0
+    if avg_coverage >= 100:
+        risk = "healthy"
+    elif avg_coverage >= 70:
+        risk = "tight"
+    else:
+        risk = "critical"
+
+    return {
+        "days": days,
+        "cumulative_waste": cum_waste,
+        "cumulative_shortage": cum_shortage,
+        "final_stock": int(day1),
+        "avg_stock_coverage_pct": avg_coverage,
+        "risk_trend": risk,
     }

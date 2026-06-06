@@ -515,15 +515,27 @@ async def get_inventory_transactions(
 # ======================================================================
 @router.get("/inventory")
 async def get_inventory_summary():
-    """Return current inventory aggregated by product_name (total qty per product)."""
+    """Return current inventory aggregated by product_name (total qty per product)
+    including selling_price from the products table."""
     db = get_db()
     r = q(db, "batch_inventory").select("*").gt("quantity", 0).execute()
+    
+    # Fetch selling_price per product for pricing info
+    try:
+        pr = db.cursor()
+        pr.execute("SELECT product_name, selling_price FROM products")
+        prices = {row[0]: float(row[1]) for row in pr.fetchall()}
+        pr.close()
+    except Exception:
+        prices = {}
+    
     summary = {}
     for row in (r.data or []):
         pn = row.get("product_name", "unknown")
         qty = row.get("quantity", 0)
         if pn not in summary:
-            summary[pn] = {"product_name": pn, "total_quantity": 0, "batches": 0}
+            summary[pn] = {"product_name": pn, "total_quantity": 0, "batches": 0,
+                          "selling_price": prices.get(pn, 5.90)}
         summary[pn]["total_quantity"] += qty
         summary[pn]["batches"] += 1
     return {"status": "ok", "inventory": list(summary.values())}

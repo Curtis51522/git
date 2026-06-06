@@ -18,10 +18,11 @@
       "severity": "critical",
       "title": "Stockout: croissant",
       "detail": "croissant has zero inventory across all batches.",
-      "acknowledged": false,
+      "acknowledged": true,
       "created_at": "2026-06-06T16:52:32.302678",
       "created_ts": 1780735952.3026752,
-      "ttl_sec": 86400
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036387"
     },
     {
       "alert_id": 23,
@@ -29,10 +30,11 @@
       "severity": "critical",
       "title": "Stockout: donut",
       "detail": "donut has zero inventory across all batches.",
-      "acknowledged": false,
+      "acknowledged": true,
       "created_at": "2026-06-06T16:52:32.307946",
       "created_ts": 1780735952.3079424,
-      "ttl_sec": 86400
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036394"
     },
     {
       "alert_id": 24,
@@ -40,10 +42,11 @@
       "severity": "critical",
       "title": "Stockout: chiffon",
       "detail": "chiffon has zero inventory across all batches.",
-      "acknowledged": false,
+      "acknowledged": true,
       "created_at": "2026-06-06T16:52:32.312422",
       "created_ts": 1780735952.31242,
-      "ttl_sec": 86400
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036395"
     },
     {
       "alert_id": 25,
@@ -51,10 +54,11 @@
       "severity": "critical",
       "title": "Stockout: bread_roll",
       "detail": "bread_roll has zero inventory across all batches.",
-      "acknowledged": false,
+      "acknowledged": true,
       "created_at": "2026-06-06T16:52:32.317292",
       "created_ts": 1780735952.3172896,
-      "ttl_sec": 86400
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036396"
     },
     {
       "alert_id": 26,
@@ -62,10 +66,11 @@
       "severity": "critical",
       "title": "Stockout: bread_coconut",
       "detail": "bread_coconut has zero inventory across all batches.",
-      "acknowledged": false,
+      "acknowledged": true,
       "created_at": "2026-06-06T16:52:32.321830",
       "created_ts": 1780735952.321827,
-      "ttl_sec": 86400
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036397"
     },
     {
       "alert_id": 27,
@@ -73,10 +78,11 @@
       "severity": "critical",
       "title": "Stockout: croissant_chocolate",
       "detail": "croissant_chocolate has zero inventory across all batches.",
-      "acknowledged": false,
+      "acknowledged": true,
       "created_at": "2026-06-06T16:52:32.326391",
       "created_ts": 1780735952.3263853,
-      "ttl_sec": 86400
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036397"
     },
     {
       "alert_id": 28,
@@ -84,10 +90,11 @@
       "severity": "warning",
       "title": "Low stock: croissant",
       "detail": "croissant has only 10 units remaining.",
-      "acknowledged": false,
-      "created_at": "2026-06-06T18:43:59.251911",
-      "created_ts": 1780742639.2519085,
-      "ttl_sec": 86400
+      "acknowledged": true,
+      "created_at": "2026-06-06T21:08:46.571834",
+      "created_ts": 1780751326.5718307,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036398"
     },
     {
       "alert_id": 29,
@@ -95,10 +102,11 @@
       "severity": "warning",
       "title": "Low stock: bread_coconut",
       "detail": "bread_coconut has only 10 units remaining.",
-      "acknowledged": false,
-      "created_at": "2026-06-06T18:43:59.257562",
-      "created_ts": 1780742639.2575603,
-      "ttl_sec": 86400
+      "acknowledged": true,
+      "created_at": "2026-06-06T21:08:46.578418",
+      "created_ts": 1780751326.5784156,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036399"
     },
     {
       "alert_id": 30,
@@ -106,10 +114,11 @@
       "severity": "warning",
       "title": "Low stock: bread_roll",
       "detail": "bread_roll has only 10 units remaining.",
-      "acknowledged": false,
-      "created_at": "2026-06-06T18:43:59.261985",
-      "created_ts": 1780742639.2619834,
-      "ttl_sec": 86400
+      "acknowledged": true,
+      "created_at": "2026-06-06T21:08:46.583176",
+      "created_ts": 1780751326.583171,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036399"
     },
     {
       "alert_id": 31,
@@ -117,10 +126,11 @@
       "severity": "warning",
       "title": "Low stock: chiffon",
       "detail": "chiffon has only 10 units remaining.",
-      "acknowledged": false,
-      "created_at": "2026-06-06T18:43:59.266269",
-      "created_ts": 1780742639.266267,
-      "ttl_sec": 86400
+      "acknowledged": true,
+      "created_at": "2026-06-06T21:08:46.588393",
+      "created_ts": 1780751326.5883882,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036400"
     },
     {
       "alert_id": 32,
@@ -128,10 +138,11 @@
       "severity": "warning",
       "title": "Low stock: croissant_chocolate",
       "detail": "croissant_chocolate has only 10 units remaining.",
-      "acknowledged": false,
-      "created_at": "2026-06-06T18:43:59.270309",
-      "created_ts": 1780742639.2703073,
-      "ttl_sec": 86400
+      "acknowledged": true,
+      "created_at": "2026-06-06T21:08:46.592716",
+      "created_ts": 1780751326.5927143,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036400"
     },
     {
       "alert_id": 33,
@@ -139,11 +150,150 @@
       "severity": "warning",
       "title": "Low stock: donut",
       "detail": "donut has only 10 units remaining.",
+      "acknowledged": true,
+      "created_at": "2026-06-06T21:08:46.596926",
+      "created_ts": 1780751326.5969243,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T21:15:17.036401"
+    },
+    {
+      "alert_id": 34,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: croissant",
+      "detail": "croissant has only 10 units remaining.",
+      "acknowledged": true,
+      "created_at": "2026-06-06T23:01:39.746783",
+      "created_ts": 1780758099.7467797,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T23:04:31.952600"
+    },
+    {
+      "alert_id": 35,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: bread_coconut",
+      "detail": "bread_coconut has only 10 units remaining.",
+      "acknowledged": true,
+      "created_at": "2026-06-06T23:01:39.752792",
+      "created_ts": 1780758099.752788,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T23:04:31.952607"
+    },
+    {
+      "alert_id": 36,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: bread_roll",
+      "detail": "bread_roll has only 10 units remaining.",
+      "acknowledged": true,
+      "created_at": "2026-06-06T23:01:39.757617",
+      "created_ts": 1780758099.7576146,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T23:04:31.952609"
+    },
+    {
+      "alert_id": 37,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: chiffon",
+      "detail": "chiffon has only 10 units remaining.",
+      "acknowledged": true,
+      "created_at": "2026-06-06T23:01:39.761741",
+      "created_ts": 1780758099.7617395,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T23:04:31.952610"
+    },
+    {
+      "alert_id": 38,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: croissant_chocolate",
+      "detail": "croissant_chocolate has only 10 units remaining.",
+      "acknowledged": true,
+      "created_at": "2026-06-06T23:01:39.765968",
+      "created_ts": 1780758099.7659662,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T23:04:31.952611"
+    },
+    {
+      "alert_id": 39,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: donut",
+      "detail": "donut has only 10 units remaining.",
+      "acknowledged": true,
+      "created_at": "2026-06-06T23:01:39.769996",
+      "created_ts": 1780758099.769994,
+      "ttl_sec": 86400,
+      "acked_at": "2026-06-06T23:04:31.952611"
+    },
+    {
+      "alert_id": 40,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: croissant",
+      "detail": "croissant has only 10 units remaining.",
       "acknowledged": false,
-      "created_at": "2026-06-06T18:43:59.275013",
-      "created_ts": 1780742639.2750115,
+      "created_at": "2026-06-06T23:12:13.644413",
+      "created_ts": 1780758733.644409,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 41,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: bread_coconut",
+      "detail": "bread_coconut has only 10 units remaining.",
+      "acknowledged": false,
+      "created_at": "2026-06-06T23:12:13.650563",
+      "created_ts": 1780758733.650559,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 42,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: bread_roll",
+      "detail": "bread_roll has only 10 units remaining.",
+      "acknowledged": false,
+      "created_at": "2026-06-06T23:12:13.655268",
+      "created_ts": 1780758733.6552653,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 43,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: chiffon",
+      "detail": "chiffon has only 10 units remaining.",
+      "acknowledged": false,
+      "created_at": "2026-06-06T23:12:13.659992",
+      "created_ts": 1780758733.6599896,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 44,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: croissant_chocolate",
+      "detail": "croissant_chocolate has only 10 units remaining.",
+      "acknowledged": false,
+      "created_at": "2026-06-06T23:12:13.664420",
+      "created_ts": 1780758733.664417,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 45,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "Low stock: donut",
+      "detail": "donut has only 10 units remaining.",
+      "acknowledged": false,
+      "created_at": "2026-06-06T23:12:13.669149",
+      "created_ts": 1780758733.669141,
       "ttl_sec": 86400
     }
   ],
-  "next_id": 34
+  "next_id": 46
 }

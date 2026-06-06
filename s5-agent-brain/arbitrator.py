@@ -2,7 +2,7 @@
 # Merges Health Agent and Arbitrator into one.
 # Agent deliberation (LLM-mediated consensus) resolves disagreements but does NOT override optimizer results.
 import logging, time, json
-from optimizer import optimize_single, optimize_multi, ProductState, CostParams, BakeryConfig
+from optimizer import optimize_single, optimize_multi, ProductState, CostParams, BakeryConfig, generate_pareto_plans
 from typing import Dict, Any, List, Optional
 import httpx, os, sys
 
@@ -19,8 +19,43 @@ LLM_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 logger = logging.getLogger("s5.arbitrator")
 
 
-def _run_comparison(curr_forecast, curr_stock, inventory_data):
-    return None  # association engine removed
+def _run_comparison(demand_data, inventory_data, profit_data=None):
+    """Compare products side-by-side: forecast, stock, L7d sales, margin."""
+    per_product_demand = demand_data.get("per_product", {})
+    per_product_inv = inventory_data.get("per_product", {})
+    by_product = profit_data.get("by_product", {}) if profit_data else {}
+    by_product_margin = profit_data.get("by_product_margin", {}) if profit_data else {}
+
+    if not per_product_demand or not per_product_inv:
+        return None
+
+    lines = []
+    for pname in sorted(set(per_product_demand.keys()) | set(per_product_inv.keys())):
+        fc = per_product_demand.get(pname, {}).get("forecast", 0)
+        lo = per_product_demand.get(pname, {}).get("lower", 0)
+        hi = per_product_demand.get(pname, {}).get("upper", 0)
+        trend = per_product_demand.get(pname, {}).get("trend", "?")
+        stock = per_product_inv.get(pname, {}).get("qty", 0)
+        day1 = per_product_inv.get(pname, {}).get("day1", 0)
+        price = per_product_inv.get(pname, {}).get("selling_price", "?")
+        l7d_sold = by_product.get(pname, 0)
+        margin = by_product_margin.get(pname)
+
+        coverage = round(stock / max(fc, 1) * 100)
+        extra = ""
+        if day1 > 0:
+            extra += f", day-1={day1}"
+        if l7d_sold:
+            extra += f", L7d={l7d_sold}/day"
+        if margin is not None:
+            extra += f", margin={margin:.0%}"
+
+        lines.append(
+            f"{pname}: forecast={fc:.0f} ({lo:.0f}-{hi:.0f}, {trend}), "
+            f"stock={stock:.0f} ({coverage}% coverage){extra}, price=RM{price}"
+        )
+
+    return " | ".join(lines)
 
 class Arbitrator:
     def __init__(self, config: BakeryConfig = None):
@@ -33,81 +68,6 @@ class Arbitrator:
     # ------------------------------------------------------------------
     # Agent Deliberation
     # ------------------------------------------------------------------
-    async def deliberate(self, results, params, history=""):
-        audit = self.audit(results, params)
-        conflicts = audit.get("conflicts", [])
-        opinions = []
-        for name, r in results.items():
-            opinion = r.get("opinion", "")
-            confidence = r.get("confidence", 0)
-            constraints = r.get("constraints", [])
-            if opinion and confidence >= 0.5:
-                opinions.append({"agent": name, "opinion": opinion, "confidence": confidence, "constraints": constraints})
-
-        has_conflict = len(conflicts) > 0
-        has_multiple_views = len(opinions) >= 2
-        if not has_conflict and not has_multiple_views:
-            return {"consensus": None, "deliberation_text": "No deliberation needed.", "votes": {}}
-
-        intent = params.get("intent", "stock_query")
-        query = params.get("query", "")
-        product = params.get("product", "all")
-
-        opinion_lines = []
-        for o in opinions:
-            c_str = "; ".join(o["constraints"]) if o["constraints"] else "none"
-            opinion_lines.append(f"  [{o['agent']}] (confidence: {o['confidence']:.0%}) {o['opinion']}\n    Constraints: {c_str}")
-
-        conflicts_str = "\n".join(f"  ! {c}" for c in conflicts) if conflicts else "None"
-
-        prompt = f"""You are a bakery operations arbitrator. Multiple AI agents analyzed the situation. Some may disagree. Your job: resolve CONFLICTS between agent opinions. Do NOT recompute production numbers - the optimizer handles that.
-
-QUERY: {query}
-PRODUCT: {product}
-INTENT: {intent}
-
-AGENT OPINIONS:
-{chr(10).join(opinion_lines)}
-
-CONFLICTS:
-{conflicts_str}
-
-RULES:
-1. Only resolve actual disagreements between agents.
-2. Do NOT suggest a specific bake quantity - the optimizer computes that.
-3. If agents agree, say so.
-4. If one agent has stale/error data (e.g. says zero inventory when others show stock), note it as UNRELIABLE.
-5. Format: CONFLICT_RESOLUTION: <1-2 sentences resolving the disagreement>
-   VOTES: <agent: reliable/unreliable/agree>"""
-
-        if not DEEPSEEK_API_KEY:
-            return {"consensus": None, "deliberation_text": "No API key.", "votes": {}}
-
-        try:
-            async with httpx.AsyncClient(timeout=20) as client:
-                resp = await client.post(LLM_URL,
-                    headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
-                    json={"model": LLM_MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 300, "temperature": 0.3})
-                resp.raise_for_status()
-                data = resp.json()
-                raw = data["choices"][0]["message"]["content"].strip()
-
-            consensus = ""
-            votes = {}
-            for line in raw.split("\n"):
-                line = line.strip()
-                if line.upper().startswith("CONFLICT_RESOLUTION:"):
-                    consensus = line.split(":", 1)[1].strip()
-                elif ":" in line and not line.upper().startswith(("CONFLICT", "VOTES")):
-                    agent_name = line.split(":")[0].strip().lower()
-                    votes[agent_name] = line.split(":", 1)[1].strip()
-
-            logger.info("Deliberation: %s", consensus[:100])
-            return {"consensus": consensus or raw[:200], "deliberation_text": raw, "votes": votes}
-        except Exception as e:
-            logger.warning("Deliberation failed: %s", e)
-            return {"consensus": None, "deliberation_text": str(e), "votes": {}}
-
     # ------------------------------------------------------------------
     # Health Audit
     # ------------------------------------------------------------------
@@ -160,7 +120,7 @@ RULES:
     # ------------------------------------------------------------------
     # Decision
     # ------------------------------------------------------------------
-    def decide(self, results, params, deliberation=None, history=""):
+    def decide(self, results, params):
         t0 = time.perf_counter()
         intent = params.get("intent", "stock_query")
         audit = self.audit(results, params)
@@ -183,34 +143,62 @@ RULES:
         costs = self._get_causal_costs()
         counterfactual = None
 
-        # Deliberation provides conflict resolution context - does NOT replace optimizer
-        deliberation_note = ""
-        if deliberation and deliberation.get("consensus"):
-            deliberation_note = deliberation["consensus"][:200]
 
         if intent == "waste_analysis":
-            surplus = max(0, stock - forecast)
-            ratio = stock / max(forecast, 1)
-            if ratio > 1.5:
-                day1_stock = inventory.get("freshness_breakdown", {}).get("Day-1", 0)
-                action = (f"WASTE RISK: {stock} total inventory vs {forecast} demand ({ratio:.1f}x). "
-                          f"Day-1 stock: {day1_stock} units at risk. "
-                          f"Root cause: production outpacing demand, {surplus} surplus units will go stale.")
-                priority = "warning"
-            elif ratio > 1.2:
-                action = (f"Moderate overstock: {stock} inventory vs {forecast} forecast ({ratio:.1f}x). "
-                          f"Day-1 units should be prioritized for sale.")
-                priority = "normal"
-            elif ratio < 0.5:
-                gap = forecast - stock
-                action = (f"UNDERSTOCK: waste is not the issue. Stock ({stock}) covers only {ratio:.0%} "
-                          f"of forecast demand ({forecast}). Missing {gap} units means lost sales, "
-                          f"not waste. Increase production to match demand.")
-                priority = "critical"
+            per_product_inv = inventory.get("per_product", {})
+            per_product_demand = demand.get("per_product", {})
+            if per_product_inv and per_product_demand and len(per_product_inv) >= 2:
+                # Per-product spoilage risk ranking
+                ranked = []
+                for pname, pdata in per_product_inv.items():
+                    pf = per_product_demand.get(pname, {}).get("forecast", 0)
+                    pq = pdata.get("qty", 0)
+                    pday1 = pdata.get("day1", 0)
+                    ratio = pq / max(pf, 1)
+                    risk = ratio * pday1 / max(pq, 1)  # spoilage risk = coverage * day1_ratio
+                    ranked.append((pname, pf, pq, pday1, ratio, risk))
+                ranked.sort(key=lambda x: -x[5])  # highest risk first
+                parts = []
+                for pname, pf, pq, pday1, ratio, risk in ranked:
+                    if ratio > 1.5:
+                        parts.append(f"{pname}: HIGH risk (stock={pq} vs forecast={pf}, {ratio:.1f}x, day-1={pday1})")
+                    elif ratio > 1.2:
+                        parts.append(f"{pname}: MED risk (stock={pq} vs forecast={pf}, {ratio:.1f}x, day-1={pday1})")
+                    elif ratio < 0.5:
+                        parts.append(f"{pname}: no waste risk - understock (stock={pq} vs forecast={pf})")
+                    else:
+                        parts.append(f"{pname}: low risk (stock={pq} vs forecast={pf})")
+                action = " | ".join(parts)
+                # Global priority: use worst-case
+                max_ratio = max(r[4] for r in ranked)
+                if max_ratio > 1.5:
+                    priority = "warning"
+                elif max_ratio > 1.2:
+                    priority = "normal"
+                else:
+                    priority = "normal"
             else:
-                action = f"Stock-demand ratio {ratio:.0%}: {stock} in stock vs {forecast} forecast. No severe waste or shortage risk."
-                priority = "normal"
-            rec = production.get("recommended", 0)
+                surplus = max(0, stock - forecast)
+                ratio = stock / max(forecast, 1)
+                if ratio > 1.5:
+                    day1_stock = inventory.get("freshness_breakdown", {}).get("Day-1", 0)
+                    action = (f"WASTE RISK: {stock} total inventory vs {forecast} demand ({ratio:.1f}x). "
+                              f"Day-1 stock: {day1_stock} units at risk. "
+                              f"Root cause: production outpacing demand, {surplus} surplus units will go stale.")
+                    priority = "warning"
+                elif ratio > 1.2:
+                    action = (f"Moderate overstock: {stock} inventory vs {forecast} forecast ({ratio:.1f}x). "
+                              f"Day-1 units should be prioritized for sale.")
+                    priority = "normal"
+                elif ratio < 0.5:
+                    gap = forecast - stock
+                    action = (f"UNDERSTOCK: waste is not the issue. Stock ({stock}) covers only {ratio:.0%} "
+                              f"of forecast demand ({forecast}). Missing {gap} units means lost sales, "
+                              f"not waste. Increase production to match demand.")
+                    priority = "critical"
+                else:
+                    action = f"Stock-demand ratio {ratio:.0%}: {stock} in stock vs {forecast} forecast. No severe waste or shortage risk."
+                    priority = "normal"
 
         elif intent == "schedule_audit":
             bakers = results.get("staffing", {}).get("data", {}).get("bakers", 0)
@@ -236,7 +224,8 @@ RULES:
             priority = "normal"
 
         elif intent == "comparison_analysis":
-            comparison = _run_comparison(forecast, stock, inventory)
+            profit_data = results.get("profit", {}).get("data", {})
+            comparison = _run_comparison(demand, inventory, profit_data)
             if comparison:
                 action = comparison
                 priority = "normal"
@@ -246,7 +235,14 @@ RULES:
 
         else:
             # stock_query / cross_source_audit - OPTIMIZER computes numbers
-            cap = min(max_cap, self.config.daily_capacity) if max_cap > 0 else self.config.daily_capacity
+            # Cap = 0 if no bakers scheduled (rest day); otherwise use production capacity
+            bakers_on_duty = results.get("staffing", {}).get("data", {}).get("bakers", 1)
+            if bakers_on_duty == 0:
+                cap = 0
+            elif max_cap > 0:
+                cap = min(max_cap, self.config.daily_capacity)
+            else:
+                cap = self.config.daily_capacity
             per_product_inv = inventory.get("per_product", {})
             per_product_demand = demand.get("per_product", {})
 
@@ -258,24 +254,35 @@ RULES:
                     fresh = max(0, pdata["qty"] - day1)
                     p_low = per_product_demand.get(pname, {}).get("lower", max(0, p_demand - 15))
                     p_high = per_product_demand.get(pname, {}).get("upper", p_demand + 15)
+                    p_price = pdata.get("selling_price", 5.90)
                     prod_states.append(ProductState(pname, demand=p_demand,
                         demand_low=p_low, demand_high=p_high,
                         fresh_stock=fresh, day1_stock=day1,
                         waste_loss=costs.waste_loss, stockout_loss=costs.stockout_loss,
-                        production_cost=costs.production_cost))
+                        production_cost=costs.production_cost, unit_price=p_price))
                 opt = optimize_multi(prod_states, cap, costs, config=self.config)
                 action = opt["rationale"]
                 priority = "warning" if opt.get("shortage_units", 0) > 0 else "normal"
+                # Attach minimal Pareto context for multi-product (uses MIP result as balanced)
+                opt["pareto_plans"] = []
+                opt["pareto_context"] = {"product": "all", "stock": int(stock), "forecast": int(forecast)}
             else:
                 day1 = inventory.get("day1_available", 0)
-                opt = optimize_single(forecast, stock, cap, costs, product_name=product,
-                                      day1_stock=day1, config=self.config, unit_price=5.90)
-                action = opt["rationale"]
+                demand_low = demand.get("forecast_low", max(0, forecast * 0.7))
+                demand_high = demand.get("forecast_high", forecast * 1.3)
+                pareto = generate_pareto_plans(
+                    forecast, stock, cap,
+                    demand_low=demand_low, demand_high=demand_high,
+                    costs=costs, product_name=product,
+                    day1_stock=day1, config=self.config, unit_price=inventory.get("unit_price", 5.90))
+                # Default to balanced plan; LLM Decision layer will override
+                balanced = next((p for p in pareto["plans"] if p["label"] == "B_balanced"), pareto["plans"][0])
+                opt = {"bake_units": balanced["bake"], "shortage_units": balanced["shortage"],
+                       "profit_rm": balanced.get("profit_rm", 0), "revenue_rm": balanced.get("revenue_rm", 0),
+                       "pareto_plans": pareto["plans"], "pareto_context": pareto["context"]}
+                action = opt["pareto_context"].get("product", product) + ": " + balanced["rationale"]
                 priority = "warning" if opt["shortage_units"] > 0 else "normal"
 
-            # Append deliberation insight as supplementary note
-            if deliberation_note and "bake" not in deliberation_note.lower()[:30]:
-                action += " | " + deliberation_note[:150]
 
         trace = []
         for name, r in results.items():
@@ -291,4 +298,8 @@ RULES:
         if opt.get("profit_rm") is not None:
             result["optimizer_profit"] = {"profit_rm": opt["profit_rm"], "revenue_rm": opt.get("revenue_rm", 0),
                 "risk_preference": opt.get("risk_preference", "balanced")}
+        if "pareto_plans" in opt:
+            result["pareto_plans"] = opt["pareto_plans"]
+        if "pareto_context" in opt:
+            result["pareto_context"] = opt["pareto_context"]
         return result

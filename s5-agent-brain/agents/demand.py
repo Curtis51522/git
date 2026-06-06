@@ -1,4 +1,4 @@
-﻿# Demand Agent - sales forecast + trend analysis + SHAP drivers
+# Demand Agent - sales forecast + trend analysis + SHAP drivers
 # Phase 3: dynamic confidence based on data quality.
 # Phase 4: request-level snapshot cache for deterministic intra-query results.
 import httpx, logging, asyncio
@@ -7,6 +7,18 @@ from .base import BaseAgent
 from s5_config.settings import S2_FORECAST_URL, PRODUCT_NAMES
 
 logger = logging.getLogger("s5.agent.demand")
+
+
+
+def _format_opinion(predicted, lower, upper, trend, memory_note, per_product_fc, params):
+    """Format demand opinion. Per-product for comparison, aggregated otherwise."""
+    intent = params.get("intent", "")
+    if intent == "comparison_analysis" and len(per_product_fc) >= 2:
+        parts = []
+        for pname, pdata in sorted(per_product_fc.items()):
+            parts.append(f"{pname}: {pdata['forecast']:.0f} ({pdata['lower']:.0f}-{pdata['upper']:.0f}, {pdata.get('trend', 'stable')})")
+        return " | ".join(parts) + memory_note
+    return f"Forecast {predicted} units ({lower}-{upper}), trend {trend}{memory_note}"
 
 
 class DemandAgent(BaseAgent):
@@ -136,12 +148,13 @@ class DemandAgent(BaseAgent):
                     break
 
         return {
-            "opinion": f"Forecast {predicted} units ({lower}-{upper}), trend {trend}{memory_note}",
+            "opinion": _format_opinion(predicted, lower, upper, trend, memory_note, per_product_fc, params),
             "confidence": round(confidence, 2),
             "constraints": [],
             "data": {
                 "forecast": predicted, "per_product": per_product_fc,
                 "forecast_low": lower, "forecast_high": upper,
                 "trend": trend, "confidence_label": "high" if confidence >= 0.7 else "mid" if confidence >= 0.4 else "low",
+                "_raw_forecasts": forecasts,
             },
         }

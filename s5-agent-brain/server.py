@@ -28,6 +28,8 @@ from s5_config.settings import PORT, HOST, PRODUCT_NAMES
 from alert_store import get_alerts, acknowledge, get_unacked_count, clear_expired
 from monitor import start_monitor, run_full_check
 from llm_synthesis import synthesize, SYNTHESIS_ENABLED
+from intent_classifier import classify_intent
+from optimizer import project_multi_period
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("s5.server")
@@ -183,19 +185,153 @@ def parse_query(query: str) -> dict:
     today = datetime.now()
     ql = query.lower()
     target = today + timedelta(days=1)
-    comparison_keywords = ["vs last", "versus last", "compared to last", "week over week", "period over period", "change from last", "last week"]
-    is_comparison = any(kw in ql for kw in comparison_keywords)
+    is_comparison = False
 
-    if "tomorrow" in ql or "next day" in ql: target = today + timedelta(days=1)
-    elif "today" in ql: target = today
-    if target.weekday() == 0: target += timedelta(days=1)  # skip Monday
+    # Relative date words (English + Malay)
+    if any(w in ql for w in ["tomorrow", "next day", "esok", "keesokan"]):
+        target = today + timedelta(days=1)
+    elif any(w in ql for w in ["day after tomorrow", "lusa"]):
+        target = today + timedelta(days=2)
+    elif "yesterday" in ql or "semalam" in ql:
+        target = today - timedelta(days=1)
+    elif "today" in ql or "hari ini" in ql:
+        target = today
+    else:
+        # Map day-of-week names (English + Malay)
+        day_names = {
+            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+            "friday": 4, "saturday": 5, "sunday": 6,
+            "isnin": 0, "selasa": 1, "rabu": 2, "khamis": 3,
+            "jumaat": 4, "sabtu": 5, "ahad": 6,
+        }
+        for day_name, day_num in day_names.items():
+            if day_name in ql:
+                days_ahead = (day_num - today.weekday()) % 7
+                if days_ahead == 0:
+                    days_ahead = 7  # "Monday" on Monday -> next Monday
+                target = today + timedelta(days=days_ahead)
+                break
+    # Skip Monday (rest day): if target lands on Monday, push to Tuesday
+    ql_date_shifted = False
+    if target.weekday() == 0:
+        target += timedelta(days=1)
+        ql_date_shifted = True
 
-    return {"intent": "comparison_analysis" if is_comparison else "pending", "intent_confidence": 0.6 if is_comparison else 0.0, "product": "pending",
-            "days": 7, "date": target.strftime("%Y-%m-%d"), "planned_agents": []}
+    rest_note = ""
+    if ql_date_shifted:
+        is_malay = any(w in ql for w in ["esok", "hari ini", "lusa", "semalam", "isnin", "selasa", "rabu", "khamis", "jumaat", "sabtu", "ahad"])
+        if is_malay:
+            rest_note = "Isnin adalah hari rehat (kedai tutup). Data di bawah adalah untuk hari bekerja seterusnya. "
+        else:
+            rest_note = "Monday is a rest day (bakery closed). Data below is for the next open day. "
+    return {"intent": "pending", "intent_confidence": 0.0, "product": "pending",
+            "days": 7, "date": target.strftime("%Y-%m-%d"), "planned_agents": [], "rest_note": rest_note}
+
+
+async def llm_decide_plan(pareto_plans: list, pareto_context: dict,
+                          intent: str, query: str, demand_trend: str = "stable",
+                          audit_conflicts: list = None) -> dict:
+    """LLM selects from Pareto-optimal plans with contextual reasoning.
+    
+    Returns {selected_plan: str, reason: str} or None on failure.
+    LLM can only SELECT a plan, never create one - this is the safety constraint.
+    """
+    if not pareto_plans or not LLM_PLANNER_ENABLED:
+        return None
+
+    plan_lines = []
+    for p in pareto_plans:
+        sc = p.get("scenarios", {})
+        sc_str = ""
+        if sc:
+            parts = []
+            for s in ["low_demand", "predicted", "high_demand"]:
+                if s in sc:
+                    parts.append(f"{s}:P=RM{sc[s]['profit_rm']:.0f},w={sc[s]['waste']},s={sc[s]['shortage']}")
+            sc_str = " [" + " | ".join(parts) + "]"
+        plan_lines.append(
+            f"  {p['label']}: bake={p['bake']}, profit_swing=RM{p.get('profit_swing_rm',0):.0f}, "
+            f"worst_profit=RM{p.get('worst_case_profit',0):.0f}, "
+            f"max_waste={p.get('max_waste_exposure',0)}, max_shortage={p.get('max_shortage_exposure',0)}"
+            f"{sc_str}"
+        )
+
+    audit_conflicts = audit_conflicts or []
+    conflicts_str = "; ".join(audit_conflicts) if audit_conflicts else "None"
+    audit_healthy = "Yes" if not audit_conflicts else "No"
+
+    prompt = f"""You are a bakery operations decision-maker. Choose ONE plan from the options below. You MUST select exactly one plan label (A_aggressive, B_balanced, C_conservative, or D_baseline).
+
+QUERY: {query}
+INTENT: {intent}
+
+CONTEXT:
+  Stock: {pareto_context.get('stock', '?')} units
+  Forecast: {pareto_context.get('forecast', '?')} (range: {pareto_context.get('forecast_range', '?')})
+  Capacity: {pareto_context.get('max_capacity', '?')} units
+  Day-1 stock at risk: {pareto_context.get('day1_stock', 0)} units
+  Demand trend: {demand_trend}
+
+AUDIT:
+  Conflicts: {conflicts_str}
+  Healthy: {audit_healthy}
+
+PLANS:
+{chr(10).join(plan_lines)}
+
+RULES:
+1. You MUST pick exactly one plan. Output format: PLAN=A_aggressive|CONFLICT_ADDRESSED=Y/N|REASON=your reasoning (max 50 words)
+2. If AUDIT shows conflicts, your chosen plan MUST address them. Explain HOW in REASON.
+3. Consider: declining trend -> conservative; rising trend -> aggressive; day-1 stock -> minimize waste
+4. Do NOT modify the numbers or create a new plan.
+5. REASON must explain WHY this plan fits the context AND how it resolves audit issues."""
+
+    try:
+        import httpx, os, sys
+        _parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _parent not in sys.path:
+            sys.path.insert(0, _parent)
+        try:
+            from config.settings import DEEPSEEK_API_KEY as key
+        except ImportError:
+            key = os.getenv("DEEPSEEK_API_KEY", "")
+        if not key:
+            return None
+
+        url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1") + "/chat/completions"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(url,
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+                      "messages": [{"role": "user", "content": prompt}],
+                      "max_tokens": 150, "temperature": 0.3})
+            resp.raise_for_status()
+            data = resp.json()
+            raw = data["choices"][0]["message"]["content"].strip()
+
+        # Parse PLAN=X|REASON=Y
+        plan_label = "B_balanced"
+        reason = ""
+        for part in raw.split("|"):
+            part = part.strip()
+            if part.upper().startswith("PLAN="):
+                plan_label = part.split("=", 1)[1].strip()
+            elif part.upper().startswith("REASON="):
+                reason = part.split("=", 1)[1].strip()
+
+        # Validate: plan must exist in pareto_plans
+        valid_labels = {p["label"] for p in pareto_plans}
+        if plan_label not in valid_labels:
+            plan_label = "B_balanced"  # safety: LLM hallucinated/failed, fallback to recommended plan
+
+        return {"selected_plan": plan_label, "reason": reason or raw[:150]}
+    except Exception as e:
+        logging.getLogger("s5.server").warning("LLM decision failed: %s", e)
+        return None
 
 @app.post("/query")
 async def handle_query(req: QueryRequest):
-    """Orchestrate: agents -> deliberation -> arbitrator -> synthesis -> memory."""
+    """Orchestrate: agents -> arbitrator -> optimizer -> LLM synthesis."""
     t_start = time.perf_counter()
     params = parse_query(req.query)
     session_id = req.session_id or "default"
@@ -217,48 +353,29 @@ async def handle_query(req: QueryRequest):
                   "production": production_agent, "staffing": staffing_agent,
                   "promo": promo_agent, "profit": profit_agent}
 
-    # Primary: LLM Planner (DeepSeek function calling)
-    # Fallback: DistilBERT (keyword classifier) - only if LLM fails
-    plan = None
-    if LLM_PLANNER_ENABLED:
+    # Primary: DistilBERT intent classifier (local, fast, free)
+    # Backup: LLM Planner (DeepSeek function calling)
+    # Last resort: keyword rules
+    ql = req.query.lower()
+    db_intent, db_conf = classify_intent(req.query)
+    intent = db_intent
+    params["intent"] = db_intent
+    params["intent_confidence"] = round(db_conf, 4)
+
+    # If DistilBERT confidence is very low, try LLM Planner as backup
+    if db_conf < 0.3 and LLM_PLANNER_ENABLED:
         plan = await llm_plan_query(req.query)
-
-    if plan and plan.get("agents"):
-        # LLM Planner succeeded - use its routing
-        params["planned_agents"] = plan["agents"]
-        params["intent"] = plan.get("intent", "stock_query")
-        params["intent_confidence"] = plan.get("llm_confidence", 0.95)
-        params["product"] = plan.get("product", "croissant")
-        # Post-process: detect period comparison queries (this week vs last week)
-        ql_lower = req.query.lower()
-        period_keywords = ["vs last", "versus last", "compared to last", "week over week",
-                           "period over period", "change from last", "last week",
-                           "compare this week", "compare last week"]
-        if any(kw in ql_lower for kw in period_keywords):
-            params["intent"] = "comparison_analysis"
-            intent = "comparison_analysis"
-        else:
+        if plan and plan.get("agents"):
+            params["planned_agents"] = plan["agents"]
+            params["intent"] = plan.get("intent", db_intent)
+            params["intent_confidence"] = plan.get("llm_confidence", 0.95)
+            params["product"] = plan.get("product", "croissant")
             intent = params["intent"]
-    else:
-        # LLM Planner failed - fall back to keyword intent
-        ql = req.query.lower()
-        _kw_rules = {
-            "stock_query": ["stock","restock","inventory","replenish","bake","prepare","how many","how is the","what is my stock","how is","tell me about","status","check","show","forecast","demand","selling","look","report","summary","what about","should i","do i","need to","doing","issues","update","berapa","banyak","esok","stok","bakar","sediakan"],
-            "waste_analysis": ["waste","loss","expired","expiring","expiry","spoilage","throw","why"],
-            "promo_eval": ["promo","discount","off","sale","markdown","deal","bundle","should i","do i","run a","apply"],
-            "schedule_audit": ["schedule","shift","staff","anomal","who","swap","sick","leave","roster","staff issues","schedule issues","shift issues","coverage gap","understaff"],
-            "cross_source_audit": ["health check","audit","full","cross","all product","store health","overview"],
-            "profit_analysis": ["profit","margin","revenue","cost","earn","income"],
-        }
-        _scores = {k: 0 for k in _kw_rules}
-        for k, kws in _kw_rules.items():
-            _scores[k] = sum(1 for w in kws if w in ql)
-        _best = max(_scores, key=_scores.get)
-        intent = _best if _scores[_best] > 0 else "stock_query"
-        params["intent"] = intent
-        params["intent_confidence"] = 0.6
 
-        # Product extraction fallback
+    # Product extraction
+    # DistilBERT handles all intent classification including comparison_analysis
+
+    if params.get("product") in ("pending", None):
         product_found = None
         for p in sorted(PRODUCT_NAMES, key=len, reverse=True):
             if p.replace("_", " ") in ql or p in ql:
@@ -318,7 +435,7 @@ async def handle_query(req: QueryRequest):
 
     # Cross-agent data passes
     if "demand" in results and "staffing" in results and intent in ("stock_query", "cross_source_audit"):
-        merged = {"_demand": results["demand"].get("data", {}), "_staffing": results["staffing"].get("data", {})}
+        merged = {"_demand": results["demand"].get("data", {}), "_staffing": results["staffing"].get("data", {}), "_inventory": results["inventory"].get("data", {})}
         try:
             prod_result = await production_agent.run({**params, **merged}, history_text, key_metrics)
             if not isinstance(prod_result, Exception):
@@ -337,18 +454,78 @@ async def handle_query(req: QueryRequest):
         except Exception as e:
             logger.warning("Promo re-run failed: %s", e)
 
-    # Agent Deliberation (LLM-mediated consensus when conflicts exist)
-    deliberation = await arbitrator.deliberate(results, params, history_text)
 
-    # Final decision with deliberation context and memory
-    decision = arbitrator.decide(results, params, deliberation, history_text)
+    # Final decision with Pareto plan selection
+    decision = arbitrator.decide(results, params)
+
+    # LLM Decision Layer: select from Pareto plans with contextual reasoning
+    pareto_plans = decision.get("pareto_plans") if isinstance(decision, dict) else None
+    if not pareto_plans:
+        pareto_plans = decision.get("pareto_plans") if hasattr(decision, "get") else None
+    if isinstance(decision, dict) and "pareto_context" in decision:
+        demand_trend = results.get("demand", {}).get("data", {}).get("trend", "stable")
+        audit_data = decision.get("audit", {})
+        llm_choice = await llm_decide_plan(
+            decision.get("pareto_plans", []),
+            decision.get("pareto_context", {}),
+            intent, req.query, demand_trend,
+            audit_conflicts=audit_data.get("conflicts", []))
+        if llm_choice:
+            decision["llm_choice"] = llm_choice
+            # Update decision text to reflect LLM choice
+            chosen = next((p for p in decision.get("pareto_plans", [])
+                          if p["label"] == llm_choice["selected_plan"]), None)
+            if chosen:
+                decision["action"] = (f"LLM chose {llm_choice['selected_plan']}: "
+                                      f"{chosen['rationale']} | {llm_choice['reason']}")
+                # Counterfactual: why this plan over alternatives?
+                all_plans = decision.get("pareto_plans", [])
+                alternatives = [p for p in all_plans if p["label"] != llm_choice["selected_plan"]]
+                if alternatives:
+                    cf_parts = []
+                    for alt in alternatives:
+                        pdiff = round(chosen["profit_rm"] - alt["profit_rm"], 2)
+                        wdiff = chosen.get("waste", 0) - alt.get("waste", 0)
+                        sdiff = chosen.get("shortage", 0) - alt.get("shortage", 0)
+                        cf_parts.append(
+                            f"vs {alt['label']}: dP=RM{pdiff:+.0f} dW={wdiff:+d} dS={sdiff:+d}"
+                        )
+                    decision["counterfactual"] = " | ".join(cf_parts)
+
+                # Multi-period projection: 7-day impact of this decision
+                demand_data = results.get("demand", {}).get("data", {})
+                raw_forecasts = demand_data.get("_raw_forecasts", [])
+                if raw_forecasts and chosen:
+                    product_name = params.get("product", "croissant")
+                    if "," not in product_name and product_name != "all":
+                        fc_list = [f.get("predicted_demand", 0) for f in raw_forecasts[:7]]
+                        inv_data = results.get("inventory", {}).get("data", {})
+                        pp_inv = inv_data.get("per_product", {}).get(product_name, {})
+                        init_fresh = pp_inv.get("fresh", demand_data.get("stock", 0))
+                        init_day1 = pp_inv.get("day1", 0)
+                        if fc_list and fc_list[0] > 0:
+                            proj = project_multi_period(fc_list, init_fresh, init_day1, chosen["bake"],
+                                                        demand_data.get("unit_price", 5.90))
+                            decision["projection"] = proj
+                            cum_w = proj["cumulative_waste"]
+                            cum_s = proj["cumulative_shortage"]
+                            trend = proj["risk_trend"]
+                            decision["action"] += (
+                                f" [7d projection: {trend}, cum_waste={cum_w}, cum_shortage={cum_s}]"
+                            )
 
     # LLM synthesis
     llm_summary = None
     if SYNTHESIS_ENABLED:
+        # Augment decision text with LLM choice reasoning
+        rest_note = params.get("rest_note", "")
+        synth_decision = (rest_note + decision["action"]) if rest_note else decision["action"]
+        if decision.get("llm_choice") and decision["llm_choice"].get("reason"):
+            synth_decision += " [Decision rationale: " + decision["llm_choice"]["reason"] + "]"
+
         llm_summary = await synthesize(
             query=req.query, intent=intent,
-            decision=decision["action"], priority=decision["priority"],
+            decision=synth_decision, priority=decision["priority"],
             agent_data=results,
             conflicts=decision["audit"].get("conflicts", []),
             counterfactual=decision.get("counterfactual"),
@@ -366,6 +543,8 @@ async def handle_query(req: QueryRequest):
         "intent": intent,
         "intent_confidence": params.get("intent_confidence", 0),
         "product": params.get("product", "croissant"),
+        "target_date": params.get("date", ""),
+        "rest_note": params.get("rest_note", ""),
         "agents": agent_summaries,
         "decision": decision["action"],
         "priority": decision["priority"],
@@ -375,16 +554,16 @@ async def handle_query(req: QueryRequest):
     }
     if "causal_calibration" in decision:
         response["causal_calibration"] = decision["causal_calibration"]
+    if "llm_choice" in decision:
+        response["llm_choice"] = decision["llm_choice"]
+
     if "counterfactual" in decision:
         response["counterfactual"] = decision["counterfactual"]
+    if "projection" in decision:
+        response["projection"] = decision["projection"]
+
     if llm_summary:
         response["llm_summary"] = llm_summary
-    if deliberation.get("consensus"):
-        response["deliberation"] = {
-            "consensus": deliberation["consensus"],
-            "rationale": deliberation.get("rationale", ""),
-            "votes": deliberation.get("votes", {}),
-        }
 
     return response
 

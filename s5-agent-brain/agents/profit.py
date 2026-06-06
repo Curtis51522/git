@@ -1,4 +1,4 @@
-﻿# Profit Agent - revenue + cost + margin from MySQL
+# Profit Agent - revenue + cost + margin from MySQL
 # Phase 3: dynamic confidence based on query results.
 # Phase 4: per-product filtering to avoid total-store data for product-specific queries.
 import logging, sys, os
@@ -10,6 +10,26 @@ if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
 logger = logging.getLogger("s5.agent.profit")
+
+
+
+def _format_opinion(total_revenue, total_cost, gross_profit, margin_pct, by_product, params):
+    """Format profit opinion. Per-product for comparison, aggregated otherwise."""
+    intent = params.get("intent", "")
+    product = params.get("product", "all")
+    if intent == "comparison_analysis" and len(by_product) >= 2:
+        parts = []
+        for pname, qty in sorted(by_product.items()):
+            parts.append(f"{pname}: {qty} sold/day")
+        detail_str = " | ".join(parts)
+        return f"[L7d avg] Revenue RM{total_revenue:.0f}, Cost RM{total_cost:.0f}, Profit RM{gross_profit:.0f} ({margin_pct}% margin) [{detail_str}]"
+    if product not in ("all", "-") and by_product:
+        detail_parts = []
+        for pname, qty in sorted(by_product.items()):
+            detail_parts.append(f"{pname}: {qty} sold")
+        detail_str = "; ".join(detail_parts)
+        return f"[L7d avg] Revenue RM{total_revenue:.0f}, Cost RM{total_cost:.0f}, Profit RM{gross_profit:.0f} ({margin_pct}% margin) [{detail_str}]"
+    return f"[L7d avg] Revenue RM{total_revenue:.0f}, Cost RM{total_cost:.0f}, Profit RM{gross_profit:.0f} ({margin_pct}% margin)"
 
 
 class ProfitAgent(BaseAgent):
@@ -29,15 +49,22 @@ class ProfitAgent(BaseAgent):
             if product and product not in ("all", "-"):
                 target_products = set(p.strip() for p in product.split(","))
 
+            # Count distinct trading days in last 7 days for daily averaging
+            cur.execute(
+                "SELECT GREATEST(COUNT(DISTINCT DATE(transaction_time)), 1) FROM inventory_transactions "
+                "WHERE transaction_type = 'outflow' AND transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)")
+            num_days = int(cur.fetchone()[0] or 1)
+            divisor = max(num_days, 1)
+
             # Total revenue from transactions (filtered by product if needed)
             if target_products:
                 placeholders = ",".join(["%s"] * len(target_products))
                 cur.execute(
-                    f"SELECT COALESCE(SUM(quantity * unit_price), 0) FROM inventory_transactions WHERE transaction_type = 'outflow' AND product_name IN ({placeholders})",
+                    f"SELECT COALESCE(SUM(quantity * unit_price), 0) FROM inventory_transactions WHERE transaction_type = 'outflow' AND transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND product_name IN ({placeholders})",
                     tuple(target_products))
             else:
-                cur.execute("SELECT COALESCE(SUM(quantity * unit_price), 0) FROM inventory_transactions WHERE transaction_type = 'outflow'")
-            total_revenue = float(cur.fetchone()[0] or 0)
+                cur.execute("SELECT COALESCE(SUM(quantity * unit_price), 0) FROM inventory_transactions WHERE transaction_type = 'outflow' AND transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)")
+            total_revenue = round(float(cur.fetchone()[0] or 0) / divisor, 2)
 
             # Total cost from products cost_price x transactions (filtered)
             if target_products:
@@ -46,28 +73,28 @@ class ProfitAgent(BaseAgent):
                     SELECT COALESCE(SUM(t.quantity * COALESCE(p.cost_price, 3.0)), 0)
                     FROM inventory_transactions t
                     LEFT JOIN products p ON t.product_name = p.product_name
-                    WHERE t.transaction_type = 'outflow' AND t.product_name IN ({placeholders})
+                    WHERE t.transaction_type = 'outflow' AND t.transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND t.product_name IN ({placeholders})
                 """, tuple(target_products))
             else:
                 cur.execute("""
                     SELECT COALESCE(SUM(t.quantity * COALESCE(p.cost_price, 3.0)), 0)
                     FROM inventory_transactions t
                     LEFT JOIN products p ON t.product_name = p.product_name
-                    WHERE t.transaction_type = 'outflow'
+                    WHERE t.transaction_type = 'outflow' AND t.transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                 """)
-            total_cost = float(cur.fetchone()[0] or 0)
+            total_cost = round(float(cur.fetchone()[0] or 0) / divisor, 2)
 
             # Per-product breakdown (filtered)
             if target_products:
                 placeholders = ",".join(["%s"] * len(target_products))
                 cur.execute(
-                    f"SELECT product_name, SUM(quantity) FROM inventory_transactions WHERE transaction_type = 'outflow' AND product_name IN ({placeholders}) GROUP BY product_name",
+                    f"SELECT product_name, SUM(quantity) FROM inventory_transactions WHERE transaction_type = 'outflow' AND transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND product_name IN ({placeholders}) GROUP BY product_name",
                     tuple(target_products))
             else:
-                cur.execute("SELECT product_name, SUM(quantity) FROM inventory_transactions WHERE transaction_type = 'outflow' GROUP BY product_name")
+                cur.execute("SELECT product_name, SUM(quantity) FROM inventory_transactions WHERE transaction_type = 'outflow' AND transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY product_name")
             by_product = {}
             for row in cur.fetchall():
-                by_product[row[0]] = int(row[1] or 0)
+                by_product[row[0]] = round(int(row[1] or 0) / divisor, 1)
 
             # Per-product margin: revenue - cost per product
             if target_products:
@@ -78,7 +105,7 @@ class ProfitAgent(BaseAgent):
                            COALESCE(SUM(t.quantity * COALESCE(p.cost_price, 3.0)), 0)
                     FROM inventory_transactions t
                     LEFT JOIN products p ON t.product_name = p.product_name
-                    WHERE t.transaction_type = 'outflow' AND t.product_name IN ({placeholders})
+                    WHERE t.transaction_type = 'outflow' AND t.transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND t.product_name IN ({placeholders})
                     GROUP BY t.product_name""", tuple(target_products))
             else:
                 cur.execute("""
@@ -87,7 +114,7 @@ class ProfitAgent(BaseAgent):
                            COALESCE(SUM(t.quantity * COALESCE(p.cost_price, 3.0)), 0)
                     FROM inventory_transactions t
                     LEFT JOIN products p ON t.product_name = p.product_name
-                    WHERE t.transaction_type = 'outflow'
+                    WHERE t.transaction_type = 'outflow' AND t.transaction_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                     GROUP BY t.product_name""")
             by_product_margin = {}
             for row in cur.fetchall():
@@ -104,6 +131,7 @@ class ProfitAgent(BaseAgent):
                 "total_cost": total_cost,
                 "by_product": by_product,
                 "by_product_margin": by_product_margin,
+                "num_days": num_days,
                 "target_products": list(target_products) if target_products else ["all"],
             }
         except Exception as e:
@@ -128,14 +156,7 @@ class ProfitAgent(BaseAgent):
         # Per-product breakdown for opinion
         by_product = raw.get("by_product", {})
         product = params.get("product", "all")
-        if product not in ("all", "-") and by_product:
-            detail_parts = []
-            for pname, qty in sorted(by_product.items()):
-                detail_parts.append(f"{pname}: {qty} sold")
-            detail_str = "; ".join(detail_parts)
-            opinion = f"Revenue RM{total_revenue:.0f}, Cost RM{total_cost:.0f}, Profit RM{gross_profit:.0f} ({margin_pct}% margin) [{detail_str}]"
-        else:
-            opinion = f"Revenue RM{total_revenue:.0f}, Cost RM{total_cost:.0f}, Profit RM{gross_profit:.0f} ({margin_pct}% margin)"
+        opinion = _format_opinion(total_revenue, total_cost, gross_profit, margin_pct, by_product, params)
 
         return {
             "opinion": opinion,

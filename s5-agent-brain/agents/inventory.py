@@ -8,6 +8,21 @@ from s5_config.settings import S1_INVENTORY_URL, PRODUCT_NAMES
 logger = logging.getLogger("s5.agent.inventory")
 
 
+
+def _format_opinion(total_qty, fresh, day1, waste_risk, per_product, params, product_str):
+    """Format inventory opinion. Per-product for comparison, aggregated otherwise."""
+    intent = params.get("intent", "")
+    if intent == "comparison_analysis" and len(per_product) >= 2:
+        parts = []
+        for pname, pdata in sorted(per_product.items()):
+            parts.append(f"{pname}: stock={pdata['qty']} (fresh={pdata['fresh']}, day-1={pdata['day1']})")
+        return " | ".join(parts) + f", waste_risk={waste_risk}"
+    if product_str == "all" and per_product:
+        details = ", ".join(f"{k}:{v['qty']}" for k, v in sorted(per_product.items()))
+        return f"Stock {total_qty} (fresh={fresh}, day-1={day1}) across {len(per_product)} products [{details}]"
+    return f"Stock {total_qty} (fresh={fresh}, day-1={day1}), waste_risk={waste_risk}"
+
+
 class InventoryAgent(BaseAgent):
     def __init__(self):
         super().__init__("inventory")
@@ -47,7 +62,10 @@ class InventoryAgent(BaseAgent):
                 pqty = item.get("total_quantity", 0)
                 pbatches = item.get("batches", 0)
                 total_qty += pqty
-                per_product[pname] = {"qty": pqty, "batches": pbatches}
+                p_fresh = pqty if pbatches <= 1 else max(0, pqty // 2)
+                p_day1 = 0 if pbatches <= 1 else pqty - p_fresh
+                pselling = item.get("selling_price", 5.90)
+                per_product[pname] = {"qty": pqty, "batches": pbatches, "fresh": p_fresh, "day1": p_day1, "selling_price": pselling}
                 if pbatches <= 1:
                     freshness_counts["Fresh"] += pqty
                 else:
@@ -73,13 +91,7 @@ class InventoryAgent(BaseAgent):
         else:
             confidence = 0.10  # API failed
 
-        if product == "all" and per_product:
-            details = ", ".join(f"{k}:{v['qty']}" for k, v in sorted(per_product.items()))
-            opinion = f"Stock {total_qty} (fresh={fresh}, day-1={day1}) across {len(per_product)} products [{details}]"
-        elif matched:
-            opinion = f"Stock {total_qty} (fresh={fresh}, day-1={day1}), waste_risk={waste_risk}"
-        else:
-            opinion = f"No stock data for {product}"
+        opinion = _format_opinion(total_qty, fresh, day1, waste_risk, per_product, params, product) if matched else f"No stock data for {product}"
 
         constraints = []
         if total_qty == 0 and matched:
@@ -91,5 +103,6 @@ class InventoryAgent(BaseAgent):
                 "inventory": total_qty, "fresh": fresh, "day1_available": day1,
                 "waste_risk": waste_risk, "freshness_breakdown": freshness_counts,
                 "per_product": per_product,
+                "unit_price": per_product.get(product, {}).get("selling_price", 5.90) if target_products and len(target_products) == 1 else 5.90,
             },
         }

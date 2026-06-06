@@ -34,12 +34,11 @@ Conflicts: {conflicts}
 Counterfactual: {counterfactual}
 
 Rules:
-- The DECISION field is authoritative. Do NOT contradict or override it.
-- Be direct and factual. Report the numbers as they are - do not sugarcoat.
-- If priority is critical or warning, use direct language about the risk.
-- If there is a shortage or stockout risk, say so explicitly with the gap size.
-- If conflicts exist, mention the contradiction honestly rather than hiding it.
-- Do NOT say "healthy", "strong", or "balanced" unless the data genuinely supports it.
+- Write in natural, flowing English. The DECISION field is authoritative - use it as your source of truth.
+- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- Be direct and honest. If there is a shortage, state the gap explicitly: "You are short by X units."
+- If there are conflicts or risks, address them plainly without hiding behind vague terms.
+- Do not use words like "healthy" or "balanced" unless the data genuinely supports it.
 - Keep it under 80 words.""",
 
     "comparison": """You are a bakery operations advisor. The user wants to COMPARE products. Write a factual side-by-side comparison (3-4 sentences).
@@ -52,11 +51,13 @@ Conflicts: {conflicts}
 Associations: {associations}
 
 Rules:
-- Compare products directly with numbers: "X has Y stock vs Z demand".
-- Rank by urgency: which product needs attention first and why.
+- Write in natural, flowing English. Compare products side-by-side in a conversational tone.
+- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- Use ONLY per-product numbers from the DECISION text. Never aggregate totals - keep each product separate.
+- End by identifying which product needs attention first and why.
 - The DECISION field is authoritative - never contradict it.
-- Report shortages and surpluses honestly. Do not minimize gaps.
-- Do NOT say "balanced" or "healthy" unless every product's stock is within 10% of demand.
+- Report shortages and surpluses honestly without minimizing them.
+- Do not say "balanced" or "healthy" unless every product's stock is within 10% of demand.
 - Keep it under 100 words.""",
 
     "waste_analysis": """You are a bakery waste reduction specialist. Write a factual summary (2-3 sentences) explaining the waste situation.
@@ -69,10 +70,11 @@ Counterfactual: {counterfactual}
 Causal narrative: {causal_narrative}
 
 Rules:
-- The DECISION field is authoritative. Report its finding directly.
-- If the Decision says UNDERSTOCK, say waste is NOT the real problem - understock is.
-- If the Decision says WASTE RISK, report the overstock ratio and at-risk units.
-- Do NOT say "healthy balance" when stock is far below or above demand.
+- Write in natural, flowing English. The DECISION field is authoritative.
+- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- If the Decision says UNDERSTOCK, explain that waste is not the real concern - the priority is restocking.
+- If the Decision says WASTE RISK, describe which products are overstocked and how many units are at risk.
+- Do not use "healthy balance" when the numbers show a clear imbalance.
 - Keep it under 80 words.""",
 
     "promo_eval": """You are a bakery pricing strategist. Write a factual recommendation (2-3 sentences).
@@ -84,9 +86,10 @@ Agents:
 Conflicts: {conflicts}
 
 Rules:
-- The DECISION field is authoritative.
-- State the recommended discount and the surplus/shortfall driving it.
-- Reference urgency level (LOW/MEDIUM/HIGH) and explain which dimensions (F/S/M/T/P) drive it.
+- Write in natural, flowing English. The DECISION field is authoritative.
+- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- State the recommended discount and explain what is driving it (surplus, stock levels, urgency).
+- Reference urgency level and briefly note which factors (freshness, stock, market, trend, promo sensitivity) are most influential.
 - If the user suggested a different discount, explain why the recommendation differs.
 - Keep it under 80 words.""",
 
@@ -99,9 +102,10 @@ Agents:
 Conflicts: {conflicts}
 
 Rules:
-- State exact staffing levels with numbers.
-- If there is a gap (no baker/no cashier), say so explicitly with the consequence.
-- Do NOT say "looks good" or "no issues" unless every required role is filled.
+- Write in natural, flowing English. State the exact staffing levels with numbers.
+- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- If any role is unfilled, explain the consequence clearly.
+- Only say things are fine when every required role is actually filled.
 - Keep it under 50 words.""",
 
     "profit_analysis": """You are a bakery financial analyst. Write a factual summary (2-3 sentences).
@@ -112,9 +116,10 @@ Agents:
 {agent_summaries}
 
 Rules:
-- State the profit margin and revenue/cost breakdown precisely.
-- If the main cost driver is inventory overstock, say so with specific numbers.
-- Do NOT inflate or downplay the margin.
+- Write in natural, flowing English. State the profit margin and revenue/cost breakdown clearly.
+- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- Compare inventory against demand using specific numbers.
+- Do not inflate or downplay the margin - report it as it is.
 - Keep it under 80 words.""",
 
     "cross_source_audit": """You are a bakery operations auditor. Write a factual executive summary (3-4 sentences). NEVER sugarcoat.
@@ -128,13 +133,15 @@ Causal calibration: {causal_calibration}
 Causal narrative: {causal_narrative}
 
 Rules:
-- The DECISION field is authoritative. Report it verbatim if needed.
-- OPEN with the most critical finding first (shortage, overstock, conflict).
-- If conflicts exist, acknowledge them: "The audit found X conflict: [detail]".
-- Report capacity vs demand exactly: "Capacity: X, Demand: Y, Gap: Z".
-- Do NOT say "healthy", "strong", "balanced", "no conflicts" when conflicts exist.
-- Do NOT say "no corrective actions required" when the Decision recommends baking/production changes.
-- The manager needs to know what is WRONG, not what is fine.
+- LANGUAGE: Detect the query language. If Malay or mixed, respond in natural Malay. If English, respond in English.
+- Write naturally and connect sentences smoothly. Avoid robotic bullet-point style.
+- The DECISION field is authoritative. Translate its format into plain language: "bake 54 (stock 10+54=64/64, 100%)" means "bake 54 croissants, bringing total stock to 64 to fully meet the forecast of 64."
+- OPEN with the most critical finding in a natural lead sentence, then explain the context.
+- If conflicts exist, mention them honestly, then immediately explain how the Decision resolves them.
+- Report capacity vs demand in context. If total bake is within capacity and covers demand, say so naturally.
+- Do NOT use words like "healthy", "strong", "balanced" unless genuinely supported by all data.
+- Do NOT claim the Decision is "ignoring" anything when it clearly addresses the issue.
+- Focus on what the manager needs to act on, without unnecessary drama.
 - Keep it under 100 words.""",
 }
 
@@ -147,10 +154,10 @@ Agents:
 Conflicts: {conflicts}
 
 Rules:
-- The DECISION field is authoritative - never contradict it.
-- Report the actual numbers. Do not use vague terms like "healthy" or "balanced" unless the data supports it.
-- If there are conflicts, mention them directly.
-- Be honest about what is wrong, not just what is right.
+- Write in natural, flowing English. The DECISION field is authoritative - never contradict it.
+- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- Report the actual numbers clearly. Avoid vague terms unless the data genuinely supports them.
+- If there are conflicts, address them directly and honestly.
 - Keep it under 80 words."""
 
 
@@ -188,6 +195,9 @@ async def synthesize(query: str, intent: str, decision: str, priority: str,
         if opinion:
             lines.append(f"  {name}: {opinion}")
     agent_text = "\n".join(lines) if lines else "No agent data"
+    # For comparison, replace aggregated agent opinions with per-product decision
+    if intent == "comparison_analysis" and decision:
+        agent_text = "Per-product data: " + decision
 
     conflict_text = ", ".join(conflicts) if conflicts else "None"
 

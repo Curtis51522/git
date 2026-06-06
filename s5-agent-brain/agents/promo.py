@@ -1,4 +1,4 @@
-﻿# Promo Agent - dynamic discount optimization + bundle suggestions
+# Promo Agent - dynamic discount optimization + bundle suggestions
 # 5-dimension scoring engine: freshness, surplus, margin, trend, S4 pairing
 import asyncio
 import logging
@@ -208,7 +208,18 @@ class PromoAgent(BaseAgent):
                 )
 
         if not opinions:
-            opinions.append("No discount needed - stock matches demand")
+            # Determine why no discount: understock vs adequately stocked
+            has_shortage = False
+            for pname, pdata in per_product_inv.items():
+                stock = pdata.get("qty", 0)
+                forecast = per_product_demand.get(pname, {}).get("forecast", 0)
+                if stock < forecast:
+                    has_shortage = True
+                    break
+            if has_shortage:
+                opinions.append("No discount needed - stock is below demand, prioritize restocking")
+            else:
+                opinions.append("No discount needed - stock matches demand")
 
         # Confidence: more dimensions engaged = higher reliability
         if len(discount_details) > 0 and len(combo_results) > 0:

@@ -41,8 +41,10 @@ class ProductionAgent(BaseAgent):
                 history: str = "", key_metrics: Dict[str, Any] = None) -> Dict[str, Any]:
         demand_data = params.get("_demand", {})
         staffing_data = params.get("_staffing", {})
+        inventory_data = params.get("_inventory", {})
 
         forecast = demand_data.get("forecast", 0)
+        stock_in_hand = inventory_data.get("inventory", 0)
         baker_count = staffing_data.get("bakers", 1)
         baker_hours = staffing_data.get("baker_hours", 7)
         cfg = self._get_config()
@@ -71,7 +73,9 @@ class ProductionAgent(BaseAgent):
         if baker_count == 0:
             constraints.append("no bakers available")
 
-        recommended = min(forecast, max_capacity) if forecast > 0 else 0
+        # Net demand: forecast minus existing stock (cannot bake negative)
+        net_demand = max(0, forecast - stock_in_hand)
+        recommended = min(net_demand, max_capacity) if forecast > 0 else 0
 
         return {
             "opinion": f"Capacity {max_capacity} ({baker_count} bakers x {ovens_used} ovens, {effective_hours:.1f}h eff, {per_oven_rate:.0f}/hr/oven, window={cfg.baking_window_hours:.1f}h), bake {recommended}",
