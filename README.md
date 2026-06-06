@@ -89,7 +89,7 @@ Open http://localhost:8002 for the web UI.
 ### Pipeline
 
 ```
-User Query -> DistilBERT Intent Classifier (8 labels) -> Agent Orchestration (6 agents) -> Arbitrator + MIP -> LLM Decision + Synthesis
+User Query -> DistilBERT Intent Classifier (8 labels) -> Agent Orchestration (6 agents) -> Code Audit -> MIP Pareto Plans -> LLM Plan Selection -> LLM Semantic Synthesis
 ```
 
 ### Agents
