@@ -107,3 +107,7 @@ s5-agent-brain/memory/
 _test*.py
 _t.py
 _bp.txt
+
+s5-agent-brain/models/distilbert_intent/model.safetensors
+s5-agent-brain/alerts.json
+s5_test_response.json
