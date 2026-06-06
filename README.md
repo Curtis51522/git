@@ -6,11 +6,11 @@ Multi-agent AI operations system for a medium-sized Malaysian bakery-cafe (6 pro
 
 | Module | Function | Tech | Port |
 |--------|----------|------|------|
-| S1 | Visual perception -- YOLO-based product detection + tray color classification + FIFO deduction | YOLOv8/YOLO26m, OpenCV | 8002 |
+| S1 | Visual perception -- YOLO-based product detection + tray color classification + FIFO deduction | YOLOv8, OpenCV | 8002 |
 | S2 | 7-day demand forecasting with weather integration + multi-model comparison | XGBoost, TimeSeriesSplit, VisualCrossing/Open-Meteo | 8002 |
 | S3 | CP-SAT shift scheduling with demand-aware role coverage + dual-role support | OR-Tools CP-SAT | 8002 |
 | S4 | BFF layer -- JWT auth, 5-dim combo scoring, checkout + receipt, web POS | FastAPI, JWT, HTML/CSS/JS | 8002 |
-| S5 | Multi-agent AI Brain -- 6 agents, 5-dim dynamic discount engine, alert monitoring | DeepSeek, CP-SAT MIP | 8001 |
+| S5 | Multi-agent AI Brain -- 6 agents, DistilBERT intent classifier, arbitrated MIP, LLM synthesis | DeepSeek, DistilBERT, CP-SAT MIP | 8001 |
 
 ## Quick Start
 
@@ -18,27 +18,29 @@ Multi-agent AI operations system for a medium-sized Malaysian bakery-cafe (6 pro
 
 - Python 3.11+
 - MySQL 8.0+
-- API keys: DeepSeek and VisualCrossing (weather)
+- API keys: DeepSeek (S4 pairing + S5 synthesis) and VisualCrossing (weather)
 
 ### Setup
 
 ```bash
 # 1. Clone
 git clone https://github.com/Curtis51522/git.git
-cd bakery-ai-system
+cd git
 
-# 2. Download pre-trained models (~570 MB)
-python download_models.py
-
-# 3. Install dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 4. Configure environment
+# 3. Configure environment
 cp .env.example .env
 # Edit .env with your DeepSeek API key, VisualCrossing API key, and MySQL credentials
 
-# 5. Start MySQL and create database
+# 4. Start MySQL and create database
 # mysql -u root -e "CREATE DATABASE IF NOT EXISTS bakery_ai"
+
+# 5. Train DistilBERT intent classifier (~3 min, one-time)
+cd s5-agent-brain
+python -c "from intent_classifier import train_intent_classifier; train_intent_classifier()"
+cd ..
 
 # 6. Start S5 AI Brain (port 8001)
 cd s5-agent-brain
@@ -65,6 +67,7 @@ Open http://localhost:8002 for the web UI.
 | GET | /s1/batch_inventory | S1 | Current inventory with freshness |
 | POST | /s1/checkout | S1 | Visual scan (checkout) |
 | POST | /s1/inflow | S1 | Visual scan (batch inflow) |
+| POST | /s1/query | S1 | Text-based inventory query |
 | GET | /s2/forecast | S2 | 7-day forecast (low/median/high) |
 | POST | /s3/solve | S3 | Generate shift schedule |
 | GET | /s3/schedule | S3 | Current shift schedule |
@@ -75,27 +78,45 @@ Open http://localhost:8002 for the web UI.
 | POST | /s4/checkout/complete | S4 | Payment + FIFO deduction + receipt |
 | GET | /s4/products | S4 | Product prices + freshness |
 | GET | /s4/receipts | S4 | Receipt history |
-| POST | /s5/query | S5 | Agent query (6 intents) |
+| POST | /s5/query | S5 | Agent query (8 intents, DistilBERT-classified) |
 | POST | /s5/discounts | S5 | 5-dim dynamic discount engine |
 | GET | /s5/alerts/list | S5 | Anomaly alerts |
 | GET | /s5/alerts/count | S5 | Unacknowledged alert count |
+| POST | /s5/alerts/ack | S5 | Acknowledge alert |
 
 ## S5 Multi-Agent Brain
 
-Six specialized agents collaborate on each query:
+### Pipeline
+
+```
+User Query -> DistilBERT Intent Classifier (8 labels) -> Agent Orchestration (6 agents) -> Arbitrator + MIP -> LLM Decision + Synthesis
+```
+
+### Agents
 
 | Agent | Confidence | Role |
 |-------|-----------|------|
-| demand | 90% | XGBoost forecast with trend analysis (per-product) |
-| inventory | 95% | Stock levels, freshness, waste risk |
-| production | 85% | Capacity (bakers x ovens x hours), batch MIP optimization |
+| demand | 90% | XGBoost forecast with per-product trend analysis |
+| inventory | 95% | Stock levels, freshness, waste risk, per-product breakdown |
+| production | 85% | Net capacity (bakers x ovens x hours), inventory-aware recommendation |
 | staffing | 95% | Shift schedule from S3 CP-SAT solver |
 | promo | 85% | 5-dim dynamic discount (Freshness, Surplus, Margin, Trend, Pairing) |
-| profit | 90% | Revenue/cost/margin from transaction data |
+| profit | 90% | 7-day averaged revenue/cost/margin from transaction data |
+
+### Intents (DistilBERT, 7764 training samples, 8 labels)
+
+| Intent | Description | Active Agents |
+|--------|-------------|---------------|
+| stock_query | Single/multi-product stock inquiries | all 6 |
+| comparison_analysis | Side-by-side product comparison | demand, inventory, profit |
+| waste_analysis | Spoilage risk, per-product ranking | demand, inventory |
+| promo_eval | Discount recommendation | demand, inventory, promo, profit |
+| schedule_audit | Staffing check | staffing |
+| profit_analysis | Revenue/cost/margin | demand, inventory, profit |
+| cross_source_audit | Full store health check | all 6 |
+| out_of_scope | Non-bakery query rejection | none |
 
 ### 5-Dimension Dynamic Discount Engine
-
-Replaces static promo with urgency-weighted scoring:
 
 | Dimension | Weight | Source |
 |-----------|--------|--------|
@@ -105,7 +126,13 @@ Replaces static promo with urgency-weighted scoring:
 | Trend (T) | 15% | Demand trend direction from S2 |
 | Pairing (P) | 5% | Combo score from S4 flavor matrix |
 
-Urgency = F*w1 + S*w2 + M*w3 + T*w4 + P*w5  ->  mapped to discount tiers (0%-50%).
+Urgency = F*0.30 + S*0.30 + M*0.20 + T*0.15 + P*0.05 -> mapped to discount tiers (0%-50%).
+
+### LLM Synthesis
+- DeepSeek-powered natural language summaries
+- Language detection: English queries -> English response, Malay -> Malay
+- Anti-hallucination: LLM selects from pre-computed Pareto plans, cannot fabricate
+- Counterfactual explanation + 7-day projection for stock queries
 
 ## S4 Combo Recommendation
 
@@ -133,11 +160,11 @@ Urgency = F*w1 + S*w2 + M*w3 + T*w4 + P*w5  ->  mapped to discount tiers (0%-50%
 | E010 | Fatima | manager | - | 42h | |
 
 Demand-driven staffing levels:
-- **High** (>250 units): baker=4, cashier=2, barista=2, manager=1
+- **High** (>250 units): baker>=4, cashier=2, barista=2, manager=1, no dual-role
 - **Normal** (150-250): baker=3, cashier=2, barista=1, manager=1 (dual-role allowed)
 - **Low** (<150): baker=2, cashier=2, barista=1, manager=1 (dual-role allowed)
 
-Shifts: 06:00-13:00 (morning), 12:00-19:00 (afternoon). Bake prep 6:00-9:00 before store opens at 9:00.
+Shifts: 06:00-13:00 (morning), 12:00-19:00 (afternoon). Store open 9:00-19:00. Prep 6:00-9:00.
 
 ## Features
 
@@ -154,58 +181,76 @@ Shifts: 06:00-13:00 (morning), 12:00-19:00 (afternoon). Bake prep 6:00-9:00 befo
 
 ### System Alerts (S5)
 - 5-minute monitoring interval
+- Six-product coverage (all 6 products checked)
 - Inventory waste warnings (Day-1 stock threshold)
 - Duplicate alerts update instead of duplicate
 - Acknowledge/dismiss from frontend
 
-## Training Models
-
-```bash
-python training/train_yolo.py          # YOLOv8 product detection
-python training/train_xgboost_full.py  # XGBoost demand forecasting (6 products)
-```
+### Language Support
+- English and Bahasa Malaysia (mixed input supported)
+- LLM summaries auto-detect query language
+- Malay date words: esok, hari ini, lusa, semalam, plus day names (Isnin-Ahad)
+- Monday rest-day detection with bilingual note
 
 ## Project Structure
 
 ```
 bakery-ai-system/
 |-- main.py                        # FastAPI entry (port 8002)
-|-- download_models.py             # Model downloader (GitHub Releases)
 |-- requirements.txt
-|-- config/settings.py             # Configuration
+|-- config/settings.py             # Configuration + secrets
 |-- db/mysql_client.py             # MySQL database client
 |-- models/
-|   |-- xgboost/                   # 6 product forecast models
-|   |-- yolo/                      # Freshness detection (~50 MB)
+|   |-- xgboost/                   # 6 product forecast models (JSON)
+|   |-- anomaly_isolation_forest.pkl
 |   +-- schedule_baseline.json     # S3 schedule persistence
 |-- api/
-|   |-- module1_yolo.py            # Visual perception
-|   |-- module2_forecast.py        # Sales forecasting
+|   |-- module1_yolo.py            # Visual perception + inventory
+|   |-- module2_forecast.py        # Sales forecasting (XGBoost)
 |   |-- module3_scheduling.py      # Shift scheduling (CP-SAT)
-|   |-- module4_frontend/          # BFF + web UI
-|   |   |-- bff.py                 # Backend-for-frontend
+|   |-- module4_frontend/
+|   |   |-- bff.py                 # Backend-for-frontend + JWT
 |   |   |-- pairing_llm.py         # LLM flavor matrix generator
 |   |   +-- static/
-|   |       |-- index.html         # Full web POS
-|   |       |-- _core.js             # Frontend logic (inline JS in index.html)
-|   |       +-- <style> tag         # CSS inline in index.html
+|   |       |-- index.html         # Full web POS (inline CSS + JS)
 |   +-- weather.py                 # VisualCrossing + Open-Meteo fallback
-|-- s5-agent-brain/                # S5 Multi-Agent Brain (port 8001)
-|   |-- server.py                  # FastAPI entry
-|   |-- agents/
-|   |   |-- demand.py              # Demand forecast agent
-|   |   |-- inventory.py           # Inventory agent
-|   |   |-- production.py          # Production capacity agent
-|   |   |-- staffing.py            # Staffing agent
-|   |   |-- promo.py               # 5-dim dynamic discount agent
-|   |   +-- profit.py              # Profit analysis agent
-|   |-- orchestrator.py            # Multi-agent orchestration + deliberation
+|-- s5-agent-brain/                # S5 AI Brain (port 8001)
+|   |-- server.py                  # FastAPI entry + LLM planner
+|   |-- arbitrator.py              # Cross-agent health audit + MIP decision
+|   |-- optimizer.py               # Pareto-optimal bake plans + multi-period projection
+|   |-- llm_synthesis.py           # DeepSeek natural language summary (8 templates)
+|   |-- intent_classifier.py       # DistilBERT intent classifier (8 labels)
+|   |-- monitor.py                 # Periodic alert monitor (5-min interval)
 |   |-- alert_store.py             # Alert JSON file store
-|   |-- alert_monitor.py           # Periodic alert monitor
-|   |-- discount_engine.py         # 5-dim urgency-weighted scoring
-|   +-- alerts.json                # Alert persistence
-|-- training/
-|   |-- train_xgboost_full.py
-|   +-- train_yolo.py
-+-- data/sales_history.csv
+|   |-- agents/
+|   |   |-- base.py                # Agent base class
+|   |   |-- demand.py              # Forecast agent (per-product)
+|   |   |-- inventory.py           # Stock + freshness agent
+|   |   |-- production.py          # Capacity + net-demand agent
+|   |   |-- staffing.py            # Schedule agent
+|   |   |-- promo.py               # 5-dim dynamic discount agent
+|   |   +-- profit.py              # 7-day revenue/cost/margin agent
+|   |-- models/distilbert_intent/  # Trained classifier (after training)
+|   |   |-- config.json
+|   |   |-- tokenizer.json
+|   |   +-- model.safetensors      # Generate via: train_intent_classifier()
+|   +-- s5_config/
+|       |-- settings.py            # S5 constants + product definitions
+|       +-- training_data.json     # 7764 labeled intent samples
+|-- data/
+|   |-- kaggle/Bakery sales.csv
+|   |-- sales_history.csv
+|   +-- synthetic_sales_1year.csv
++-- test_tray_images/              # S1 test images (gitignored)
+```
+
+## Training Models
+
+```bash
+# DistilBERT intent classifier (required for S5, run once)
+cd s5-agent-brain
+python -c "from intent_classifier import train_intent_classifier; train_intent_classifier()"
+
+# XGBoost demand forecasting (6 products)
+python training/train_xgboost_full.py
 ```
