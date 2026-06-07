@@ -184,7 +184,7 @@ def parse_query(query: str) -> dict:
     from datetime import datetime, timedelta
     today = datetime.now()
     ql = query.lower()
-    target = today + timedelta(days=1)
+    target = today
     is_comparison = False
 
     # Relative date words (English + Malay)
