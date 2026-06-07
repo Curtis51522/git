@@ -250,9 +250,9 @@ async def llm_decide_plan(pareto_plans: list, pareto_context: dict,
                     parts.append(f"{s}:P=RM{sc[s]['profit_rm']:.0f},w={sc[s]['waste']},s={sc[s]['shortage']}")
             sc_str = " [" + " | ".join(parts) + "]"
         plan_lines.append(
-            f"  {p['label']}: bake={p['bake']}, profit_swing=RM{p.get('profit_swing_rm',0):.0f}, "
-            f"worst_profit=RM{p.get('worst_case_profit',0):.0f}, "
-            f"max_waste={p.get('max_waste_exposure',0)}, max_shortage={p.get('max_shortage_exposure',0)}"
+            f"  {p['label']}: bake={p['bake']}, profit=RM{p.get('profit_rm',0):.0f}, "
+            f"waste={p.get('waste',0)}, shortage={p.get('shortage',0)}, "
+            f"worst_profit=RM{p.get('worst_case_profit',0):.0f}"
             f"{sc_str}"
         )
 
@@ -282,9 +282,10 @@ PLANS:
 RULES:
 1. You MUST pick exactly one plan. Output format: PLAN=A_aggressive|CONFLICT_ADDRESSED=Y/N|REASON=your reasoning (max 50 words)
 2. If AUDIT shows conflicts, your chosen plan MUST address them. Explain HOW in REASON.
-3. Consider: declining trend -> conservative; rising trend -> aggressive; day-1 stock -> minimize waste
-4. Do NOT modify the numbers or create a new plan.
-5. REASON must explain WHY this plan fits the context AND how it resolves audit issues."""
+3. Prioritize the plan with the HIGHEST profit, unless another plan has significantly less waste/shortage with similar profit.
+4. Declining trend -> prefer conservative; rising trend -> aggressive; day-1 stock -> minimize waste.
+5. Do NOT modify the numbers or create a new plan.
+6. REASON must explain WHY this plan fits the context AND how it resolves audit issues."""
 
     try:
         import httpx, os, sys
