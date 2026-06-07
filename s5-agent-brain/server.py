@@ -534,6 +534,38 @@ async def handle_query(req: QueryRequest):
         except Exception:
             pass
 
+        # Enrich context with snapshot comparison for comparison_analysis
+        if intent == "comparison_analysis" and "," in params.get("product", ""):
+            try:
+                from toolbox import compare_products
+                prods = params["product"].split(",")
+                cmp = compare_products(prods[0].strip(), prods[1].strip())
+                if cmp:
+                    parts = []
+                    for pn, pd in cmp.items():
+                        parts.append(f"{pn}: inv={pd['inventory']}, fc={pd['forecast']}")
+                    cmp_text = " | Snapshot: " + "; ".join(parts)
+                    memory_ctx = (memory_ctx or "") + cmp_text
+            except Exception:
+                pass
+
+        # Enrich context with SHAP explainability
+        shap_text = ""
+        try:
+            from toolbox import explain_forecast
+            product_list = params.get("product", "croissant").split(",")
+            for p in product_list[:2]:  # max 2 products
+                shap = explain_forecast(p.strip())
+                if shap and shap.get("top_features"):
+                    feats = ", ".join(f"{f['feature']}({f['contribution']:.0%})" for f in shap["top_features"][:3])
+                    shap_text += f"{p}: {feats}; "
+            if shap_text and memory_ctx:
+                memory_ctx += " | SHAP drivers: " + shap_text
+            elif shap_text:
+                memory_ctx = "SHAP drivers: " + shap_text
+        except Exception:
+            pass
+
         llm_summary = await synthesize(
             query=req.query, intent=intent,
             decision=synth_decision, priority=decision["priority"],
@@ -573,6 +605,21 @@ async def handle_query(req: QueryRequest):
         response["counterfactual"] = decision["counterfactual"]
     if "projection" in decision:
         response["projection"] = decision["projection"]
+
+    # Attach SHAP explainability
+    try:
+        from toolbox import explain_forecast
+        product_list = params.get("product", "croissant").split(",")
+        shap_data = {}
+        for p in product_list[:3]:
+            p = p.strip()
+            s = explain_forecast(p)
+            if s:
+                shap_data[p] = s
+        if shap_data:
+            response["shap"] = shap_data
+    except Exception:
+        pass
 
     if llm_summary:
         response["llm_summary"] = llm_summary

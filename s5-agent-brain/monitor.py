@@ -136,12 +136,31 @@ async def check_schedule() -> int:
     return count
 
 
+
+async def check_trends() -> int:
+    """Check memory snapshots for trend anomalies."""
+    count = 0
+    try:
+        from toolbox import detect_trend
+        for metric in ["inventory", "waste"]:
+            for pname in PRODUCT_NAMES:
+                trend = detect_trend(pname, metric, lookback_days=14)
+                if trend and trend.get("direction") == "rising" and trend.get("avg_value", 0) > 0:
+                    add_alert("trend", "info",
+                              f"Trend: {pname} {metric}",
+                              f"{pname} {metric} is rising ({trend['slope_per_day']}/day over {trend['days_analyzed']} days, avg {trend['avg_value']}).")
+                    count += 1
+    except Exception as e:
+        logger.warning("Trend check failed: %s", e)
+    return count
+
 async def run_full_check() -> Dict[str, int]:
     """Run all checks and return alert counts per source."""
     results = {}
     results["inventory"] = await check_inventory()
     results["forecast"] = await check_forecast()
     results["schedule"] = await check_schedule()
+    results["trends"] = await check_trends()
     clear_expired()
     # Save daily snapshot for memory
     try:
