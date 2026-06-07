@@ -827,7 +827,7 @@ c.innerHTML='<div class="panel" style="flex:1"><h4>Shift Schedule</h4>'
 +'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate</button>'
 +'<button class="btn btn-secondary btn-sm" onclick="resyncSchedule()" title="Full regeneration">Re-sync</button>'
 +'<button class="btn btn-secondary btn-sm" onclick="loadKPI()">KPI</button>'
-+'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="2026-06-01"><span onclick="setSchedToday()" style="font-size:11px;color:#2980b9;cursor:pointer;white-space:nowrap;margin-left:4px" title="Today">Today</span><span onclick="clearSchedDate()" style="font-size:11px;color:#999;cursor:pointer;white-space:nowrap;margin-left:4px" title="Clear">Clear</span>'
++'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="'+new Date().toISOString().slice(0,10)+'"><span onclick="setSchedToday()" style="font-size:11px;color:#2980b9;cursor:pointer;white-space:nowrap;margin-left:4px" title="Today">Today</span><span onclick="clearSchedDate()" style="font-size:11px;color:#999;cursor:pointer;white-space:nowrap;margin-left:4px" title="Clear">Clear</span>'
 +'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:60vh"><span class="spinner"></span>Loading schedule...</div>'
 +'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'
 +'<div id="kpi-result" style="margin-top:8px"></div></div>';
