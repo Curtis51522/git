@@ -162,7 +162,7 @@ async def run_full_check() -> Dict[str, int]:
                       a['product'] + ' ' + a['metric'] + ' anomaly',
                       a['product'] + ' ' + a['metric'] + ': ' + str(a['current']) + ' vs ~' + str(a['baseline']) + ' baseline (' + a['deviation'] + ' of normal).')
     except Exception as e:
-        logger.debug('Snapshot save skipped: %s', e)
+        logger.warning('Snapshot save skipped: %s', e)
 
     total = sum(results.values())
     if total > 0:
