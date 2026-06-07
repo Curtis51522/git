@@ -523,6 +523,17 @@ async def handle_query(req: QueryRequest):
         if decision.get("llm_choice") and decision["llm_choice"].get("reason"):
             synth_decision += " [Decision rationale: " + decision["llm_choice"]["reason"] + "]"
 
+        # Fetch memory context for richer synthesis
+        memory_ctx = ""
+        try:
+            from memory_store import get_context
+            memory_ctx = get_context(
+                product=params.get("product", "croissant"),
+                intent=intent,
+                days=14)
+        except Exception:
+            pass
+
         llm_summary = await synthesize(
             query=req.query, intent=intent,
             decision=synth_decision, priority=decision["priority"],
@@ -530,6 +541,7 @@ async def handle_query(req: QueryRequest):
             conflicts=decision["audit"].get("conflicts", []),
             counterfactual=decision.get("counterfactual"),
             causal_calibration=decision.get("causal_calibration"),
+            memory_context=memory_ctx,
         )
 
     agent_summaries = {
@@ -564,6 +576,20 @@ async def handle_query(req: QueryRequest):
 
     if llm_summary:
         response["llm_summary"] = llm_summary
+
+    # Log query to memory (fire-and-forget)
+    try:
+        from memory_store import save_query
+        save_query(
+            query=req.query,
+            intent=intent,
+            product=params.get("product", "croissant"),
+            agent_results=agent_summaries,
+            decision=decision.get("action", ""),
+            summary=llm_summary or "",
+            target_date=params.get("date", ""))
+    except Exception:
+        pass
 
     return response
 

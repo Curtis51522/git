@@ -164,7 +164,7 @@ Rules:
 def _build_prompt(intent: str, query: str, decision: str, priority: str,
                   agent_summaries: str, conflicts: str, counterfactual: str = "",
                   causal_calibration: str = "", causal_narrative: str = "",
-                  product: str = "", associations: str = "") -> str:
+                  product: str = "", associations: str = "", memory_context: str = "") -> str:
     if "," in product and intent == "stock_query":
         template = PROMPT_TEMPLATES.get("comparison", DEFAULT_TEMPLATE)
     else:
@@ -176,6 +176,7 @@ def _build_prompt(intent: str, query: str, decision: str, priority: str,
         causal_calibration=causal_calibration or "N/A",
         causal_narrative=causal_narrative or "N/A",
         associations=associations or "N/A",
+        memory_context=memory_context or "No historical baseline available.",
     )
 
 
@@ -185,7 +186,7 @@ async def synthesize(query: str, intent: str, decision: str, priority: str,
                      causal_calibration: Optional[dict] = None,
                      causal_narrative: str = "",
                      product: str = "",
-                     associations: str = "") -> Optional[str]:
+                     associations: str = "", memory_context: str = "") -> Optional[str]:
     if not SYNTHESIS_ENABLED:
         return None
 
@@ -212,7 +213,7 @@ async def synthesize(query: str, intent: str, decision: str, priority: str,
     if causal_calibration:
         causal_text = f"waste_loss={causal_calibration.get('waste_loss_per_unit', '?')}, top_driver={causal_calibration.get('top_waste_driver', '?')}"
 
-    prompt = _build_prompt(intent, query, decision, priority, agent_text, conflict_text, cf_text, causal_text, causal_narrative, product, associations)
+    prompt = _build_prompt(intent, query, decision, priority, agent_text, conflict_text, cf_text, causal_text, causal_narrative, product, associations, memory_context)
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
