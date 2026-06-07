@@ -1004,6 +1004,7 @@ if(!q){document.getElementById('agent-result').innerHTML='<span class="status-do
 document.getElementById('agent-result').innerHTML='<span class="spinner"></span>Processing...';
 try{var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{}})}).then(function(x){return x.json()});
 var out='<div style="font-size:13px;line-height:1.6">';
+if(r.rest_note){var rn=r.rest_note.replace('IMPORTANT: ','').replace('PENTING: ','');out+='<div style="background:#fff3cd;border-left:3px solid #f39c12;padding:6px 10px;border-radius:0 6px 6px 0;margin:4px 0;font-size:12px;font-weight:600;color:#856404">'+rn+'</div>';}
 var prio=r.priority||'normal';var pc=prio==='critical'?'#e74c3c':prio==='warning'?'#e67e22':'#27ae60';
 out+='<strong>Intent:</strong> '+r.intent+' ('+Math.round((r.intent_confidence||0)*100)+'%)<br>';
 out+='<strong>Product:</strong> '+r.product+' | <strong>Decision:</strong> <span style="color:'+pc+';font-weight:700">'+r.decision+'</span> ('+(r.elapsed_ms||0)+'ms)<br>';

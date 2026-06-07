@@ -221,9 +221,9 @@ def parse_query(query: str) -> dict:
     if ql_date_shifted:
         is_malay = any(w in ql for w in ["esok", "hari ini", "lusa", "semalam", "isnin", "selasa", "rabu", "khamis", "jumaat", "sabtu", "ahad"])
         if is_malay:
-            rest_note = "Isnin adalah hari rehat (kedai tutup). Data di bawah adalah untuk hari bekerja seterusnya. "
+            rest_note = "PENTING: Isnin adalah hari rehat (kedai tutup). Semua data di bawah adalah untuk hari Selasa. Anda MESTI nyatakan ini pada permulaan ringkasan. "
         else:
-            rest_note = "Monday is a rest day (bakery closed). Data below is for the next open day. "
+            rest_note = "IMPORTANT: Monday is a rest day (bakery closed). All data below is for Tuesday (the next open day). You MUST state this clearly at the start of your summary. "
     return {"intent": "pending", "intent_confidence": 0.0, "product": "pending",
             "days": 7, "date": target.strftime("%Y-%m-%d"), "planned_agents": [], "rest_note": rest_note}
 
