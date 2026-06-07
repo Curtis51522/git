@@ -604,10 +604,9 @@ def _persist_schedule(results, base, num_days):
 
 def _rebuild_from_employees(start_date, num_days, employees):
     base = datetime.strptime(start_date, "%Y-%m-%d")
-    week_start = base - timedelta(days=base.weekday())
     demand_forecast = _fetch_demand_forecast(start_date, num_days)
     results = solve_shift_schedule(
-        employees, week_start.strftime("%Y-%m-%d"), 7,
+        employees, start_date, num_days,
         demand_forecast=demand_forecast,
         shop_closed_weekdays={0},
     )
