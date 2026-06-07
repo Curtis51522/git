@@ -32,9 +32,10 @@ Agents:
 {agent_summaries}
 Conflicts: {conflicts}
 Counterfactual: {counterfactual}
+Forecast Drivers (what influences demand): {memory_context}
 
 Rules:
-- Write in natural, flowing English. The DECISION field is authoritative - use it as your source of truth.
+- Write in natural, flowing English. If Forecast Drivers are available, briefly mention the top 1-2 drivers. The DECISION field is authoritative - use it as your source of truth.
 - LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
 - Be direct and honest. If there is a shortage, state the gap explicitly: "You are short by X units."
 - If there are conflicts or risks, address them plainly without hiding behind vague terms.
