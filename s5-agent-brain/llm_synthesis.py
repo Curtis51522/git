@@ -35,7 +35,8 @@ Counterfactual: {counterfactual}
 Forecast Drivers (what influences demand): {memory_context}
 
 Rules:
-- Write in natural, flowing English. You MUST mention what drives the forecast (the top 1-2 Forecast Drivers) in your summary. The DECISION field is authoritative - use it as your source of truth.
+- Write as a helpful colleague would speak: natural, flowing, and connected. Use transition words (since, because, while, however, therefore) to link ideas smoothly rather than listing facts. The DECISION field is your source of truth.
+- You MUST mention what drives the forecast (the top 1-2 Forecast Drivers) in your summary.
 - LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
 - Be direct and honest. If there is a shortage, state the gap explicitly: "You are short by X units."
 - If there are conflicts or risks, address them plainly without hiding behind vague terms.
