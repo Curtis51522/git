@@ -143,6 +143,27 @@ async def run_full_check() -> Dict[str, int]:
     results["forecast"] = await check_forecast()
     results["schedule"] = await check_schedule()
     clear_expired()
+    # Save daily snapshot for memory
+    try:
+        from memory_store import save_snapshot, compare_baseline
+        today = time.strftime('%Y-%m-%d')
+        snapshot = {'inventory': {}, 'forecast': {}, 'waste': {}, 'profit': {}}
+        inv_data = await _fetch(S1_BATCH_URL)
+        for item in inv_data.get('inventory', []):
+            pname = item.get('product_name', '')
+            snapshot['inventory'][pname] = snapshot['inventory'].get(pname, 0) + item.get('quantity', 0)
+        fc_data = await _fetch(S2_FORECAST_URL + '?days=1&product=all&date=' + today)
+        for fc in fc_data.get('forecasts', []):
+            snapshot['forecast'][fc.get('product_name', '')] = fc.get('predicted_demand', 0)
+        save_snapshot(today, snapshot)
+        anomalies = compare_baseline(snapshot)
+        for a in anomalies:
+            add_alert('baseline', a.get('severity', 'warning'),
+                      a['product'] + ' ' + a['metric'] + ' anomaly',
+                      a['product'] + ' ' + a['metric'] + ': ' + str(a['current']) + ' vs ~' + str(a['baseline']) + ' baseline (' + a['deviation'] + ' of normal).')
+    except Exception as e:
+        logger.debug('Snapshot save skipped: %s', e)
+
     total = sum(results.values())
     if total > 0:
         logger.info("Monitor check complete: %d new alerts", total)
