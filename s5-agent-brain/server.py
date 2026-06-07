@@ -373,20 +373,43 @@ async def handle_query(req: QueryRequest):
             params["product"] = plan.get("product", "croissant")
             intent = params["intent"]
 
+    # Product aliases (Malay + common variants)
+    PRODUCT_ALIASES = {
+        "croissant": ["croissant", "croissant chocolate", "croissant_chocolate", "croissant coklat"],
+        "donut": ["donut", "donat", "doughnut"],
+        "chiffon": ["chiffon", "kek chiffon"],
+        "bread_roll": ["bread roll", "bread_roll", "roti", "bun"],
+        "bread_coconut": ["bread coconut", "bread_coconut", "roti kelapa", "coconut bread"],
+        "croissant_chocolate": ["croissant chocolate", "croissant_chocolate", "croissant coklat", "chocolate croissant"],
+    }
+
     # Product extraction
     # DistilBERT handles all intent classification including comparison_analysis
 
     if params.get("product") in ("pending", None):
         product_found = None
         for p in sorted(PRODUCT_NAMES, key=len, reverse=True):
-            if p.replace("_", " ") in ql or p in ql:
-                product_found = p; break
+            aliases = PRODUCT_ALIASES.get(p, [p, p.replace("_", " ")])
+            for alias in aliases:
+                if alias in ql:
+                    product_found = p
+                    break
+            if product_found:
+                break
 
         mentioned = []
         for p in sorted(PRODUCT_NAMES, key=len, reverse=True):
-            if p.replace("_", " ") in ql or p in ql:
-                if any(p in m for m in mentioned): continue
-                mentioned.append(p)
+            aliases = PRODUCT_ALIASES.get(p, [p, p.replace("_", " ")])
+            matched = False
+            for alias in aliases:
+                if alias in ql:
+                    matched = True
+                    break
+            if not matched:
+                continue
+            if any(p in m for m in mentioned):
+                continue
+            mentioned.append(p)
 
         if len(mentioned) >= 2 or "compare" in ql or "versus" in ql or " vs " in ql:
             params["product"] = ",".join(mentioned) if len(mentioned) >= 2 else "all"
