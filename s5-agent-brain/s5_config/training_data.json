@@ -256,7 +256,7 @@
     "intent": "promo_eval"
   },
   {
-    "text": "cost analysis for chiffon cake\u9225\u651ahy so expensive to make",
+    "text": "cost analysis for chiffon cake鈥攚hy so expensive to make",
     "intent": "profit_analysis"
   },
   {
@@ -688,7 +688,7 @@
     "intent": "promo_eval"
   },
   {
-    "text": "who\u9225\u6a9a rostered on for croissant prep today",
+    "text": "who鈥檚 rostered on for croissant prep today",
     "intent": "schedule_audit"
   },
   {
@@ -1492,7 +1492,7 @@
     "intent": "promo_eval"
   },
   {
-    "text": "how\u9225\u6a9a the revenue for donut lately",
+    "text": "how鈥檚 the revenue for donut lately",
     "intent": "profit_analysis"
   },
   {
@@ -2572,7 +2572,7 @@
     "intent": "schedule_audit"
   },
   {
-    "text": "earnings summary for bread coconut\u9225\u650as it worth making more",
+    "text": "earnings summary for bread coconut鈥攊s it worth making more",
     "intent": "profit_analysis"
   },
   {
@@ -2664,7 +2664,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "check roster for donut and chiffon\u9225\u6505nough?",
+    "text": "check roster for donut and chiffon鈥攅nough?",
     "intent": "schedule_audit"
   },
   {
@@ -3708,7 +3708,7 @@
     "intent": "profit_analysis"
   },
   {
-    "text": "croissant chocolate low\u9225\u6516op up or not?",
+    "text": "croissant chocolate low鈥攖op up or not?",
     "intent": "stock_query"
   },
   {
@@ -4276,7 +4276,7 @@
     "intent": "cross_source_audit"
   },
   {
-    "text": "profit margin for donut vs bread coconut\u9225\u651ahich satu better",
+    "text": "profit margin for donut vs bread coconut鈥攚hich satu better",
     "intent": "comparison_analysis"
   },
   {
@@ -4488,7 +4488,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "bread roll order delay\u9225\u6515till got backup?",
+    "text": "bread roll order delay鈥攕till got backup?",
     "intent": "stock_query"
   },
   {
@@ -4588,7 +4588,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "who\u9225\u6a9a on donut line for this shift?",
+    "text": "who鈥檚 on donut line for this shift?",
     "intent": "schedule_audit"
   },
   {
@@ -4900,7 +4900,7 @@
     "intent": "cross_source_audit"
   },
   {
-    "text": "donut stock running out\u9225\u6515hould I prepare more?",
+    "text": "donut stock running out鈥攕hould I prepare more?",
     "intent": "stock_query"
   },
   {
@@ -5276,7 +5276,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "donut glazing problem make people don\u9225\u6a9b buy",
+    "text": "donut glazing problem make people don鈥檛 buy",
     "intent": "waste_analysis"
   },
   {
@@ -5504,7 +5504,7 @@
     "intent": "promo_eval"
   },
   {
-    "text": "shift plan for coconut bread and croissant\u9225\u6501ny shortage?",
+    "text": "shift plan for coconut bread and croissant鈥攁ny shortage?",
     "intent": "schedule_audit"
   },
   {
@@ -5948,7 +5948,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "how\u9225\u6a9a donut selling compare to croissant",
+    "text": "how鈥檚 donut selling compare to croissant",
     "intent": "comparison_analysis"
   },
   {
@@ -6276,7 +6276,7 @@
     "intent": "comparison_analysis"
   },
   {
-    "text": "who\u9225\u6a9a the backup for bread coconut if someone calls in",
+    "text": "who鈥檚 the backup for bread coconut if someone calls in",
     "intent": "schedule_audit"
   },
   {
@@ -6428,7 +6428,7 @@
     "intent": "comparison_analysis"
   },
   {
-    "text": "donut waste banyak what\u9225\u6a9a the root cause",
+    "text": "donut waste banyak what鈥檚 the root cause",
     "intent": "waste_analysis"
   },
   {
@@ -6436,7 +6436,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "revenue report for donut and chiffon\u9225\u6501ny difference in profit",
+    "text": "revenue report for donut and chiffon鈥攁ny difference in profit",
     "intent": "profit_analysis"
   },
   {
@@ -8256,7 +8256,7 @@
     "intent": "cross_source_audit"
   },
   {
-    "text": "baker roster for this week\u9225\u6a9a croissant run",
+    "text": "baker roster for this week鈥檚 croissant run",
     "intent": "schedule_audit"
   },
   {
@@ -8292,7 +8292,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "bread coconut prediction\u9225\u651aill it sell fast?",
+    "text": "bread coconut prediction鈥攚ill it sell fast?",
     "intent": "stock_query"
   },
   {
@@ -9068,7 +9068,7 @@
     "intent": "out_of_scope"
   },
   {
-    "text": "look for any anomalies in today\u9225\u6a9a shift pattern",
+    "text": "look for any anomalies in today鈥檚 shift pattern",
     "intent": "schedule_audit"
   },
   {
@@ -11372,7 +11372,7 @@
     "intent": "schedule_audit"
   },
   {
-    "text": "cost analysis for croissant chocolate\u9225\u651ahy so high",
+    "text": "cost analysis for croissant chocolate鈥攚hy so high",
     "intent": "profit_analysis"
   },
   {
@@ -11580,7 +11580,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "check shift plan for bread roll and croissant\u9225\u6501ny gap?",
+    "text": "check shift plan for bread roll and croissant鈥攁ny gap?",
     "intent": "schedule_audit"
   },
   {
@@ -12180,7 +12180,7 @@
     "intent": "cross_source_audit"
   },
   {
-    "text": "donut buang banyak what\u9225\u6a9a the reason",
+    "text": "donut buang banyak what鈥檚 the reason",
     "intent": "waste_analysis"
   },
   {
@@ -13156,7 +13156,7 @@
     "intent": "cross_source_audit"
   },
   {
-    "text": "who\u9225\u6a9a on the roster for croissant and donut prep?",
+    "text": "who鈥檚 on the roster for croissant and donut prep?",
     "intent": "schedule_audit"
   },
   {
@@ -14132,7 +14132,7 @@
     "intent": "profit_analysis"
   },
   {
-    "text": "how\u9225\u6a9a the store doing la the croissant and donut and chiffon and bread roll and coconut bread and chocolate croissant",
+    "text": "how鈥檚 the store doing la the croissant and donut and chiffon and bread roll and coconut bread and chocolate croissant",
     "intent": "cross_source_audit"
   },
   {
@@ -14180,7 +14180,7 @@
     "intent": "profit_analysis"
   },
   {
-    "text": "gotta check who\u9225\u6a9a working today for the bakery side",
+    "text": "gotta check who鈥檚 working today for the bakery side",
     "intent": "schedule_audit"
   },
   {
@@ -14708,7 +14708,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "what\u9225\u6a9a my profit for bread roll, any good?",
+    "text": "what鈥檚 my profit for bread roll, any good?",
     "intent": "profit_analysis"
   },
   {
@@ -15860,7 +15860,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "meaning of life is like a croissant\u9225\u6506laky, buttery, huh?",
+    "text": "meaning of life is like a croissant鈥攆laky, buttery, huh?",
     "intent": "out_of_scope"
   },
   {
@@ -16920,7 +16920,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "how\u9225\u6a9a bread roll looking today",
+    "text": "how鈥檚 bread roll looking today",
     "intent": "stock_query"
   },
   {
@@ -17176,7 +17176,7 @@
     "intent": "profit_analysis"
   },
   {
-    "text": "show\u9225\u6a9a the profit margin on the coconut bread la",
+    "text": "show鈥檚 the profit margin on the coconut bread la",
     "intent": "profit_analysis"
   },
   {
@@ -17876,7 +17876,7 @@
     "intent": "profit_analysis"
   },
   {
-    "text": "byeee i want to return this donut because it didn\u9225\u6a9b fix my car",
+    "text": "byeee i want to return this donut because it didn鈥檛 fix my car",
     "intent": "out_of_scope"
   },
   {
@@ -18720,7 +18720,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "staff schedule check\u9225\u6504onut section short?",
+    "text": "staff schedule check鈥攄onut section short?",
     "intent": "schedule_audit"
   },
   {
@@ -18924,7 +18924,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "how\u9225\u6a9a the stock for bread roll",
+    "text": "how鈥檚 the stock for bread roll",
     "intent": "stock_query"
   },
   {
@@ -19224,7 +19224,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "who\u9225\u6a9a on break right now for pastry team",
+    "text": "who鈥檚 on break right now for pastry team",
     "intent": "schedule_audit"
   },
   {
@@ -20524,7 +20524,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "chiffon order for tomorrow\u9225\u6508ow many?",
+    "text": "chiffon order for tomorrow鈥攈ow many?",
     "intent": "stock_query"
   },
   {
@@ -20716,7 +20716,7 @@
     "intent": "waste_analysis"
   },
   {
-    "text": "check bakery staffing for this shift\u9225\u6501ll products covered?",
+    "text": "check bakery staffing for this shift鈥攁ll products covered?",
     "intent": "schedule_audit"
   },
   {
@@ -21704,7 +21704,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "life meaning is like a donut\u9225\u6508ole in middle, still complete",
+    "text": "life meaning is like a donut鈥攈ole in middle, still complete",
     "intent": "out_of_scope"
   },
   {
@@ -23012,7 +23012,7 @@
     "intent": "schedule_audit"
   },
   {
-    "text": "ops audit for the bakery section what\u9225\u6a9a the status of each product",
+    "text": "ops audit for the bakery section what鈥檚 the status of each product",
     "intent": "cross_source_audit"
   },
   {
@@ -23276,7 +23276,7 @@
     "intent": "cross_source_audit"
   },
   {
-    "text": "show me the whole week\u9225\u6a9a roster for croissant",
+    "text": "show me the whole week鈥檚 roster for croissant",
     "intent": "schedule_audit"
   },
   {
@@ -23620,7 +23620,7 @@
     "intent": "profit_analysis"
   },
   {
-    "text": "team roster update for today\u9225\u6a9a afternoon shift",
+    "text": "team roster update for today鈥檚 afternoon shift",
     "intent": "schedule_audit"
   },
   {
@@ -25760,7 +25760,7 @@
     "intent": "schedule_audit"
   },
   {
-    "text": "who\u9225\u6a9a supposed to be on shift for coconut bread?",
+    "text": "who鈥檚 supposed to be on shift for coconut bread?",
     "intent": "schedule_audit"
   },
   {
@@ -26584,7 +26584,7 @@
     "intent": "cross_source_audit"
   },
   {
-    "text": "who\u9225\u6a9a covering the afternoon shift for donut?",
+    "text": "who鈥檚 covering the afternoon shift for donut?",
     "intent": "schedule_audit"
   },
   {
@@ -27792,7 +27792,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "croissant habis cepat\u9225\u6510rder extra?",
+    "text": "croissant habis cepat鈥攐rder extra?",
     "intent": "stock_query"
   },
   {
@@ -29188,7 +29188,7 @@
     "intent": "stock_query"
   },
   {
-    "text": "revenue report for bread roll and bread coconut\u9225\u651ahich one more profitable",
+    "text": "revenue report for bread roll and bread coconut鈥攚hich one more profitable",
     "intent": "profit_analysis"
   },
   {
@@ -31054,5 +31054,80 @@
   {
     "text": "donut or bread_roll which is selling faster",
     "intent": "comparison_analysis"
+  },
+  {
+    "text": "Berapa banyak donat yang perlu saya bakar esok?",
+    "intent": "stock_query",
+    "product": "donut"
+  },
+  {
+    "text": "Berapa banyak croissant yang perlu saya bakar esok?",
+    "intent": "stock_query",
+    "product": "croissant"
+  },
+  {
+    "text": "Berapa banyak roti yang perlu saya bakar hari ini?",
+    "intent": "stock_query",
+    "product": "bread_roll"
+  },
+  {
+    "text": "Saya perlu bakar berapa chiffon untuk esok?",
+    "intent": "stock_query",
+    "product": "chiffon"
+  },
+  {
+    "text": "Bakar berapa donat untuk hari selasa?",
+    "intent": "stock_query",
+    "product": "donut"
+  },
+  {
+    "text": "Berapa kuantiti croissant coklat untuk esok?",
+    "intent": "stock_query",
+    "product": "croissant_chocolate"
+  },
+  {
+    "text": "Berapa banyak roti kelapa yang perlu dibakar?",
+    "intent": "stock_query",
+    "product": "bread_coconut"
+  },
+  {
+    "text": "Stok donat tinggal berapa?",
+    "intent": "stock_query",
+    "product": "donut"
+  },
+  {
+    "text": "Berapa stok croissant sekarang?",
+    "intent": "stock_query",
+    "product": "croissant"
+  },
+  {
+    "text": "Adakah saya perlu bakar donat hari ini?",
+    "intent": "stock_query",
+    "product": "donut"
+  },
+  {
+    "text": "Berapa permintaan untuk croissant esok?",
+    "intent": "stock_query",
+    "product": "croissant"
+  },
+  {
+    "text": "Ramalan jualan donat untuk esok?",
+    "intent": "stock_query",
+    "product": "donut"
+  },
+  {
+    "text": "Boleh semak stok untuk semua produk?",
+    "intent": "stock_query",
+    "product": "all"
+  },
+  {
+    "text": "Berapa jumlah donat yang perlu disediakan?",
+    "intent": "stock_query",
+    "product": "donut"
+  },
+  {
+    "text": "Cadangan pembakaran untuk croissant hari ini",
+    "intent": "stock_query",
+    "product": "croissant"
   }
 ]
