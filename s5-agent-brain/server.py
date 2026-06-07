@@ -619,6 +619,8 @@ async def handle_query(req: QueryRequest):
         response["counterfactual"] = decision["counterfactual"]
     if "projection" in decision:
         response["projection"] = decision["projection"]
+    if "pareto_plans" in decision:
+        response["pareto_plans"] = decision["pareto_plans"]
 
     # Attach SHAP explainability
     try:
