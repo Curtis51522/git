@@ -481,6 +481,20 @@ async def handle_query(req: QueryRequest):
                 # Counterfactual: why this plan over alternatives?
                 all_plans = decision.get("pareto_plans", [])
                 alternatives = [p for p in all_plans if p["label"] != llm_choice["selected_plan"]]
+                # Sync production agent with LLM-chosen plan
+                chosen_bake = chosen.get("bake", 0)
+                if "production" in results and chosen_bake > 0:
+                    prod = results["production"]
+                    prod["data"]["recommended"] = chosen_bake
+                    # Rebuild opinion with correct bake
+                    cap = prod["data"].get("max_capacity", 720)
+                    bakers = prod["data"].get("bakers", 1)
+                    ovens = prod["data"].get("ovens_used", 2)
+                    rate = prod["data"].get("oven_rate", 80)
+                    eff_hrs = prod["data"].get("effective_hours", 4.5)
+                    window = prod["data"].get("effective_hours", 4.5)  # same as baking_window
+                    prod["opinion"] = f"Capacity {cap} ({bakers} bakers x {ovens} ovens, {eff_hrs:.1f}h eff, {rate:.0f}/hr/oven, window={window:.1f}h), bake {chosen_bake}"
+
                 if alternatives:
                     cf_parts = []
                     for alt in alternatives:
