@@ -1,5 +1,6 @@
 # Alert Store - persistent alert storage (JSON file)
 # Tracks alert history with acknowledgment state.
+# Tracks alert history with acknowledgment state.
 import json, os, logging, time
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -114,4 +115,13 @@ def clear_expired() -> int:
     removed = old_len - len(store["alerts"])
     if removed > 0:
         _save(store)
+    return removed
+
+def clear_all() -> int:
+    """Clear all alerts (acknowledged and unacknowledged). Returns count removed."""
+    store = _load()
+    removed = len(store.get("alerts", []))
+    store["alerts"] = []
+    _save(store)
+    logger.info("Cleared %d alerts", removed)
     return removed

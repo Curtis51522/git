@@ -175,7 +175,7 @@ def optimize_single(demand: float, stock: float, max_capacity: float,
     waste = max(0, total_available - demand) + day1_wasted
 
     # Profit calculation
-    revenue = sold * unit_price
+    revenue = float(sold * unit_price)
     total_cost = (bake * costs.production_cost +
                   waste * costs.waste_loss +
                   shortage * costs.stockout_loss)
@@ -213,7 +213,7 @@ def optimize_multi(products: List[ProductState], total_capacity: float,
     Phase 4: Multi-product profit-aware MIP with robust demand.
     
     Objective: maximize sum_i [ revenue_i - production_cost_i - waste_cost_i - stockout_cost_i ]
-    where revenue_i = min(available_i, demand_i) * unit_price_i
+    where revenue_i = float(min(available_i, demand_i) * unit_price_i)
     
     Uses HiGHS branch-and-bound MIP solver via scipy.milp.
     Falls back to LP + rounding if MIP unavailable.
@@ -254,7 +254,7 @@ def optimize_multi(products: List[ProductState], total_capacity: float,
         c_obj[i] = costs.production_cost          # production cost
         c_obj[n + i] = costs.waste_loss            # waste cost
         c_obj[2 * n + i] = costs.stockout_loss     # stockout cost
-        c_obj[3 * n + i] = -p.unit_price           # revenue (negative to maximize)
+        c_obj[3 * n + i] = -float(p.unit_price)           # revenue (negative to maximize)
 
     # Integrality: bake quantities are integers
     integrality = np.zeros(nvars, dtype=int)
@@ -288,15 +288,15 @@ def optimize_multi(products: List[ProductState], total_capacity: float,
         row2 = np.zeros(nvars)
         row2[3 * n + i] = 1.0
         A_ineq_rows.append(row2)
-        b_ineq_rows.append(d * p.unit_price)
+        b_ineq_rows.append(d * float(p.unit_price))
 
         # Revenue cannot exceed available * price
         # rev_i <= (b_i + fresh_i + day1_i) * price_i
         row3 = np.zeros(nvars)
-        row3[i] = -p.unit_price
+        row3[i] = -float(p.unit_price)
         row3[3 * n + i] = 1.0
         A_ineq_rows.append(row3)
-        b_ineq_rows.append((p.fresh_stock + effective_day1) * p.unit_price)
+        b_ineq_rows.append((p.fresh_stock + effective_day1) * float(p.unit_price))
 
         # Revenue >= 0
         # already handled by bounds below
@@ -579,7 +579,7 @@ def generate_pareto_plans(demand: float, stock: float, max_capacity: float,
             sold = min(total_available, s_demand)
             waste = max(0, total_available - s_demand)
             shortage = max(0, s_demand - sold)
-            profit = sold * unit_price - (bake_qty * costs.production_cost +
+            profit = float(sold * unit_price) - (bake_qty * costs.production_cost +
                        waste * costs.waste_loss + shortage * costs.stockout_loss)
             scenario_outcomes[s_label] = {
                 "demand": round(s_demand),
@@ -700,7 +700,7 @@ def project_multi_period(daily_forecasts: list, initial_fresh: float, initial_da
         next_day1 = max(0, fresh - sold_fresh)
 
         # Profit for the day
-        revenue = total_sold * unit_price
+        revenue = float(total_sold * unit_price)
         cost = wasted * costs.waste_loss + shortage * costs.stockout_loss + bake_today * costs.production_cost
         day_profit = round(revenue - cost, 2)
 
@@ -720,10 +720,15 @@ def project_multi_period(daily_forecasts: list, initial_fresh: float, initial_da
             "coverage_pct": coverage,
         })
 
-        # Roll forward (no new baking on future days in baseline projection)
-        fresh = 0  # Assume no future baking in this projection
+        # Roll forward: bake tomorrow = max(0, tomorrow_demand - day1_carryover)
+        # Uses next day's demand so bake matches what's actually needed
+        if i + 1 < len(daily_forecasts):
+            next_demand = max(0, daily_forecasts[i + 1])
+        else:
+            next_demand = demand  # last day: estimate based on current
+        target_bake = max(0, next_demand - next_day1)
+        fresh = target_bake
         day1 = next_day1
-        bake_today = 0  # Only day 0 has baking
         cum_shortage += shortage
 
     # Trend analysis

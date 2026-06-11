@@ -111,3 +111,6 @@ _bp.txt
 s5-agent-brain/models/distilbert_intent/model.safetensors
 s5-agent-brain/alerts.json
 s5_test_response.json
+s1_recognition/dataset/
+
+s5_agent/models/

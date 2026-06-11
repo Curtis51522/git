@@ -202,9 +202,9 @@ class PromoAgent(BaseAgent):
             else:
                 opinions.append(
                     "{}% off {} ({} surplus, stock {} vs forecast {}) "
-                    "[{} urgency {}: {}]".format(
+                    "[level={} urgency={}: {}]".format(
                         discount_pct, pname, surplus, stock, forecast,
-                        dd["urgency"], dim_str)
+                        dd.get("level", "N/A"), dd["urgency"], dim_str)
                 )
 
         if not opinions:

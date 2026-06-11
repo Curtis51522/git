@@ -1,10 +1,10 @@
-# Arbitrator - cross-agent health audit + final decision
+﻿# Arbitrator - cross-agent health audit + final decision
 # Merges Health Agent and Arbitrator into one.
 # Agent deliberation (LLM-mediated consensus) resolves disagreements but does NOT override optimizer results.
 import logging, time, json
 from optimizer import optimize_single, optimize_multi, ProductState, CostParams, BakeryConfig, generate_pareto_plans
 from typing import Dict, Any, List, Optional
-import httpx, os, sys
+import os, sys
 
 _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PARENT not in sys.path:

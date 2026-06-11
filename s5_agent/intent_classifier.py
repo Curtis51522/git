@@ -1,4 +1,4 @@
-# Intent Classifier - DistilBERT fine-tuned on bakery queries
+﻿# Intent Classifier - DistilBERT fine-tuned on bakery queries
 # Primary intent router for S5. Keyword rules as fallback.
 import os, json, logging
 from typing import Tuple
@@ -95,67 +95,3 @@ def classify_intent(query: str) -> Tuple[str, float]:
     if scores[best] > 0:
         return best, 0.7
     return "stock_query", 0.5
-
-
-def train_intent_classifier(training_data_path: str = None, output_dir: str = None):
-    """Fine-tune DistilBERT on bakery query intent data."""
-    import torch
-    from torch.utils.data import Dataset, DataLoader
-    from transformers import (
-        DistilBertForSequenceClassification, DistilBertTokenizer,
-        Trainer, TrainingArguments,
-    )
-
-    if training_data_path is None:
-        training_data_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "s5_config", "training_data.json")
-    if output_dir is None:
-        output_dir = _MODEL_DIR
-
-    with open(training_data_path, "r") as f:
-        data = json.load(f)
-
-    texts = [d["text"] for d in data]
-    labels = [INTENT_LABELS.index(d["intent"]) for d in data]
-
-    tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
-    model = DistilBertForSequenceClassification.from_pretrained(
-        "distilbert-base-uncased", num_labels=len(INTENT_LABELS))
-
-    encodings = tokenizer(texts, truncation=True, padding=True, max_length=64)
-
-    class IntentDataset(Dataset):
-        def __init__(self, encodings, labels):
-            self.encodings = encodings
-            self.labels = labels
-        def __getitem__(self, idx):
-            item = {k: torch.tensor(v[idx]) for k, v in self.encodings.items()}
-            item["labels"] = torch.tensor(self.labels[idx])
-            return item
-        def __len__(self):
-            return len(self.labels)
-
-    dataset = IntentDataset(encodings, labels)
-
-    training_args = TrainingArguments(
-        output_dir=output_dir,
-        num_train_epochs=10,
-        per_device_train_batch_size=16,
-        learning_rate=2e-5,
-        save_strategy="epoch",
-        logging_steps=5,
-        report_to="none",
-    )
-
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset,
-    )
-
-    trainer.train()
-    model.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
-    logger.info("DistilBERT intent classifier saved to %s", output_dir)
-    return model, tokenizer

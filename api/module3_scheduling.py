@@ -65,17 +65,18 @@ DEFAULT_EMPLOYEES = [
     Employee(id="E003", name="Raj",     role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
     Employee(id="E004", name="Siti",    role="baker",    min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E005", name="Ahmad",   role="baker",    min_hours_per_week=14, max_hours_per_week=56, is_deputy=True),
-    Employee(id="E006", name="Priya",   role="cashier",  min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E006", name="Priya",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E007", name="Kumar",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E008", name="David",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E009", name="Chen",    role="barista",  min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E009", name="Chen",    role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
     Employee(id="E010", name="Fatima",  role="manager",  min_hours_per_week=14, max_hours_per_week=42),
 ]
 
 TIME_SLOTS = ["06:00-13:00", "12:00-19:00"]
 ROLES = ["baker", "cashier", "barista", "manager"]
 SLOT_HOURS = {"06:00-13:00": 7, "12:00-19:00": 7}
-BASELINE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models", "schedule_baseline.json")
+def _baseline_path(week_start):
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models", f"schedule_baseline_{week_start}.json")
 
 
 
@@ -164,7 +165,7 @@ def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
                 daily[d]["demand_level"] = "low"  # closed day
             elif total >= 250:
                 daily[d]["demand_level"] = "high"
-            elif total >= 150:
+            elif total >= 130:
                 daily[d]["demand_level"] = "normal"
             else:
                 daily[d]["demand_level"] = "low"
@@ -241,11 +242,11 @@ def solve_shift_schedule(
         fc = demand_forecast.get(date_str, {})
         level = fc.get("demand_level", "normal")
         if level == "high":
-            req = {"baker": 4, "cashier": 2, "barista": 1, "manager": 1}
+            req = {"baker": 5, "cashier": 2, "barista": 1, "manager": 1, "_level": "high"}
         elif level == "low":
-            req = {"baker": 2, "cashier": 2, "barista": 1, "manager": 1}
+            req = {"baker": 2, "cashier": 1, "barista": 1, "manager": 0, "_level": "low"}
         else:  # normal
-            req = {"baker": 3, "cashier": 2, "barista": 1, "manager": 1}  # dual-role allowed
+            req = {"baker": 3, "cashier": 1, "barista": 1, "manager": 1, "_level": "normal"}  # dual-role allowed
         
         # Clamp to available employees per role (skip manager: 1 person can do both slots)
         for role in ROLES:
@@ -312,8 +313,13 @@ def solve_shift_schedule(
                 if role_name == "cashier":
                     # Raj's barista shift = +1 cashier (disabled on high days)
                     is_high_day = req.get("_level") == "high"
-                    raj_barista = sum(shift[(ridx, d, s, barista_r_idx)] for ridx in raj_indices) if not is_high_day else 0
+                    raj_barista = sum(shift[(ridx, d, s, barista_r_idx)] for ridx in raj_indices)
                     model.Add(sum(slot_shifts) + raj_barista >= req["cashier"])
+                    # At least 1 person assigned cashier role per slot (main counter)
+                    dedicated_cashier = [shift[(e_idx, d, s, cashier_r_idx)]
+                                        for e_idx in range(num_employees)]
+                    model.Add(sum(dedicated_cashier) >= 1)
+
                 elif role_name == "barista":
                     model.Add(sum(slot_shifts) == 1)  # always 1 barista per slot
 
@@ -414,7 +420,8 @@ def solve_shift_schedule(
             shift[(e_idx, d, s, r)] * SLOT_HOURS[TIME_SLOTS[s]]
             for d in range(num_days) for s in range(num_slots) for r in range(num_roles)
         )
-        model.Add(weekly_hours >= int(emp.min_hours_per_week))
+        # REMOVED: no lower limit
+        # model.Add(weekly_hours >= int(emp.min_hours_per_week))
         # Relax max when colleagues are sick or during high-demand weeks
         max_h = int(emp.max_hours_per_week)
         sick_in_role = sick_count_by_role.get(emp.role, 0)
@@ -428,7 +435,8 @@ def solve_shift_schedule(
                 max_h = min(max_h + high_day_count * 7, 56)
             elif emp.role in ("barista", "baker", "manager"):
                 max_h = min(max_h + high_day_count * 7, 56)
-        model.Add(weekly_hours <= max_h)
+        # REMOVED: no upper limit
+        # model.Add(weekly_hours <= max_h)
 
     # --- Constraint 6: Unavailable dates ---
     for e_idx in range(num_employees):
@@ -578,11 +586,46 @@ def _save_baseline(results, week_start_str=None):
             baseline[eid] = {"name": r.employee_name, "role": r.role, "shifts": 0}
         baseline[eid]["shifts"] += 1
     try:
-        os.makedirs(os.path.dirname(os.path.abspath(BASELINE_FILE)), exist_ok=True)
-        with open(os.path.abspath(BASELINE_FILE), 'w') as f:
+        bp = _baseline_path(week_start_str or "unknown")
+        os.makedirs(os.path.dirname(os.path.abspath(bp)), exist_ok=True)
+        with open(os.path.abspath(bp), 'w') as f:
             json.dump({"week_start": week_start_str or "", "employees": baseline}, f, indent=2)
     except Exception:
         pass
+
+def _save_kpi_snapshot(week_start, kpi_data, snapshot_type, trigger_event):
+    """Save KPI snapshot to DB."""
+    try:
+        db = get_db()
+        c = db.cursor()
+        c.execute(
+            "INSERT INTO kpi_snapshots (week_start, snapshot_type, trigger_event, data) VALUES (%s, %s, %s, %s)",
+            (week_start, snapshot_type, trigger_event, json.dumps(kpi_data, default=str))
+        )
+        db.commit()
+    except Exception:
+        pass
+
+def _log_sick_leave(employee_id, leave_date, action):
+    """Log sick leave to audit table."""
+    try:
+        db = get_db()
+        c = db.cursor()
+        c.execute(
+            "INSERT INTO sick_leave_log (employee_id, leave_date, action) VALUES (%s, %s, %s)",
+            (employee_id, leave_date, action)
+        )
+        db.commit()
+    except Exception:
+        pass
+
+def _is_past_date(date_str):
+    """Check if a date is in the past (before today)."""
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+        return d < datetime.now().date()
+    except Exception:
+        return False
 
 def _persist_schedule(results, base, num_days):
     db = get_db()
@@ -618,6 +661,7 @@ def _rebuild_from_employees(start_date, num_days, employees):
     except Exception:
         logger.error("Failed to persist schedule: %s", sys.exc_info())
         raise
+    pass  # KPI saved by _compute_kpi
     return results
 def _build_schedule_response(results):
     all_emps = {e.id: e for e in load_employees()}
@@ -638,6 +682,8 @@ def _build_schedule_response(results):
 
 def _solve_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", datetime.now().strftime("%Y-%m-%d"))
+    if _is_past_date(start_date):
+        return {"status": "error", "message": "Cannot modify past schedules. Select today or a future date."}
     num_days = min(payload.get("days", 7), 14)
     unavailable_map = payload.get("unavailable", {})
 
@@ -709,6 +755,8 @@ async def swap_employees(payload: dict):
 
     if not all([date, time_slot, from_id, to_id]):
         return {"status": "error", "message": "Missing required fields"}
+    if _is_past_date(date):
+        return {"status": "error", "message": "Cannot modify past schedules. Select today or a future date."}
     if from_id == to_id and date == to_date and time_slot == to_time_slot:
         return {"status": "error", "message": "Cannot swap with yourself"}
 
@@ -719,8 +767,15 @@ async def swap_employees(payload: dict):
     from_emp = employees[from_id]
     to_emp = employees[to_id]
 
-    if from_emp.role != to_emp.role:
-        return {"status": "rejected", "reason": f"Cannot swap across roles: {from_emp.name} is {from_emp.role}, {to_emp.name} is {to_emp.role}"}
+    # Skill-based swap check: each must be able to do the other's assigned role
+    from_skills = {from_emp.role} | set(getattr(from_emp, "secondary_roles", []) or [])
+    to_skills = {to_emp.role} | set(getattr(to_emp, "secondary_roles", []) or [])
+    from_role = from_shift.get("role", "")
+    to_role = to_shift.get("role", "")
+    if to_role not in from_skills:
+        return {"status": "rejected", "reason": f"{from_emp.name} cannot take {to_emp.name}'s {to_role} shift (skills: {sorted(from_skills)})"}
+    if from_role not in to_skills:
+        return {"status": "rejected", "reason": f"{to_emp.name} cannot take {from_emp.name}'s {from_role} shift (skills: {sorted(to_skills)})"}
 
     try:
         db = get_db()
@@ -821,6 +876,8 @@ def _clear_all_sick_dates():
 # ======================================================================
 def _resync_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", datetime.now().strftime("%Y-%m-%d"))
+    if _is_past_date(start_date):
+        return {"status": "error", "message": "Cannot modify past schedules. Select today or a future date."}
     num_days = min(payload.get("days", 7), 14)
     _clear_all_sick_dates()
     employees = load_employees()
@@ -854,6 +911,7 @@ def _resync_impl(payload: dict) -> dict:
             demand_level=row.get("demand_level", "normal"),
             production_target=row.get("production_target"),
         ))
+    pass  # KPI saved by _compute_kpi
     return _build_schedule_response(schedule_list)
 
 
@@ -867,12 +925,31 @@ async def resync_schedule(payload: dict):
 # POST /s3/sick -- Persist sick leave + resync
 # ======================================================================
 
-def _replace_sick_shifts(db, employee_id: str, date: str, role: str, employees: list) -> int:
+def _replace_sick_shifts(db, employee_id: str, date: str, role: str, employees: list, time_slot: str = None) -> int:
     """Remove sick employee's shifts for a date and find same-role replacements.
     Returns number of shifts replaced."""
-    sick_shifts = q(db, "shift_schedule").select("*").eq("employee_id", employee_id).eq("schedule_date", date).execute()
+    query = q(db, "shift_schedule").select("*").eq("employee_id", employee_id).eq("schedule_date", date)
+    if time_slot:
+        query = query.eq("time_slot", time_slot)
+    sick_shifts = query.execute()
     removed_slots = []
     for row in (sick_shifts.data or []):
+        # Save original to sick_replacements for undo
+        try:
+            q(db, "sick_replacements").insert({
+                "original_employee_id": employee_id,
+                "original_employee_name": row.get("employee_name", ""),
+                "schedule_date": date,
+                "time_slot": row["time_slot"],
+                "role": row.get("role", role),
+                "demand_level": row.get("demand_level", "normal"),
+                "production_target": row.get("production_target"),
+                "replaced_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "replacement_employee_id": "",
+                "is_undone": 0,
+            }).execute()
+        except Exception:
+            pass
         removed_slots.append({
             "id": row["id"],
             "time_slot": row["time_slot"],
@@ -899,6 +976,11 @@ def _replace_sick_shifts(db, employee_id: str, date: str, role: str, employees: 
                     "demand_level": slot.get("demand_level", "normal"),
                     "production_target": slot.get("production_target"),
                 }).execute()
+                # Record replacement in sick_replacements
+                try:
+                    q(db, "sick_replacements").update({"replacement_employee_id": candidate.id}).eq("original_employee_id", employee_id).eq("schedule_date", date).eq("time_slot", slot["time_slot"]).eq("is_undone", 0).execute()
+                except Exception:
+                    pass
                 replaced += 1
                 break
     return replaced
@@ -909,7 +991,11 @@ def _sick_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", date or datetime.now().strftime("%Y-%m-%d"))
     if not employee_id or not date:
         return {"status": "error", "message": "employee_id and date required"}
+    if _is_past_date(date):
+        return {"status": "error", "message": "Cannot modify past schedules. Select today or a future date."}
+    _log_sick_leave(employee_id, date, "added")
     _add_sick_date(employee_id, date)
+    time_slot = payload.get("time_slot", "")
     # Local replacement: only fix the sick employee's shifts on the sick date
     employees = load_employees()
     emp_lookup = {e.id: e for e in employees}
@@ -917,7 +1003,7 @@ def _sick_impl(payload: dict) -> dict:
     if not sick_emp:
         return {"status": "error", "message": f"Employee {employee_id} not found"}
     db = get_db()
-    _replace_sick_shifts(db, employee_id, date, sick_emp.role, employees)
+    _replace_sick_shifts(db, employee_id, date, sick_emp.role, employees, time_slot)
     # 3. Return current schedule from DB
     num_days = min(payload.get("days", 7), 14)
     base = datetime.strptime(start_date, "%Y-%m-%d")
@@ -938,6 +1024,7 @@ def _sick_impl(payload: dict) -> dict:
             demand_level=row.get("demand_level", "normal"),
             production_target=row.get("production_target"),
         ))
+    pass  # KPI saved by _compute_kpi
     return _build_schedule_response(schedule_list)
 
 
@@ -956,24 +1043,40 @@ def _unsick_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", date or datetime.now().strftime("%Y-%m-%d"))
     if not employee_id or not date:
         return {"status": "error", "message": "employee_id and date required"}
+    if _is_past_date(date):
+        return {"status": "error", "message": "Cannot modify past schedules. Select today or a future date."}
+    _log_sick_leave(employee_id, date, "removed")
     _remove_sick_date(employee_id, date)
+    
+    db = get_db()
+    # Restore original shifts from sick_replacements
+    try:
+        replacements = q(db, "sick_replacements").select("*").eq("original_employee_id", employee_id).eq("schedule_date", date).eq("is_undone", 0).execute()
+        for rep in (replacements.data or []):
+            rep_id = rep.get("replacement_employee_id", "")
+            # Delete replacement shift
+            if rep_id:
+                q(db, "shift_schedule").delete().eq("employee_id", rep_id).eq("schedule_date", date).eq("time_slot", rep["time_slot"]).execute()
+            # Restore original employee's shift
+            q(db, "shift_schedule").insert({
+                "schedule_date": date,
+                "time_slot": rep["time_slot"],
+                "employee_id": employee_id,
+                "employee_name": rep["original_employee_name"],
+                "role": rep["role"],
+                "staff_count": 1,
+                "demand_level": rep.get("demand_level", "normal"),
+                "production_target": rep.get("production_target"),
+            }).execute()
+            # Mark as undone
+            q(db, "sick_replacements").update({"is_undone": 1}).eq("id", rep["id"]).execute()
+    except Exception as e:
+        logger.error("Failed to restore from sick_replacements: %s", e, exc_info=True)
+    
+    # Re-read and return current schedule
     num_days = min(payload.get("days", 7), 14)
-    employees = load_employees()
-    results = _rebuild_from_employees(start_date, num_days, employees)
-    # Auto-replace sick employees after generation
     base = datetime.strptime(start_date, "%Y-%m-%d")
-    db2 = get_db()
-    for e in employees:
-        if e.unavailable_dates:
-            for d in e.unavailable_dates:
-                try:
-                    d_date = datetime.strptime(d, "%Y-%m-%d").date()
-                    if base.date() <= d_date < (base + timedelta(days=num_days)).date():
-                        _replace_sick_shifts(db2, e.id, d, e.role, employees)
-                except ValueError:
-                    pass
-    # Re-read schedule from DB to include replacements
-    r = q(db2, "shift_schedule").select("*").gte("schedule_date", start_date).lte("schedule_date", (base + timedelta(days=num_days - 1)).strftime("%Y-%m-%d")).order("schedule_date").order("time_slot").execute()
+    r = q(db, "shift_schedule").select("*").gte("schedule_date", start_date).lte("schedule_date", (base + timedelta(days=num_days - 1)).strftime("%Y-%m-%d")).order("schedule_date").order("time_slot").execute()
     schedule_rows = r.data or []
     schedule_list = []
     for row in schedule_rows:
@@ -989,6 +1092,7 @@ def _unsick_impl(payload: dict) -> dict:
             demand_level=row.get("demand_level", "normal"),
             production_target=row.get("production_target"),
         ))
+    _save_kpi_snapshot(start_date, {}, "adjustment", "unsick")
     return _build_schedule_response(schedule_list)
 
 
@@ -1064,9 +1168,10 @@ async def get_kpi(
         # Build per-employee coverage: Expected = baseline, Actual = current schedule
         # Load baseline (original schedule) for expected shift counts
         baseline_map = {}
-        if os.path.exists(BASELINE_FILE):
+        baseline_path = _baseline_path(start_date)
+        if os.path.exists(baseline_path):
             try:
-                with open(BASELINE_FILE) as f:
+                with open(baseline_path) as f:
                     bl = json.load(f)
                 for eid, edata in bl.get("employees", {}).items():
                     baseline_map[eid] = edata.get("shifts", 0)
@@ -1074,26 +1179,40 @@ async def get_kpi(
                 pass
         for e in all_emps:
             eid = e.id
-            expected = baseline_map.get(eid, 0)
-            # Actual = current schedule shift count (already reflects sick deletions)
             info = emp_hours.get(eid, {"shifts": 0})
             actual = info.get("shifts", 0)
             if actual < 0:
                 actual = 0
+            # Has unavailable dates this week? expected = baseline, rate shows gap
+            # Otherwise: expected = actual, rate always 100%
+            has_unavail = any(
+                start_date_obj <= datetime.strptime(d, "%Y-%m-%d").date() <= end_date_obj
+                for d in (e.unavailable_dates or [])
+            ) if e.unavailable_dates else False
+            baseline_shifts = baseline_map.get(eid, 0)
+            if has_unavail:
+                expected = baseline_shifts
+                rate = round(actual / expected * 100, 1) if expected > 0 else 0.0
+            else:
+                expected = actual
+                rate = 100.0
+            extra = max(0, actual - baseline_shifts)
             coverage.append({
                 "employee": e.name,
                 "role": e.role,
                 "filled": actual,
                 "expected": expected,
-                "rate_pct": round(actual / expected * 100, 1) if expected else (100.0 if actual == 0 else 0),
+                "rate_pct": rate,
+                "extra_shifts": extra,
             })
 
-        DUAL_ROLE_IDS = {'E003', 'E005'}  # Raj (barista+cashier), Ahmad (baker+deputy)
+        DUAL_ROLE_IDS = {'E005'}  # Ahmad baker+deputy  # Raj (barista+cashier), Ahmad (baker+deputy)
         # ---- 3. Fairness (hours gap within same role, excludes dual-role) ----
         fairness = {}
+        all_emps_lookup = {e.id: e for e in all_emps}
         for role in ROLES:
             role_emps = {eid: info for eid, info in emp_hours.items()
-                        if info["role"] == role and eid not in DUAL_ROLE_IDS}
+                        if all_emps_lookup.get(eid) and all_emps_lookup[eid].role == role and eid not in DUAL_ROLE_IDS}
             if len(role_emps) >= 2:
                 hrs = [info["hours"] for info in role_emps.values()]
                 fairness[role] = {
@@ -1127,31 +1246,12 @@ async def get_kpi(
             emp = emp_lookup.get(eid)
             if not emp:
                 continue
-            # Relaxed max_hours for high-demand weeks
-            relaxed_max = int(emp.max_hours_per_week)
-            if kpi_high_days > 1:
-                relaxed_max = min(relaxed_max + kpi_high_days * 7, 56)
-
-            if info["hours"] < emp.min_hours_per_week:
-                violations.append({
-                    "employee": info["name"],
-                    "type": "under_min_hours",
-                    "actual": info["hours"],
-                    "required": emp.min_hours_per_week,
-                })
-            if info["hours"] > relaxed_max:
-                violations.append({
-                    "employee": info["name"],
-                    "type": "over_max_hours",
-                    "actual": info["hours"],
-                    "allowed": relaxed_max,
-                })
 
 
         total_hours = sum(info["hours"] for info in emp_hours.values())
         n_emps = len(emp_hours)
 
-        return {
+        result = {
             "status": "ok",
             "period": {
                 "start": start_date,
@@ -1172,6 +1272,8 @@ async def get_kpi(
                 "employees_scheduled": n_emps,
             },
         }
+        _save_kpi_snapshot(start_date, result, "auto", "kpi_query")
+        return result
 
     except Exception as e:
         logger.error("KPI error: %s", e)

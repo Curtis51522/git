@@ -164,6 +164,9 @@ async def get_combo(order: dict):
     all_scores = []
     max_inv = max(inv["total_qty"] for inv in inventory.values()) if inventory else 1
 
+    # Strict mode: when cart has both bread and coffee, only pair cart items
+    strict_mode = bool(cart_breads and cart_coffee_keys)
+
     # --- Direction 1: Bread -> Coffee (cart has bread or empty) ---
     if cart_breads or not cart_coffee_keys:
         target_breads = cart_breads if cart_breads else set(inventory.keys())
@@ -176,7 +179,8 @@ async def get_combo(order: dict):
             discount_overrides = order.get("discount_overrides", {})
             discount = (discount_overrides.get(pn, 0) / 100.0) if pn in discount_overrides else get_discount_rate(freshness)
             inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
-            for coffee in COFFEE_DRINKS:
+            target_coffees = [c for c in COFFEE_DRINKS if not strict_mode or c["key"] in cart_coffee_keys]
+            for coffee in target_coffees:
                 ck = coffee["key"]
                 flavor_score = pairings.get(ck, 0.3)
                 discount_score = discount * 3.33
@@ -201,6 +205,8 @@ async def get_combo(order: dict):
     # --- Direction 2: Coffee -> Bread (cart has coffee) ---
     if cart_coffee_keys:
         for pn, inv_data in inventory.items():
+            if strict_mode and pn not in cart_breads:
+                continue
             pairings = PAIRING_MATRIX.get(pn, {})
             freshness = inv_data.get("min_freshness", "Fresh")
             # Use override discount if provided, otherwise fall back to freshness-based
@@ -233,7 +239,11 @@ async def get_combo(order: dict):
                 })
 
     # Sort by score descending
-    all_scores.sort(key=lambda x: x["total_score"], reverse=True)
+    # Sort by savings when cart has only coffee (different bread discounts matter), otherwise by total_score
+    if cart_coffee_keys and not cart_breads:
+        all_scores.sort(key=lambda x: x["savings"], reverse=True)
+    else:
+        all_scores.sort(key=lambda x: x["total_score"], reverse=True)
 
     # Pick top-3: prefer diverse breads, but if fewer than 3 unique breads
     # available (e.g. cart only has chiffon), fill with next-best coffees

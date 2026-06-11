@@ -39,4 +39,3 @@ python-dotenv==1.2.2
 
 # Database
 mysql-connector-python==9.7.0
-supabase==2.7.1

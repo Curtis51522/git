@@ -1,8 +1,11 @@
-# s5-agent-brain - Independent Multi-Agent Service
+﻿# s5_agent - Independent Multi-Agent Service
 # Runs on port 8001, decoupled from the main bakery system (:8002).
 # Orchestrates 6 agents in parallel -> Arbitrator -> Optimizer -> LLM Synthesis.
 # System Alerts - background monitor + persistent alert history.
 import asyncio, logging, time, sys, os
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
 # Windows: use SelectorEventLoop to avoid Proactor connection-reset noise
 if sys.platform == "win32":
@@ -25,7 +28,7 @@ from agents.promo import PromoAgent
 from agents.profit import ProfitAgent
 from arbitrator import Arbitrator
 from s5_config.settings import PORT, HOST, PRODUCT_NAMES
-from alert_store import get_alerts, acknowledge, get_unacked_count, clear_expired
+from alert_store import get_alerts, acknowledge, get_unacked_count, clear_expired, clear_all
 from monitor import start_monitor, run_full_check
 from llm_synthesis import synthesize, SYNTHESIS_ENABLED
 from intent_classifier import classify_intent
@@ -34,7 +37,12 @@ from optimizer import project_multi_period
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("s5.server")
 
-app = FastAPI(title="AI Brain - Multi-Agent Bakery Intelligence")
+@asynccontextmanager
+async def lifespan(app):
+    asyncio.create_task(start_monitor())
+    yield
+
+app = FastAPI(title="AI Brain - Multi-Agent Bakery Intelligence", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 demand_agent = DemandAgent()
@@ -46,17 +54,14 @@ profit_agent = ProfitAgent()
 arbitrator = Arbitrator()
 AGENTS = [demand_agent, inventory_agent, production_agent, staffing_agent, promo_agent, profit_agent]
 
-
 class QueryRequest(BaseModel):
     query: str
     session_id: str = "default"
     params: dict = {}
 
-
 class AckRequest(BaseModel):
     alert_id: int = None
     ack_all: bool = False
-
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +139,7 @@ async def llm_plan_query(query: str) -> dict:
             return None
 
         url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1") + "/chat/completions"
-        model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        model = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
 
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(url,
@@ -227,7 +232,6 @@ def parse_query(query: str) -> dict:
     return {"intent": "pending", "intent_confidence": 0.0, "product": "pending",
             "days": 7, "date": target.strftime("%Y-%m-%d"), "planned_agents": [], "rest_note": rest_note}
 
-
 async def llm_decide_plan(pareto_plans: list, pareto_context: dict,
                           intent: str, query: str, demand_trend: str = "stable",
                           audit_conflicts: list = None) -> dict:
@@ -238,6 +242,44 @@ async def llm_decide_plan(pareto_plans: list, pareto_context: dict,
     """
     if not pareto_plans or not LLM_PLANNER_ENABLED:
         return None
+
+    # === PROGRAMMATIC DOMINANCE FILTER ===
+    # Before asking LLM, eliminate strictly-dominated plans.
+    # A dominates B when: profit_A > profit_B AND waste_A <= waste_B AND shortage_A <= shortage_B.
+    # LLM still makes the final call, but only sees non-dominated candidates.
+    dominance_summary = ""
+    if len(pareto_plans) >= 2:
+        dominated = set()
+        for i, a in enumerate(pareto_plans):
+            for j, b in enumerate(pareto_plans):
+                if i == j:
+                    continue
+                pa = a.get("profit_rm", 0)
+                pb = b.get("profit_rm", 0)
+                wa = a.get("waste", 0)
+                wb = b.get("waste", 0)
+                sa = a.get("shortage", 0)
+                sb = b.get("shortage", 0)
+                if pa > pb and wa <= wb and sa <= sb:
+                    dominated.add(b["label"])
+        undominated = [p for p in pareto_plans if p["label"] not in dominated]
+        if len(undominated) == 1:
+            dominance_summary = (
+                f"[SYSTEM NOTE: {undominated[0]['label']} is the only non-dominated plan. "
+                f"It strictly dominates all alternatives (higher profit + lower or equal waste + lower or equal shortage). "
+                f"Your job is to EXPLAIN why this is the optimal choice --?do NOT select another plan.] "
+            )
+        elif len(undominated) < len(pareto_plans):
+            eliminated = dominated - {p["label"] for p in undominated}
+            dominance_summary = (
+                f"[SYSTEM NOTE: {len(eliminated)} dominated plans eliminated ({', '.join(sorted(eliminated))}). "
+                f"Only {len(undominated)} non-dominated plans remain. Choose among these only.] "
+            )
+            pareto_plans = undominated
+            logging.getLogger("s5.server").info(
+                "Dominance filter: narrowed from %d to %d plans before LLM",
+                len(pareto_plans) + len(eliminated), len(undominated))
+    # === END DOMINANCE FILTER ===
 
     plan_lines = []
     for p in pareto_plans:
@@ -260,7 +302,7 @@ async def llm_decide_plan(pareto_plans: list, pareto_context: dict,
     conflicts_str = "; ".join(audit_conflicts) if audit_conflicts else "None"
     audit_healthy = "Yes" if not audit_conflicts else "No"
 
-    prompt = f"""You are a bakery operations decision-maker. Choose ONE plan from the options below. You MUST select exactly one plan label (A_aggressive, B_balanced, C_conservative, or D_baseline).
+    prompt = f"""{dominance_summary}You are a bakery operations decision-maker. Choose ONE plan from the options below. You MUST select exactly one plan label (A_aggressive, B_balanced, C_conservative, or D_baseline).
 
 QUERY: {query}
 INTENT: {intent}
@@ -279,13 +321,25 @@ AUDIT:
 PLANS:
 {chr(10).join(plan_lines)}
 
-RULES:
-1. You MUST pick exactly one plan. Output format: PLAN=A_aggressive|CONFLICT_ADDRESSED=Y/N|REASON=your reasoning (max 50 words)
-2. If AUDIT shows conflicts, your chosen plan MUST address them. Explain HOW in REASON.
-3. Prioritize the plan with the HIGHEST profit, unless another plan has significantly less waste/shortage with similar profit.
-4. Declining trend -> prefer conservative; rising trend -> aggressive; day-1 stock -> minimize waste.
-5. Do NOT modify the numbers or create a new plan.
-6. REASON must explain WHY this plan fits the context AND how it resolves audit issues."""
+RULES (follow IN ORDER --?earlier rules override later ones):
+
+1. DOMINANCE: If any plan has BOTH higher profit AND lower or equal waste AND lower or equal shortage than ALL other plans, you MUST select it. Do not consider trends or conflicts --?pure dominance wins.
+
+2. OUTPUT FORMAT: PLAN=A_aggressive|CONFLICT_ADDRESSED=Y/N|REASON=your reasoning (max 50 words)
+
+3. PROFIT FIRST: Select the plan with the HIGHEST profit. You may deviate ONLY if:
+   (a) The profit difference is less than 15% of the highest-profit plan, AND
+   (b) The chosen plan eliminates specific audit conflicts that the highest-profit plan triggers.
+   Never pick a plan with both lower profit AND higher waste than another available plan.
+
+4. CONTEXT ADJUSTMENT (only after passing Rule 3):
+   - Rising trend -> may justify aggressive if shortage risk is real
+   - Declining trend -> must prefer conservative
+   - Day-1 stock > 30% of stock -> must minimize waste
+
+5. Do NOT modify numbers or create new plans.
+
+6. REASON must cite specific numbers (profit RM, waste units) and explain the tradeoff."""
 
     try:
         import httpx, os, sys
@@ -303,7 +357,7 @@ RULES:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(url,
                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                json={"model": os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+                json={"model": os.getenv("DEEPSEEK_REASONER_MODEL", "deepseek-v4-pro"),
                       "messages": [{"role": "user", "content": prompt}],
                       "max_tokens": 150, "temperature": 0.3})
             resp.raise_for_status()
@@ -411,7 +465,9 @@ async def handle_query(req: QueryRequest):
                 continue
             mentioned.append(p)
 
-        if len(mentioned) >= 2 or "compare" in ql or "versus" in ql or " vs " in ql:
+        if "all product" in ql or "all items" in ql or "all stock" in ql:
+            params['product'] = 'all'
+        elif len(mentioned) >= 2 or "compare" in ql or "versus" in ql or " vs " in ql:
             params["product"] = ",".join(mentioned) if len(mentioned) >= 2 else "all"
         elif intent in ("schedule_audit", "cross_source_audit", "profit_analysis", "waste_analysis"):
             params["product"] = product_found or "all"
@@ -477,7 +533,6 @@ async def handle_query(req: QueryRequest):
                 results["promo"] = promo_result
         except Exception as e:
             logger.warning("Promo re-run failed: %s", e)
-
 
     # Final decision with Pareto plan selection
     decision = arbitrator.decide(results, params)
@@ -680,7 +735,6 @@ async def handle_query(req: QueryRequest):
 
     return response
 
-
 # ---------------------------------------------------------------------------
 # Lightweight discount lookup for S4 frontend
 # ---------------------------------------------------------------------------
@@ -713,6 +767,30 @@ async def get_discounts(req: dict):
             "breakdown": dd.get("breakdown", {}),
         }
     return {"discounts": discounts}
+# ---------------------------------------------------------------
+# Sales script generation (Composer Agent) for S4 frontend
+# ---------------------------------------------------------------
+@app.post("/script")
+async def generate_script(req: dict):
+    """Generate cashier sales scripts based on combo scores from S4."""
+    from llm_synthesis import synthesize_script
+    scores = req.get("combo_scores", [])
+    if not scores:
+        return {"scripts": ["No combos available to recommend."]}
+    # Generate one script per top combo (up to 3)
+    scripts = []
+    for s in scores[:3]:
+        name = s.get("product_name", "")
+        price = s.get("total_price", 0)
+        savings = s.get("savings", 0)
+        score = s.get("total_score", 0)
+        combo_text = f"{name}: RM{price:.2f} (save RM{savings:.2f}, score={score:.2f})"
+        script = await synthesize_script(combo_text)
+        if not script:
+            script = f"Try our {name} combo for just RM{price:.2f}! It pairs perfectly together and saves you money."
+        scripts.append(script)
+    return {"scripts": scripts}
+
 
 # ---------------------------------------------------------------------------
 # Alert API endpoints
@@ -721,33 +799,28 @@ async def get_discounts(req: dict):
 async def alerts_count():
     return {"unacked_count": get_unacked_count()}
 
-
 @app.get("/alerts/list")
 async def alerts_list(limit: int = 100, unacked_only: bool = False):
     return {"alerts": get_alerts(limit=limit, unacked_only=unacked_only)}
-
 
 @app.post("/alerts/ack")
 async def alerts_ack(req: AckRequest):
     count = acknowledge(alert_id=req.alert_id, ack_all=req.ack_all)
     return {"acknowledged": count}
 
-
 @app.post("/alerts/check")
 async def alerts_check():
     results = await run_full_check()
     return {"status": "ok", "new_alerts": results}
 
+@app.post("/alerts/clear")
+async def alerts_clear():
+    removed = clear_all()
+    return {"status": "ok", "removed": removed}
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "agents": [a.name for a in AGENTS]}
-
-
-@app.on_event("startup")
-async def startup_events():
-    asyncio.create_task(start_monitor())
-
 
 if __name__ == "__main__":
     import uvicorn

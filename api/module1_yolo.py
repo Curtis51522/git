@@ -148,7 +148,7 @@ async def checkout_scan(file: UploadFile = File(...)):
     if image is None:
         raise HTTPException(400, "Cannot decode image")
     logger.info("Checkout scan: %dx%d", image.shape[1], image.shape[0])
-    img_id = f"checkout_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+    img_id = f"checkout_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     results = detect_products(image, scenario="checkout", image_id=img_id)
     aggregated = aggregate_results(results)
     return {"status": "ok", "detections": aggregated}
@@ -176,7 +176,7 @@ async def inflow_scan(file: UploadFile = File(...)):
     if image is None:
         raise HTTPException(400, "Cannot decode image")
     logger.info("Inflow scan: %dx%d", image.shape[1], image.shape[0])
-    img_id = f"inbound_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+    img_id = f"inbound_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     results = detect_products(image, scenario="inbound", image_id=img_id)
     aggregated = aggregate_results(results)
 

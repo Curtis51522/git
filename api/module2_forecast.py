@@ -311,5 +311,15 @@ async def get_accuracy():
     path = os.path.join(MODEL_DIR, "test_metrics.json")
     if os.path.exists(path):
         with open(path) as f:
-            return {"status": "ok", "metrics": json.load(f)}
+            metrics = json.load(f)
+        # Sanitize non-JSON-compliant float values (inf, -inf, nan -> null)
+        def _sanitize(obj):
+            if isinstance(obj, dict):
+                return {k: _sanitize(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_sanitize(v) for v in obj]
+            if isinstance(obj, float) and not math.isfinite(obj):
+                return None
+            return obj
+        return {"status": "ok", "metrics": _sanitize(metrics)}
     return {"status": "no_data", "message": "test_metrics.json not found"}

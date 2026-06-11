@@ -24,9 +24,9 @@ FRESHNESS_COLORS = {
 def get_freshness(production_time_str: str, reference_date: str = None) -> str:
     """Determine freshness status based on days since production.
     
-    Day 0-1 (0-24h):    Fresh (full price)
-    Day 1-2 (24-48h):   Day-1 (20% off)
-    Day 2+ (>48h):       Expired (destroyed, recorded as waste)
+    Same calendar day:         Fresh (full price)
+    Next calendar day:         Day-1 (20% off, switches at midnight)
+    2+ calendar days later:    Expired (destroyed, recorded as waste)
     """
     if not production_time_str:
         return "Fresh"
@@ -44,18 +44,18 @@ def get_freshness(production_time_str: str, reference_date: str = None) -> str:
     else:
         ref = datetime.now()
     
-    hours_old = (ref - prod_time).total_seconds() / 3600
+    days_diff = (ref.date() - prod_time.date()).days
     
-    if hours_old < 24:
+    if days_diff == 0:
         return "Fresh"
-    elif hours_old < 48:
+    elif days_diff == 1:
         return "Day-1"
     else:
         return "Expired"
 
 def update_all_freshness(reference_date: str = None):
     """Run freshness update on all inventory batches.
-    When a batch expires (>48h), record it as waste and delete from inventory.
+    When a batch expires (2+ calendar days old), record it as waste and delete from inventory.
     """
     db = get_db()
     batches = q(db, "batch_inventory").select("*").gt("quantity", 0).execute()

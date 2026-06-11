@@ -1,0 +1,137 @@
+{
+  "alerts": [
+    {
+      "alert_id": 144,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: croissant",
+      "detail": "19/35 (54%) of croissant is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:20.866351",
+      "created_ts": 1781185700.8663518,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 145,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: bread_coconut",
+      "detail": "20/40 (50%) of bread_coconut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:20.874808",
+      "created_ts": 1781185700.8748085,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 146,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: bread_roll",
+      "detail": "20/40 (50%) of bread_roll is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:20.878912",
+      "created_ts": 1781185700.8789122,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 147,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: chiffon",
+      "detail": "20/40 (50%) of chiffon is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:20.881032",
+      "created_ts": 1781185700.8810322,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 148,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: croissant_chocolate",
+      "detail": "20/40 (50%) of croissant_chocolate is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:20.886255",
+      "created_ts": 1781185700.886255,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 149,
+      "source": "inventory",
+      "severity": "warning",
+      "title": "High waste risk: donut",
+      "detail": "20/40 (50%) of donut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:20.889373",
+      "created_ts": 1781185700.8893733,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 150,
+      "source": "trend",
+      "severity": "info",
+      "title": "Trend: croissant inventory",
+      "detail": "croissant inventory is rising (6.0/day over 5 days, avg 33.0).",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:21.699260",
+      "created_ts": 1781185701.6992607,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 151,
+      "source": "trend",
+      "severity": "info",
+      "title": "Trend: donut inventory",
+      "detail": "donut inventory is rising (7.0/day over 5 days, avg 34.0).",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:21.705604",
+      "created_ts": 1781185701.7056043,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 152,
+      "source": "trend",
+      "severity": "info",
+      "title": "Trend: chiffon inventory",
+      "detail": "chiffon inventory is rising (7.0/day over 5 days, avg 34.0).",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:21.705604",
+      "created_ts": 1781185701.7056043,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 153,
+      "source": "trend",
+      "severity": "info",
+      "title": "Trend: bread_roll inventory",
+      "detail": "bread_roll inventory is rising (6.8/day over 5 days, avg 34.0).",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:21.712383",
+      "created_ts": 1781185701.7123835,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 154,
+      "source": "trend",
+      "severity": "info",
+      "title": "Trend: bread_coconut inventory",
+      "detail": "bread_coconut inventory is rising (7.0/day over 5 days, avg 34.0).",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:21.718318",
+      "created_ts": 1781185701.718318,
+      "ttl_sec": 86400
+    },
+    {
+      "alert_id": 155,
+      "source": "trend",
+      "severity": "info",
+      "title": "Trend: croissant_chocolate inventory",
+      "detail": "croissant_chocolate inventory is rising (7.1/day over 5 days, avg 34.2).",
+      "acknowledged": false,
+      "created_at": "2026-06-11T21:48:21.721088",
+      "created_ts": 1781185701.7210882,
+      "ttl_sec": 86400
+    }
+  ],
+  "next_id": 156
+}

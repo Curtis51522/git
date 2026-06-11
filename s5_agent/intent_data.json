@@ -1,0 +1,10026 @@
+[
+  [
+    "how many croissants should I prepare for the following day",
+    "stock_query"
+  ],
+  [
+    "any good cafes nearby",
+    "out_of_scope"
+  ],
+  [
+    "please people cukup untuk public holiday",
+    "schedule_audit"
+  ],
+  [
+    "nak tengok jadual kerja untuk at this moment",
+    "schedule_audit"
+  ],
+  [
+    "must to order more croissant_chocolate ingredients",
+    "stock_query"
+  ],
+  [
+    "how many croissants wasted right now",
+    "waste_analysis"
+  ],
+  [
+    "do we have enough chiffon for as of now",
+    "stock_query"
+  ],
+  [
+    "compare before and after the bread_coconut offer",
+    "promo_eval"
+  ],
+  [
+    "do we have plenty of croissants for tomorrow",
+    "stock_query"
+  ],
+  [
+    "understaffed for the lunch shift tea crowd",
+    "schedule_audit"
+  ],
+  [
+    "which working period has the most waste",
+    "waste_analysis"
+  ],
+  [
+    "did the happy hour discount boost traffic",
+    "promo_eval"
+  ],
+  [
+    "inspect waste for danishes",
+    "waste_analysis"
+  ],
+  [
+    "evaluate the weekday discount deal",
+    "promo_eval"
+  ],
+  [
+    "produk apa paling banyak throwaway",
+    "waste_analysis"
+  ],
+  [
+    "what caused did we throw away so many croissant_chocolate",
+    "waste_analysis"
+  ],
+  [
+    "bread_coconut goods level please",
+    "stock_query"
+  ],
+  [
+    "list waste by product type",
+    "waste_analysis"
+  ],
+  [
+    "tell me the inventory count for bread rolls",
+    "stock_query"
+  ],
+  [
+    "roster error on the night work slot",
+    "schedule_audit"
+  ],
+  [
+    "show throwaway for muffins",
+    "waste_analysis"
+  ],
+  [
+    "why no one scheduled for cleaning duty",
+    "schedule_audit"
+  ],
+  [
+    "present me the rubbish breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "whats the loss rate for danishes",
+    "waste_analysis"
+  ],
+  [
+    "prepare how many coconut bread for morning rush",
+    "stock_query"
+  ],
+  [
+    "apa masalah yang ada sekarang",
+    "cross_source_audit"
+  ],
+  [
+    "who is on early shift duty today",
+    "schedule_audit"
+  ],
+  [
+    "do we have ample milk for the latte orders",
+    "stock_query"
+  ],
+  [
+    "are there any bread_roll still in the oven",
+    "stock_query"
+  ],
+  [
+    "how many baguettes to bake for the afternoon",
+    "stock_query"
+  ],
+  [
+    "why is there no cashier on Tuesday AM shift",
+    "schedule_audit"
+  ],
+  [
+    "evaluate the weekday promotion",
+    "promo_eval"
+  ],
+  [
+    "stok coconut bread cukup untuk weekend",
+    "stock_query"
+  ],
+  [
+    "cukup ke donuts untuk guest hari ni",
+    "stock_query"
+  ],
+  [
+    "bakar bread_coconut berapa banyak pagi esok",
+    "stock_query"
+  ],
+  [
+    "duty coverage looks thin on Friday",
+    "schedule_audit"
+  ],
+  [
+    "how many red velvet cupcakes are ready",
+    "stock_query"
+  ],
+  [
+    "how to fix a leaking pipe",
+    "out_of_scope"
+  ],
+  [
+    "berapa jualan masa offer deal donut",
+    "promo_eval"
+  ],
+  [
+    "overtime report for this week",
+    "schedule_audit"
+  ],
+  [
+    "show loss for coffee",
+    "waste_analysis"
+  ],
+  [
+    "check if we must to order more chocolate chips",
+    "stock_query"
+  ],
+  [
+    "is the supply of plain croissants okay",
+    "stock_query"
+  ],
+  [
+    "is spoilage increasing for chiffon",
+    "waste_analysis"
+  ],
+  [
+    "how do I get to KL Sentral",
+    "out_of_scope"
+  ],
+  [
+    "shift handover report",
+    "cross_source_audit"
+  ],
+  [
+    "roi of the happy hour discount deal",
+    "promo_eval"
+  ],
+  [
+    "diskaun special offer customer count",
+    "promo_eval"
+  ],
+  [
+    "loss percentage for this month",
+    "waste_analysis"
+  ],
+  [
+    "must to fill the gap on Wednesday",
+    "schedule_audit"
+  ],
+  [
+    "check rubbish for cookies",
+    "waste_analysis"
+  ],
+  [
+    "minta audit stok bread_coconut sekarang",
+    "stock_query"
+  ],
+  [
+    "compare waste this this period vs last 7 days",
+    "waste_analysis"
+  ],
+  [
+    "compare before and after the chiffons discount",
+    "promo_eval"
+  ],
+  [
+    "did the reduction boost bread_coconut turnover",
+    "promo_eval"
+  ],
+  [
+    "kenapa spoilage tinggi minggu ni",
+    "waste_analysis"
+  ],
+  [
+    "check semua stok waste jadual",
+    "cross_source_audit"
+  ],
+  [
+    "bundle deal conversion rate",
+    "promo_eval"
+  ],
+  [
+    "any gaps in the afternoon roster",
+    "schedule_audit"
+  ],
+  [
+    "how many cinnamon buns left",
+    "stock_query"
+  ],
+  [
+    "offer campaign redemption rate",
+    "promo_eval"
+  ],
+  [
+    "produk mana selalu kena buang",
+    "waste_analysis"
+  ],
+  [
+    "whats the wastage rate for cookies",
+    "waste_analysis"
+  ],
+  [
+    "waste correlation with weather",
+    "waste_analysis"
+  ],
+  [
+    "inspect discards for danishes",
+    "waste_analysis"
+  ],
+  [
+    "cukup ke chiffon untuk guest hari ni",
+    "stock_query"
+  ],
+  [
+    "marketing campaign roi",
+    "promo_eval"
+  ],
+  [
+    "look at freezer items for croissants dough",
+    "stock_query"
+  ],
+  [
+    "how many croissants wasted at this moment",
+    "waste_analysis"
+  ],
+  [
+    "how many trays of donut remaining",
+    "stock_query"
+  ],
+  [
+    "do we have coconut bread in the discount area",
+    "stock_query"
+  ],
+  [
+    "breakfast set discount deal performance",
+    "promo_eval"
+  ],
+  [
+    "whats the spoilage percentage on chiffons",
+    "waste_analysis"
+  ],
+  [
+    "do we have a coffee staff for the morning rush",
+    "schedule_audit"
+  ],
+  [
+    "bundle deal earnings volume",
+    "promo_eval"
+  ],
+  [
+    "was the combo deal effective last this period",
+    "promo_eval"
+  ],
+  [
+    "what percentage of bread_roll gets thrown",
+    "waste_analysis"
+  ],
+  [
+    "analyze the raya promotion sales",
+    "promo_eval"
+  ],
+  [
+    "working period coverage looks thin on the bar",
+    "schedule_audit"
+  ],
+  [
+    "any bread_roll near expiry date",
+    "stock_query"
+  ],
+  [
+    "check wastage for roti",
+    "waste_analysis"
+  ],
+  [
+    "was the opening hours deal worth it",
+    "promo_eval"
+  ],
+  [
+    "inspect stok donut sekarang",
+    "stock_query"
+  ],
+  [
+    "evaluate the student markdown",
+    "promo_eval"
+  ],
+  [
+    "translate hello to Japanese",
+    "out_of_scope"
+  ],
+  [
+    "whats expiring tomorrow opening",
+    "waste_analysis"
+  ],
+  [
+    "pre opening checklist status",
+    "cross_source_audit"
+  ],
+  [
+    "overtime analysis for this week",
+    "schedule_audit"
+  ],
+  [
+    "verify waste for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "need to know how many scones we have",
+    "stock_query"
+  ],
+  [
+    "waste analysis for breakfast",
+    "waste_analysis"
+  ],
+  [
+    "promosi bread rolls minggu lepas macam mana",
+    "promo_eval"
+  ],
+  [
+    "do we have enough bread_roll for at this moment",
+    "stock_query"
+  ],
+  [
+    "did the price cut boost chiffon sales",
+    "promo_eval"
+  ],
+  [
+    "overstaffed on the same day audit",
+    "schedule_audit"
+  ],
+  [
+    "waste heatmap for this 7 days",
+    "waste_analysis"
+  ],
+  [
+    "items thrown away last hour",
+    "waste_analysis"
+  ],
+  [
+    "expired items summary for today",
+    "waste_analysis"
+  ],
+  [
+    "do we have enough chiffon for at this moment",
+    "stock_query"
+  ],
+  [
+    "please how many pieces of garlic naan in supply",
+    "stock_query"
+  ],
+  [
+    "Can you do a magic trick with a coin",
+    "out_of_scope"
+  ],
+  [
+    "promosi chiffons minggu lepas macam mana",
+    "promo_eval"
+  ],
+  [
+    "how many bread rolls did we discard today",
+    "waste_analysis"
+  ],
+  [
+    "did the loyalty card promo increase turnover",
+    "promo_eval"
+  ],
+  [
+    "forecast vs actual waste comparison",
+    "waste_analysis"
+  ],
+  [
+    "need to fix the work slot pattern for next week",
+    "schedule_audit"
+  ],
+  [
+    "discount deal cost vs revenue",
+    "promo_eval"
+  ],
+  [
+    "who called in sick currently need replacement",
+    "schedule_audit"
+  ],
+  [
+    "markdown deal roi calculation",
+    "promo_eval"
+  ],
+  [
+    "What's the time in London now",
+    "out_of_scope"
+  ],
+  [
+    "how much food we throwaway everyday",
+    "waste_analysis"
+  ],
+  [
+    "gotta to fix the shift pattern for next week",
+    "schedule_audit"
+  ],
+  [
+    "reduction deal effectiveness for afternoon set",
+    "promo_eval"
+  ],
+  [
+    "minimum stock alert for packaging",
+    "stock_query"
+  ],
+  [
+    "promotion analysis for bread rolls",
+    "promo_eval"
+  ],
+  [
+    "cross module health review",
+    "cross_source_audit"
+  ],
+  [
+    "are we running low on chocolate powder",
+    "stock_query"
+  ],
+  [
+    "how did the lunch special do",
+    "promo_eval"
+  ],
+  [
+    "sales uplift from coconut bread offer",
+    "promo_eval"
+  ],
+  [
+    "who called in sick today must replacement",
+    "schedule_audit"
+  ],
+  [
+    "overstaffed on the same day check",
+    "schedule_audit"
+  ],
+  [
+    "anyone can come in early the following day",
+    "schedule_audit"
+  ],
+  [
+    "how many pieces of quiche left",
+    "stock_query"
+  ],
+  [
+    "Can you recommend a bagus restaurant",
+    "out_of_scope"
+  ],
+  [
+    "waste laporan for this week",
+    "waste_analysis"
+  ],
+  [
+    "what does this road sign mean",
+    "out_of_scope"
+  ],
+  [
+    "discards report for this 7 days",
+    "waste_analysis"
+  ],
+  [
+    "verify freezer stock for chocolate croissant dough",
+    "stock_query"
+  ],
+  [
+    "please how effective was the lunch campaign",
+    "promo_eval"
+  ],
+  [
+    "show me things we threw out this week",
+    "waste_analysis"
+  ],
+  [
+    "how did the coconut bread promotion perform",
+    "promo_eval"
+  ],
+  [
+    "was the pagi deal worth it",
+    "promo_eval"
+  ],
+  [
+    "hand over me a stock check on coconut bread",
+    "stock_query"
+  ],
+  [
+    "syif shortage for the opening hours prep",
+    "schedule_audit"
+  ],
+  [
+    "whats the reason got so many people on same shift",
+    "schedule_audit"
+  ],
+  [
+    "overtime review for the month",
+    "schedule_audit"
+  ],
+  [
+    "give me a items check on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "promosi bread_roll minggu lepas macam mana",
+    "promo_eval"
+  ],
+  [
+    "verify the jadual covers all roles",
+    "schedule_audit"
+  ],
+  [
+    "how many pieces of garlic naan in stok",
+    "stock_query"
+  ],
+  [
+    "where is the nearest petrol station",
+    "out_of_scope"
+  ],
+  [
+    "anyone can work extra on public holiday",
+    "schedule_audit"
+  ],
+  [
+    "How to get a driving license",
+    "out_of_scope"
+  ],
+  [
+    "did the special offer increase foot traffic",
+    "promo_eval"
+  ],
+  [
+    "check discards for danishes",
+    "waste_analysis"
+  ],
+  [
+    "check rubbish for cakes",
+    "waste_analysis"
+  ],
+  [
+    "present me the shift allocation for Friday",
+    "schedule_audit"
+  ],
+  [
+    "shift plan anomaly detection for Monday",
+    "schedule_audit"
+  ],
+  [
+    "show me the duty allocation for Friday",
+    "schedule_audit"
+  ],
+  [
+    "check spoilage for cheese",
+    "waste_analysis"
+  ],
+  [
+    "did the campaign bring in more orders",
+    "promo_eval"
+  ],
+  [
+    "is there any overtime for this week",
+    "schedule_audit"
+  ],
+  [
+    "whats the goods like for cinnamon rolls",
+    "stock_query"
+  ],
+  [
+    "need to fix the working period pattern for next this period",
+    "schedule_audit"
+  ],
+  [
+    "need to fix the shift pattern for next past days",
+    "schedule_audit"
+  ],
+  [
+    "waste data for pastries",
+    "waste_analysis"
+  ],
+  [
+    "why is there no register person on Tuesday morning",
+    "schedule_audit"
+  ],
+  [
+    "how much food throwaway did we have this month",
+    "waste_analysis"
+  ],
+  [
+    "inform me a story about a baker",
+    "out_of_scope"
+  ],
+  [
+    "syif plan looks messy can you fix",
+    "schedule_audit"
+  ],
+  [
+    "how much donuts left on the shelf",
+    "stock_query"
+  ],
+  [
+    "anyone call in sick need to cover",
+    "schedule_audit"
+  ],
+  [
+    "how to reduce croissant_chocolate wastage",
+    "waste_analysis"
+  ],
+  [
+    "can you order pizza for me",
+    "out_of_scope"
+  ],
+  [
+    "give me a stock check on coconut bread",
+    "stock_query"
+  ],
+  [
+    "ada cukup croissant untuk hari ni",
+    "stock_query"
+  ],
+  [
+    "roster anomaly on Wednesday pagi",
+    "schedule_audit"
+  ],
+  [
+    "how did the buy 1 free 1 perform last the past 7 days",
+    "promo_eval"
+  ],
+  [
+    "roster seems off for the early shift syif",
+    "schedule_audit"
+  ],
+  [
+    "throwaway summary for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "whats the inventory on danishes",
+    "stock_query"
+  ],
+  [
+    "let me know me the stock count for croissant",
+    "stock_query"
+  ],
+  [
+    "any cross module problems",
+    "cross_source_audit"
+  ],
+  [
+    "check spoilage for cakes",
+    "waste_analysis"
+  ],
+  [
+    "how many pieces of apple pie in the freezer",
+    "stock_query"
+  ],
+  [
+    "whats the time in London",
+    "out_of_scope"
+  ],
+  [
+    "cukup ke chiffon untuk customer hari ni",
+    "stock_query"
+  ],
+  [
+    "show me chiffon inventory",
+    "stock_query"
+  ],
+  [
+    "ada bread_coconut dekat reduction area tak",
+    "stock_query"
+  ],
+  [
+    "How to make a cup of tea",
+    "out_of_scope"
+  ],
+  [
+    "do we have sufficient bread_roll for at this moment",
+    "stock_query"
+  ],
+  [
+    "whats the current goods of chocolate croissant",
+    "stock_query"
+  ],
+  [
+    "Is it going to rain tomorrow",
+    "out_of_scope"
+  ],
+  [
+    "audit waste for cakes",
+    "waste_analysis"
+  ],
+  [
+    "have to to reassign workers for the event",
+    "schedule_audit"
+  ],
+  [
+    "how many donut do we have in supply",
+    "stock_query"
+  ],
+  [
+    "show throwaway by category",
+    "waste_analysis"
+  ],
+  [
+    "discount impact on bread_roll volume",
+    "promo_eval"
+  ],
+  [
+    "how many croissant do we have in stock",
+    "stock_query"
+  ],
+  [
+    "give me a inventory check on bread_roll",
+    "stock_query"
+  ],
+  [
+    "please overstaffed on the same day check",
+    "schedule_audit"
+  ],
+  [
+    "must to reassign workers for the event",
+    "schedule_audit"
+  ],
+  [
+    "cuaca hari ni macam mana",
+    "out_of_scope"
+  ],
+  [
+    "schedule imbalance for the week",
+    "schedule_audit"
+  ],
+  [
+    "how much pastry wasted this week",
+    "waste_analysis"
+  ],
+  [
+    "kena bakar lagi bread_roll untuk esok tak",
+    "stock_query"
+  ],
+  [
+    "is chocolate croissant available for walk in",
+    "stock_query"
+  ],
+  [
+    "why did we throw away so many croissant",
+    "waste_analysis"
+  ],
+  [
+    "was the 20% off worth it",
+    "promo_eval"
+  ],
+  [
+    "whats the spoilage percentage on bread rolls",
+    "waste_analysis"
+  ],
+  [
+    "do we have a beverage staff for the AM shift rush",
+    "schedule_audit"
+  ],
+  [
+    "are we low on wholemeal flour",
+    "stock_query"
+  ],
+  [
+    "tell me the goods count for croissant",
+    "stock_query"
+  ],
+  [
+    "please did the birthday promotion increase orders",
+    "promo_eval"
+  ],
+  [
+    "how many calories in a donut",
+    "out_of_scope"
+  ],
+  [
+    "please check spoilage rates for dairy products",
+    "waste_analysis"
+  ],
+  [
+    "did the reduction boost chiffon earnings",
+    "promo_eval"
+  ],
+  [
+    "roster shows gap in the mid shift",
+    "schedule_audit"
+  ],
+  [
+    "can we pull someone from back to front",
+    "schedule_audit"
+  ],
+  [
+    "gotta to adjust for the rainy day crowd",
+    "schedule_audit"
+  ],
+  [
+    "show me pictures of cats",
+    "out_of_scope"
+  ],
+  [
+    "reduction promo effectiveness",
+    "promo_eval"
+  ],
+  [
+    "chiffons yang overstock tolong check",
+    "stock_query"
+  ],
+  [
+    "who is on morning shift today",
+    "schedule_audit"
+  ],
+  [
+    "was the family pack special offer fantastic",
+    "promo_eval"
+  ],
+  [
+    "whats the reason is waste so high this the past week",
+    "waste_analysis"
+  ],
+  [
+    "shift petang cukup orang tak",
+    "schedule_audit"
+  ],
+  [
+    "need to know the inventory of almond croissants",
+    "stock_query"
+  ],
+  [
+    "Who is the president of the United States",
+    "out_of_scope"
+  ],
+  [
+    "was the discount deal worth it",
+    "promo_eval"
+  ],
+  [
+    "how much extra transactions from the special offer",
+    "promo_eval"
+  ],
+  [
+    "should to order more donut ingredients",
+    "stock_query"
+  ],
+  [
+    "How to tie a sarong",
+    "out_of_scope"
+  ],
+  [
+    "output me things we threw out this this period",
+    "waste_analysis"
+  ],
+  [
+    "shift swap history for this week",
+    "schedule_audit"
+  ],
+  [
+    "waste report for pastries",
+    "waste_analysis"
+  ],
+  [
+    "show spoilage for bread",
+    "waste_analysis"
+  ],
+  [
+    "What's the best way to study for exams",
+    "out_of_scope"
+  ],
+  [
+    "how many bread_roll did we discard today",
+    "waste_analysis"
+  ],
+  [
+    "do we have a coffee maker for the opening hours rush",
+    "schedule_audit"
+  ],
+  [
+    "is there any ham and cheese croissant left",
+    "stock_query"
+  ],
+  [
+    "is the inventory of quiche lorraine okay",
+    "stock_query"
+  ],
+  [
+    "examine stock for matcha powder",
+    "stock_query"
+  ],
+  [
+    "cukup ke donuts untuk customer hari ni",
+    "stock_query"
+  ],
+  [
+    "how many trays of coconut bread remaining",
+    "stock_query"
+  ],
+  [
+    "compare waste this week vs last 7 days",
+    "waste_analysis"
+  ],
+  [
+    "where is the toilet",
+    "out_of_scope"
+  ],
+  [
+    "roster shows gap in the mid working period",
+    "schedule_audit"
+  ],
+  [
+    "check inventory for chocolate ganache",
+    "stock_query"
+  ],
+  [
+    "sale effectiveness report",
+    "promo_eval"
+  ],
+  [
+    "do we have to to bake more banana bread",
+    "stock_query"
+  ],
+  [
+    "how many pieces of garlic naan in stock",
+    "stock_query"
+  ],
+  [
+    "was the combo deal effective last week",
+    "promo_eval"
+  ],
+  [
+    "whats the supply for milk bread",
+    "stock_query"
+  ],
+  [
+    "can you solve this math trouble",
+    "out_of_scope"
+  ],
+  [
+    "expired items breakdown for week",
+    "waste_analysis"
+  ],
+  [
+    "items wasted this working period",
+    "waste_analysis"
+  ],
+  [
+    "lagu apa yang popular sekarang",
+    "out_of_scope"
+  ],
+  [
+    "what got tossed yesterday",
+    "waste_analysis"
+  ],
+  [
+    "look at discards for danishes",
+    "waste_analysis"
+  ],
+  [
+    "list all thrown away items currently",
+    "waste_analysis"
+  ],
+  [
+    "items wasted this shift",
+    "waste_analysis"
+  ],
+  [
+    "discount deal effectiveness for afternoon set",
+    "promo_eval"
+  ],
+  [
+    "items discarded today morning",
+    "waste_analysis"
+  ],
+  [
+    "look at if we have enough blueberries",
+    "stock_query"
+  ],
+  [
+    "is the roster balanced for the this period",
+    "schedule_audit"
+  ],
+  [
+    "offer deal impact on repeat customers",
+    "promo_eval"
+  ],
+  [
+    "berapa pastry chef bekerja esok",
+    "schedule_audit"
+  ],
+  [
+    "which day has the highest spoilage",
+    "waste_analysis"
+  ],
+  [
+    "whats the rubbish rate for bread",
+    "waste_analysis"
+  ],
+  [
+    "tell me a story about a baking crew",
+    "out_of_scope"
+  ],
+  [
+    "is the roster legal and balanced",
+    "cross_source_audit"
+  ],
+  [
+    "Tell me a funny story about a dog",
+    "out_of_scope"
+  ],
+  [
+    "guest response to the promo",
+    "promo_eval"
+  ],
+  [
+    "have to to fill the gap for Monday afternoon",
+    "schedule_audit"
+  ],
+  [
+    "is the display full for pastries",
+    "stock_query"
+  ],
+  [
+    "how many baguettes to bake for the lunch working period",
+    "stock_query"
+  ],
+  [
+    "Can you sing a song for me",
+    "out_of_scope"
+  ],
+  [
+    "need to reassign staff for the event",
+    "schedule_audit"
+  ],
+  [
+    "how many donut do we have in goods",
+    "stock_query"
+  ],
+  [
+    "how many donut do we have in stock",
+    "stock_query"
+  ],
+  [
+    "berapa chiffon yang fresh sekarang",
+    "stock_query"
+  ],
+  [
+    "examine the inventory level for whole wheat flour",
+    "stock_query"
+  ],
+  [
+    "how many sets sold during promo period",
+    "promo_eval"
+  ],
+  [
+    "roster fairness check please",
+    "schedule_audit"
+  ],
+  [
+    "whats the waste rate for bread",
+    "waste_analysis"
+  ],
+  [
+    "timetable looks off for the morning crew",
+    "schedule_audit"
+  ],
+  [
+    "check freezer supply for donut dough",
+    "stock_query"
+  ],
+  [
+    "provide me a stock check on coconut bread",
+    "stock_query"
+  ],
+  [
+    "whats the rubbish percentage on croissant",
+    "waste_analysis"
+  ],
+  [
+    "chocolate croissant yang overstock tolong look at",
+    "stock_query"
+  ],
+  [
+    "promotion roi for the week",
+    "promo_eval"
+  ],
+  [
+    "full system audit please",
+    "cross_source_audit"
+  ],
+  [
+    "What time is the sunset",
+    "out_of_scope"
+  ],
+  [
+    "work slot gap on Thursday PM shift",
+    "schedule_audit"
+  ],
+  [
+    "who is on morning duty today",
+    "schedule_audit"
+  ],
+  [
+    "minta audit stok donut sekarang",
+    "stock_query"
+  ],
+  [
+    "promotion effectiveness report",
+    "promo_eval"
+  ],
+  [
+    "how many sets sold during promo period?",
+    "promo_eval"
+  ],
+  [
+    "ada cukup coconut bread untuk hari ni?",
+    "stock_query"
+  ],
+  [
+    "whats expiring the following day morning",
+    "waste_analysis"
+  ],
+  [
+    "discards data for last 30 days",
+    "waste_analysis"
+  ],
+  [
+    "roster anomaly on the closing shift",
+    "schedule_audit"
+  ],
+  [
+    "how much pastry we throw away daily",
+    "waste_analysis"
+  ],
+  [
+    "look at the roster for any double shift",
+    "schedule_audit"
+  ],
+  [
+    "do we need to restock the coffee beans?",
+    "stock_query"
+  ],
+  [
+    "how many baguettes to bake for the lunch shift",
+    "stock_query"
+  ],
+  [
+    "verify if we should to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "look at waste for cakes",
+    "waste_analysis"
+  ],
+  [
+    "run a full audit on every department departments",
+    "cross_source_audit"
+  ],
+  [
+    "tell me about Malaysian history",
+    "out_of_scope"
+  ],
+  [
+    "waste report for desserts",
+    "waste_analysis"
+  ],
+  [
+    "roster looks overstaffed for Monday",
+    "schedule_audit"
+  ],
+  [
+    "which shift has the most discards",
+    "waste_analysis"
+  ],
+  [
+    "What's the exchange rate for USD to MYR",
+    "out_of_scope"
+  ],
+  [
+    "please the breakfast bundle revenue number",
+    "promo_eval"
+  ],
+  [
+    "duty coverage looks thin on the bar",
+    "schedule_audit"
+  ],
+  [
+    "is our production too high causing discards",
+    "waste_analysis"
+  ],
+  [
+    "waste data for yesterday",
+    "waste_analysis"
+  ],
+  [
+    "audit throwaway for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "expired items review for this period",
+    "waste_analysis"
+  ],
+  [
+    "who is supposed to close on Saturday",
+    "schedule_audit"
+  ],
+  [
+    "shift gap on Monday opening hours who can fill",
+    "schedule_audit"
+  ],
+  [
+    "tell me a story about a baker",
+    "out_of_scope"
+  ],
+  [
+    "overtime for the night work slot gotta check",
+    "schedule_audit"
+  ],
+  [
+    "ada chiffons yang dah nak expired ke",
+    "stock_query"
+  ],
+  [
+    "please tell me the stock count for croissant",
+    "stock_query"
+  ],
+  [
+    "which shift has the most waste",
+    "waste_analysis"
+  ],
+  [
+    "recommend a lunch place nearby",
+    "out_of_scope"
+  ],
+  [
+    "present spoilage by product type",
+    "waste_analysis"
+  ],
+  [
+    "cukup ke croissant untuk client hari ni",
+    "stock_query"
+  ],
+  [
+    "can you verify the schedule for next week",
+    "schedule_audit"
+  ],
+  [
+    "whats the waste rate for cookies",
+    "waste_analysis"
+  ],
+  [
+    "Who is the CEO of Google",
+    "out_of_scope"
+  ],
+  [
+    "check wastage for pastries?",
+    "waste_analysis"
+  ],
+  [
+    "Is there traffic on the highway now",
+    "out_of_scope"
+  ],
+  [
+    "do we need to prep more scones",
+    "stock_query"
+  ],
+  [
+    "need to fix the shift pattern for next week",
+    "schedule_audit"
+  ],
+  [
+    "roster imbalance for the week",
+    "schedule_audit"
+  ],
+  [
+    "why is spoilage so above normal this week",
+    "waste_analysis"
+  ],
+  [
+    "examine waste for beverages",
+    "waste_analysis"
+  ],
+  [
+    "evaluate last months promotion strategy",
+    "promo_eval"
+  ],
+  [
+    "compare waste between weekdays and weekends",
+    "waste_analysis"
+  ],
+  [
+    "need to cover for Mei Ling's duty",
+    "schedule_audit"
+  ],
+  [
+    "are we overstaffed or understaffed",
+    "cross_source_audit"
+  ],
+  [
+    "waste analysis for cakes",
+    "waste_analysis"
+  ],
+  [
+    "ada beverage staff untuk morning rush tak",
+    "schedule_audit"
+  ],
+  [
+    "how many items expired at this moment",
+    "waste_analysis"
+  ],
+  [
+    "do we gotta to bake more banana bread",
+    "stock_query"
+  ],
+  [
+    "whats the inventory like for cinnamon rolls",
+    "stock_query"
+  ],
+  [
+    "set alarm for 6am",
+    "out_of_scope"
+  ],
+  [
+    "whats the stock for milk bread",
+    "stock_query"
+  ],
+  [
+    "audit everything -- stock forecast schedule",
+    "cross_source_audit"
+  ],
+  [
+    "examine remaining croissant in the display",
+    "stock_query"
+  ],
+  [
+    "nak tengok jadual kerja untuk next week",
+    "schedule_audit"
+  ],
+  [
+    "need to cover the beverage section",
+    "schedule_audit"
+  ],
+  [
+    "check the duty roster for any errors",
+    "schedule_audit"
+  ],
+  [
+    "items wasted this duty",
+    "waste_analysis"
+  ],
+  [
+    "ada cukup coconut bread untuk hari ni",
+    "stock_query"
+  ],
+  [
+    "need to cover the pastry section",
+    "schedule_audit"
+  ],
+  [
+    "spot check inventory vs transactions",
+    "cross_source_audit"
+  ],
+  [
+    "Is there traffic on the highway now?",
+    "out_of_scope"
+  ],
+  [
+    "can I see the batch inventory for coconut bread?",
+    "stock_query"
+  ],
+  [
+    "boleh tolong audit spoilage untuk saya",
+    "waste_analysis"
+  ],
+  [
+    "audit inventory for chocolate éclairs",
+    "stock_query"
+  ],
+  [
+    "do we wanna to restock the coffee beans",
+    "stock_query"
+  ],
+  [
+    "discount promotion cost vs benefit",
+    "promo_eval"
+  ],
+  [
+    "staffing level examine for peak hours",
+    "schedule_audit"
+  ],
+  [
+    "do we need to make more focaccia",
+    "stock_query"
+  ],
+  [
+    "What's the best way to lose weight",
+    "out_of_scope"
+  ],
+  [
+    "do we have coconut bread in the offer area",
+    "stock_query"
+  ],
+  [
+    "check who's clocking in late",
+    "schedule_audit"
+  ],
+  [
+    "the 30% off deal how was it",
+    "promo_eval"
+  ],
+  [
+    "offer promo net profit",
+    "promo_eval"
+  ],
+  [
+    "evaluate the weekday sale",
+    "promo_eval"
+  ],
+  [
+    "do I should to restock chiffons?",
+    "stock_query"
+  ],
+  [
+    "who is on AM working period shift today",
+    "schedule_audit"
+  ],
+  [
+    "please promo cost vs revenue increase",
+    "promo_eval"
+  ],
+  [
+    "berapa bread_coconut yang fresh sekarang",
+    "stock_query"
+  ],
+  [
+    "Can you recommend a good book",
+    "out_of_scope"
+  ],
+  [
+    "check stock for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "did the loyalty card promo increase sales",
+    "promo_eval"
+  ],
+  [
+    "items discarded right now AM shift",
+    "waste_analysis"
+  ],
+  [
+    "discards analysis for this week",
+    "waste_analysis"
+  ],
+  [
+    "pekerja shift malam ada berapa orang",
+    "schedule_audit"
+  ],
+  [
+    "need to order more croissant_chocolate ingredients",
+    "stock_query"
+  ],
+  [
+    "What's the weather like today",
+    "out_of_scope"
+  ],
+  [
+    "ada coconut bread yang dah nak expired ke",
+    "stock_query"
+  ],
+  [
+    "ada bread_coconut dekat markdown area tak",
+    "stock_query"
+  ],
+  [
+    "how many day old croissant_chocolate still there",
+    "stock_query"
+  ],
+  [
+    "expired items breakdown for past days",
+    "waste_analysis"
+  ],
+  [
+    "was the lunch shift promo successful",
+    "promo_eval"
+  ],
+  [
+    "What's the price of gold today",
+    "out_of_scope"
+  ],
+  [
+    "What's the score of the badminton game",
+    "out_of_scope"
+  ],
+  [
+    "find understaffed shifts for this month",
+    "schedule_audit"
+  ],
+  [
+    "how many ppl bought the promo item",
+    "promo_eval"
+  ],
+  [
+    "how come only one person on the espresso machine",
+    "schedule_audit"
+  ],
+  [
+    "verify if we have enough cocoa powder",
+    "stock_query"
+  ],
+  [
+    "how many ppl used the promo code",
+    "promo_eval"
+  ],
+  [
+    "give me a stock examine on coconut bread",
+    "stock_query"
+  ],
+  [
+    "how many danishes to bake for upcoming day",
+    "stock_query"
+  ],
+  [
+    "present spoilage for cream",
+    "waste_analysis"
+  ],
+  [
+    "sales uplift from croissant_chocolate markdown",
+    "promo_eval"
+  ],
+  [
+    "spoilage data for pastries",
+    "waste_analysis"
+  ],
+  [
+    "discount deal performance last month",
+    "promo_eval"
+  ],
+  [
+    "promo impact on revenue",
+    "promo_eval"
+  ],
+  [
+    "promo roi for the week",
+    "promo_eval"
+  ],
+  [
+    "whats the current stock of chiffons",
+    "stock_query"
+  ],
+  [
+    "cara nak kurangkan spoilage chiffons",
+    "waste_analysis"
+  ],
+  [
+    "examine the schedule for any errors",
+    "schedule_audit"
+  ],
+  [
+    "are all shifts properly covered",
+    "cross_source_audit"
+  ],
+  [
+    "berapa banyak coconut bread ada dalam stok",
+    "stock_query"
+  ],
+  [
+    "can we reduce staff on quiet days",
+    "schedule_audit"
+  ],
+  [
+    "spoilage report for this week",
+    "waste_analysis"
+  ],
+  [
+    "how many batches of cookie dough in the freezer?",
+    "stock_query"
+  ],
+  [
+    "roster seems off for the early working period shift",
+    "schedule_audit"
+  ],
+  [
+    "who is on the early working period tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "roster seems off for the early shift duty",
+    "schedule_audit"
+  ],
+  [
+    "why so many people on the same station",
+    "schedule_audit"
+  ],
+  [
+    "examine the jadual for any errors",
+    "schedule_audit"
+  ],
+  [
+    "have to to order more croissant_chocolate ingredients",
+    "stock_query"
+  ],
+  [
+    "are we overproducing chiffon cake",
+    "waste_analysis"
+  ],
+  [
+    "how did the chiffons promotion perform",
+    "promo_eval"
+  ],
+  [
+    "I'm feeling bored, entertain me",
+    "out_of_scope"
+  ],
+  [
+    "whats the count for chocolate chip muffins",
+    "stock_query"
+  ],
+  [
+    "esok nak buat berapa bread rolls",
+    "stock_query"
+  ],
+  [
+    "what percentage of croissant gets thrown",
+    "waste_analysis"
+  ],
+  [
+    "did the referral promo work",
+    "promo_eval"
+  ],
+  [
+    "What's the capital of Australia",
+    "out_of_scope"
+  ],
+  [
+    "who is covering the lunch break today",
+    "schedule_audit"
+  ],
+  [
+    "audit all batch records",
+    "cross_source_audit"
+  ],
+  [
+    "expired items review for today",
+    "waste_analysis"
+  ],
+  [
+    "compare waste this the past week vs last week",
+    "waste_analysis"
+  ],
+  [
+    "audit spoilage for cheese",
+    "waste_analysis"
+  ],
+  [
+    "look at supply for matcha powder",
+    "stock_query"
+  ],
+  [
+    "compare before and after the bread_roll discount",
+    "promo_eval"
+  ],
+  [
+    "discards report for desserts",
+    "waste_analysis"
+  ],
+  [
+    "turnover uplift from croissant_chocolate reduction",
+    "promo_eval"
+  ],
+  [
+    "do we have sufficient donut for today",
+    "stock_query"
+  ],
+  [
+    "is spoilage increasing for chiffons",
+    "waste_analysis"
+  ],
+  [
+    "can you see any gaps in coverage",
+    "schedule_audit"
+  ],
+  [
+    "translate this to Chinese",
+    "out_of_scope"
+  ],
+  [
+    "list all spoiled goods this week",
+    "waste_analysis"
+  ],
+  [
+    "understaffed for the breakfast rush",
+    "schedule_audit"
+  ],
+  [
+    "can we reduce team on quiet days",
+    "schedule_audit"
+  ],
+  [
+    "cross audit inventory forecast sekali",
+    "cross_source_audit"
+  ],
+  [
+    "school holiday period staffing",
+    "schedule_audit"
+  ],
+  [
+    "any gaps in the lunch shift schedule",
+    "schedule_audit"
+  ],
+  [
+    "please how many pain au chocolat left",
+    "stock_query"
+  ],
+  [
+    "have to to check the freezer for frozen croissants",
+    "stock_query"
+  ],
+  [
+    "chiffons stock level please",
+    "stock_query"
+  ],
+  [
+    "can you see any overstaffed slots",
+    "schedule_audit"
+  ],
+  [
+    "how to reduce bread_coconut wastage",
+    "waste_analysis"
+  ],
+  [
+    "do we have a beverage team for the morning rush",
+    "schedule_audit"
+  ],
+  [
+    "evaluate the student offer",
+    "promo_eval"
+  ],
+  [
+    "list thrown away items by category",
+    "waste_analysis"
+  ],
+  [
+    "can you check the schedule for next 7 days",
+    "schedule_audit"
+  ],
+  [
+    "discount discount deal jualan lift",
+    "promo_eval"
+  ],
+  [
+    "promo effectiveness for lunch shift set",
+    "promo_eval"
+  ],
+  [
+    "verify remaining donut in the display",
+    "stock_query"
+  ],
+  [
+    "look at expired inventory list",
+    "waste_analysis"
+  ],
+  [
+    "nak check baki stok untuk bread rolls",
+    "stock_query"
+  ],
+  [
+    "inspect freshness status of all batches",
+    "cross_source_audit"
+  ],
+  [
+    "produk apa paling banyak loss",
+    "waste_analysis"
+  ],
+  [
+    "list spoilage for bread",
+    "waste_analysis"
+  ],
+  [
+    "How to grow tomatoes",
+    "out_of_scope"
+  ],
+  [
+    "shift gap on Monday morning who can fill",
+    "schedule_audit"
+  ],
+  [
+    "whats the difference between latte and cappuccino",
+    "out_of_scope"
+  ],
+  [
+    "sales uplift from croissant_chocolate reduction",
+    "promo_eval"
+  ],
+  [
+    "whats the reason only one person on the espresso machine",
+    "schedule_audit"
+  ],
+  [
+    "duty roster anomaly detection for Monday",
+    "schedule_audit"
+  ],
+  [
+    "nak tengok jadual kerja untuk as of now",
+    "schedule_audit"
+  ],
+  [
+    "check loss for cookies",
+    "waste_analysis"
+  ],
+  [
+    "price cut promo customer count",
+    "promo_eval"
+  ],
+  [
+    "waste percentage for this month",
+    "waste_analysis"
+  ],
+  [
+    "understaffed at the cake counter",
+    "schedule_audit"
+  ],
+  [
+    "the 10% off special offer how was it",
+    "promo_eval"
+  ],
+  [
+    "verify inventory for chocolate chip cookies",
+    "stock_query"
+  ],
+  [
+    "hand over me a inventory check on bread_roll",
+    "stock_query"
+  ],
+  [
+    "list expired ingredients from fridge",
+    "waste_analysis"
+  ],
+  [
+    "should I bake more donut tomorrow",
+    "stock_query"
+  ],
+  [
+    "How to get a driving license?",
+    "out_of_scope"
+  ],
+  [
+    "can we adjust the schedule for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "do we have enough cream cheese for the cheesecakes",
+    "stock_query"
+  ],
+  [
+    "check all kpi for right now",
+    "cross_source_audit"
+  ],
+  [
+    "how to bake a cake at home",
+    "out_of_scope"
+  ],
+  [
+    "are there any croissant_chocolate still in the oven",
+    "stock_query"
+  ],
+  [
+    "nak tengok jadual kerja untuk next the past week",
+    "schedule_audit"
+  ],
+  [
+    "bundle deal revenue number",
+    "promo_eval"
+  ],
+  [
+    "staff cukup untuk public holiday",
+    "schedule_audit"
+  ],
+  [
+    "how much cream in the fridge",
+    "stock_query"
+  ],
+  [
+    "whats the waste percentage this month",
+    "waste_analysis"
+  ],
+  [
+    "do we have donut in the price cut area",
+    "stock_query"
+  ],
+  [
+    "show me the whole store warnings and anomalies",
+    "cross_source_audit"
+  ],
+  [
+    "spoilage review for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "audit freezer inventory for croissants dough",
+    "stock_query"
+  ],
+  [
+    "discount reduction deal sales lift",
+    "promo_eval"
+  ],
+  [
+    "how did the chiffons promotion perform?",
+    "promo_eval"
+  ],
+  [
+    "audit trail for this week",
+    "cross_source_audit"
+  ],
+  [
+    "whats thrown away most often",
+    "waste_analysis"
+  ],
+  [
+    "offer impact on profit margin",
+    "promo_eval"
+  ],
+  [
+    "is bread_roll available for walk in",
+    "stock_query"
+  ],
+  [
+    "supply me a inventory check on bread_roll",
+    "stock_query"
+  ],
+  [
+    "check if we need more sugar",
+    "stock_query"
+  ],
+  [
+    "do I should to restock chiffons",
+    "stock_query"
+  ],
+  [
+    "did the happy hour offer boost traffic",
+    "promo_eval"
+  ],
+  [
+    "who is on late work slot tonight",
+    "schedule_audit"
+  ],
+  [
+    "audit freezer stok for croissants dough",
+    "stock_query"
+  ],
+  [
+    "kenapa takde front desk pagi selasa",
+    "schedule_audit"
+  ],
+  [
+    "run a operations audit",
+    "cross_source_audit"
+  ],
+  [
+    "do we have adequate donut for currently",
+    "stock_query"
+  ],
+  [
+    "boleh tolong audit waste untuk saya",
+    "waste_analysis"
+  ],
+  [
+    "present me expired stock list",
+    "waste_analysis"
+  ],
+  [
+    "patut sambung promosi buy one free one",
+    "promo_eval"
+  ],
+  [
+    "staffing level check for peak hours",
+    "schedule_audit"
+  ],
+  [
+    "loss analysis for lunch items",
+    "waste_analysis"
+  ],
+  [
+    "did the discount boost bread_coconut sales",
+    "promo_eval"
+  ],
+  [
+    "what caused got so many people on same shift",
+    "schedule_audit"
+  ],
+  [
+    "What's the best way to cook steak",
+    "out_of_scope"
+  ],
+  [
+    "offer deal analysis for croissants",
+    "promo_eval"
+  ],
+  [
+    "expired items analysis for this period",
+    "waste_analysis"
+  ],
+  [
+    "spoilage analysis for drinks",
+    "waste_analysis"
+  ],
+  [
+    "why did we throw away so many donuts",
+    "waste_analysis"
+  ],
+  [
+    "overtime for last Sunday should to approve",
+    "schedule_audit"
+  ],
+  [
+    "was the promo profitable",
+    "promo_eval"
+  ],
+  [
+    "whats the waste percentage on bread rolls",
+    "waste_analysis"
+  ],
+  [
+    "roster gap on Friday night",
+    "schedule_audit"
+  ],
+  [
+    "discount special offer effectiveness",
+    "promo_eval"
+  ],
+  [
+    "duty roster looks overstaffed for Monday",
+    "schedule_audit"
+  ],
+  [
+    "which promotion performed best this year",
+    "promo_eval"
+  ],
+  [
+    "promotion impact on revenue",
+    "promo_eval"
+  ],
+  [
+    "whats the reason did we throw away so many croissant_chocolate",
+    "waste_analysis"
+  ],
+  [
+    "tell me the items count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "items discarded currently AM shift",
+    "waste_analysis"
+  ],
+  [
+    "do we need to bake more banana bread",
+    "stock_query"
+  ],
+  [
+    "supply me a stock inspect on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "whats the exchange rate for USD",
+    "out_of_scope"
+  ],
+  [
+    "please shift pattern seems weird for part timers",
+    "schedule_audit"
+  ],
+  [
+    "list me the shift allocation for Thursday",
+    "schedule_audit"
+  ],
+  [
+    "roi of the happy hour campaign",
+    "promo_eval"
+  ],
+  [
+    "did the new customer price cut work",
+    "promo_eval"
+  ],
+  [
+    "how many redemptions for the coupon",
+    "promo_eval"
+  ],
+  [
+    "whats the stok for milk bread",
+    "stock_query"
+  ],
+  [
+    "do we have a coffee staff for the opening hours rush",
+    "schedule_audit"
+  ],
+  [
+    "how many states in Malaysia",
+    "out_of_scope"
+  ],
+  [
+    "deviation analysis for all metrics",
+    "cross_source_audit"
+  ],
+  [
+    "whats the throwaway rate for cookies",
+    "waste_analysis"
+  ],
+  [
+    "are we running out of flour?",
+    "stock_query"
+  ],
+  [
+    "check freshness status of all batches",
+    "cross_source_audit"
+  ],
+  [
+    "please earnings uplift from coconut bread discount",
+    "promo_eval"
+  ],
+  [
+    "check if staffing matches demand today",
+    "cross_source_audit"
+  ],
+  [
+    "do we have enough milk for the latte orders",
+    "stock_query"
+  ],
+  [
+    "the breakfast bundle turnover number",
+    "promo_eval"
+  ],
+  [
+    "duty plan looks messy can you fix",
+    "schedule_audit"
+  ],
+  [
+    "compare combo 1 and combo 2 performance",
+    "promo_eval"
+  ],
+  [
+    "berapa banyak donut kena buang minggu ni",
+    "waste_analysis"
+  ],
+  [
+    "tomorrow how many chocolate croissant to produce",
+    "stock_query"
+  ],
+  [
+    "markdown discount deal sales lift",
+    "promo_eval"
+  ],
+  [
+    "Can you tell me a secret",
+    "out_of_scope"
+  ],
+  [
+    "how many ppl bought the discount deal item",
+    "promo_eval"
+  ],
+  [
+    "ada apa apa masalah hari ni",
+    "cross_source_audit"
+  ],
+  [
+    "stok croissants cukup untuk weekend",
+    "stock_query"
+  ],
+  [
+    "how to lose weight fast",
+    "out_of_scope"
+  ],
+  [
+    "who's working on Sunday got any gaps",
+    "schedule_audit"
+  ],
+  [
+    "schedule compliance audit",
+    "schedule_audit"
+  ],
+  [
+    "how to apply for a visa",
+    "out_of_scope"
+  ],
+  [
+    "price cut impact on coconut bread volume",
+    "promo_eval"
+  ],
+  [
+    "bread_roll tinggal berapa kat rak",
+    "stock_query"
+  ],
+  [
+    "did the promotion increase average spend",
+    "promo_eval"
+  ],
+  [
+    "whats the throwaway rate for bread",
+    "waste_analysis"
+  ],
+  [
+    "do we have sufficient donut for at this moment",
+    "stock_query"
+  ],
+  [
+    "is our production too high causing rubbish",
+    "waste_analysis"
+  ],
+  [
+    "need to fix the shift pattern for next this period",
+    "schedule_audit"
+  ],
+  [
+    "promo cost vs revenue?",
+    "promo_eval"
+  ],
+  [
+    "any alerts i should know about",
+    "cross_source_audit"
+  ],
+  [
+    "how many fresh chiffons available",
+    "stock_query"
+  ],
+  [
+    "bundle deal customer feedback",
+    "promo_eval"
+  ],
+  [
+    "bread rolls tinggal berapa kat rak",
+    "stock_query"
+  ],
+  [
+    "Can you recommend a good movie to watch",
+    "out_of_scope"
+  ],
+  [
+    "track waste trends for this quarter",
+    "waste_analysis"
+  ],
+  [
+    "list all expired goods",
+    "waste_analysis"
+  ],
+  [
+    "did the promo bring in more orders",
+    "promo_eval"
+  ],
+  [
+    "provide me a stock check on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "promo effectiveness report",
+    "promo_eval"
+  ],
+  [
+    "how come is spoilage so high this week",
+    "waste_analysis"
+  ],
+  [
+    "audit the roster for any double shift",
+    "schedule_audit"
+  ],
+  [
+    "please how many croissants sold and remaining",
+    "stock_query"
+  ],
+  [
+    "is our production too elevated causing waste",
+    "waste_analysis"
+  ],
+  [
+    "audit the duty roster for any errors",
+    "schedule_audit"
+  ],
+  [
+    "how many baguettes left in the freezer",
+    "stock_query"
+  ],
+  [
+    "is there sufficient whipped cream",
+    "stock_query"
+  ],
+  [
+    "how many croissant should I prepare for the following day",
+    "stock_query"
+  ],
+  [
+    "offer deal impact on brand awareness",
+    "promo_eval"
+  ],
+  [
+    "whats expiring tomorrow morning",
+    "waste_analysis"
+  ],
+  [
+    "overtime approval for the holiday shift",
+    "schedule_audit"
+  ],
+  [
+    "do we have enough croissants for tomorrow",
+    "stock_query"
+  ],
+  [
+    "Tell me a knock-knock joke",
+    "out_of_scope"
+  ],
+  [
+    "how effective was the instagram promo",
+    "promo_eval"
+  ],
+  [
+    "promo effectiveness breakdown",
+    "promo_eval"
+  ],
+  [
+    "loss summary untuk bakery",
+    "waste_analysis"
+  ],
+  [
+    "why is waste so high this week",
+    "waste_analysis"
+  ],
+  [
+    "items we threw out this early working period",
+    "waste_analysis"
+  ],
+  [
+    "ada croissants dekat discount area tak",
+    "stock_query"
+  ],
+  [
+    "overtime for the night shift need verify",
+    "schedule_audit"
+  ],
+  [
+    "need to inspect the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "jadual looks off for the morning crew",
+    "schedule_audit"
+  ],
+  [
+    "spoilage review for cream puffs",
+    "waste_analysis"
+  ],
+  [
+    "was the family pack promo good",
+    "promo_eval"
+  ],
+  [
+    "Can you do a magic trick",
+    "out_of_scope"
+  ],
+  [
+    "should I bake more coconut bread the following day",
+    "stock_query"
+  ],
+  [
+    "ada benda tak kena dekat sistem",
+    "cross_source_audit"
+  ],
+  [
+    "how many items expired right now",
+    "waste_analysis"
+  ],
+  [
+    "discount deal impact on revenue",
+    "promo_eval"
+  ],
+  [
+    "gotta to restock the display case",
+    "stock_query"
+  ],
+  [
+    "need to reassign people for the event",
+    "schedule_audit"
+  ],
+  [
+    "berapa harga emas sekarang",
+    "out_of_scope"
+  ],
+  [
+    "need to fill the gap for Monday afternoon",
+    "schedule_audit"
+  ],
+  [
+    "is the student discount sustainable",
+    "promo_eval"
+  ],
+  [
+    "promo roi calculation",
+    "promo_eval"
+  ],
+  [
+    "siapa kerja duty pagi esok",
+    "schedule_audit"
+  ],
+  [
+    "give me a stock inspect on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "why is there only one person on counter",
+    "schedule_audit"
+  ],
+  [
+    "campaign effectiveness for new items",
+    "promo_eval"
+  ],
+  [
+    "how many croissant should I prepare for tomorrow",
+    "stock_query"
+  ],
+  [
+    "earnings uplift from coconut bread offer",
+    "promo_eval"
+  ],
+  [
+    "spoilage data by department",
+    "waste_analysis"
+  ],
+  [
+    "is there any tiramisu left",
+    "stock_query"
+  ],
+  [
+    "do we have enough eggs for the cake orders",
+    "stock_query"
+  ],
+  [
+    "discount impact on donut volume",
+    "promo_eval"
+  ],
+  [
+    "items croissants okay ke tak",
+    "stock_query"
+  ],
+  [
+    "is there sufficient staff for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "check stok croissants sekarang",
+    "stock_query"
+  ],
+  [
+    "is the combo promo still profitable",
+    "promo_eval"
+  ],
+  [
+    "expired items report for as of now",
+    "waste_analysis"
+  ],
+  [
+    "promotion roi for the past days",
+    "promo_eval"
+  ],
+  [
+    "bahan untuk buat croissants cukup tak",
+    "stock_query"
+  ],
+  [
+    "what items did we throw away this early shift",
+    "waste_analysis"
+  ],
+  [
+    "spot verify inventory vs transactions",
+    "cross_source_audit"
+  ],
+  [
+    "do we have adequate chiffon for right now",
+    "stock_query"
+  ],
+  [
+    "are we running low on bread rolls",
+    "stock_query"
+  ],
+  [
+    "how many ppl used the discount deal code",
+    "promo_eval"
+  ],
+  [
+    "how many loaves of white bread to prep",
+    "stock_query"
+  ],
+  [
+    "audit wastage for pastries",
+    "waste_analysis"
+  ],
+  [
+    "look at wastage for pastries",
+    "waste_analysis"
+  ],
+  [
+    "discount deal roi calculation for croissant_chocolate bundle",
+    "promo_eval"
+  ],
+  [
+    "verify the roster for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "reveal me things we threw out this week",
+    "waste_analysis"
+  ],
+  [
+    "what did we loss last night",
+    "waste_analysis"
+  ],
+  [
+    "track loss trends for this quarter",
+    "waste_analysis"
+  ],
+  [
+    "reduction impact on donut volume",
+    "promo_eval"
+  ],
+  [
+    "check expired inventory list",
+    "waste_analysis"
+  ],
+  [
+    "kena bakar lagi croissant untuk esok tak",
+    "stock_query"
+  ],
+  [
+    "how did we do yesterday overall",
+    "cross_source_audit"
+  ],
+  [
+    "whats the latest iPhone price",
+    "out_of_scope"
+  ],
+  [
+    "need to fix the working period pattern for next week",
+    "schedule_audit"
+  ],
+  [
+    "inspect discards for beverages",
+    "waste_analysis"
+  ],
+  [
+    "overtime analysis for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "earnings uplift from croissant_chocolate discount",
+    "promo_eval"
+  ],
+  [
+    "discount promo buyer count",
+    "promo_eval"
+  ],
+  [
+    "I should a recipe for chicken curry",
+    "out_of_scope"
+  ],
+  [
+    "waste analysis for breakfast items",
+    "waste_analysis"
+  ],
+  [
+    "What's the best phone in",
+    "out_of_scope"
+  ],
+  [
+    "can I see the batch inventory for croissant_chocolate",
+    "stock_query"
+  ],
+  [
+    "check if s2 predictions match s1 actuals",
+    "cross_source_audit"
+  ],
+  [
+    "schedule looks overstaffed for Monday",
+    "schedule_audit"
+  ],
+  [
+    "bundle deal customer acquisition",
+    "promo_eval"
+  ],
+  [
+    "loss analysis for last week",
+    "waste_analysis"
+  ],
+  [
+    "was the family pack special offer good",
+    "promo_eval"
+  ],
+  [
+    "discount deal impact on repeat customers",
+    "promo_eval"
+  ],
+  [
+    "do we have any gluten-free bread",
+    "stock_query"
+  ],
+  [
+    "let me know me the items count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "how many fresh croissant available",
+    "stock_query"
+  ],
+  [
+    "work slot pattern seems weird for part timers",
+    "schedule_audit"
+  ],
+  [
+    "bundle deal uptake rate",
+    "promo_eval"
+  ],
+  [
+    "how to train my dog",
+    "out_of_scope"
+  ],
+  [
+    "expired items report for week",
+    "waste_analysis"
+  ],
+  [
+    "why is waste so high this the past week",
+    "waste_analysis"
+  ],
+  [
+    "promo performance metrics",
+    "promo_eval"
+  ],
+  [
+    "compare jadual vs actual attendance",
+    "schedule_audit"
+  ],
+  [
+    "what did we discards last night",
+    "waste_analysis"
+  ],
+  [
+    "how many sets sold during promotion period",
+    "promo_eval"
+  ],
+  [
+    "discount promo cost vs benefit",
+    "promo_eval"
+  ],
+  [
+    "whats expiring next day morning",
+    "waste_analysis"
+  ],
+  [
+    "all departments health scan",
+    "cross_source_audit"
+  ],
+  [
+    "do we have sufficient croissants for tomorrow",
+    "stock_query"
+  ],
+  [
+    "how many croissants should I prepare for tmr",
+    "stock_query"
+  ],
+  [
+    "waste report untuk bakery",
+    "waste_analysis"
+  ],
+  [
+    "why got so many people on same duty",
+    "schedule_audit"
+  ],
+  [
+    "show me the roster for next day",
+    "schedule_audit"
+  ],
+  [
+    "throwaway analysis for drinks",
+    "waste_analysis"
+  ],
+  [
+    "how effective was the early shift bundle",
+    "promo_eval"
+  ],
+  [
+    "need to order more donut ingredients",
+    "stock_query"
+  ],
+  [
+    "offer deal effectiveness for afternoon set",
+    "promo_eval"
+  ],
+  [
+    "give me a stock verify on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "work slot swap history for this week",
+    "schedule_audit"
+  ],
+  [
+    "target waste reduction plan",
+    "waste_analysis"
+  ],
+  [
+    "check if we have plenty of cocoa powder",
+    "stock_query"
+  ],
+  [
+    "verify if anyone is over their weekly hours",
+    "schedule_audit"
+  ],
+  [
+    "what time does the mall close",
+    "out_of_scope"
+  ],
+  [
+    "check the duty roster for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "which shift has the most loss",
+    "waste_analysis"
+  ],
+  [
+    "run integrity check on all tables",
+    "cross_source_audit"
+  ],
+  [
+    "chocolate croissant yang overstock tolong review",
+    "stock_query"
+  ],
+  [
+    "promo effectiveness for afternoon set",
+    "promo_eval"
+  ],
+  [
+    "who invented the internet?",
+    "out_of_scope"
+  ],
+  [
+    "should to check the freezer for frozen croissants",
+    "stock_query"
+  ],
+  [
+    "run the morning audit",
+    "cross_source_audit"
+  ],
+  [
+    "did the discount boost chiffon jualan",
+    "promo_eval"
+  ],
+  [
+    "is there enough whipped cream",
+    "stock_query"
+  ],
+  [
+    "markdown roi for march",
+    "promo_eval"
+  ],
+  [
+    "scan semua modul ada masalah tak",
+    "cross_source_audit"
+  ],
+  [
+    "need to cover for Ah Meng on Thursday",
+    "schedule_audit"
+  ],
+  [
+    "check the roster for any double syif",
+    "schedule_audit"
+  ],
+  [
+    "who can cover for the missing shift",
+    "schedule_audit"
+  ],
+  [
+    "do we have enough bread_roll for today",
+    "stock_query"
+  ],
+  [
+    "prepare how many bread rolls for early shift rush",
+    "stock_query"
+  ],
+  [
+    "minta verify stok croissants sekarang",
+    "stock_query"
+  ],
+  [
+    "which work slot has the most waste",
+    "waste_analysis"
+  ],
+  [
+    "gotta to cover for Ah Meng on Thursday",
+    "schedule_audit"
+  ],
+  [
+    "promo effectiveness review",
+    "promo_eval"
+  ],
+  [
+    "how many bread_roll did we discard right now",
+    "waste_analysis"
+  ],
+  [
+    "how much food we waste everyday",
+    "waste_analysis"
+  ],
+  [
+    "why is there no cashier on Tuesday opening hours",
+    "schedule_audit"
+  ],
+  [
+    "display me things we threw out this this period",
+    "waste_analysis"
+  ],
+  [
+    "did the discount boost chiffons transactions",
+    "promo_eval"
+  ],
+  [
+    "promotion roi for the week?",
+    "promo_eval"
+  ],
+  [
+    "jadual looks unbalanced for weekend",
+    "schedule_audit"
+  ],
+  [
+    "verify if anyone is over their hours",
+    "schedule_audit"
+  ],
+  [
+    "should to review the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "comprehensive store health scan",
+    "cross_source_audit"
+  ],
+  [
+    "do we have adequate matcha for the drinks",
+    "stock_query"
+  ],
+  [
+    "discount deal roi calculation",
+    "promo_eval"
+  ],
+  [
+    "ada cukup staff untuk weekend tak",
+    "schedule_audit"
+  ],
+  [
+    "have to to adjust for the festival crowd",
+    "schedule_audit"
+  ],
+  [
+    "do we have adequate chiffon for today",
+    "stock_query"
+  ],
+  [
+    "Who won the World Cup in",
+    "out_of_scope"
+  ],
+  [
+    "look at if anyone is double shifted",
+    "schedule_audit"
+  ],
+  [
+    "let me know me a pun about bread",
+    "out_of_scope"
+  ],
+  [
+    "produk apa paling banyak waste",
+    "waste_analysis"
+  ],
+  [
+    "operations continuity audit",
+    "cross_source_audit"
+  ],
+  [
+    "how to renew driving license",
+    "out_of_scope"
+  ],
+  [
+    "please show me the loss report for today",
+    "waste_analysis"
+  ],
+  [
+    "check freezer stock for donut dough",
+    "stock_query"
+  ],
+  [
+    "working period gap on Monday morning who can fill",
+    "schedule_audit"
+  ],
+  [
+    "who is on morning shift at this moment",
+    "schedule_audit"
+  ],
+  [
+    "any gaps in the PM shift roster",
+    "schedule_audit"
+  ],
+  [
+    "list all thrown away items right now",
+    "waste_analysis"
+  ],
+  [
+    "kena bakar lagi croissant_chocolate untuk esok tak",
+    "stock_query"
+  ],
+  [
+    "tunjuk semua warning dan anomaly",
+    "cross_source_audit"
+  ],
+  [
+    "how many sets sold during sale period",
+    "promo_eval"
+  ],
+  [
+    "check the schedule for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "check freezer stock for croissants dough",
+    "stock_query"
+  ],
+  [
+    "the 10% off campaign how was it",
+    "promo_eval"
+  ],
+  [
+    "how did the buy 1 free 1 perform last week",
+    "promo_eval"
+  ],
+  [
+    "track rubbish trends for this quarter",
+    "waste_analysis"
+  ],
+  [
+    "was the PM shift campaign successful",
+    "promo_eval"
+  ],
+  [
+    "are we running low on bread flour",
+    "stock_query"
+  ],
+  [
+    "verify if we need more sugar",
+    "stock_query"
+  ],
+  [
+    "Can you teach me a dance move",
+    "out_of_scope"
+  ],
+  [
+    "discount deal analysis for bread_roll",
+    "promo_eval"
+  ],
+  [
+    "should to check the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "do we have enough croissants for the following day",
+    "stock_query"
+  ],
+  [
+    "bundle deal profitability",
+    "promo_eval"
+  ],
+  [
+    "inform me a dad joke",
+    "out_of_scope"
+  ],
+  [
+    "rubbish analysis for breakfast items",
+    "waste_analysis"
+  ],
+  [
+    "is croissants finished already",
+    "stock_query"
+  ],
+  [
+    "audit stock for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "send text message to boss",
+    "out_of_scope"
+  ],
+  [
+    "examine the schedule for any errors?",
+    "schedule_audit"
+  ],
+  [
+    "cara nak kurangkan throwaway chiffon",
+    "waste_analysis"
+  ],
+  [
+    "weekly operations review",
+    "cross_source_audit"
+  ],
+  [
+    "examine waste for danishes",
+    "waste_analysis"
+  ],
+  [
+    "waste data for last 30 days",
+    "waste_analysis"
+  ],
+  [
+    "banding waste minggu ni dengan minggu lepas",
+    "waste_analysis"
+  ],
+  [
+    "nak restock bread_roll ke tak",
+    "stock_query"
+  ],
+  [
+    "end of shift summary",
+    "cross_source_audit"
+  ],
+  [
+    "prepare how many chiffon for morning rush",
+    "stock_query"
+  ],
+  [
+    "kenapa takde counter staff pagi selasa",
+    "schedule_audit"
+  ],
+  [
+    "overtime check for all modules staff",
+    "cross_source_audit"
+  ],
+  [
+    "promosi breakfast set jadi tak",
+    "promo_eval"
+  ],
+  [
+    "bulk order stock check for event",
+    "stock_query"
+  ],
+  [
+    "what are today risks",
+    "cross_source_audit"
+  ],
+  [
+    "can you check the schedule for next week",
+    "schedule_audit"
+  ],
+  [
+    "check if discount strategy is working",
+    "cross_source_audit"
+  ],
+  [
+    "compare before and after the chiffons reduction",
+    "promo_eval"
+  ],
+  [
+    "scan for operations issues",
+    "cross_source_audit"
+  ],
+  [
+    "bread_roll dah habis ke",
+    "stock_query"
+  ],
+  [
+    "look at discards for beverages",
+    "waste_analysis"
+  ],
+  [
+    "did the rainy season increase waste",
+    "waste_analysis"
+  ],
+  [
+    "esok nak buat berapa croissant_chocolate",
+    "stock_query"
+  ],
+  [
+    "waste analysis for desserts",
+    "waste_analysis"
+  ],
+  [
+    "do a full sweep of everything metrics",
+    "cross_source_audit"
+  ],
+  [
+    "verify full system are aligned",
+    "cross_source_audit"
+  ],
+  [
+    "compare schedule vs actual attendance",
+    "schedule_audit"
+  ],
+  [
+    "roster anomaly on Wednesday opening",
+    "schedule_audit"
+  ],
+  [
+    "did the facebook ad increase foot traffic",
+    "promo_eval"
+  ],
+  [
+    "look at expired stock list",
+    "waste_analysis"
+  ],
+  [
+    "show me the store health dashboard",
+    "cross_source_audit"
+  ],
+  [
+    "tell me the inventory count for croissant",
+    "stock_query"
+  ],
+  [
+    "how much puff pastry do we have",
+    "stock_query"
+  ],
+  [
+    "overtime for the night work slot need audit",
+    "schedule_audit"
+  ],
+  [
+    "how much pastry wasted this past days",
+    "waste_analysis"
+  ],
+  [
+    "berapa jualan masa promo donut",
+    "promo_eval"
+  ],
+  [
+    "spoilage summary for cream puffs",
+    "waste_analysis"
+  ],
+  [
+    "duty roster looks off for the morning crew",
+    "schedule_audit"
+  ],
+  [
+    "waste analysis for lunch",
+    "waste_analysis"
+  ],
+  [
+    "how much money lost from spoilage",
+    "waste_analysis"
+  ],
+  [
+    "how many pieces of garlic naan in goods",
+    "stock_query"
+  ],
+  [
+    "whats the current stock of chocolate croissant",
+    "stock_query"
+  ],
+  [
+    "check if we have to more unsalted butter",
+    "stock_query"
+  ],
+  [
+    "What's the best way to lose weight?",
+    "out_of_scope"
+  ],
+  [
+    "evaluate the weekday promo",
+    "promo_eval"
+  ],
+  [
+    "check the inventory level for whole wheat flour",
+    "stock_query"
+  ],
+  [
+    "timetable conflict for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "verify all systems are aligned",
+    "cross_source_audit"
+  ],
+  [
+    "how many boxes of donuts to prepare",
+    "stock_query"
+  ],
+  [
+    "spoilage report for meats",
+    "waste_analysis"
+  ],
+  [
+    "loss audit for the pastry shop section",
+    "waste_analysis"
+  ],
+  [
+    "Where is the nearest hospital",
+    "out_of_scope"
+  ],
+  [
+    "marketing campaign impact on sales",
+    "promo_eval"
+  ],
+  [
+    "are we running low on vanilla extract",
+    "stock_query"
+  ],
+  [
+    "whats the count for blueberry muffins",
+    "stock_query"
+  ],
+  [
+    "reduction impact on profit margin",
+    "promo_eval"
+  ],
+  [
+    "discount special offer customer count",
+    "promo_eval"
+  ],
+  [
+    "headcount adequacy look at for each shift",
+    "schedule_audit"
+  ],
+  [
+    "how many fresh donuts available",
+    "stock_query"
+  ],
+  [
+    "do I must to restock bread_roll",
+    "stock_query"
+  ],
+  [
+    "promo impact on average order value",
+    "promo_eval"
+  ],
+  [
+    "waste analysis for bakery section",
+    "waste_analysis"
+  ],
+  [
+    "check freezer inventory for chocolate croissant dough",
+    "stock_query"
+  ],
+  [
+    "marketing campaign cost per sale",
+    "promo_eval"
+  ],
+  [
+    "review remaining croissant in the display",
+    "stock_query"
+  ],
+  [
+    "can I charge my phone",
+    "out_of_scope"
+  ],
+  [
+    "reduction promotion effectiveness",
+    "promo_eval"
+  ],
+  [
+    "bundle deal performance summary",
+    "promo_eval"
+  ],
+  [
+    "do we have a barista for the opening rush",
+    "schedule_audit"
+  ],
+  [
+    "check waste for cakes",
+    "waste_analysis"
+  ],
+  [
+    "show me expired items list",
+    "waste_analysis"
+  ],
+  [
+    "do I need to restock chiffons",
+    "stock_query"
+  ],
+  [
+    "minta check stok donut sekarang",
+    "stock_query"
+  ],
+  [
+    "who is on AM shift work slot today",
+    "schedule_audit"
+  ],
+  [
+    "who is available for overtime upcoming day",
+    "schedule_audit"
+  ],
+  [
+    "how many batches of brownie batter in the fridge",
+    "stock_query"
+  ],
+  [
+    "did the discount boost chiffon transactions",
+    "promo_eval"
+  ],
+  [
+    "gotta to know how many sourdough loaves we have",
+    "stock_query"
+  ],
+  [
+    "audit waste for cookies",
+    "waste_analysis"
+  ],
+  [
+    "Who is the richest person in the world",
+    "out_of_scope"
+  ],
+  [
+    "how many eggs do we have to to order",
+    "stock_query"
+  ],
+  [
+    "customer response to the campaign",
+    "promo_eval"
+  ],
+  [
+    "who called in sick right now need replacement",
+    "schedule_audit"
+  ],
+  [
+    "waste review for pastries",
+    "waste_analysis"
+  ],
+  [
+    "ada bread_coconut dekat offer area tak",
+    "stock_query"
+  ],
+  [
+    "audit if anyone is clocking in early",
+    "schedule_audit"
+  ],
+  [
+    "deviation analysis for all modules metrics",
+    "cross_source_audit"
+  ],
+  [
+    "schedule looks off for the pagi crew",
+    "schedule_audit"
+  ],
+  [
+    "how many eggs do we need to order",
+    "stock_query"
+  ],
+  [
+    "minta examine stok bread_coconut sekarang",
+    "stock_query"
+  ],
+  [
+    "spoilage breakdown for breads",
+    "waste_analysis"
+  ],
+  [
+    "what did we waste last night",
+    "waste_analysis"
+  ],
+  [
+    "review throwaway for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "daily spoilage summary please",
+    "waste_analysis"
+  ],
+  [
+    "croissant yang semalam ada lagi tak",
+    "stock_query"
+  ],
+  [
+    "who is the prime minister",
+    "out_of_scope"
+  ],
+  [
+    "show spoilage for coffee",
+    "waste_analysis"
+  ],
+  [
+    "list spoilage for cream",
+    "waste_analysis"
+  ],
+  [
+    "risk assessment for currently",
+    "cross_source_audit"
+  ],
+  [
+    "cara nak kurangkan waste coconut bread",
+    "waste_analysis"
+  ],
+  [
+    "minta audit stok donut sekarang?",
+    "stock_query"
+  ],
+  [
+    "do we have plenty bread_roll for today",
+    "stock_query"
+  ],
+  [
+    "ada croissants dekat reduction area tak",
+    "stock_query"
+  ],
+  [
+    "any items near expiry that will be wasted?",
+    "waste_analysis"
+  ],
+  [
+    "waste review for desserts",
+    "waste_analysis"
+  ],
+  [
+    "do we have enough donut for currently",
+    "stock_query"
+  ],
+  [
+    "system wide diagnostics",
+    "cross_source_audit"
+  ],
+  [
+    "hand over me a stock check on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "show me the loss summary for today",
+    "waste_analysis"
+  ],
+  [
+    "how much extra sales from the promo",
+    "promo_eval"
+  ],
+  [
+    "how healthy is the store today",
+    "cross_source_audit"
+  ],
+  [
+    "chocolate croissant yang overstock tolong check",
+    "stock_query"
+  ],
+  [
+    "marketing campaign conversion",
+    "promo_eval"
+  ],
+  [
+    "do we gotta more icing sugar",
+    "stock_query"
+  ],
+  [
+    "reduction promotion cost vs benefit",
+    "promo_eval"
+  ],
+  [
+    "how many danishes to bake for tomorrow",
+    "stock_query"
+  ],
+  [
+    "check if Kumar has enough rest hours",
+    "schedule_audit"
+  ],
+  [
+    "prepare how many coconut bread for pagi rush",
+    "stock_query"
+  ],
+  [
+    "discount deal effectiveness for mid shift set",
+    "promo_eval"
+  ],
+  [
+    "inspect stock for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "whats the current supply of chiffons",
+    "stock_query"
+  ],
+  [
+    "examine if anyone is clocking in early",
+    "schedule_audit"
+  ],
+  [
+    "what percentage of chocolate croissant gets thrown",
+    "waste_analysis"
+  ],
+  [
+    "please do we need to prep more scones",
+    "stock_query"
+  ],
+  [
+    "spoilage report for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "ada cukup croissant_chocolate untuk hari ni",
+    "stock_query"
+  ],
+  [
+    "waste summary for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "check freezer items for donut dough",
+    "stock_query"
+  ],
+  [
+    "promo effectiveness for petang set",
+    "promo_eval"
+  ],
+  [
+    "how many coffee cakes left",
+    "stock_query"
+  ],
+  [
+    "verify pricing is consistent",
+    "cross_source_audit"
+  ],
+  [
+    "what needs my attention right now",
+    "cross_source_audit"
+  ],
+  [
+    "spoilage report for dairy",
+    "waste_analysis"
+  ],
+  [
+    "berapa baker bekerja esok",
+    "schedule_audit"
+  ],
+  [
+    "overtime for last Sunday must to approve",
+    "schedule_audit"
+  ],
+  [
+    "is the items of plain croissants okay",
+    "stock_query"
+  ],
+  [
+    "is there anything wrong with the schedule today",
+    "cross_source_audit"
+  ],
+  [
+    "waste analysis for yesterday evening",
+    "waste_analysis"
+  ],
+  [
+    "please discount discount deal sales lift",
+    "promo_eval"
+  ],
+  [
+    "kenapa takde kaunter pagi selasa",
+    "schedule_audit"
+  ],
+  [
+    "how effective was the lunch shift tea set",
+    "promo_eval"
+  ],
+  [
+    "waste report for this past days",
+    "waste_analysis"
+  ],
+  [
+    "expired items report for this period",
+    "waste_analysis"
+  ],
+  [
+    "please loss percentage for this month",
+    "waste_analysis"
+  ],
+  [
+    "audit store wide now",
+    "cross_source_audit"
+  ],
+  [
+    "the family bundle how did it do",
+    "promo_eval"
+  ],
+  [
+    "show rubbish for coffee",
+    "waste_analysis"
+  ],
+  [
+    "review waste for danishes",
+    "waste_analysis"
+  ],
+  [
+    "loss report for this this period",
+    "waste_analysis"
+  ],
+  [
+    "nak restock donuts ke tak",
+    "stock_query"
+  ],
+  [
+    "who called in sick today wanna replacement",
+    "schedule_audit"
+  ],
+  [
+    "discount roi for march",
+    "promo_eval"
+  ],
+  [
+    "present me chiffon inventory",
+    "stock_query"
+  ],
+  [
+    "promo roi calculation for croissant bundle",
+    "promo_eval"
+  ],
+  [
+    "show me the loss report for today",
+    "waste_analysis"
+  ],
+  [
+    "How to fold a paper plane",
+    "out_of_scope"
+  ],
+  [
+    "was the bundle deal popular",
+    "promo_eval"
+  ],
+  [
+    "review freezer items for croissants dough",
+    "stock_query"
+  ],
+  [
+    "How to fix a slow computer",
+    "out_of_scope"
+  ],
+  [
+    "promo performance last month",
+    "promo_eval"
+  ],
+  [
+    "is the stock of plain croissants okay",
+    "stock_query"
+  ],
+  [
+    "who can cover for the missing working period",
+    "schedule_audit"
+  ],
+  [
+    "how many macarons in the chiller",
+    "stock_query"
+  ],
+  [
+    "too many people on front desk",
+    "schedule_audit"
+  ],
+  [
+    "look at discards for cakes",
+    "waste_analysis"
+  ],
+  [
+    "banding loss minggu ni dengan minggu lepas",
+    "waste_analysis"
+  ],
+  [
+    "check remaining donut in the display",
+    "stock_query"
+  ],
+  [
+    "is there any buttercream left",
+    "stock_query"
+  ],
+  [
+    "customer suka ke tak bundle promosi",
+    "promo_eval"
+  ],
+  [
+    "spoilage percentage for this month",
+    "waste_analysis"
+  ],
+  [
+    "how did the buy 1 free 1 perform last the past week",
+    "promo_eval"
+  ],
+  [
+    "how many buns wasted this week",
+    "waste_analysis"
+  ],
+  [
+    "inspect stock for tarts",
+    "stock_query"
+  ],
+  [
+    "must to fix the shift pattern for next this period",
+    "schedule_audit"
+  ],
+  [
+    "flour inventory running low",
+    "stock_query"
+  ],
+  [
+    "any issues with stock waste or schedule",
+    "cross_source_audit"
+  ],
+  [
+    "spoilage summary for dairy",
+    "waste_analysis"
+  ],
+  [
+    "how much extra revenue from the promotion",
+    "promo_eval"
+  ],
+  [
+    "coconut bread supply level please",
+    "stock_query"
+  ],
+  [
+    "please how effective was the lunch shift tea set",
+    "promo_eval"
+  ],
+  [
+    "minta check stok croissants sekarang",
+    "stock_query"
+  ],
+  [
+    "give me a inventory look at on bread_roll",
+    "stock_query"
+  ],
+  [
+    "banding sebelum lepas promosi donut",
+    "promo_eval"
+  ],
+  [
+    "do we have sufficient chiffon for today",
+    "stock_query"
+  ],
+  [
+    "semak jadual ada masalah tak",
+    "schedule_audit"
+  ],
+  [
+    "evaluate the student offer program",
+    "promo_eval"
+  ],
+  [
+    "forecast vs actual throwaway comparison",
+    "waste_analysis"
+  ],
+  [
+    "list spoilage for drinks",
+    "waste_analysis"
+  ],
+  [
+    "please need to order more croissant_chocolate ingredients",
+    "stock_query"
+  ],
+  [
+    "give me a stok inspect on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "list rubbish for bakery section",
+    "waste_analysis"
+  ],
+  [
+    "promo conversion rate for chocolate croissant",
+    "promo_eval"
+  ],
+  [
+    "check the schedule for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "overtime verify for all staff",
+    "cross_source_audit"
+  ],
+  [
+    "cara nak kurangkan rubbish chiffon",
+    "waste_analysis"
+  ],
+  [
+    "check freezer stock for chocolate croissant dough",
+    "stock_query"
+  ],
+  [
+    "list spoiled items in storage",
+    "waste_analysis"
+  ],
+  [
+    "what is the weather forecast",
+    "out_of_scope"
+  ],
+  [
+    "is everything okay across the board",
+    "cross_source_audit"
+  ],
+  [
+    "check if staffing matches demand currently",
+    "cross_source_audit"
+  ],
+  [
+    "please spoilage report for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "expired ingredients list",
+    "waste_analysis"
+  ],
+  [
+    "please the family bundle how did it do",
+    "promo_eval"
+  ],
+  [
+    "berapa chocolate croissant yang fresh sekarang",
+    "stock_query"
+  ],
+  [
+    "how many pieces of garlic naan in supply",
+    "stock_query"
+  ],
+  [
+    "tell me the items count for croissant",
+    "stock_query"
+  ],
+  [
+    "how much food spoilage did we have this month",
+    "waste_analysis"
+  ],
+  [
+    "waste analysis for coffee drinks",
+    "waste_analysis"
+  ],
+  [
+    "please inspect stok donut sekarang",
+    "stock_query"
+  ],
+  [
+    "can you solve this math issue",
+    "out_of_scope"
+  ],
+  [
+    "do we have bread_coconut batch from yesterday",
+    "stock_query"
+  ],
+  [
+    "recommend a great movie",
+    "out_of_scope"
+  ],
+  [
+    "I must a recipe for chicken curry",
+    "out_of_scope"
+  ],
+  [
+    "is there any overtime for this past days",
+    "schedule_audit"
+  ],
+  [
+    "do we have ample mozzarella for the pizzas?",
+    "stock_query"
+  ],
+  [
+    "please check discards for danishes",
+    "waste_analysis"
+  ],
+  [
+    "discount deal analysis for croissants",
+    "promo_eval"
+  ],
+  [
+    "expired items report for at this moment",
+    "waste_analysis"
+  ],
+  [
+    "promo effectiveness for new items",
+    "promo_eval"
+  ],
+  [
+    "loss report for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "breakfast set promo performance",
+    "promo_eval"
+  ],
+  [
+    "overtime approval needed for last night",
+    "schedule_audit"
+  ],
+  [
+    "verify if anyone is double shifted",
+    "schedule_audit"
+  ],
+  [
+    "promo roi for the cafe",
+    "promo_eval"
+  ],
+  [
+    "advise me a pun about bread",
+    "out_of_scope"
+  ],
+  [
+    "items we threw out this morning",
+    "waste_analysis"
+  ],
+  [
+    "check supply for tarts",
+    "stock_query"
+  ],
+  [
+    "performance anomalies across everything products",
+    "cross_source_audit"
+  ],
+  [
+    "please items discarded today AM shift",
+    "waste_analysis"
+  ],
+  [
+    "offer promo redemption rate",
+    "promo_eval"
+  ],
+  [
+    "verify no data corruption",
+    "cross_source_audit"
+  ],
+  [
+    "sales uplift from coconut bread reduction",
+    "promo_eval"
+  ],
+  [
+    "check spoilage rates for dairy products?",
+    "waste_analysis"
+  ],
+  [
+    "anyone available for extra syif tonight",
+    "schedule_audit"
+  ],
+  [
+    "anyone available for extra working period tonight",
+    "schedule_audit"
+  ],
+  [
+    "please how many ppl used the discount deal code",
+    "promo_eval"
+  ],
+  [
+    "anyone can come in early next day",
+    "schedule_audit"
+  ],
+  [
+    "how many pain au chocolat left?",
+    "stock_query"
+  ],
+  [
+    "discards analysis for desserts",
+    "waste_analysis"
+  ],
+  [
+    "whats the current items of coconut bread",
+    "stock_query"
+  ],
+  [
+    "inspect the duty roster for any errors",
+    "schedule_audit"
+  ],
+  [
+    "what caused is waste so high this the past week",
+    "waste_analysis"
+  ],
+  [
+    "is the stock of pandan cake okay",
+    "stock_query"
+  ],
+  [
+    "examine the supply level for whole wheat flour",
+    "stock_query"
+  ],
+  [
+    "compare forecast to actual sales this week",
+    "cross_source_audit"
+  ],
+  [
+    "Who won the election",
+    "out_of_scope"
+  ],
+  [
+    "marketing campaign results",
+    "promo_eval"
+  ],
+  [
+    "reveal waste for muffins",
+    "waste_analysis"
+  ],
+  [
+    "shift plan looks unbalanced for weekend",
+    "schedule_audit"
+  ],
+  [
+    "check if anyone is due for break",
+    "schedule_audit"
+  ],
+  [
+    "breakdown waste by freshness status",
+    "waste_analysis"
+  ],
+  [
+    "why did we throw away so many croissant_chocolate",
+    "waste_analysis"
+  ],
+  [
+    "audit if we need to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "the buy 2 get 1 free how was it",
+    "promo_eval"
+  ],
+  [
+    "offer deal analysis for q",
+    "promo_eval"
+  ],
+  [
+    "How to fix a broken heart",
+    "out_of_scope"
+  ],
+  [
+    "prep list for tomorrow opening",
+    "stock_query"
+  ],
+  [
+    "review if anyone is due for break",
+    "schedule_audit"
+  ],
+  [
+    "hand over me a stock inspect on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "work slot gap on Thursday mid shift",
+    "schedule_audit"
+  ],
+  [
+    "was the special offer profitable",
+    "promo_eval"
+  ],
+  [
+    "reveal me bread_roll inventory",
+    "stock_query"
+  ],
+  [
+    "how many bread_roll did we discard currently",
+    "waste_analysis"
+  ],
+  [
+    "how many croissants sold and remaining",
+    "stock_query"
+  ],
+  [
+    "shift coverage looks thin on Friday",
+    "schedule_audit"
+  ],
+  [
+    "is the flour bin full",
+    "stock_query"
+  ],
+  [
+    "the 10% off promo how was it",
+    "promo_eval"
+  ],
+  [
+    "is the closing shift producing more waste",
+    "waste_analysis"
+  ],
+  [
+    "how many croissants should I bake for weekend",
+    "stock_query"
+  ],
+  [
+    "What's the population of Malaysia",
+    "out_of_scope"
+  ],
+  [
+    "have to to fill the gap for Monday mid shift",
+    "schedule_audit"
+  ],
+  [
+    "do we have sufficient donut for right now",
+    "stock_query"
+  ],
+  [
+    "check if we have enough blueberries",
+    "stock_query"
+  ],
+  [
+    "reduction discount deal effectiveness",
+    "promo_eval"
+  ],
+  [
+    "sales uplift from coconut bread discount",
+    "promo_eval"
+  ],
+  [
+    "how many bread_coconut should I bake for weekend",
+    "stock_query"
+  ],
+  [
+    "verify if we need to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "What's the fastest car in the world",
+    "out_of_scope"
+  ],
+  [
+    "spoilage data for yesterday",
+    "waste_analysis"
+  ],
+  [
+    "show me the roster for tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "must to know how many sourdough loaves we have",
+    "stock_query"
+  ],
+  [
+    "should we continue the buy one free one",
+    "promo_eval"
+  ],
+  [
+    "wanna to check the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "discount discount deal revenue lift",
+    "promo_eval"
+  ],
+  [
+    "let me know me a story about a baking crew",
+    "out_of_scope"
+  ],
+  [
+    "gotta to know the inventory of almond croissants",
+    "stock_query"
+  ],
+  [
+    "sales uplift from croissant_chocolate offer",
+    "promo_eval"
+  ],
+  [
+    "is Mei working too many days in a row",
+    "schedule_audit"
+  ],
+  [
+    "check the roster for any double booking",
+    "schedule_audit"
+  ],
+  [
+    "wanna to know how many sourdough loaves we have",
+    "stock_query"
+  ],
+  [
+    "Who is your favorite singer",
+    "out_of_scope"
+  ],
+  [
+    "syif coverage looks thin on the bar",
+    "schedule_audit"
+  ],
+  [
+    "spoilage breakdown for sandwiches?",
+    "waste_analysis"
+  ],
+  [
+    "do we have enough croissants for tmr",
+    "stock_query"
+  ],
+  [
+    "promo cost vs revenue",
+    "promo_eval"
+  ],
+  [
+    "audit penuh sistem",
+    "cross_source_audit"
+  ],
+  [
+    "need to reassign pekerja for the event",
+    "schedule_audit"
+  ],
+  [
+    "nak tengok jadual kerja untuk next 7 days",
+    "schedule_audit"
+  ],
+  [
+    "any red flags this week",
+    "cross_source_audit"
+  ],
+  [
+    "please did the discount boost bread_coconut earnings",
+    "promo_eval"
+  ],
+  [
+    "please have to to fill the gap for Monday afternoon",
+    "schedule_audit"
+  ],
+  [
+    "items discarded today AM work slot",
+    "waste_analysis"
+  ],
+  [
+    "nak review baki stok untuk bread rolls",
+    "stock_query"
+  ],
+  [
+    "the following day how many croissant to produce",
+    "stock_query"
+  ],
+  [
+    "please the buy 3 get 1 free how was it",
+    "promo_eval"
+  ],
+  [
+    "how did the buy 1 free 1 perform last the past this period",
+    "promo_eval"
+  ],
+  [
+    "nak tempah tiket wayang",
+    "out_of_scope"
+  ],
+  [
+    "nak audit baki stok untuk bread rolls",
+    "stock_query"
+  ],
+  [
+    "promo conversion rate for chiffons",
+    "promo_eval"
+  ],
+  [
+    "loss analysis for last 7 days",
+    "waste_analysis"
+  ],
+  [
+    "schedule conflict between two part timers",
+    "schedule_audit"
+  ],
+  [
+    "compare before and after the bread_coconut discount",
+    "promo_eval"
+  ],
+  [
+    "waste cost for this month in RM",
+    "waste_analysis"
+  ],
+  [
+    "are we wasting too much raw material",
+    "cross_source_audit"
+  ],
+  [
+    "verify the schedule covers all roles",
+    "schedule_audit"
+  ],
+  [
+    "waste data for last quarter",
+    "waste_analysis"
+  ],
+  [
+    "how effective was the lunch promo",
+    "promo_eval"
+  ],
+  [
+    "headcount adequacy look at for each duty",
+    "schedule_audit"
+  ],
+  [
+    "show spoilage for cream",
+    "waste_analysis"
+  ],
+  [
+    "need to adjust for the festival crowd?",
+    "schedule_audit"
+  ],
+  [
+    "check for store wide issues",
+    "cross_source_audit"
+  ],
+  [
+    "are we running out of flour",
+    "stock_query"
+  ],
+  [
+    "cara nak kurangkan loss coconut bread",
+    "waste_analysis"
+  ],
+  [
+    "daily operations check",
+    "cross_source_audit"
+  ],
+  [
+    "give me a stock look at on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "sale impact on repeat customers",
+    "promo_eval"
+  ],
+  [
+    "verify if anyone is clocking in early",
+    "schedule_audit"
+  ],
+  [
+    "wanna to adjust for the festival crowd",
+    "schedule_audit"
+  ],
+  [
+    "next day how many donut to produce",
+    "stock_query"
+  ],
+  [
+    "audit stok bread_coconut sekarang",
+    "stock_query"
+  ],
+  [
+    "why is there no kaunter on Tuesday morning",
+    "schedule_audit"
+  ],
+  [
+    "discount promo redemption rate",
+    "promo_eval"
+  ],
+  [
+    "Who won the football match last night",
+    "out_of_scope"
+  ],
+  [
+    "do we have enough chiffon for today",
+    "stock_query"
+  ],
+  [
+    "inform me the stock count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "verify schedule against labor law",
+    "schedule_audit"
+  ],
+  [
+    "how to reduce donut wastage",
+    "waste_analysis"
+  ],
+  [
+    "check waste for beverages",
+    "waste_analysis"
+  ],
+  [
+    "jadual looks messy can you fix",
+    "schedule_audit"
+  ],
+  [
+    "roster anomaly on the morning work slot",
+    "schedule_audit"
+  ],
+  [
+    "review if we need more unsalted butter",
+    "stock_query"
+  ],
+  [
+    "how much food wasted last 7 days",
+    "waste_analysis"
+  ],
+  [
+    "nak restock coconut bread ke tak",
+    "stock_query"
+  ],
+  [
+    "examine the stock level for whole wheat flour",
+    "stock_query"
+  ],
+  [
+    "present me the waste breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "check freezer items for croissants dough",
+    "stock_query"
+  ],
+  [
+    "run integrity check on every department tables",
+    "cross_source_audit"
+  ],
+  [
+    "need to check the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "need to know how many sourdough loaves we have",
+    "stock_query"
+  ],
+  [
+    "turnover uplift from croissant_chocolate discount",
+    "promo_eval"
+  ],
+  [
+    "loss data for pastries",
+    "waste_analysis"
+  ],
+  [
+    "check wastage for pastries",
+    "waste_analysis"
+  ],
+  [
+    "must to cover the pastry section",
+    "schedule_audit"
+  ],
+  [
+    "spot any irregularities in the data",
+    "cross_source_audit"
+  ],
+  [
+    "where to buy cheap groceries",
+    "out_of_scope"
+  ],
+  [
+    "run diagnostics on the whole operation",
+    "cross_source_audit"
+  ],
+  [
+    "is anyone working overtime this week",
+    "schedule_audit"
+  ],
+  [
+    "look at stok croissants sekarang",
+    "stock_query"
+  ],
+  [
+    "how many chiffon did we discard right now",
+    "waste_analysis"
+  ],
+  [
+    "minta look at stok bread_coconut sekarang",
+    "stock_query"
+  ],
+  [
+    "scan if discount strategy is working",
+    "cross_source_audit"
+  ],
+  [
+    "how much food waste did we have this month?",
+    "waste_analysis"
+  ],
+  [
+    "coconut bread dah habis ke",
+    "stock_query"
+  ],
+  [
+    "should to know the count for brownies",
+    "stock_query"
+  ],
+  [
+    "diskaun deal analysis for q",
+    "promo_eval"
+  ],
+  [
+    "ada barista untuk morning rush tak",
+    "schedule_audit"
+  ],
+  [
+    "How to remove a stain from clothes",
+    "out_of_scope"
+  ],
+  [
+    "do we need to restock the coffee beans",
+    "stock_query"
+  ],
+  [
+    "pekerja work slot malam ada berapa orang",
+    "schedule_audit"
+  ],
+  [
+    "are working hours within legal limits",
+    "schedule_audit"
+  ],
+  [
+    "promo cost per acquisition",
+    "promo_eval"
+  ],
+  [
+    "do we have croissant_chocolate batch from yesterday",
+    "stock_query"
+  ],
+  [
+    "show me things we threw out this this period",
+    "waste_analysis"
+  ],
+  [
+    "what is the time now",
+    "out_of_scope"
+  ],
+  [
+    "list waste for drinks",
+    "waste_analysis"
+  ],
+  [
+    "show me the work slot allocation for Friday",
+    "schedule_audit"
+  ],
+  [
+    "show waste by category",
+    "waste_analysis"
+  ],
+  [
+    "verify spoilage for cookies",
+    "waste_analysis"
+  ],
+  [
+    "buat audit penuh untuk kedai",
+    "cross_source_audit"
+  ],
+  [
+    "can I book a flight to Penang",
+    "out_of_scope"
+  ],
+  [
+    "please why is spoilage so high this week",
+    "waste_analysis"
+  ],
+  [
+    "What's your favorite movie",
+    "out_of_scope"
+  ],
+  [
+    "are there any anomalies detected",
+    "cross_source_audit"
+  ],
+  [
+    "how many day old bread_roll still there",
+    "stock_query"
+  ],
+  [
+    "check if we need to order more chocolate chips",
+    "stock_query"
+  ],
+  [
+    "how many bread rolls should I prepare for tomorrow",
+    "stock_query"
+  ],
+  [
+    "berapa jualan masa special offer coconut bread",
+    "promo_eval"
+  ],
+  [
+    "whats your name",
+    "out_of_scope"
+  ],
+  [
+    "apa yang expired semalam",
+    "waste_analysis"
+  ],
+  [
+    "work slot coverage looks thin on Friday",
+    "schedule_audit"
+  ],
+  [
+    "berapa biji chiffons ada skrg",
+    "stock_query"
+  ],
+  [
+    "please tell me a story about a baking crew",
+    "out_of_scope"
+  ],
+  [
+    "special offer impact on brand awareness",
+    "promo_eval"
+  ],
+  [
+    "how much bread got wasted yesterday",
+    "waste_analysis"
+  ],
+  [
+    "how many donuts sold and remaining",
+    "stock_query"
+  ],
+  [
+    "revenue uplift from croissants discount",
+    "promo_eval"
+  ],
+  [
+    "advise me the stock count for croissant",
+    "stock_query"
+  ],
+  [
+    "must to reassign staff for the event",
+    "schedule_audit"
+  ],
+  [
+    "campaign analysis for bread_roll",
+    "promo_eval"
+  ],
+  [
+    "how much pastry we discard daily",
+    "waste_analysis"
+  ],
+  [
+    "check if we have adequate cocoa powder",
+    "stock_query"
+  ],
+  [
+    "bundle deal revenue volume",
+    "promo_eval"
+  ],
+  [
+    "shift coverage looks thin on the bar",
+    "schedule_audit"
+  ],
+  [
+    "sales uplift from croissant_chocolate discount",
+    "promo_eval"
+  ],
+  [
+    "how effective was the morning bundle",
+    "promo_eval"
+  ],
+  [
+    "please check if we need to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "who is available for overtime the following day",
+    "schedule_audit"
+  ],
+  [
+    "identify bottlenecks in operations",
+    "cross_source_audit"
+  ],
+  [
+    "nak examine baki stok untuk donuts",
+    "stock_query"
+  ],
+  [
+    "promo analysis for bread_roll",
+    "promo_eval"
+  ],
+  [
+    "end of day review please",
+    "cross_source_audit"
+  ],
+  [
+    "how many egg tarts left in the display",
+    "stock_query"
+  ],
+  [
+    "advise me the goods count for croissant",
+    "stock_query"
+  ],
+  [
+    "Tell me a bedtime story",
+    "out_of_scope"
+  ],
+  [
+    "is there any blueberry jam left",
+    "stock_query"
+  ],
+  [
+    "please look at expired stock list",
+    "waste_analysis"
+  ],
+  [
+    "discards review for pastries",
+    "waste_analysis"
+  ],
+  [
+    "how many bread_coconut should I bake for weekend?",
+    "stock_query"
+  ],
+  [
+    "check remaining bread_roll in the display",
+    "stock_query"
+  ],
+  [
+    "verify if we must to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "understaffed at the sandwich station",
+    "schedule_audit"
+  ],
+  [
+    "chocolate croissant yang overstock tolong verify",
+    "stock_query"
+  ],
+  [
+    "whats the current supply of coconut bread",
+    "stock_query"
+  ],
+  [
+    "tell me the items count for bread rolls",
+    "stock_query"
+  ],
+  [
+    "berapa jualan masa promo croissant",
+    "promo_eval"
+  ],
+  [
+    "Tell me a riddle",
+    "out_of_scope"
+  ],
+  [
+    "promotion cost vs revenue increase",
+    "promo_eval"
+  ],
+  [
+    "roster shows two people on same break time",
+    "schedule_audit"
+  ],
+  [
+    "check if we should more sugar",
+    "stock_query"
+  ],
+  [
+    "did the offer boost chiffon sales",
+    "promo_eval"
+  ],
+  [
+    "evaluasi prestasi promosi donut",
+    "promo_eval"
+  ],
+  [
+    "audit inventory for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "What's the price of gold at this moment",
+    "out_of_scope"
+  ],
+  [
+    "overtime approval for the holiday work slot",
+    "schedule_audit"
+  ],
+  [
+    "was the croissant morning deal profitable",
+    "promo_eval"
+  ],
+  [
+    "spoilage report for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "jualan uplift from croissant_chocolate reduction",
+    "promo_eval"
+  ],
+  [
+    "please How to fix a clogged sink",
+    "out_of_scope"
+  ],
+  [
+    "are we low on granulated sugar",
+    "stock_query"
+  ],
+  [
+    "all modules departments health check",
+    "cross_source_audit"
+  ],
+  [
+    "spoilage data for last month",
+    "waste_analysis"
+  ],
+  [
+    "do we should more spinach and feta rolls",
+    "stock_query"
+  ],
+  [
+    "How to learn Mandarin fast",
+    "out_of_scope"
+  ],
+  [
+    "promo roi calculation for donut bundle",
+    "promo_eval"
+  ],
+  [
+    "bundle deal margin analysis",
+    "promo_eval"
+  ],
+  [
+    "special offer cost vs revenue",
+    "promo_eval"
+  ],
+  [
+    "bundle deal performance report",
+    "promo_eval"
+  ],
+  [
+    "is chiffon finished already",
+    "stock_query"
+  ],
+  [
+    "ada bread rolls dekat offer area tak",
+    "stock_query"
+  ],
+  [
+    "show me where we are losing money",
+    "cross_source_audit"
+  ],
+  [
+    "audit freezer stock for croissants dough",
+    "stock_query"
+  ],
+  [
+    "loss analysis for yesterday evening",
+    "waste_analysis"
+  ],
+  [
+    "nak check baki stok untuk donuts",
+    "stock_query"
+  ],
+  [
+    "whats the level of self-raising flour",
+    "stock_query"
+  ],
+  [
+    "was the combo deal effective last past days",
+    "promo_eval"
+  ],
+  [
+    "how many cakes did we discard",
+    "waste_analysis"
+  ],
+  [
+    "wanna to reassign staff for the event",
+    "schedule_audit"
+  ],
+  [
+    "how did the buy 1 free 1 perform last this period",
+    "promo_eval"
+  ],
+  [
+    "check if we wanna more sugar",
+    "stock_query"
+  ],
+  [
+    "What's the longest river in the world",
+    "out_of_scope"
+  ],
+  [
+    "inspect if staffing matches demand today",
+    "cross_source_audit"
+  ],
+  [
+    "roster fairness audit please",
+    "schedule_audit"
+  ],
+  [
+    "look at stock for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "price cut deal performance last month",
+    "promo_eval"
+  ],
+  [
+    "waste analysis for beverages",
+    "waste_analysis"
+  ],
+  [
+    "advise me a bedtime story",
+    "out_of_scope"
+  ],
+  [
+    "verify if anyone is due for break",
+    "schedule_audit"
+  ],
+  [
+    "check if anyone is over their weekly hours",
+    "schedule_audit"
+  ],
+  [
+    "the 10% off sale how was it",
+    "promo_eval"
+  ],
+  [
+    "promo analysis for q",
+    "promo_eval"
+  ],
+  [
+    "how many donut do we have in items",
+    "stock_query"
+  ],
+  [
+    "duty roster looks messy can you fix",
+    "schedule_audit"
+  ],
+  [
+    "need to fill the gap for Monday lunch shift",
+    "schedule_audit"
+  ],
+  [
+    "overtime for the night work slot need check",
+    "schedule_audit"
+  ],
+  [
+    "how many loaves of brioche to bake tonight",
+    "stock_query"
+  ],
+  [
+    "check goods for chocolate éclairs",
+    "stock_query"
+  ],
+  [
+    "should I bake more chiffons tomorrow",
+    "stock_query"
+  ],
+  [
+    "check supply for matcha powder",
+    "stock_query"
+  ],
+  [
+    "cukup ke croissant untuk customer hari ni",
+    "stock_query"
+  ],
+  [
+    "audit stok for chocolate éclairs",
+    "stock_query"
+  ],
+  [
+    "what is the capital of Thailand",
+    "out_of_scope"
+  ],
+  [
+    "expired items report for today",
+    "waste_analysis"
+  ],
+  [
+    "do we need to bake more rye bread",
+    "stock_query"
+  ],
+  [
+    "reduction special offer customer count",
+    "promo_eval"
+  ],
+  [
+    "duty roster compliance audit",
+    "schedule_audit"
+  ],
+  [
+    "audit remaining croissant in the display",
+    "stock_query"
+  ],
+  [
+    "closing shift always understaffed",
+    "schedule_audit"
+  ],
+  [
+    "bread_coconut yang overstock tolong examine",
+    "stock_query"
+  ],
+  [
+    "who is on morning duty currently",
+    "schedule_audit"
+  ],
+  [
+    "evaluate the student discount program",
+    "promo_eval"
+  ],
+  [
+    "schedule looks off for the AM shift crew",
+    "schedule_audit"
+  ],
+  [
+    "prepare how many chiffon for early shift rush",
+    "stock_query"
+  ],
+  [
+    "afternoon tea set how was it",
+    "promo_eval"
+  ],
+  [
+    "siapa kerja shift pagi esok",
+    "schedule_audit"
+  ],
+  [
+    "comprehensive store health check",
+    "cross_source_audit"
+  ],
+  [
+    "did we produce too much yesterday",
+    "cross_source_audit"
+  ],
+  [
+    "tell me the stock count for bread rolls",
+    "stock_query"
+  ],
+  [
+    "roster anomaly on the morning shift",
+    "schedule_audit"
+  ],
+  [
+    "throwaway data for yesterday",
+    "waste_analysis"
+  ],
+  [
+    "ada cukup workers untuk weekend tak",
+    "schedule_audit"
+  ],
+  [
+    "promo conversion rate for donuts",
+    "promo_eval"
+  ],
+  [
+    "what items did we throw away this morning",
+    "waste_analysis"
+  ],
+  [
+    "generate a store report",
+    "cross_source_audit"
+  ],
+  [
+    "did the price cut boost chiffons sales",
+    "promo_eval"
+  ],
+  [
+    "forecast vs actual loss comparison",
+    "waste_analysis"
+  ],
+  [
+    "show me the top wasted items",
+    "waste_analysis"
+  ],
+  [
+    "do we have ample mozzarella for the pizzas",
+    "stock_query"
+  ],
+  [
+    "check if anyone is clocking in early",
+    "schedule_audit"
+  ],
+  [
+    "advise me a story about a baker",
+    "out_of_scope"
+  ],
+  [
+    "How to stop hiccups",
+    "out_of_scope"
+  ],
+  [
+    "overtime analysis for this this period",
+    "schedule_audit"
+  ],
+  [
+    "operations continuity check",
+    "cross_source_audit"
+  ],
+  [
+    "offer sale redemption rate",
+    "promo_eval"
+  ],
+  [
+    "check stock for chocolate éclairs",
+    "stock_query"
+  ],
+  [
+    "do we have a coffee maker for the morning rush",
+    "schedule_audit"
+  ],
+  [
+    "promotion conversion rate for donuts",
+    "promo_eval"
+  ],
+  [
+    "is there any overtime for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "working period pattern seems weird for part timers",
+    "schedule_audit"
+  ],
+  [
+    "roster imbalance for the past days",
+    "schedule_audit"
+  ],
+  [
+    "roster imbalance for the 7 days",
+    "schedule_audit"
+  ],
+  [
+    "bread_coconut kat freezer ada berapa",
+    "stock_query"
+  ],
+  [
+    "show me the waste report for at this moment",
+    "waste_analysis"
+  ],
+  [
+    "any scheduling conflicts detected",
+    "schedule_audit"
+  ],
+  [
+    "which discount percentage works best",
+    "promo_eval"
+  ],
+  [
+    "hari isnin siapa kerja",
+    "schedule_audit"
+  ],
+  [
+    "whats the stock like for cinnamon rolls?",
+    "stock_query"
+  ],
+  [
+    "please how did the buy 1 free 1 perform last the past week",
+    "promo_eval"
+  ],
+  [
+    "berapa jualan masa diskaun deal donut",
+    "promo_eval"
+  ],
+  [
+    "cross source validation please",
+    "cross_source_audit"
+  ],
+  [
+    "did the promo increase foot traffic",
+    "promo_eval"
+  ],
+  [
+    "verify the roster for any double duty",
+    "schedule_audit"
+  ],
+  [
+    "discount special offer net profit",
+    "promo_eval"
+  ],
+  [
+    "kenapa banyak donuts dibuang hari ni",
+    "waste_analysis"
+  ],
+  [
+    "check stock for strawberry compote?",
+    "stock_query"
+  ],
+  [
+    "siapa menang pilihan raya",
+    "out_of_scope"
+  ],
+  [
+    "reduction deal roi calculation",
+    "promo_eval"
+  ],
+  [
+    "show me the loss analysis for today",
+    "waste_analysis"
+  ],
+  [
+    "kenapa banyak donut dibuang hari ni",
+    "waste_analysis"
+  ],
+  [
+    "list all thrown away items at this moment",
+    "waste_analysis"
+  ],
+  [
+    "any chiffon near expiry date",
+    "stock_query"
+  ],
+  [
+    "is donut available for walk in",
+    "stock_query"
+  ],
+  [
+    "shift handover update",
+    "cross_source_audit"
+  ],
+  [
+    "kos throwaway bulan ni berapa ringgit",
+    "waste_analysis"
+  ],
+  [
+    "understaffed for the lunch work slot tea crowd",
+    "schedule_audit"
+  ],
+  [
+    "work slot petang cukup orang tak",
+    "schedule_audit"
+  ],
+  [
+    "is the stock of quiche lorraine okay",
+    "stock_query"
+  ],
+  [
+    "ada bread rolls dekat discount area tak",
+    "stock_query"
+  ],
+  [
+    "shift pattern seems weird for part timers",
+    "schedule_audit"
+  ],
+  [
+    "check if we have plenty blueberries",
+    "stock_query"
+  ],
+  [
+    "please whats the current stock of coconut bread",
+    "stock_query"
+  ],
+  [
+    "duty pattern seems weird for part timers",
+    "schedule_audit"
+  ],
+  [
+    "are there any bread rolls still in the oven",
+    "stock_query"
+  ],
+  [
+    "overtime for the night work slot need verify",
+    "schedule_audit"
+  ],
+  [
+    "any full system problems",
+    "cross_source_audit"
+  ],
+  [
+    "banding sebelum lepas promosi chiffons",
+    "promo_eval"
+  ],
+  [
+    "should I bake more coconut bread tomorrow",
+    "stock_query"
+  ],
+  [
+    "spoilage breakdown for cream puffs",
+    "waste_analysis"
+  ],
+  [
+    "how much food waste did we have this month",
+    "waste_analysis"
+  ],
+  [
+    "nak inspect baki stok untuk chiffons",
+    "stock_query"
+  ],
+  [
+    "nak tengok jadual kerja untuk right now",
+    "schedule_audit"
+  ],
+  [
+    "any gaps in the petang roster",
+    "schedule_audit"
+  ],
+  [
+    "items discarded today AM shift",
+    "waste_analysis"
+  ],
+  [
+    "price cut promo cost vs benefit",
+    "promo_eval"
+  ],
+  [
+    "tengok inventory untuk bread_roll",
+    "stock_query"
+  ],
+  [
+    "check if we have enough cocoa powder",
+    "stock_query"
+  ],
+  [
+    "evaluate the happy hour promotion",
+    "promo_eval"
+  ],
+  [
+    "Tell me a dad joke",
+    "out_of_scope"
+  ],
+  [
+    "are we low on yeast",
+    "stock_query"
+  ],
+  [
+    "gotta to check the freezer for frozen croissants",
+    "stock_query"
+  ],
+  [
+    "shift gap on Monday pagi who can fill",
+    "schedule_audit"
+  ],
+  [
+    "is the roster balanced for all employees",
+    "schedule_audit"
+  ],
+  [
+    "can I see the batch inventory for chiffon",
+    "stock_query"
+  ],
+  [
+    "must to cover the bread section",
+    "schedule_audit"
+  ],
+  [
+    "kenapa banyak chocolate croissant dibuang hari ni",
+    "waste_analysis"
+  ],
+  [
+    "did the diskaun boost bread_coconut earnings",
+    "promo_eval"
+  ],
+  [
+    "price cut deal analysis for croissants",
+    "promo_eval"
+  ],
+  [
+    "do we have donut in the discount area",
+    "stock_query"
+  ],
+  [
+    "risk assessment for today",
+    "cross_source_audit"
+  ],
+  [
+    "should I bake more chiffons next day",
+    "stock_query"
+  ],
+  [
+    "advise me the stock count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "ada barista untuk early shift rush tak",
+    "schedule_audit"
+  ],
+  [
+    "did the discount boost chiffon sales",
+    "promo_eval"
+  ],
+  [
+    "headcount adequacy check for each shift",
+    "schedule_audit"
+  ],
+  [
+    "have to to fix the shift pattern for next this period",
+    "schedule_audit"
+  ],
+  [
+    "items thrown away this duty",
+    "waste_analysis"
+  ],
+  [
+    "is the goods of plain croissants okay",
+    "stock_query"
+  ],
+  [
+    "price cut deal impact on repeat customers",
+    "promo_eval"
+  ],
+  [
+    "understaffed for the lunch rush upcoming day",
+    "schedule_audit"
+  ],
+  [
+    "working period shortage for the early shift prep",
+    "schedule_audit"
+  ],
+  [
+    "spoilage report untuk bakery",
+    "waste_analysis"
+  ],
+  [
+    "too many people on kaunter",
+    "schedule_audit"
+  ],
+  [
+    "gotta to order more croissants ingredients",
+    "stock_query"
+  ],
+  [
+    "discount promo earnings lift",
+    "promo_eval"
+  ],
+  [
+    "ada bread_coconut dekat discount area tak",
+    "stock_query"
+  ],
+  [
+    "how many macarons to prep for the weekend",
+    "stock_query"
+  ],
+  [
+    "whats the count for sourdough starter",
+    "stock_query"
+  ],
+  [
+    "dashboard summary please",
+    "cross_source_audit"
+  ],
+  [
+    "need to verify the freezer for frozen croissants",
+    "stock_query"
+  ],
+  [
+    "is our production too high causing waste",
+    "waste_analysis"
+  ],
+  [
+    "do we have adequate milk for the latte orders?",
+    "stock_query"
+  ],
+  [
+    "throwaway heatmap for this week",
+    "waste_analysis"
+  ],
+  [
+    "is there plenty whipped cream",
+    "stock_query"
+  ],
+  [
+    "berapa banyak chiffon kita ada display",
+    "stock_query"
+  ],
+  [
+    "overtime for the night shift should check",
+    "schedule_audit"
+  ],
+  [
+    "understaffed for the lunch working period tea crowd",
+    "schedule_audit"
+  ],
+  [
+    "overtime report for this the past week",
+    "schedule_audit"
+  ],
+  [
+    "inspect inventory for chocolate ganache",
+    "stock_query"
+  ],
+  [
+    "What's the meaning of life la",
+    "out_of_scope"
+  ],
+  [
+    "what did we spoilage last night",
+    "waste_analysis"
+  ],
+  [
+    "show waste by product type",
+    "waste_analysis"
+  ],
+  [
+    "roster conflict between kitchen and counter",
+    "schedule_audit"
+  ],
+  [
+    "work slot swap history for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "coconut bread stock level please",
+    "stock_query"
+  ],
+  [
+    "present me bread_roll inventory",
+    "stock_query"
+  ],
+  [
+    "roster fairness review please",
+    "schedule_audit"
+  ],
+  [
+    "present waste by category",
+    "waste_analysis"
+  ],
+  [
+    "why is spoilage so spiking this week",
+    "waste_analysis"
+  ],
+  [
+    "look at wastage for muffins",
+    "waste_analysis"
+  ],
+  [
+    "cold room stock verification",
+    "stock_query"
+  ],
+  [
+    "cross module health check",
+    "cross_source_audit"
+  ],
+  [
+    "promo roi calculation for croissant_chocolate bundle",
+    "promo_eval"
+  ],
+  [
+    "show me the loss breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "is there any overtime for this 7 days?",
+    "schedule_audit"
+  ],
+  [
+    "how many batches of cookie dough in the freezer",
+    "stock_query"
+  ],
+  [
+    "check remaining croissant in the display",
+    "stock_query"
+  ],
+  [
+    "present loss by product type",
+    "waste_analysis"
+  ],
+  [
+    "must to restock the display case",
+    "stock_query"
+  ],
+  [
+    "whats the loss percentage on chiffons",
+    "waste_analysis"
+  ],
+  [
+    "show me bread_roll inventory",
+    "stock_query"
+  ],
+  [
+    "waste analysis for last this period",
+    "waste_analysis"
+  ],
+  [
+    "how does blockchain work",
+    "out_of_scope"
+  ],
+  [
+    "verify stock for raspberry jam?",
+    "stock_query"
+  ],
+  [
+    "please what is the inventory level for chocolate croissant",
+    "stock_query"
+  ],
+  [
+    "check inventory for chocolate chip cookies",
+    "stock_query"
+  ],
+  [
+    "berapa jualan masa special offer croissant",
+    "promo_eval"
+  ],
+  [
+    "run a full system audit",
+    "cross_source_audit"
+  ],
+  [
+    "waste analysis for last week",
+    "waste_analysis"
+  ],
+  [
+    "how much buttercream in the tub",
+    "stock_query"
+  ],
+  [
+    "shift swap history for this the past week",
+    "schedule_audit"
+  ],
+  [
+    "inform me the items count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "spoilage review for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "overtime for the night shift should verify",
+    "schedule_audit"
+  ],
+  [
+    "roster anomaly on Wednesday morning",
+    "schedule_audit"
+  ],
+  [
+    "diskaun discount deal sales lift",
+    "promo_eval"
+  ],
+  [
+    "give me a stock inspect on coconut bread",
+    "stock_query"
+  ],
+  [
+    "semak semua sekali gus",
+    "cross_source_audit"
+  ],
+  [
+    "cross check inventory forecast and staffing",
+    "cross_source_audit"
+  ],
+  [
+    "kos discards bulan ni berapa ringgit",
+    "waste_analysis"
+  ],
+  [
+    "discount sale redemption rate",
+    "promo_eval"
+  ],
+  [
+    "whats the count for sausage rolls",
+    "stock_query"
+  ],
+  [
+    "check stock for chocolate chip cookies",
+    "stock_query"
+  ],
+  [
+    "display me the loss report for today",
+    "waste_analysis"
+  ],
+  [
+    "do we have overlap during shift change",
+    "schedule_audit"
+  ],
+  [
+    "par level check for all products",
+    "stock_query"
+  ],
+  [
+    "roster anomaly on the closing work slot",
+    "schedule_audit"
+  ],
+  [
+    "how many donuts should I bake for weekend",
+    "stock_query"
+  ],
+  [
+    "working period pattern not matching demand",
+    "schedule_audit"
+  ],
+  [
+    "waste data by department",
+    "waste_analysis"
+  ],
+  [
+    "pull up the operations summary",
+    "cross_source_audit"
+  ],
+  [
+    "waste report for this week",
+    "waste_analysis"
+  ],
+  [
+    "do we gotta to prep more scones",
+    "stock_query"
+  ],
+  [
+    "earnings uplift from coconut bread discount",
+    "promo_eval"
+  ],
+  [
+    "do we have a beverage staff for the pagi rush",
+    "schedule_audit"
+  ],
+  [
+    "do we need to thaw more dough tonight",
+    "stock_query"
+  ],
+  [
+    "was the promotion worth it",
+    "promo_eval"
+  ],
+  [
+    "promo impact on repeat customers",
+    "promo_eval"
+  ],
+  [
+    "show me the loss report for at this moment",
+    "waste_analysis"
+  ],
+  [
+    "berapa jualan masa promo coconut bread",
+    "promo_eval"
+  ],
+  [
+    "inspect remaining donut in the display",
+    "stock_query"
+  ],
+  [
+    "please how much croissants left on the shelf",
+    "stock_query"
+  ],
+  [
+    "evaluate the student diskaun",
+    "promo_eval"
+  ],
+  [
+    "What's the best exercise for abs",
+    "out_of_scope"
+  ],
+  [
+    "the student promo how did it go ah",
+    "promo_eval"
+  ],
+  [
+    "show me the waste breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "the breakfast bundle sales number",
+    "promo_eval"
+  ],
+  [
+    "discount impact on profit margin",
+    "promo_eval"
+  ],
+  [
+    "how much extra sales from the discount deal",
+    "promo_eval"
+  ],
+  [
+    "is there adequate whipped cream",
+    "stock_query"
+  ],
+  [
+    "whats expiring tomorrow AM shift",
+    "waste_analysis"
+  ],
+  [
+    "how much food wasted last this period",
+    "waste_analysis"
+  ],
+  [
+    "Where can I find bagus durian",
+    "out_of_scope"
+  ],
+  [
+    "How to tie a tie",
+    "out_of_scope"
+  ],
+  [
+    "prepare how many coconut bread for opening hours rush",
+    "stock_query"
+  ],
+  [
+    "raw ingredient utilization audit",
+    "cross_source_audit"
+  ],
+  [
+    "check inventory for chocolate chip cookies?",
+    "stock_query"
+  ],
+  [
+    "do I need to restock bread_roll",
+    "stock_query"
+  ],
+  [
+    "rubbish summary untuk bakery",
+    "waste_analysis"
+  ],
+  [
+    "pull up the operations report",
+    "cross_source_audit"
+  ],
+  [
+    "why is spoilage so high this 7 days",
+    "waste_analysis"
+  ],
+  [
+    "overtime for the night shift have to verify",
+    "schedule_audit"
+  ],
+  [
+    "net profit from last weeks promotion",
+    "promo_eval"
+  ],
+  [
+    "morning prep team is enough",
+    "schedule_audit"
+  ],
+  [
+    "compare loss this week vs last past days",
+    "waste_analysis"
+  ],
+  [
+    "chiffons kat freezer ada berapa",
+    "stock_query"
+  ],
+  [
+    "how many slices of carrot cake left",
+    "stock_query"
+  ],
+  [
+    "display me the waste breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "tengok inventory untuk chiffon",
+    "stock_query"
+  ],
+  [
+    "jualan uplift from coconut bread discount",
+    "promo_eval"
+  ],
+  [
+    "roi of the happy hour promo",
+    "promo_eval"
+  ],
+  [
+    "examine for store wide issues",
+    "cross_source_audit"
+  ],
+  [
+    "waste analysis for lunch items",
+    "waste_analysis"
+  ],
+  [
+    "whats the waste percentage on chiffons",
+    "waste_analysis"
+  ],
+  [
+    "work slot swap history for this this period",
+    "schedule_audit"
+  ],
+  [
+    "analyze bread roll spoilage pattern",
+    "waste_analysis"
+  ],
+  [
+    "have to to cut down overtime this month",
+    "schedule_audit"
+  ],
+  [
+    "was the family pack special offer bagus",
+    "promo_eval"
+  ],
+  [
+    "stock croissants okay ke tak",
+    "stock_query"
+  ],
+  [
+    "roster conflict for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "are all systems go for today",
+    "cross_source_audit"
+  ],
+  [
+    "expired items breakdown for 7 days",
+    "waste_analysis"
+  ],
+  [
+    "schedule imbalance for the the past week",
+    "schedule_audit"
+  ],
+  [
+    "revenue uplift from croissants offer",
+    "promo_eval"
+  ],
+  [
+    "Is it going to rain upcoming day",
+    "out_of_scope"
+  ],
+  [
+    "play some relaxing music",
+    "out_of_scope"
+  ],
+  [
+    "run integrity inspect on all tables",
+    "cross_source_audit"
+  ],
+  [
+    "Tell me a pun about bread",
+    "out_of_scope"
+  ],
+  [
+    "is spoilage increasing for croissant_chocolate",
+    "waste_analysis"
+  ],
+  [
+    "how much extra turnover from the promo",
+    "promo_eval"
+  ],
+  [
+    "how effective was the morning bundle?",
+    "promo_eval"
+  ],
+  [
+    "look at waste for cookies",
+    "waste_analysis"
+  ],
+  [
+    "diskaun deal impact on brand awareness",
+    "promo_eval"
+  ],
+  [
+    "discount deal cost vs revenue increase",
+    "promo_eval"
+  ],
+  [
+    "who called in sick today need replacement",
+    "schedule_audit"
+  ],
+  [
+    "need to cut down overtime this month",
+    "schedule_audit"
+  ],
+  [
+    "check stok bread_coconut sekarang",
+    "stock_query"
+  ],
+  [
+    "how did our chinese new year promo perform",
+    "promo_eval"
+  ],
+  [
+    "Is it safe to travel to Japan now",
+    "out_of_scope"
+  ],
+  [
+    "discards percentage for this month",
+    "waste_analysis"
+  ],
+  [
+    "please marketing campaign roi",
+    "promo_eval"
+  ],
+  [
+    "need to fix the syif pattern for next week",
+    "schedule_audit"
+  ],
+  [
+    "spoilage laporan for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "please need to reassign staff for the event",
+    "schedule_audit"
+  ],
+  [
+    "do we have enough chiffon for currently",
+    "stock_query"
+  ],
+  [
+    "shift gap on the weekend evening",
+    "schedule_audit"
+  ],
+  [
+    "How to make kopi o",
+    "out_of_scope"
+  ],
+  [
+    "teach me a dance move",
+    "out_of_scope"
+  ],
+  [
+    "can you call my phone",
+    "out_of_scope"
+  ],
+  [
+    "show me all warnings and anomalies",
+    "cross_source_audit"
+  ],
+  [
+    "show me the working period allocation for Friday",
+    "schedule_audit"
+  ],
+  [
+    "is anyone working overtime this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "best nasi lemak in town",
+    "out_of_scope"
+  ],
+  [
+    "need to reassign workers for the event",
+    "schedule_audit"
+  ],
+  [
+    "show me expired stock list",
+    "waste_analysis"
+  ],
+  [
+    "check for operations issues",
+    "cross_source_audit"
+  ],
+  [
+    "how much croissants left on the shelf",
+    "stock_query"
+  ],
+  [
+    "look at freezer stock for chocolate croissant dough",
+    "stock_query"
+  ],
+  [
+    "roster seems off for the early shift shift",
+    "schedule_audit"
+  ],
+  [
+    "are all positions filled for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "do we have a barista for the AM shift rush",
+    "schedule_audit"
+  ],
+  [
+    "verify every department systems are aligned",
+    "cross_source_audit"
+  ],
+  [
+    "check throwaway for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "loss data for last month",
+    "waste_analysis"
+  ],
+  [
+    "how much money lost from discards",
+    "waste_analysis"
+  ],
+  [
+    "check stock for tarts",
+    "stock_query"
+  ],
+  [
+    "did the special offer increase average spend",
+    "promo_eval"
+  ],
+  [
+    "loss analysis for last this period",
+    "waste_analysis"
+  ],
+  [
+    "is my production plan sound",
+    "cross_source_audit"
+  ],
+  [
+    "ada overtime tak minggu ni",
+    "schedule_audit"
+  ],
+  [
+    "do we should to bake more banana bread",
+    "stock_query"
+  ],
+  [
+    "what is the inventory level for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "How to write a love letter",
+    "out_of_scope"
+  ],
+  [
+    "verify stock for chocolate chip cookies",
+    "stock_query"
+  ],
+  [
+    "give me a stock check on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "nak tengok jadual kerja untuk next this period",
+    "schedule_audit"
+  ],
+  [
+    "chiffons items level please",
+    "stock_query"
+  ],
+  [
+    "discount promo customer count",
+    "promo_eval"
+  ],
+  [
+    "bundle deal jualan number",
+    "promo_eval"
+  ],
+  [
+    "discount promo effectiveness",
+    "promo_eval"
+  ],
+  [
+    "whats the inventory for butter croissants",
+    "stock_query"
+  ],
+  [
+    "did the birthday promotion increase orders",
+    "promo_eval"
+  ],
+  [
+    "show me things we threw out this past days",
+    "waste_analysis"
+  ],
+  [
+    "did the promo encourage upsell",
+    "promo_eval"
+  ],
+  [
+    "roster shows two people on same register",
+    "schedule_audit"
+  ],
+  [
+    "whats the spoilage rate for muffins",
+    "waste_analysis"
+  ],
+  [
+    "day-1 vs day-2 waste comparison",
+    "waste_analysis"
+  ],
+  [
+    "do we have plenty of donut for currently",
+    "stock_query"
+  ],
+  [
+    "how many quiches to bake for lunch",
+    "stock_query"
+  ],
+  [
+    "how many kaya buns left",
+    "stock_query"
+  ],
+  [
+    "rubbish analysis for drinks",
+    "waste_analysis"
+  ],
+  [
+    "rubbish analysis for beverages",
+    "waste_analysis"
+  ],
+  [
+    "Who scored the goal in the match",
+    "out_of_scope"
+  ],
+  [
+    "check if we should to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "promo analysis for croissants",
+    "promo_eval"
+  ],
+  [
+    "do we have plenty of matcha for the drinks",
+    "stock_query"
+  ],
+  [
+    "anyone call in sick gotta to cover",
+    "schedule_audit"
+  ],
+  [
+    "spoilage review for desserts",
+    "waste_analysis"
+  ],
+  [
+    "nak tengok roi promosi bulan ni",
+    "promo_eval"
+  ],
+  [
+    "overstaffed on the same day inspect",
+    "schedule_audit"
+  ],
+  [
+    "roi of the loyalty promotion",
+    "promo_eval"
+  ],
+  [
+    "whats the waste percentage on croissant",
+    "waste_analysis"
+  ],
+  [
+    "items thrown away this shift",
+    "waste_analysis"
+  ],
+  [
+    "please berapa banyak coconut bread kena buang minggu ni",
+    "waste_analysis"
+  ],
+  [
+    "how much bread expired yesterday",
+    "waste_analysis"
+  ],
+  [
+    "the breakfast bundle transactions number",
+    "promo_eval"
+  ],
+  [
+    "how many bakers on duty upcoming day",
+    "schedule_audit"
+  ],
+  [
+    "sale analysis for q",
+    "promo_eval"
+  ],
+  [
+    "How to bake a chocolate cake",
+    "out_of_scope"
+  ],
+  [
+    "check stok donut sekarang",
+    "stock_query"
+  ],
+  [
+    "end of day waste summary",
+    "waste_analysis"
+  ],
+  [
+    "waste analysis for this this period",
+    "waste_analysis"
+  ],
+  [
+    "shift gap on Thursday mid shift",
+    "schedule_audit"
+  ],
+  [
+    "What's the price of gold right now",
+    "out_of_scope"
+  ],
+  [
+    "why only one person on the espresso machine",
+    "schedule_audit"
+  ],
+  [
+    "roster seems off for the morning shift",
+    "schedule_audit"
+  ],
+  [
+    "Tell me a joke about bananas",
+    "out_of_scope"
+  ],
+  [
+    "display me the shift allocation for Friday",
+    "schedule_audit"
+  ],
+  [
+    "How to fix a clogged sink",
+    "out_of_scope"
+  ],
+  [
+    "whats the loss rate for cookies",
+    "waste_analysis"
+  ],
+  [
+    "anyone can come in early tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "please Tell me a pun about bread",
+    "out_of_scope"
+  ],
+  [
+    "who won the world cup",
+    "out_of_scope"
+  ],
+  [
+    "spoilage analysis for coffee drinks",
+    "waste_analysis"
+  ],
+  [
+    "shift shortage for the morning prep",
+    "schedule_audit"
+  ],
+  [
+    "check throwaway for danishes",
+    "waste_analysis"
+  ],
+  [
+    "spoilage analysis for bakery section",
+    "waste_analysis"
+  ],
+  [
+    "special offer roi calculation for donut bundle",
+    "promo_eval"
+  ],
+  [
+    "recommend a fantastic movie",
+    "out_of_scope"
+  ],
+  [
+    "how to pay electricity bill online",
+    "out_of_scope"
+  ],
+  [
+    "any gaps in the afternoon roster?",
+    "schedule_audit"
+  ],
+  [
+    "banyak sangat roti dibuang semalam",
+    "waste_analysis"
+  ],
+  [
+    "look at inventory for chocolate chip cookies",
+    "stock_query"
+  ],
+  [
+    "roi of the loyalty promo",
+    "promo_eval"
+  ],
+  [
+    "scan for problems in all modules modules",
+    "cross_source_audit"
+  ],
+  [
+    "How to change a car battery",
+    "out_of_scope"
+  ],
+  [
+    "play Spotify playlist",
+    "out_of_scope"
+  ],
+  [
+    "rubbish analysis for breakfast",
+    "waste_analysis"
+  ],
+  [
+    "special offer roi calculation for croissant_chocolate bundle",
+    "promo_eval"
+  ],
+  [
+    "need to review the freezer for frozen croissants",
+    "stock_query"
+  ],
+  [
+    "did the reduction boost chiffon revenue",
+    "promo_eval"
+  ],
+  [
+    "What's the meaning of \"serendipity",
+    "out_of_scope"
+  ],
+  [
+    "let me know me the stock count for bread rolls",
+    "stock_query"
+  ],
+  [
+    "untung bersih dari promosi semalam",
+    "promo_eval"
+  ],
+  [
+    "is there any overtime for this this period",
+    "schedule_audit"
+  ],
+  [
+    "loss data for yesterday",
+    "waste_analysis"
+  ],
+  [
+    "berapa biji chiffon ada skrg",
+    "stock_query"
+  ],
+  [
+    "expiry check across all products",
+    "cross_source_audit"
+  ],
+  [
+    "who is on morning duty at this moment",
+    "schedule_audit"
+  ],
+  [
+    "why is throwaway so high this the past week",
+    "waste_analysis"
+  ],
+  [
+    "did the reduction boost chiffon sales",
+    "promo_eval"
+  ],
+  [
+    "whats the wifi password",
+    "out_of_scope"
+  ],
+  [
+    "timetable looks overstaffed for Monday",
+    "schedule_audit"
+  ],
+  [
+    "is our production too high causing spoilage",
+    "waste_analysis"
+  ],
+  [
+    "timetable looks off for the early shift crew",
+    "schedule_audit"
+  ],
+  [
+    "how many pieces of garlic bread in the freezer",
+    "stock_query"
+  ],
+  [
+    "can you check the roster for next week",
+    "schedule_audit"
+  ],
+  [
+    "give me a inventory verify on bread_roll",
+    "stock_query"
+  ],
+  [
+    "audit if we need more unsalted butter",
+    "stock_query"
+  ],
+  [
+    "who is on AM shift shift today",
+    "schedule_audit"
+  ],
+  [
+    "overtime for the night work slot need check?",
+    "schedule_audit"
+  ],
+  [
+    "schedule looks messy can you fix",
+    "schedule_audit"
+  ],
+  [
+    "compliance check for all shifts",
+    "cross_source_audit"
+  ],
+  [
+    "diskon bread_roll berkesan tak",
+    "promo_eval"
+  ],
+  [
+    "do we have coconut bread in the markdown area",
+    "stock_query"
+  ],
+  [
+    "do a full sweep of all metrics",
+    "cross_source_audit"
+  ],
+  [
+    "present spoilage for coffee",
+    "waste_analysis"
+  ],
+  [
+    "gotta to reassign workers for the event",
+    "schedule_audit"
+  ],
+  [
+    "shift pattern not matching demand",
+    "schedule_audit"
+  ],
+  [
+    "did the new customer offer work",
+    "promo_eval"
+  ],
+  [
+    "duty gap on Monday morning who can fill",
+    "schedule_audit"
+  ],
+  [
+    "How to make a perfect omelette",
+    "out_of_scope"
+  ],
+  [
+    "berapa banyak bread_roll ada dalam stok",
+    "stock_query"
+  ],
+  [
+    "how much extra revenue from the promo",
+    "promo_eval"
+  ],
+  [
+    "tomorrow how many croissant to produce",
+    "stock_query"
+  ],
+  [
+    "look at if we need to order more chocolate chips",
+    "stock_query"
+  ],
+  [
+    "run a full audit on all departments",
+    "cross_source_audit"
+  ],
+  [
+    "need to review the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "please who won the world cup",
+    "out_of_scope"
+  ],
+  [
+    "How to make a classic margarita",
+    "out_of_scope"
+  ],
+  [
+    "do we have sufficient cream cheese for the cheesecakes",
+    "stock_query"
+  ],
+  [
+    "need to fix the work slot pattern for next this period",
+    "schedule_audit"
+  ],
+  [
+    "ada berita terkini tak",
+    "out_of_scope"
+  ],
+  [
+    "markdown promo redemption rate",
+    "promo_eval"
+  ],
+  [
+    "do we have adequate chiffon for currently",
+    "stock_query"
+  ],
+  [
+    "How do you make a cake from scratch",
+    "out_of_scope"
+  ],
+  [
+    "give me a goods check on coconut bread",
+    "stock_query"
+  ],
+  [
+    "how many croissants wasted today?",
+    "waste_analysis"
+  ],
+  [
+    "evaluate the early shift bundle deal",
+    "promo_eval"
+  ],
+  [
+    "display cabinet inventory count",
+    "stock_query"
+  ],
+  [
+    "price cut impact on profit margin",
+    "promo_eval"
+  ],
+  [
+    "whats the waste rate for danishes",
+    "waste_analysis"
+  ],
+  [
+    "work slot gap on Saturday evening who can cover",
+    "schedule_audit"
+  ],
+  [
+    "overlapping shifts on the same station",
+    "schedule_audit"
+  ],
+  [
+    "waste cost impact on profit margin",
+    "waste_analysis"
+  ],
+  [
+    "compare before and after the bread_roll reduction",
+    "promo_eval"
+  ],
+  [
+    "the student discount how did it do",
+    "promo_eval"
+  ],
+  [
+    "chiffons goods level please",
+    "stock_query"
+  ],
+  [
+    "why so many people on off day",
+    "schedule_audit"
+  ],
+  [
+    "berapa jualan masa discount deal donut",
+    "promo_eval"
+  ],
+  [
+    "who is on the closing roster tonight",
+    "schedule_audit"
+  ],
+  [
+    "who is on late shift tonight",
+    "schedule_audit"
+  ],
+  [
+    "chiffons dah habis ke",
+    "stock_query"
+  ],
+  [
+    "how many loaves of sourdough to bake",
+    "stock_query"
+  ],
+  [
+    "show me the rubbish breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "was the combo deal effective last 7 days",
+    "promo_eval"
+  ],
+  [
+    "did the student discount bring in more customers",
+    "promo_eval"
+  ],
+  [
+    "did the referral campaign work",
+    "promo_eval"
+  ],
+  [
+    "show me the waste review for today",
+    "waste_analysis"
+  ],
+  [
+    "waste report for yesterday evening",
+    "waste_analysis"
+  ],
+  [
+    "whats the loss rate for bread",
+    "waste_analysis"
+  ],
+  [
+    "expired items breakdown for week?",
+    "waste_analysis"
+  ],
+  [
+    "Can you do an impression of a cat",
+    "out_of_scope"
+  ],
+  [
+    "did the free sample drive sales",
+    "promo_eval"
+  ],
+  [
+    "how much extra earnings from the promo",
+    "promo_eval"
+  ],
+  [
+    "berapa biji donut ada skrg",
+    "stock_query"
+  ],
+  [
+    "do we have a beverage staff for the morning rush",
+    "schedule_audit"
+  ],
+  [
+    "timetable looks off for the opening crew",
+    "schedule_audit"
+  ],
+  [
+    "output waste for coffee",
+    "waste_analysis"
+  ],
+  [
+    "how much croissants left on the shelf?",
+    "stock_query"
+  ],
+  [
+    "roi for the last campaign",
+    "promo_eval"
+  ],
+  [
+    "promo cost vs sales increase",
+    "promo_eval"
+  ],
+  [
+    "anyone available for extra shift tonight",
+    "schedule_audit"
+  ],
+  [
+    "gotta to cover for Mei Ling's shift",
+    "schedule_audit"
+  ],
+  [
+    "tomorrow how many donut to produce",
+    "stock_query"
+  ],
+  [
+    "was the campaign profitable",
+    "promo_eval"
+  ],
+  [
+    "next day how many croissant to produce",
+    "stock_query"
+  ],
+  [
+    "overtime report for the month",
+    "schedule_audit"
+  ],
+  [
+    "was the promo worth it",
+    "promo_eval"
+  ],
+  [
+    "discards report for this past days",
+    "waste_analysis"
+  ],
+  [
+    "waste summary for this week",
+    "waste_analysis"
+  ],
+  [
+    "rubbish review for pastries",
+    "waste_analysis"
+  ],
+  [
+    "upcoming day how many chocolate croissant to produce",
+    "stock_query"
+  ],
+  [
+    "did the loyalty card bring repeat customers",
+    "promo_eval"
+  ],
+  [
+    "is there any lemon curd left",
+    "stock_query"
+  ],
+  [
+    "why is waste so high this the past this period",
+    "waste_analysis"
+  ],
+  [
+    "student markdown redemption rate",
+    "promo_eval"
+  ],
+  [
+    "did customers buy more with the bundle",
+    "promo_eval"
+  ],
+  [
+    "examine if anyone is double shifted",
+    "schedule_audit"
+  ],
+  [
+    "throwaway analysis for lunch",
+    "waste_analysis"
+  ],
+  [
+    "was the sale profitable",
+    "promo_eval"
+  ],
+  [
+    "check all kpi for today",
+    "cross_source_audit"
+  ],
+  [
+    "expired items report for this period?",
+    "waste_analysis"
+  ],
+  [
+    "do we gotta to bake more rye bread",
+    "stock_query"
+  ],
+  [
+    "why is spoilage so high this this period",
+    "waste_analysis"
+  ],
+  [
+    "berapa baking staff bekerja esok",
+    "schedule_audit"
+  ],
+  [
+    "Can you let me know me a joke",
+    "out_of_scope"
+  ],
+  [
+    "promo effectiveness for PM shift set",
+    "promo_eval"
+  ],
+  [
+    "was the happy hour discount good",
+    "promo_eval"
+  ],
+  [
+    "list waste for bake shop section",
+    "waste_analysis"
+  ],
+  [
+    "check loss for danishes",
+    "waste_analysis"
+  ],
+  [
+    "bundle deal performance last month",
+    "promo_eval"
+  ],
+  [
+    "show me the spoilage breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "are all systems go for this morning",
+    "cross_source_audit"
+  ],
+  [
+    "whats expiring tomorrow early shift",
+    "waste_analysis"
+  ],
+  [
+    "audit freezer stock for donut dough",
+    "stock_query"
+  ],
+  [
+    "compare waste this past days vs last 7 days",
+    "waste_analysis"
+  ],
+  [
+    "how did the 2-for-1 work",
+    "promo_eval"
+  ],
+  [
+    "please who invented the internet",
+    "out_of_scope"
+  ],
+  [
+    "how far is KLCC",
+    "out_of_scope"
+  ],
+  [
+    "how effective was the lunch syif tea set",
+    "promo_eval"
+  ],
+  [
+    "tell me a story about a baking staff",
+    "out_of_scope"
+  ],
+  [
+    "look at freezer stock for donut dough",
+    "stock_query"
+  ],
+  [
+    "bundle deal roi analysis",
+    "promo_eval"
+  ],
+  [
+    "consistency inspect across inventory and forecast",
+    "cross_source_audit"
+  ],
+  [
+    "whats the items like for cinnamon rolls",
+    "stock_query"
+  ],
+  [
+    "items discarded due to spoilage",
+    "waste_analysis"
+  ],
+  [
+    "do we have to to restock the almond flour",
+    "stock_query"
+  ],
+  [
+    "how much extra earnings from the special offer",
+    "promo_eval"
+  ],
+  [
+    "evaluate the weekend special",
+    "promo_eval"
+  ],
+  [
+    "How to get rid of cockroaches",
+    "out_of_scope"
+  ],
+  [
+    "sale roi calculation for croissant_chocolate bundle",
+    "promo_eval"
+  ],
+  [
+    "duty shortage for the opening hours prep",
+    "schedule_audit"
+  ],
+  [
+    "present waste by product type",
+    "waste_analysis"
+  ],
+  [
+    "the student campaign how did it go ah",
+    "promo_eval"
+  ],
+  [
+    "Can you recommend a good restaurant",
+    "out_of_scope"
+  ],
+  [
+    "Can you advise me a joke",
+    "out_of_scope"
+  ],
+  [
+    "spoilage breakdown for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "How to change a light bulb",
+    "out_of_scope"
+  ],
+  [
+    "audit cross module now",
+    "cross_source_audit"
+  ],
+  [
+    "promotion conversion rate for chocolate croissant",
+    "promo_eval"
+  ],
+  [
+    "discards laporan for desserts",
+    "waste_analysis"
+  ],
+  [
+    "how did the combo meal perform",
+    "promo_eval"
+  ],
+  [
+    "working period shortage for the morning prep",
+    "schedule_audit"
+  ],
+  [
+    "roster shows three people on same task",
+    "schedule_audit"
+  ],
+  [
+    "please compare before and after the bread_coconut markdown",
+    "promo_eval"
+  ],
+  [
+    "how many cakes thrown away",
+    "waste_analysis"
+  ],
+  [
+    "need to adjust for the festival crowd",
+    "schedule_audit"
+  ],
+  [
+    "do we have a barista for the morning rush",
+    "schedule_audit"
+  ],
+  [
+    "I need a recipe for chicken curry",
+    "out_of_scope"
+  ],
+  [
+    "morning operations briefing",
+    "cross_source_audit"
+  ],
+  [
+    "check if we gotta to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "schedule conflict for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "overtime for the night work slot have to check",
+    "schedule_audit"
+  ],
+  [
+    "any problems this morning",
+    "cross_source_audit"
+  ],
+  [
+    "how many baguettes to bake for the lunch duty",
+    "stock_query"
+  ],
+  [
+    "promo cost vs revenue increase",
+    "promo_eval"
+  ],
+  [
+    "performance of the family bundle",
+    "promo_eval"
+  ],
+  [
+    "Where to watch the latest movie",
+    "out_of_scope"
+  ],
+  [
+    "validate data consistency across modules",
+    "cross_source_audit"
+  ],
+  [
+    "croissant_chocolate tinggal berapa kat rak",
+    "stock_query"
+  ],
+  [
+    "was the happy hour reduction good",
+    "promo_eval"
+  ],
+  [
+    "what is the meaning of life",
+    "out_of_scope"
+  ],
+  [
+    "please do we have enough croissants for tomorrow",
+    "stock_query"
+  ],
+  [
+    "discards percentage for this quarter",
+    "waste_analysis"
+  ],
+  [
+    "schedule anomaly detection for Monday",
+    "schedule_audit"
+  ],
+  [
+    "overtime for last Sunday need to approve",
+    "schedule_audit"
+  ],
+  [
+    "need to know the count for brownies",
+    "stock_query"
+  ],
+  [
+    "bakar coconut bread berapa banyak pagi esok",
+    "stock_query"
+  ],
+  [
+    "stock donut okay ke tak",
+    "stock_query"
+  ],
+  [
+    "stok donuts cukup untuk weekend",
+    "stock_query"
+  ],
+  [
+    "discount deal impact on brand awareness?",
+    "promo_eval"
+  ],
+  [
+    "can you solve this math problem",
+    "out_of_scope"
+  ],
+  [
+    "shift gap on Monday AM shift who can fill",
+    "schedule_audit"
+  ],
+  [
+    "what caused is spoilage so high this week",
+    "waste_analysis"
+  ],
+  [
+    "show loss by product type",
+    "waste_analysis"
+  ],
+  [
+    "donuts yang semalam ada lagi tak",
+    "stock_query"
+  ],
+  [
+    "advise me a dad joke",
+    "out_of_scope"
+  ],
+  [
+    "banding sebelum lepas promosi croissant_chocolate",
+    "promo_eval"
+  ],
+  [
+    "nak tengok trend discards kedai",
+    "waste_analysis"
+  ],
+  [
+    "present me bread_coconut inventory",
+    "stock_query"
+  ],
+  [
+    "how many ppl used the voucher code",
+    "promo_eval"
+  ],
+  [
+    "how much food rubbish did we have this month",
+    "waste_analysis"
+  ],
+  [
+    "verify goods for raspberry jam",
+    "stock_query"
+  ],
+  [
+    "verify stock for raspberry jam",
+    "stock_query"
+  ],
+  [
+    "check all modules kpi for today",
+    "cross_source_audit"
+  ],
+  [
+    "shift gap on Saturday evening who can cover",
+    "schedule_audit"
+  ],
+  [
+    "show discards by product type",
+    "waste_analysis"
+  ],
+  [
+    "promosi mana paling laku",
+    "promo_eval"
+  ],
+  [
+    "check if anyone is over their hours",
+    "schedule_audit"
+  ],
+  [
+    "promo impact on brand awareness",
+    "promo_eval"
+  ],
+  [
+    "waste percentage for this quarter",
+    "waste_analysis"
+  ],
+  [
+    "do we have a barista for the opening hours rush",
+    "schedule_audit"
+  ],
+  [
+    "campaign roi for the cafe",
+    "promo_eval"
+  ],
+  [
+    "verify items for raspberry jam",
+    "stock_query"
+  ],
+  [
+    "have to to order more croissants ingredients",
+    "stock_query"
+  ],
+  [
+    "did the happy hour reduction boost traffic",
+    "promo_eval"
+  ],
+  [
+    "kenapa waste tinggi minggu ni",
+    "waste_analysis"
+  ],
+  [
+    "spoilage summary for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "raw ingredient utilization check",
+    "cross_source_audit"
+  ],
+  [
+    "marketing campaign impact on earnings",
+    "promo_eval"
+  ],
+  [
+    "roster shows gap in the mid syif",
+    "schedule_audit"
+  ],
+  [
+    "can we pull someone from counter to kitchen",
+    "schedule_audit"
+  ],
+  [
+    "bakar croissant_chocolate berapa banyak pagi esok",
+    "stock_query"
+  ],
+  [
+    "do we have bread_coconut in the offer area",
+    "stock_query"
+  ],
+  [
+    "waste report untuk bread shop",
+    "waste_analysis"
+  ],
+  [
+    "display me things we threw out this week",
+    "waste_analysis"
+  ],
+  [
+    "do you have wifi here",
+    "out_of_scope"
+  ],
+  [
+    "list all thrown away items today",
+    "waste_analysis"
+  ],
+  [
+    "spoilage audit for the bakery section",
+    "waste_analysis"
+  ],
+  [
+    "waste report for this this period",
+    "waste_analysis"
+  ],
+  [
+    "check waste for cookies",
+    "waste_analysis"
+  ],
+  [
+    "promotion impact on repeat customers",
+    "promo_eval"
+  ],
+  [
+    "schedule looks off for the morning crew",
+    "schedule_audit"
+  ],
+  [
+    "can you check the roster for next this period",
+    "schedule_audit"
+  ],
+  [
+    "is there enough workers for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "roster shows gap in the afternoon",
+    "schedule_audit"
+  ],
+  [
+    "chiffons kat freezer ada berapa?",
+    "stock_query"
+  ],
+  [
+    "who is on AM duty shift today",
+    "schedule_audit"
+  ],
+  [
+    "are we low on cheddar cheese",
+    "stock_query"
+  ],
+  [
+    "tolong audit jadual pekerja",
+    "schedule_audit"
+  ],
+  [
+    "expired items report for currently",
+    "waste_analysis"
+  ],
+  [
+    "offer deal performance last month",
+    "promo_eval"
+  ],
+  [
+    "stock coconut bread okay ke tak",
+    "stock_query"
+  ],
+  [
+    "chiffons supply level please",
+    "stock_query"
+  ],
+  [
+    "list me bread_coconut inventory?",
+    "stock_query"
+  ],
+  [
+    "verify the roster for any double work slot",
+    "schedule_audit"
+  ],
+  [
+    "shift shortage for the opening hours prep",
+    "schedule_audit"
+  ],
+  [
+    "overtime approval for the holiday working period",
+    "schedule_audit"
+  ],
+  [
+    "waste report for this 7 days",
+    "waste_analysis"
+  ],
+  [
+    "why is there no cashier on Tuesday morning",
+    "schedule_audit"
+  ],
+  [
+    "have to to fill the gap for Monday petang",
+    "schedule_audit"
+  ],
+  [
+    "sales uplift from coconut bread markdown",
+    "promo_eval"
+  ],
+  [
+    "check waste for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "whats the GST rate",
+    "out_of_scope"
+  ],
+  [
+    "discount deal impact on brand awareness",
+    "promo_eval"
+  ],
+  [
+    "inspect if we have to to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "items expired in chiller",
+    "waste_analysis"
+  ],
+  [
+    "how effective was the lunch campaign",
+    "promo_eval"
+  ],
+  [
+    "what are currently risks",
+    "cross_source_audit"
+  ],
+  [
+    "did the flash sale bring in new customers",
+    "promo_eval"
+  ],
+  [
+    "discards analysis for breakfast",
+    "waste_analysis"
+  ],
+  [
+    "is our production too spiking causing waste",
+    "waste_analysis"
+  ],
+  [
+    "how many chiffon did we discard at this moment",
+    "waste_analysis"
+  ],
+  [
+    "donut waste rate is alarming",
+    "waste_analysis"
+  ],
+  [
+    "How to make a simple salad",
+    "out_of_scope"
+  ],
+  [
+    "too many people on cashier",
+    "schedule_audit"
+  ],
+  [
+    "cross examine inventory forecast and staffing",
+    "cross_source_audit"
+  ],
+  [
+    "evaluate the morning bundle deal",
+    "promo_eval"
+  ],
+  [
+    "What's the score of the Liverpool game",
+    "out_of_scope"
+  ],
+  [
+    "check freshness status of the whole store batches",
+    "cross_source_audit"
+  ],
+  [
+    "bus schedule to KL",
+    "out_of_scope"
+  ],
+  [
+    "gotta to know how many scones we have",
+    "stock_query"
+  ],
+  [
+    "please whats the count for sausage rolls",
+    "stock_query"
+  ],
+  [
+    "is there enough staff for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "inspect remaining bread_roll in the display",
+    "stock_query"
+  ],
+  [
+    "are there discrepancies in the data",
+    "cross_source_audit"
+  ],
+  [
+    "was the afternoon promo successful",
+    "promo_eval"
+  ],
+  [
+    "whats the temperature outside",
+    "out_of_scope"
+  ],
+  [
+    "expiry check across the whole store products",
+    "cross_source_audit"
+  ],
+  [
+    "please throwaway analysis for lunch",
+    "waste_analysis"
+  ],
+  [
+    "buy 3 free 1 campaign results",
+    "promo_eval"
+  ],
+  [
+    "flag anything wrong across the system",
+    "cross_source_audit"
+  ],
+  [
+    "semak jadual minggu ni",
+    "schedule_audit"
+  ],
+  [
+    "can we reduce workers on quiet days",
+    "schedule_audit"
+  ],
+  [
+    "understaffed at the pastry station",
+    "schedule_audit"
+  ],
+  [
+    "spoilage audit for the pastry shop section",
+    "waste_analysis"
+  ],
+  [
+    "give me a complete overview of issues",
+    "cross_source_audit"
+  ],
+  [
+    "are we low on cream cheese",
+    "stock_query"
+  ],
+  [
+    "promotion roi for the this period",
+    "promo_eval"
+  ],
+  [
+    "how many ppl used the diskaun deal code",
+    "promo_eval"
+  ],
+  [
+    "how many trays of croissant_chocolate remaining",
+    "stock_query"
+  ],
+  [
+    "discount deal effectiveness for petang set",
+    "promo_eval"
+  ],
+  [
+    "is there anything wrong with the schedule right now",
+    "cross_source_audit"
+  ],
+  [
+    "show me the shift allocation for Friday",
+    "schedule_audit"
+  ],
+  [
+    "give me a inventory inspect on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "What's the capital of Indonesia",
+    "out_of_scope"
+  ],
+  [
+    "look at expired items list",
+    "waste_analysis"
+  ],
+  [
+    "please check inventory for chocolate chip cookies",
+    "stock_query"
+  ],
+  [
+    "promotion impact on average order value",
+    "promo_eval"
+  ],
+  [
+    "inspect if we have enough cocoa powder",
+    "stock_query"
+  ],
+  [
+    "whats the quantity of chiffons in storage",
+    "stock_query"
+  ],
+  [
+    "evaluate the buy 1 get",
+    "promo_eval"
+  ],
+  [
+    "cara nak kurangkan discards chiffons",
+    "waste_analysis"
+  ],
+  [
+    "bundle deal buyer acquisition",
+    "promo_eval"
+  ],
+  [
+    "whats the wastage rate for pies",
+    "waste_analysis"
+  ],
+  [
+    "discount special offer redemption rate",
+    "promo_eval"
+  ],
+  [
+    "items we threw out this early shift",
+    "waste_analysis"
+  ],
+  [
+    "headcount adequacy check for each duty",
+    "schedule_audit"
+  ],
+  [
+    "explain quantum physics",
+    "out_of_scope"
+  ],
+  [
+    "spoilage report for cream puffs",
+    "waste_analysis"
+  ],
+  [
+    "how many ppl bought the promotion item",
+    "promo_eval"
+  ],
+  [
+    "waste analysis for bake shop section",
+    "waste_analysis"
+  ],
+  [
+    "any items near expiry that will be wasted",
+    "waste_analysis"
+  ],
+  [
+    "check spoilage rates for dairy products",
+    "waste_analysis"
+  ],
+  [
+    "throwaway data for pastries",
+    "waste_analysis"
+  ],
+  [
+    "did the new customer reduction work",
+    "promo_eval"
+  ],
+  [
+    "inspect supply for matcha powder",
+    "stock_query"
+  ],
+  [
+    "show waste for coffee",
+    "waste_analysis"
+  ],
+  [
+    "did the reduction boost bread_coconut sales",
+    "promo_eval"
+  ],
+  [
+    "why is waste so high this the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "list me bread_coconut inventory",
+    "stock_query"
+  ],
+  [
+    "merdeka day promo results",
+    "promo_eval"
+  ],
+  [
+    "any product at risk of overproduction",
+    "cross_source_audit"
+  ],
+  [
+    "show me the shift allocation for Thursday",
+    "schedule_audit"
+  ],
+  [
+    "berapa banyak bread rolls kena buang minggu ni",
+    "waste_analysis"
+  ],
+  [
+    "verify wastage for muffins",
+    "waste_analysis"
+  ],
+  [
+    "display spoilage by product type",
+    "waste_analysis"
+  ],
+  [
+    "inspect the schedule for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "verify cross module are aligned",
+    "cross_source_audit"
+  ],
+  [
+    "show me the waste report for today",
+    "waste_analysis"
+  ],
+  [
+    "was the early shift deal worth it",
+    "promo_eval"
+  ],
+  [
+    "the buy 3 get 1 free how was it",
+    "promo_eval"
+  ],
+  [
+    "need to restock the display case",
+    "stock_query"
+  ],
+  [
+    "check the duty roster for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "whats the current stock of coconut bread",
+    "stock_query"
+  ],
+  [
+    "daily spoilage report please",
+    "waste_analysis"
+  ],
+  [
+    "compare loss this past days vs last week",
+    "waste_analysis"
+  ],
+  [
+    "verify the roster for any double shift",
+    "schedule_audit"
+  ],
+  [
+    "loss data for last 30 days",
+    "waste_analysis"
+  ],
+  [
+    "did the discount boost chiffons sales",
+    "promo_eval"
+  ],
+  [
+    "can you inspect the roster for next week",
+    "schedule_audit"
+  ],
+  [
+    "what caused is there no cashier on Tuesday morning",
+    "schedule_audit"
+  ],
+  [
+    "syif gap on Monday morning who can fill",
+    "schedule_audit"
+  ],
+  [
+    "how effective was the afternoon tea set",
+    "promo_eval"
+  ],
+  [
+    "marketing campaign effectiveness",
+    "promo_eval"
+  ],
+  [
+    "are everything systems go for today",
+    "cross_source_audit"
+  ],
+  [
+    "What's the weather like in Cameron Highlands",
+    "out_of_scope"
+  ],
+  [
+    "spoilage review for meats",
+    "waste_analysis"
+  ],
+  [
+    "how healthy is the store this morning",
+    "cross_source_audit"
+  ],
+  [
+    "should I bake more coconut bread the following day?",
+    "stock_query"
+  ],
+  [
+    "cross check inventory forecast sekali",
+    "cross_source_audit"
+  ],
+  [
+    "combo deal untung ke tak",
+    "promo_eval"
+  ],
+  [
+    "health score for the store",
+    "cross_source_audit"
+  ],
+  [
+    "cara nak daftar syarikat",
+    "out_of_scope"
+  ],
+  [
+    "present me the loss report for today",
+    "waste_analysis"
+  ],
+  [
+    "Where can I find excellent durian",
+    "out_of_scope"
+  ],
+  [
+    "berapa jualan masa promotion croissant",
+    "promo_eval"
+  ],
+  [
+    "do we should to prep more scones",
+    "stock_query"
+  ],
+  [
+    "guest suka ke tak bundle promosi",
+    "promo_eval"
+  ],
+  [
+    "show me the loss report for right now",
+    "waste_analysis"
+  ],
+  [
+    "whats the current goods of chiffons",
+    "stock_query"
+  ],
+  [
+    "how much bread_roll left on the shelf",
+    "stock_query"
+  ],
+  [
+    "Tell me a scary story",
+    "out_of_scope"
+  ],
+  [
+    "understaffed for the weekend brunch",
+    "schedule_audit"
+  ],
+  [
+    "loss report for this week",
+    "waste_analysis"
+  ],
+  [
+    "whats the quantity of bread rolls in storage",
+    "stock_query"
+  ],
+  [
+    "how did the donuts promotion perform",
+    "promo_eval"
+  ],
+  [
+    "cara nak kurangkan waste chiffons",
+    "waste_analysis"
+  ],
+  [
+    "audit the schedule for this week",
+    "schedule_audit"
+  ],
+  [
+    "duty roster conflict between two part timers",
+    "schedule_audit"
+  ],
+  [
+    "who is on AM shift shift right now",
+    "schedule_audit"
+  ],
+  [
+    "do we have ample eggs for the cake orders",
+    "stock_query"
+  ],
+  [
+    "markdown promo sales lift",
+    "promo_eval"
+  ],
+  [
+    "compare throwaway this week vs last 7 days",
+    "waste_analysis"
+  ],
+  [
+    "please who's working on Sunday got any gaps",
+    "schedule_audit"
+  ],
+  [
+    "expiry review across all products",
+    "cross_source_audit"
+  ],
+  [
+    "do we have enough donut for today",
+    "stock_query"
+  ],
+  [
+    "guest suka ke tak bundle promosi?",
+    "promo_eval"
+  ],
+  [
+    "check if anyone is double shifted",
+    "schedule_audit"
+  ],
+  [
+    "need to order more croissants ingredients",
+    "stock_query"
+  ],
+  [
+    "check if we need to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "is the combo special offer still profitable",
+    "promo_eval"
+  ],
+  [
+    "any mismatch between prediction and actual",
+    "cross_source_audit"
+  ],
+  [
+    "expired items analysis for today",
+    "waste_analysis"
+  ],
+  [
+    "how much food wasted last week",
+    "waste_analysis"
+  ],
+  [
+    "check goods for raspberry jam",
+    "stock_query"
+  ],
+  [
+    "look at rubbish for cakes",
+    "waste_analysis"
+  ],
+  [
+    "can we adjust the timetable for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "did the birthday promo increase orders",
+    "promo_eval"
+  ],
+  [
+    "Tell me a fun fact about elephants",
+    "out_of_scope"
+  ],
+  [
+    "is the items of pandan cake okay",
+    "stock_query"
+  ],
+  [
+    "whats the loss percentage on croissant",
+    "waste_analysis"
+  ],
+  [
+    "compliance review for all shifts",
+    "cross_source_audit"
+  ],
+  [
+    "diskon bread rolls berkesan tak",
+    "promo_eval"
+  ],
+  [
+    "how much food we toss each day",
+    "waste_analysis"
+  ],
+  [
+    "was the afternoon campaign successful",
+    "promo_eval"
+  ],
+  [
+    "how many items expired today",
+    "waste_analysis"
+  ],
+  [
+    "verify throwaway for cookies",
+    "waste_analysis"
+  ],
+  [
+    "discards analysis for breakfast items",
+    "waste_analysis"
+  ],
+  [
+    "how many loaves of wholemeal bread to order",
+    "stock_query"
+  ],
+  [
+    "understaffed for the lunch rush tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "discount promo net profit",
+    "promo_eval"
+  ],
+  [
+    "do we need to bake more banana bread?",
+    "stock_query"
+  ],
+  [
+    "croissant kat freezer ada berapa",
+    "stock_query"
+  ],
+  [
+    "give me a items check on coconut bread",
+    "stock_query"
+  ],
+  [
+    "how many bakers on duty tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "jadual conflict for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "understaffed for the lunch service",
+    "schedule_audit"
+  ],
+  [
+    "inspect everything across the store",
+    "cross_source_audit"
+  ],
+  [
+    "did the discount deal encourage upsell",
+    "promo_eval"
+  ],
+  [
+    "siapa kerja syif pagi esok",
+    "schedule_audit"
+  ],
+  [
+    "whats the current stock of coconut bread?",
+    "stock_query"
+  ],
+  [
+    "check stok for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "whats on the news today",
+    "out_of_scope"
+  ],
+  [
+    "is the items of quiche lorraine okay",
+    "stock_query"
+  ],
+  [
+    "compare loss this week vs last week",
+    "waste_analysis"
+  ],
+  [
+    "sing a song for me",
+    "out_of_scope"
+  ],
+  [
+    "how many ppl used the offer deal code",
+    "promo_eval"
+  ],
+  [
+    "berapa banyak chiffons ada dalam stok",
+    "stock_query"
+  ],
+  [
+    "is the roster balanced for the 7 days",
+    "schedule_audit"
+  ],
+  [
+    "campaign conversion rate for chiffons",
+    "promo_eval"
+  ],
+  [
+    "weekday vs weekend promo performance",
+    "promo_eval"
+  ],
+  [
+    "whats the population of Malaysia",
+    "out_of_scope"
+  ],
+  [
+    "examine if s2 predictions match s1 actuals",
+    "cross_source_audit"
+  ],
+  [
+    "sales uplift from croissants reduction",
+    "promo_eval"
+  ],
+  [
+    "give me a stock audit on coconut bread",
+    "stock_query"
+  ],
+  [
+    "examine spoilage rates for dairy products",
+    "waste_analysis"
+  ],
+  [
+    "diskon croissant berkesan tak",
+    "promo_eval"
+  ],
+  [
+    "anyone available for extra work slot tonight",
+    "schedule_audit"
+  ],
+  [
+    "What's the fastest animal in the world",
+    "out_of_scope"
+  ],
+  [
+    "Where to find the best char kway teow",
+    "out_of_scope"
+  ],
+  [
+    "display me bread_coconut inventory",
+    "stock_query"
+  ],
+  [
+    "quarterly audit report",
+    "cross_source_audit"
+  ],
+  [
+    "How do I fix a flat tire",
+    "out_of_scope"
+  ],
+  [
+    "present throwaway for coffee",
+    "waste_analysis"
+  ],
+  [
+    "check stock for raspberry jam",
+    "stock_query"
+  ],
+  [
+    "need to check the freezer for frozen croissants",
+    "stock_query"
+  ],
+  [
+    "deepavali discount effectiveness",
+    "promo_eval"
+  ],
+  [
+    "list me bread_roll inventory",
+    "stock_query"
+  ],
+  [
+    "waste heatmap for this week",
+    "waste_analysis"
+  ],
+  [
+    "how much money lost from waste",
+    "waste_analysis"
+  ],
+  [
+    "roster anomaly on the early shift shift",
+    "schedule_audit"
+  ],
+  [
+    "semak spoilage untuk semua produk",
+    "waste_analysis"
+  ],
+  [
+    "why is waste so above normal this the past week",
+    "waste_analysis"
+  ],
+  [
+    "whats the return on that campaign",
+    "promo_eval"
+  ],
+  [
+    "macam mana nak masak nasi lemak",
+    "out_of_scope"
+  ],
+  [
+    "how many sets sold during campaign period",
+    "promo_eval"
+  ],
+  [
+    "list waste for bakery section",
+    "waste_analysis"
+  ],
+  [
+    "examine the shift plan for any errors",
+    "schedule_audit"
+  ],
+  [
+    "produk apa paling banyak discards",
+    "waste_analysis"
+  ],
+  [
+    "throwaway analysis for beverages",
+    "waste_analysis"
+  ],
+  [
+    "waste summary untuk bakery",
+    "waste_analysis"
+  ],
+  [
+    "are we running low on chiffons",
+    "stock_query"
+  ],
+  [
+    "roster seems off for the morning work slot",
+    "schedule_audit"
+  ],
+  [
+    "did the promo increase average spend",
+    "promo_eval"
+  ],
+  [
+    "tell me the stok count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "let me know me a bedtime story",
+    "out_of_scope"
+  ],
+  [
+    "kos waste bulan ni berapa ringgit",
+    "waste_analysis"
+  ],
+  [
+    "student discount redemption rate",
+    "promo_eval"
+  ],
+  [
+    "list all spoiled goods this 7 days",
+    "waste_analysis"
+  ],
+  [
+    "how come is there no cashier on Tuesday morning",
+    "schedule_audit"
+  ],
+  [
+    "audit who's clocking in late",
+    "schedule_audit"
+  ],
+  [
+    "promo roi for the the past week",
+    "promo_eval"
+  ],
+  [
+    "check if we have sufficient cocoa powder",
+    "stock_query"
+  ],
+  [
+    "check discards for cookies",
+    "waste_analysis"
+  ],
+  [
+    "tengok inventory untuk chiffons",
+    "stock_query"
+  ],
+  [
+    "do we should to restock the coffee beans",
+    "stock_query"
+  ],
+  [
+    "minta check stok bread_coconut sekarang",
+    "stock_query"
+  ],
+  [
+    "check if we wanna more unsalted butter",
+    "stock_query"
+  ],
+  [
+    "check everything across the store",
+    "cross_source_audit"
+  ],
+  [
+    "why got so many people on same shift",
+    "schedule_audit"
+  ],
+  [
+    "please do we have enough chiffon for today",
+    "stock_query"
+  ],
+  [
+    "show me the duty allocation for Thursday",
+    "schedule_audit"
+  ],
+  [
+    "check the roster for next week",
+    "schedule_audit"
+  ],
+  [
+    "working period shortage for the opening prep",
+    "schedule_audit"
+  ],
+  [
+    "who is on AM shift shift currently",
+    "schedule_audit"
+  ],
+  [
+    "Who is the prime minister of Malaysia",
+    "out_of_scope"
+  ],
+  [
+    "did the new patron discount work",
+    "promo_eval"
+  ],
+  [
+    "do we must to make more focaccia",
+    "stock_query"
+  ],
+  [
+    "what is the inventory level for chocolate croissant",
+    "stock_query"
+  ],
+  [
+    "how many pain au chocolat left",
+    "stock_query"
+  ],
+  [
+    "whats the throwaway percentage this month",
+    "waste_analysis"
+  ],
+  [
+    "discount markdown deal sales lift",
+    "promo_eval"
+  ],
+  [
+    "can I get a Grab to Pavilion",
+    "out_of_scope"
+  ],
+  [
+    "discards summary for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "why is waste so increased this week",
+    "waste_analysis"
+  ],
+  [
+    "tunjuk laporan waste untuk bulan ni",
+    "waste_analysis"
+  ],
+  [
+    "should I bake more donut next day",
+    "stock_query"
+  ],
+  [
+    "apa beza kereta ni",
+    "out_of_scope"
+  ],
+  [
+    "cerita pasal sejarah Melaka",
+    "out_of_scope"
+  ],
+  [
+    "promotion performance metrics",
+    "promo_eval"
+  ],
+  [
+    "shift gap on Thursday afternoon",
+    "schedule_audit"
+  ],
+  [
+    "how much butter in the walk-in",
+    "stock_query"
+  ],
+  [
+    "why is spoilage so high this the past week",
+    "waste_analysis"
+  ],
+  [
+    "semak semua sekali",
+    "cross_source_audit"
+  ],
+  [
+    "overtime for last Sunday have to to approve",
+    "schedule_audit"
+  ],
+  [
+    "ada donut yang dah nak expired ke",
+    "stock_query"
+  ],
+  [
+    "can you play some music",
+    "out_of_scope"
+  ],
+  [
+    "how effective was the lunch work slot tea set",
+    "promo_eval"
+  ],
+  [
+    "who is on break at 3pm",
+    "schedule_audit"
+  ],
+  [
+    "must to reassign people for the event",
+    "schedule_audit"
+  ],
+  [
+    "need to adjust for the rainy day crowd",
+    "schedule_audit"
+  ],
+  [
+    "loss report for yesterday evening",
+    "waste_analysis"
+  ],
+  [
+    "how many pieces of garlic naan in supply?",
+    "stock_query"
+  ],
+  [
+    "please need to check the freezer for frozen croissants",
+    "stock_query"
+  ],
+  [
+    "I have to a recipe for chicken curry",
+    "out_of_scope"
+  ],
+  [
+    "What's the meaning of life",
+    "out_of_scope"
+  ],
+  [
+    "please can I see the batch inventory for coconut bread",
+    "stock_query"
+  ],
+  [
+    "waste audit for the pastry shop section",
+    "waste_analysis"
+  ],
+  [
+    "which product has the most wastage",
+    "waste_analysis"
+  ],
+  [
+    "cara nak kurangkan waste chiffon",
+    "waste_analysis"
+  ],
+  [
+    "Where is the nearest petrol station",
+    "out_of_scope"
+  ],
+  [
+    "evaluate the student discount",
+    "promo_eval"
+  ],
+  [
+    "can we swap shifts to cover gap",
+    "schedule_audit"
+  ],
+  [
+    "bread_coconut stock level please",
+    "stock_query"
+  ],
+  [
+    "Can you recommend a great restaurant",
+    "out_of_scope"
+  ],
+  [
+    "advise me a story about a baking crew",
+    "out_of_scope"
+  ],
+  [
+    "check the stock level for whole wheat flour",
+    "stock_query"
+  ],
+  [
+    "should I bake more coconut bread tmr",
+    "stock_query"
+  ],
+  [
+    "items thrown away this working period",
+    "waste_analysis"
+  ],
+  [
+    "inspect wastage for pastries",
+    "waste_analysis"
+  ],
+  [
+    "rubbish analysis for lunch items",
+    "waste_analysis"
+  ],
+  [
+    "show spoilage by product type",
+    "waste_analysis"
+  ],
+  [
+    "can we swap shifts to fix gap",
+    "schedule_audit"
+  ],
+  [
+    "daily operations audit",
+    "cross_source_audit"
+  ],
+  [
+    "throwaway report for pastries",
+    "waste_analysis"
+  ],
+  [
+    "diskaun promo redemption rate",
+    "promo_eval"
+  ],
+  [
+    "promo effectiveness analysis",
+    "promo_eval"
+  ],
+  [
+    "the buy 1 get 1 free how was it ah",
+    "promo_eval"
+  ],
+  [
+    "examine the roster for any double booking",
+    "schedule_audit"
+  ],
+  [
+    "quarterly audit update",
+    "cross_source_audit"
+  ],
+  [
+    "roi on the breakfast bundle",
+    "promo_eval"
+  ],
+  [
+    "schedule looks unbalanced for weekend",
+    "schedule_audit"
+  ],
+  [
+    "items expired yesterday list",
+    "waste_analysis"
+  ],
+  [
+    "check the schedule for this week",
+    "schedule_audit"
+  ],
+  [
+    "how much pastry we throw away daily?",
+    "waste_analysis"
+  ],
+  [
+    "overtime for the night syif need verify",
+    "schedule_audit"
+  ],
+  [
+    "performance anomalies across all products",
+    "cross_source_audit"
+  ],
+  [
+    "wanna to order more croissants ingredients",
+    "stock_query"
+  ],
+  [
+    "understaffed for the afternoon tea crowd",
+    "schedule_audit"
+  ],
+  [
+    "check if we have to to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "how effective was the AM shift bundle",
+    "promo_eval"
+  ],
+  [
+    "check freezer items for chocolate croissant dough",
+    "stock_query"
+  ],
+  [
+    "how many croissants should I prepare for tomorrow",
+    "stock_query"
+  ],
+  [
+    "whats the return on that promo",
+    "promo_eval"
+  ],
+  [
+    "look at wastage for roti",
+    "waste_analysis"
+  ],
+  [
+    "do I need to restock croissant",
+    "stock_query"
+  ],
+  [
+    "are we running low on bread_roll",
+    "stock_query"
+  ],
+  [
+    "do I have to to restock croissant",
+    "stock_query"
+  ],
+  [
+    "is the roster balanced for the week",
+    "schedule_audit"
+  ],
+  [
+    "are you a robot",
+    "out_of_scope"
+  ],
+  [
+    "was the petang campaign successful",
+    "promo_eval"
+  ],
+  [
+    "waste report for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "how many ppl bought the special offer item",
+    "promo_eval"
+  ],
+  [
+    "verify spoilage rates for dairy products",
+    "waste_analysis"
+  ],
+  [
+    "donut yang semalam ada lagi tak",
+    "stock_query"
+  ],
+  [
+    "overstaffed on Tuesday audit the roster",
+    "schedule_audit"
+  ],
+  [
+    "chiffons yang overstock tolong verify",
+    "stock_query"
+  ],
+  [
+    "the 1-for-1 deal sales",
+    "promo_eval"
+  ],
+  [
+    "compare loss this this period vs last week",
+    "waste_analysis"
+  ],
+  [
+    "are every department shifts properly covered",
+    "cross_source_audit"
+  ],
+  [
+    "items we threw out this early duty",
+    "waste_analysis"
+  ],
+  [
+    "whats the wastage percentage",
+    "waste_analysis"
+  ],
+  [
+    "peak hours staffing check for Friday",
+    "schedule_audit"
+  ],
+  [
+    "discount promotion redemption rate",
+    "promo_eval"
+  ],
+  [
+    "compare before and after the bread_coconut markdown",
+    "promo_eval"
+  ],
+  [
+    "how much money lost from rubbish",
+    "waste_analysis"
+  ],
+  [
+    "let me know me a scary story",
+    "out_of_scope"
+  ],
+  [
+    "check discards for beverages",
+    "waste_analysis"
+  ],
+  [
+    "spoilage rate for sandwiches",
+    "waste_analysis"
+  ],
+  [
+    "how many croissant do we have in inventory",
+    "stock_query"
+  ],
+  [
+    "overstaffed on Tuesday check the roster",
+    "schedule_audit"
+  ],
+  [
+    "items thrown away due to expiry",
+    "waste_analysis"
+  ],
+  [
+    "do we have ample bread_roll for at this moment",
+    "stock_query"
+  ],
+  [
+    "bundle deal sales number",
+    "promo_eval"
+  ],
+  [
+    "anything expiring tomorrow",
+    "cross_source_audit"
+  ],
+  [
+    "scan all kpi for today",
+    "cross_source_audit"
+  ],
+  [
+    "how many loaves of rye bread to order",
+    "stock_query"
+  ],
+  [
+    "items discarded today AM working period",
+    "waste_analysis"
+  ],
+  [
+    "why got so many people on same working period",
+    "schedule_audit"
+  ],
+  [
+    "how many buns expired yesterday",
+    "waste_analysis"
+  ],
+  [
+    "overtime for the night shift need check",
+    "schedule_audit"
+  ],
+  [
+    "the 50% off cake deal how did it do",
+    "promo_eval"
+  ],
+  [
+    "audit items for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "what got thrown away yesterday",
+    "waste_analysis"
+  ],
+  [
+    "Is there a full moon tonight",
+    "out_of_scope"
+  ],
+  [
+    "need to verify the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "Who invented the internet",
+    "out_of_scope"
+  ],
+  [
+    "prepare how many coconut bread for early shift rush",
+    "stock_query"
+  ],
+  [
+    "present me the spoilage breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "wanna to fix the shift pattern for next week",
+    "schedule_audit"
+  ],
+  [
+    "discount impact on coconut bread volume",
+    "promo_eval"
+  ],
+  [
+    "discards laporan for this week",
+    "waste_analysis"
+  ],
+  [
+    "duty gap on the weekend evening",
+    "schedule_audit"
+  ],
+  [
+    "why is there no front desk on Tuesday morning",
+    "schedule_audit"
+  ],
+  [
+    "was the morning deal worth it",
+    "promo_eval"
+  ],
+  [
+    "bundle deal sales volume",
+    "promo_eval"
+  ],
+  [
+    "review the schedule for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "compare rubbish this week vs last 7 days",
+    "waste_analysis"
+  ],
+  [
+    "verify the schedule for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "is croissant_chocolate finished already",
+    "stock_query"
+  ],
+  [
+    "discount promo sales lift",
+    "promo_eval"
+  ],
+  [
+    "promo A vs promo B revenue comparison",
+    "promo_eval"
+  ],
+  [
+    "inspect if we need more unsalted butter",
+    "stock_query"
+  ],
+  [
+    "do we wanna to prep more scones",
+    "stock_query"
+  ],
+  [
+    "evaluasi prestasi promosi croissant",
+    "promo_eval"
+  ],
+  [
+    "What's the temperature in Kuala Lumpur",
+    "out_of_scope"
+  ],
+  [
+    "sales uplift from croissants discount",
+    "promo_eval"
+  ],
+  [
+    "please how many bread_roll did we discard today",
+    "waste_analysis"
+  ],
+  [
+    "discards report for this week",
+    "waste_analysis"
+  ],
+  [
+    "how many buns wasted this 7 days",
+    "waste_analysis"
+  ],
+  [
+    "gotta to cover for Mei Ling's work slot",
+    "schedule_audit"
+  ],
+  [
+    "How to speak French",
+    "out_of_scope"
+  ],
+  [
+    "Can you predict the lottery numbers",
+    "out_of_scope"
+  ],
+  [
+    "what is the inventory level for bread_roll",
+    "stock_query"
+  ],
+  [
+    "who called in sick at this moment need replacement",
+    "schedule_audit"
+  ],
+  [
+    "do we need to restock the almond flour",
+    "stock_query"
+  ],
+  [
+    "give me a goods check on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "do we have bread rolls batch from yesterday",
+    "stock_query"
+  ],
+  [
+    "need to cover for Mei Ling's shift",
+    "schedule_audit"
+  ],
+  [
+    "examine spoilage rates for dairy products?",
+    "waste_analysis"
+  ],
+  [
+    "check if we must more unsalted butter",
+    "stock_query"
+  ],
+  [
+    "special offer effectiveness for new items",
+    "promo_eval"
+  ],
+  [
+    "loss analysis for last week?",
+    "waste_analysis"
+  ],
+  [
+    "roster seems off for the early syif shift",
+    "schedule_audit"
+  ],
+  [
+    "roster anomaly on Wednesday opening hours",
+    "schedule_audit"
+  ],
+  [
+    "Where can I find good durian",
+    "out_of_scope"
+  ],
+  [
+    "whats the inventory for plain bagels",
+    "stock_query"
+  ],
+  [
+    "check wastage for muffins",
+    "waste_analysis"
+  ],
+  [
+    "examine wastage for muffins",
+    "waste_analysis"
+  ],
+  [
+    "please why got so many people on same shift",
+    "schedule_audit"
+  ],
+  [
+    "who is on AM shift working period today",
+    "schedule_audit"
+  ],
+  [
+    "do we need more spinach and feta rolls",
+    "stock_query"
+  ],
+  [
+    "why is waste so increased this the past week",
+    "waste_analysis"
+  ],
+  [
+    "gotta to cover for Mei Ling's duty",
+    "schedule_audit"
+  ],
+  [
+    "spoilage data for last 30 days",
+    "waste_analysis"
+  ],
+  [
+    "any gaps in the afternoon schedule",
+    "schedule_audit"
+  ],
+  [
+    "how many bakers on duty tmr",
+    "schedule_audit"
+  ],
+  [
+    "discount discount deal sales lift",
+    "promo_eval"
+  ],
+  [
+    "kedai okay tak hari ni",
+    "cross_source_audit"
+  ],
+  [
+    "how effective was the opening bundle",
+    "promo_eval"
+  ],
+  [
+    "spoilage report for breads",
+    "waste_analysis"
+  ],
+  [
+    "strategic review of operations",
+    "cross_source_audit"
+  ],
+  [
+    "What's the recipe for roti canai",
+    "out_of_scope"
+  ],
+  [
+    "What's the weather in Penang",
+    "out_of_scope"
+  ],
+  [
+    "whats the level of heavy cream",
+    "stock_query"
+  ],
+  [
+    "discards review for desserts",
+    "waste_analysis"
+  ],
+  [
+    "how effective was the weekend bundle",
+    "promo_eval"
+  ],
+  [
+    "why is spoilage so high this week",
+    "waste_analysis"
+  ],
+  [
+    "nak check baki stok untuk chiffons",
+    "stock_query"
+  ],
+  [
+    "please whats the quantity of chiffons in storage",
+    "stock_query"
+  ],
+  [
+    "the student markdown how did it do",
+    "promo_eval"
+  ],
+  [
+    "did the reduction boost bread_coconut transactions",
+    "promo_eval"
+  ],
+  [
+    "how many cups of coffee beans in the bin",
+    "stock_query"
+  ],
+  [
+    "why is there no cashier on Tuesday opening",
+    "schedule_audit"
+  ],
+  [
+    "diskaun promotion cost vs benefit",
+    "promo_eval"
+  ],
+  [
+    "campaign impact on brand awareness",
+    "promo_eval"
+  ],
+  [
+    "check inventory for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "kenapa takde cashier pagi selasa",
+    "schedule_audit"
+  ],
+  [
+    "recommend a good movie",
+    "out_of_scope"
+  ],
+  [
+    "employees cukup untuk public holiday",
+    "schedule_audit"
+  ],
+  [
+    "the breakfast bundle revenue number",
+    "promo_eval"
+  ],
+  [
+    "how did the buy 1 free 1 perform last 7 days",
+    "promo_eval"
+  ],
+  [
+    "generate a store dashboard",
+    "cross_source_audit"
+  ],
+  [
+    "whats expiring tmr morning",
+    "waste_analysis"
+  ],
+  [
+    "give me a supply check on bread_coconut",
+    "stock_query"
+  ],
+  [
+    "verify the timetable covers all roles",
+    "schedule_audit"
+  ],
+  [
+    "waste analysis for drinks",
+    "waste_analysis"
+  ],
+  [
+    "berapa banyak donut kita ada display",
+    "stock_query"
+  ],
+  [
+    "do we have bread_coconut in the discount area",
+    "stock_query"
+  ],
+  [
+    "is the stok of quiche lorraine okay",
+    "stock_query"
+  ],
+  [
+    "campaign roi calculation for croissant bundle",
+    "promo_eval"
+  ],
+  [
+    "check the timetable for this 7 days",
+    "schedule_audit"
+  ],
+  [
+    "who is on the early shift tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "special offer cost per acquisition",
+    "promo_eval"
+  ],
+  [
+    "check items for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "how much extra sales from the campaign",
+    "promo_eval"
+  ],
+  [
+    "jadual semua posisi cukup tak",
+    "schedule_audit"
+  ],
+  [
+    "present waste for coffee",
+    "waste_analysis"
+  ],
+  [
+    "check if anyone is double booked",
+    "schedule_audit"
+  ],
+  [
+    "give me a stock examine on bread_roll",
+    "stock_query"
+  ],
+  [
+    "compare waste this week vs last week",
+    "waste_analysis"
+  ],
+  [
+    "who called in sick today have to replacement",
+    "schedule_audit"
+  ],
+  [
+    "Who is the richest person in the world?",
+    "out_of_scope"
+  ],
+  [
+    "discount deal analysis for q",
+    "promo_eval"
+  ],
+  [
+    "is the combo discount deal still profitable",
+    "promo_eval"
+  ],
+  [
+    "how many bread rolls should I prepare for upcoming day",
+    "stock_query"
+  ],
+  [
+    "public holiday next week do we have enough",
+    "schedule_audit"
+  ],
+  [
+    "how many chiffon did we discard today",
+    "waste_analysis"
+  ],
+  [
+    "did the student markdown bring in more customers",
+    "promo_eval"
+  ],
+  [
+    "discount deal cost vs sales increase",
+    "promo_eval"
+  ],
+  [
+    "promotion cost vs revenue",
+    "promo_eval"
+  ],
+  [
+    "who is available for overtime next day",
+    "schedule_audit"
+  ],
+  [
+    "bundle deal transactions number",
+    "promo_eval"
+  ],
+  [
+    "waste laporan for the past 7 days",
+    "waste_analysis"
+  ],
+  [
+    "nak tengok jadual kerja untuk today",
+    "schedule_audit"
+  ],
+  [
+    "whats the level of all-purpose flour",
+    "stock_query"
+  ],
+  [
+    "should to order more croissant_chocolate ingredients",
+    "stock_query"
+  ],
+  [
+    "should to cover the beverage section",
+    "schedule_audit"
+  ],
+  [
+    "do we have enough matcha for the drinks",
+    "stock_query"
+  ],
+  [
+    "ada cukup crew untuk weekend tak",
+    "schedule_audit"
+  ],
+  [
+    "do we need more icing sugar",
+    "stock_query"
+  ],
+  [
+    "list me things we threw out this week",
+    "waste_analysis"
+  ],
+  [
+    "berapa banyak coconut bread kena buang minggu ni",
+    "waste_analysis"
+  ],
+  [
+    "waste data for pastries?",
+    "waste_analysis"
+  ],
+  [
+    "did the discount boost bread_coconut earnings",
+    "promo_eval"
+  ],
+  [
+    "tunjuk laporan spoilage untuk bulan ni",
+    "waste_analysis"
+  ],
+  [
+    "who is on pagi duty today",
+    "schedule_audit"
+  ],
+  [
+    "all departments health check",
+    "cross_source_audit"
+  ],
+  [
+    "audit spoilage rates for dairy products",
+    "waste_analysis"
+  ],
+  [
+    "did the new customer discount work",
+    "promo_eval"
+  ],
+  [
+    "please roi of the happy hour campaign",
+    "promo_eval"
+  ],
+  [
+    "how many coconut bread do we have in stock",
+    "stock_query"
+  ],
+  [
+    "how many roti canai wasted",
+    "waste_analysis"
+  ],
+  [
+    "do we have adequate croissants for tomorrow",
+    "stock_query"
+  ],
+  [
+    "spoilage analysis for yesterday evening",
+    "waste_analysis"
+  ],
+  [
+    "do we have coconut bread in the diskaun area",
+    "stock_query"
+  ],
+  [
+    "compliance check for every department shifts",
+    "cross_source_audit"
+  ],
+  [
+    "consistency check across inventory and forecast",
+    "cross_source_audit"
+  ],
+  [
+    "understaffed at the display counter",
+    "schedule_audit"
+  ],
+  [
+    "look at wastage for pastries?",
+    "waste_analysis"
+  ],
+  [
+    "compare loss this week vs last this period",
+    "waste_analysis"
+  ],
+  [
+    "roster looks unbalanced for weekend",
+    "schedule_audit"
+  ],
+  [
+    "audit every department batch records",
+    "cross_source_audit"
+  ],
+  [
+    "review if we need more sugar",
+    "stock_query"
+  ],
+  [
+    "verify waste for cookies",
+    "waste_analysis"
+  ],
+  [
+    "how many day old chocolate croissant still there",
+    "stock_query"
+  ],
+  [
+    "waste data for last month",
+    "waste_analysis"
+  ],
+  [
+    "output me the waste breakdown by product",
+    "waste_analysis"
+  ],
+  [
+    "spoilage data for last quarter",
+    "waste_analysis"
+  ],
+  [
+    "reveal me the roster for tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "audit stock for chocolate éclairs",
+    "stock_query"
+  ],
+  [
+    "do we have enough mozzarella for the pizzas",
+    "stock_query"
+  ],
+  [
+    "expired items in fridge",
+    "waste_analysis"
+  ],
+  [
+    "check the roster for any double duty",
+    "schedule_audit"
+  ],
+  [
+    "goods coconut bread okay ke tak",
+    "stock_query"
+  ],
+  [
+    "how much bread expired yesterday?",
+    "waste_analysis"
+  ],
+  [
+    "inform me the goods count for croissant",
+    "stock_query"
+  ],
+  [
+    "bahan untuk buat coconut bread cukup tak",
+    "stock_query"
+  ],
+  [
+    "whats the spoilage rate for croissants",
+    "waste_analysis"
+  ],
+  [
+    "whats the quantity of bread_coconut in storage",
+    "stock_query"
+  ],
+  [
+    "list me the top wasted items",
+    "waste_analysis"
+  ],
+  [
+    "promo analysis for bread rolls",
+    "promo_eval"
+  ],
+  [
+    "please how much food wasted last week",
+    "waste_analysis"
+  ],
+  [
+    "did the markdown boost bread_coconut earnings",
+    "promo_eval"
+  ],
+  [
+    "roster error on the night shift",
+    "schedule_audit"
+  ],
+  [
+    "whats the current stok of coconut bread",
+    "stock_query"
+  ],
+  [
+    "whats the throwaway percentage on chiffons",
+    "waste_analysis"
+  ],
+  [
+    "berapa tukang roti bekerja esok",
+    "schedule_audit"
+  ],
+  [
+    "display me the waste report for today",
+    "waste_analysis"
+  ],
+  [
+    "compare roster vs actual attendance",
+    "schedule_audit"
+  ],
+  [
+    "can you check the roster for next past days",
+    "schedule_audit"
+  ],
+  [
+    "esok nak buat berapa croissants",
+    "stock_query"
+  ],
+  [
+    "please duty roster compliance audit",
+    "schedule_audit"
+  ],
+  [
+    "customer response to the promo",
+    "promo_eval"
+  ],
+  [
+    "tell me the goods count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "spoilage analysis for bakery section?",
+    "waste_analysis"
+  ],
+  [
+    "rubbish report for this this period",
+    "waste_analysis"
+  ],
+  [
+    "loss analysis for beverages",
+    "waste_analysis"
+  ],
+  [
+    "who invented the internet",
+    "out_of_scope"
+  ],
+  [
+    "any chiffons near expiry date",
+    "stock_query"
+  ],
+  [
+    "people cukup untuk public holiday",
+    "schedule_audit"
+  ],
+  [
+    "prepare how many bread rolls for morning rush",
+    "stock_query"
+  ],
+  [
+    "can I see the batch inventory for coconut bread",
+    "stock_query"
+  ],
+  [
+    "should to adjust for the festival crowd",
+    "schedule_audit"
+  ],
+  [
+    "coffee and croissant combo analysis",
+    "promo_eval"
+  ],
+  [
+    "how much extra sales from the special offer",
+    "promo_eval"
+  ],
+  [
+    "check expired stock list",
+    "waste_analysis"
+  ],
+  [
+    "butter stock for croissant production",
+    "stock_query"
+  ],
+  [
+    "did the campaign encourage upsell",
+    "promo_eval"
+  ],
+  [
+    "overtime check for all staff",
+    "cross_source_audit"
+  ],
+  [
+    "bread_coconut yang overstock tolong check",
+    "stock_query"
+  ],
+  [
+    "should to inspect the freezer inventory for puff pastry sheets",
+    "stock_query"
+  ],
+  [
+    "price cut impact on bread_roll volume",
+    "promo_eval"
+  ],
+  [
+    "show me bread_coconut inventory",
+    "stock_query"
+  ],
+  [
+    "how many bakers on duty next day",
+    "schedule_audit"
+  ],
+  [
+    "sale impact on revenue",
+    "promo_eval"
+  ],
+  [
+    "show waste for muffins",
+    "waste_analysis"
+  ],
+  [
+    "how many bread_coconut sold and remaining",
+    "stock_query"
+  ],
+  [
+    "How tall is the Eiffel Tower",
+    "out_of_scope"
+  ],
+  [
+    "check freezer goods for chocolate croissant dough",
+    "stock_query"
+  ],
+  [
+    "sale effectiveness for new items",
+    "promo_eval"
+  ],
+  [
+    "How to make nasi lemak",
+    "out_of_scope"
+  ],
+  [
+    "check if we gotta more sugar",
+    "stock_query"
+  ],
+  [
+    "discards analysis for lunch items",
+    "waste_analysis"
+  ],
+  [
+    "anyone can come in early tmr",
+    "schedule_audit"
+  ],
+  [
+    "roster anomaly on the baking team",
+    "schedule_audit"
+  ],
+  [
+    "gotta to reassign staff for the event",
+    "schedule_audit"
+  ],
+  [
+    "waste breakdown for this this period",
+    "waste_analysis"
+  ],
+  [
+    "post closing audit",
+    "cross_source_audit"
+  ],
+  [
+    "discards analysis for cakes",
+    "waste_analysis"
+  ],
+  [
+    "who can swap to cover the gap",
+    "schedule_audit"
+  ],
+  [
+    "how do I invest in stocks",
+    "out_of_scope"
+  ],
+  [
+    "why only one person on the register",
+    "schedule_audit"
+  ],
+  [
+    "whats the goods for milk bread",
+    "stock_query"
+  ],
+  [
+    "check the roster for this week",
+    "schedule_audit"
+  ],
+  [
+    "can we adjust the duty roster for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "check freezer stok for donut dough",
+    "stock_query"
+  ],
+  [
+    "please schedule conflict for the weekend",
+    "schedule_audit"
+  ],
+  [
+    "verify waste for cakes",
+    "waste_analysis"
+  ],
+  [
+    "review items for strawberry compote",
+    "stock_query"
+  ],
+  [
+    "Can you tell me a joke",
+    "out_of_scope"
+  ],
+  [
+    "how much pastry wasted this 7 days",
+    "waste_analysis"
+  ],
+  [
+    "show me the loss report for today?",
+    "waste_analysis"
+  ],
+  [
+    "evaluasi prestasi promosi bread_roll",
+    "promo_eval"
+  ],
+  [
+    "did the happy hour discount boost traffic?",
+    "promo_eval"
+  ],
+  [
+    "work slot gap on Thursday afternoon",
+    "schedule_audit"
+  ],
+  [
+    "shift plan looks messy can you fix",
+    "schedule_audit"
+  ],
+  [
+    "check waste for danishes",
+    "waste_analysis"
+  ],
+  [
+    "who can cover if Raj is late",
+    "schedule_audit"
+  ],
+  [
+    "marketing roi for this month",
+    "promo_eval"
+  ],
+  [
+    "roster clash between kitchen and counter",
+    "schedule_audit"
+  ],
+  [
+    "tell me the stock count for bread_coconut",
+    "stock_query"
+  ],
+  [
+    "monthly performance overview",
+    "cross_source_audit"
+  ],
+  [
+    "please show me the shift allocation for Friday",
+    "schedule_audit"
+  ],
+  [
+    "whats the spoilage percentage",
+    "waste_analysis"
+  ],
+  [
+    "check loss for cakes",
+    "waste_analysis"
+  ],
+  [
+    "who is on late work slot tonight?",
+    "schedule_audit"
+  ],
+  [
+    "need to fill the gap on Wednesday",
+    "schedule_audit"
+  ],
+  [
+    "send email to supplier",
+    "out_of_scope"
+  ],
+  [
+    "whats the throwaway percentage on croissant",
+    "waste_analysis"
+  ],
+  [
+    "give me a stock check on bread_roll",
+    "stock_query"
+  ],
+  [
+    "How to make ice cream without a machine",
+    "out_of_scope"
+  ],
+  [
+    "bahan untuk buat bread rolls cukup tak",
+    "stock_query"
+  ],
+  [
+    "tell me the stock count for croissant",
+    "stock_query"
+  ],
+  [
+    "nak look at baki stok untuk bread rolls",
+    "stock_query"
+  ],
+  [
+    "jualan uplift from croissant_chocolate discount",
+    "promo_eval"
+  ],
+  [
+    "how many day old croissant_chocolate still there?",
+    "stock_query"
+  ],
+  [
+    "did the loyalty card promotion increase sales",
+    "promo_eval"
+  ],
+  [
+    "do we have a beverage employees for the morning rush",
+    "schedule_audit"
+  ],
+  [
+    "discards cost for this month in RM",
+    "waste_analysis"
+  ],
+  [
+    "who is on the early shift upcoming day",
+    "schedule_audit"
+  ],
+  [
+    "please is the stock of plain croissants okay",
+    "stock_query"
+  ],
+  [
+    "waste audit for the bakery section",
+    "waste_analysis"
+  ],
+  [
+    "review semua stok waste jadual",
+    "cross_source_audit"
+  ],
+  [
+    "bundle deal patron feedback",
+    "promo_eval"
+  ],
+  [
+    "list discards for bakery section",
+    "waste_analysis"
+  ],
+  [
+    "whats the stock like for cinnamon rolls",
+    "stock_query"
+  ],
+  [
+    "nak tengok trend waste kedai",
+    "waste_analysis"
+  ],
+  [
+    "whats the rubbish rate for cookies",
+    "waste_analysis"
+  ],
+  [
+    "check if we need more unsalted butter",
+    "stock_query"
+  ],
+  [
+    "headcount adequacy look at for each syif",
+    "schedule_audit"
+  ],
+  [
+    "how many coconut bread do we have in supply",
+    "stock_query"
+  ],
+  [
+    "any problems today",
+    "cross_source_audit"
+  ],
+  [
+    "How to reset my iPhone",
+    "out_of_scope"
+  ],
+  [
+    "are we meeting our kpi targets",
+    "cross_source_audit"
+  ],
+  [
+    "scan for problems in all modules",
+    "cross_source_audit"
+  ],
+  [
+    "how many croissants wasted today",
+    "waste_analysis"
+  ],
+  [
+    "inform me the stock count for bread rolls",
+    "stock_query"
+  ],
+  [
+    "whats the best laptop for gaming",
+    "out_of_scope"
+  ],
+  [
+    "verify if we have to to order more fresh milk",
+    "stock_query"
+  ],
+  [
+    "sale effectiveness for afternoon set",
+    "promo_eval"
+  ],
+  [
+    "verify s3 schedule matches s1 traffic",
+    "cross_source_audit"
+  ],
+  [
+    "do we have adequate milk for the latte orders",
+    "stock_query"
+  ],
+  [
+    "need to cover the bread section",
+    "schedule_audit"
+  ],
+  [
+    "revenue uplift from croissants reduction",
+    "promo_eval"
+  ],
+  [
+    "whats the inventory on bagels",
+    "stock_query"
+  ],
+  [
+    "the 1-for-1 deal revenue",
+    "promo_eval"
+  ],
+  [
+    "Tell me something interesting about space",
+    "out_of_scope"
+  ],
+  [
+    "items donut okay ke tak",
+    "stock_query"
+  ],
+  [
+    "What's the meaning of this emoji 😂",
+    "out_of_scope"
+  ],
+  [
+    "how many bread rolls did we discard at this moment",
+    "waste_analysis"
+  ],
+  [
+    "throwaway analysis for desserts",
+    "waste_analysis"
+  ],
+  [
+    "What's the weather like currently",
+    "out_of_scope"
+  ],
+  [
+    "who is available for overtime tomorrow",
+    "schedule_audit"
+  ],
+  [
+    "What's the name of that actor in Titanic",
+    "out_of_scope"
+  ],
+  [
+    "please overtime approval for the holiday work slot",
+    "schedule_audit"
+  ],
+  [
+    "check the schedule for any errors",
+    "schedule_audit"
+  ],
+  [
+    "How to fix a leaking tap",
+    "out_of_scope"
+  ],
+  [
+    "items discarded currently morning",
+    "waste_analysis"
+  ],
+  [
+    "discount deal effectiveness report",
+    "promo_eval"
+  ],
+  [
+    "overtime approval for the holiday syif",
+    "schedule_audit"
+  ],
+  [
+    "kena bakar lagi croissant_chocolate untuk esok tak?",
+    "stock_query"
+  ],
+  [
+    "check stock for matcha powder",
+    "stock_query"
+  ],
+  [
+    "earnings uplift from coconut bread price cut",
+    "promo_eval"
+  ],
+  [
+    "verify the duty roster for public holiday",
+    "schedule_audit"
+  ],
+  [
+    "berapa banyak coconut bread kita ada display",
+    "stock_query"
+  ],
+  [
+    "check the roster for any double shift",
+    "schedule_audit"
+  ],
+  [
+    "can you look at the roster for next week",
+    "schedule_audit"
+  ],
+  [
+    "roster compliance audit",
+    "schedule_audit"
+  ],
+  [
+    "which bakery bundle sold fastest",
+    "promo_eval"
+  ],
+  [
+    "how many cheese danishes in the freezer",
+    "stock_query"
+  ],
+  [
+    "Where to find the best satay in KL",
+    "out_of_scope"
+  ],
+  [
+    "was the special offer worth it",
+    "promo_eval"
+  ],
+  [
+    "any labor law violations in schedule",
+    "cross_source_audit"
+  ],
+  [
+    "advise me a scary story",
+    "out_of_scope"
+  ],
+  [
+    "How many croissants for Monday?",
+    "stock_query"
+  ],
+  [
+    "How many donuts for Friday?",
+    "stock_query"
+  ],
+  [
+    "Bake quantity for Saturday",
+    "stock_query"
+  ],
+  [
+    "Prepare stock for Sunday",
+    "stock_query"
+  ],
+  [
+    "Production plan for Wednesday",
+    "stock_query"
+  ],
+  [
+    "How much bread for Thursday this week?",
+    "stock_query"
+  ],
+  [
+    "Croissant demand on Tuesday",
+    "stock_query"
+  ],
+  [
+    "How many for the weekend?",
+    "stock_query"
+  ],
+  [
+    "Bake plan for this weekend",
+    "stock_query"
+  ],
+  [
+    "Weekend production estimate",
+    "stock_query"
+  ],
+  [
+    "Production for end of month",
+    "stock_query"
+  ],
+  [
+    "How many for early next month?",
+    "stock_query"
+  ],
+  [
+    "Payday week production plan",
+    "stock_query"
+  ],
+  [
+    "How many for Hari Raya?",
+    "stock_query"
+  ],
+  [
+    "Production for Deepavali week",
+    "stock_query"
+  ],
+  [
+    "Christmas week bake plan",
+    "stock_query"
+  ],
+  [
+    "New Year demand forecast",
+    "stock_query"
+  ],
+  [
+    "Chinese New Year production plan",
+    "stock_query"
+  ],
+  [
+    "How many croissants for the holiday?",
+    "stock_query"
+  ],
+  [
+    "Bake plan for next week",
+    "stock_query"
+  ],
+  [
+    "How many bread rolls for tomorrow morning?",
+    "stock_query"
+  ],
+  [
+    "Production estimate for next 3 days",
+    "stock_query"
+  ],
+  [
+    "Esok nak bake berapa croissant?",
+    "stock_query"
+  ],
+  [
+    "Lusa roti cukup ke?",
+    "stock_query"
+  ],
+  [
+    "Stok kek chiffon tinggal berapa?",
+    "stock_query"
+  ],
+  [
+    "Berapa banyak bread_roll kena sediakan untuk esok?",
+    "stock_query"
+  ],
+  [
+    "Cukup ke donuts untuk customer hujung minggu ni?",
+    "stock_query"
+  ],
+  [
+    "Ada berapa croissant dalam stok sekarang?",
+    "stock_query"
+  ],
+  [
+    "Kena restock coconut bread tak untuk lusa?",
+    "stock_query"
+  ],
+  [
+    "Bread_coconut cukup untuk 3 hari ni?",
+    "stock_query"
+  ],
+  [
+    "Hari ini schedule siapa kerja?",
+    "schedule_audit"
+  ],
+  [
+    "Siapa baker shift petang esok?",
+    "schedule_audit"
+  ],
+  [
+    "Boleh check jadual minggu depan?",
+    "schedule_audit"
+  ],
+  [
+    "Cukup ke barista untuk weekend ni?",
+    "schedule_audit"
+  ],
+  [
+    "Esok ada berapa orang cashier?",
+    "schedule_audit"
+  ],
+  [
+    "Tolong tunjuk jadual kerja baker minggu ni",
+    "schedule_audit"
+  ],
+  [
+    "Kenapa banyak sangat waste minggu ni?",
+    "waste_analysis"
+  ],
+  [
+    "Produk apa paling banyak kena buang?",
+    "waste_analysis"
+  ],
+  [
+    "Kenapa spoilage chiffon tinggi minggu ni?",
+    "waste_analysis"
+  ],
+  [
+    "Boleh check waste report untuk bulan ni?",
+    "waste_analysis"
+  ],
+  [
+    "Promo donut semalam berkesan tak?",
+    "promo_eval"
+  ],
+  [
+    "Jualan lepas bagi diskaun croissant macam mana?",
+    "promo_eval"
+  ],
+  [
+    "Adakah tawaran combo minggu lepas untung?",
+    "promo_eval"
+  ],
+  [
+    "Check semua system ada problem tak",
+    "cross_source_audit"
+  ],
+  [
+    "Run full audit untuk kedai sekarang",
+    "cross_source_audit"
+  ],
+  [
+    "Ada apa-apa masalah dengan operasi kedai?",
+    "cross_source_audit"
+  ],
+  [
+    "Cuaca hari ini macam mana?",
+    "out_of_scope"
+  ],
+  [
+    "Ada promotion di kedai sebelah?",
+    "out_of_scope"
+  ],
+  [
+    "Macam mana nak apply loan bisnes?",
+    "out_of_scope"
+  ],
+  [
+    "Macam mana nak apply loan bisnes?",
+    "out_of_scope"
+  ],
+  [
+    "Ada jual kereta second hand tak?",
+    "out_of_scope"
+  ],
+  [
+    "Bila nak dapat gaji bulan ni?",
+    "out_of_scope"
+  ],
+  [
+    "Restoran mana best dekat sini?",
+    "out_of_scope"
+  ],
+  [
+    "Nak beli handphone baru, ada cadangan?",
+    "out_of_scope"
+  ]
+]

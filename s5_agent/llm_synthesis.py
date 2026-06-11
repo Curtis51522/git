@@ -16,7 +16,7 @@ try:
 except ImportError:
     _PARENT_KEY = None
 
-LLM_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+LLM_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
 LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY", _PARENT_KEY or "")
 LLM_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 
@@ -147,6 +147,18 @@ Rules:
 - Keep it under 100 words.""",
 }
 
+COMPOSER_TEMPLATE = """You are a bakery sales assistant generating a friendly, persuasive recommendation script for a cashier to say to a customer at checkout.
+
+Combo Scores: {combo_text}
+
+Write ONE short, natural sales script (2-3 sentences) that the cashier can say directly to the customer. Include:
+- Mention the combo deal (what items together)
+- State the price or savings briefly
+- Use a warm, casual tone (like a friendly bakery staff member)
+- Do NOT use markdown, bullet points, or numbered lists
+- Keep it under 60 words
+"""
+
 DEFAULT_TEMPLATE = """You are a bakery AI assistant. Write a concise, FACTUAL summary (2-3 sentences). Do not sugarcoat.
 
 Query: {query}
@@ -181,6 +193,28 @@ def _build_prompt(intent: str, query: str, decision: str, priority: str,
         memory_context=memory_context or "No historical baseline available.",
     )
 
+
+
+async def synthesize_script(combo_text: str) -> Optional[str]:
+    """Generate a sales script for the cashier based on combo scores."""
+    if not SYNTHESIS_ENABLED:
+        return None
+    prompt = COMPOSER_TEMPLATE.format(combo_text=combo_text)
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{LLM_BASE_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"},
+                json={"model": LLM_MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 150, "temperature": 0.6},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            script = data["choices"][0]["message"]["content"].strip()
+            logger.info("Composer script: %s", script[:100])
+            return script
+    except Exception as e:
+        logger.warning("Composer script failed: %s", e)
+        return None
 
 async def synthesize(query: str, intent: str, decision: str, priority: str,
                      agent_data: Dict[str, Any], conflicts: list,
@@ -222,7 +256,7 @@ async def synthesize(query: str, intent: str, decision: str, priority: str,
             resp = await client.post(
                 f"{LLM_BASE_URL}/chat/completions",
                 headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"},
-                json={"model": LLM_MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 200, "temperature": 0.4},
+                json={"model": LLM_MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 300, "temperature": 0.4},
             )
             resp.raise_for_status()
             data = resp.json()

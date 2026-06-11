@@ -58,12 +58,17 @@ async def check_inventory() -> int:
             # Waste risk: Day-1 ratio > 40%
             if total > 0 and day1 > 0:
                 day1_ratio = day1 / total
-                if day1_ratio >= 0.6:
+                if day1_ratio >= 0.7:
+                    add_alert("inventory", "critical", f"Critical waste: {pname}",
+                              f"{day1}/{total} ({day1_ratio:.0%}) of {pname} is Day-1 stock. "
+                              f"Immediate discount or disposal required.")
+                    count += 1
+                elif day1_ratio >= 0.5:
                     add_alert("inventory", "warning", f"High waste risk: {pname}",
                               f"{day1}/{total} ({day1_ratio:.0%}) of {pname} is Day-1 stock. "
                               f"Prioritize sale or discount to avoid spoilage.")
                     count += 1
-                elif day1_ratio >= 0.4:
+                elif day1_ratio >= 0.3:
                     add_alert("inventory", "info", f"Waste watch: {pname}",
                               f"{day1}/{total} ({day1_ratio:.0%}) of {pname} is Day-1. Monitor closely.")
                     count += 1
@@ -118,9 +123,15 @@ async def check_schedule() -> int:
     """Check S3 schedule for staffing gaps on today date. Returns alert count."""
     count = 0
     try:
+        from datetime import datetime
+        today_dt = datetime.now()
+        # Monday is rest day (bakery closed) -- no staffing alerts needed
+        if today_dt.weekday() == 0:
+            return 0
+
+        today = today_dt.strftime("%Y-%m-%d")
         data = await _fetch(S3_SCHEDULE_URL)
         schedule_list = data.get("schedule", [])
-        today = time.strftime("%Y-%m-%d")
         today_entries = [s for s in schedule_list if s.get("date", "") == today]
         roles_today = set(s.get("role", "") for s in today_entries)
         if "baker" not in roles_today:
@@ -189,12 +200,16 @@ async def run_full_check() -> Dict[str, int]:
     return results
 
 
-async def start_monitor(interval_sec: int = CHECK_INTERVAL_SEC):
-    """Start the background monitoring loop."""
-    logger.info("Alert monitor started (interval=%ds)", interval_sec)
+async def start_monitor(interval_sec: int = CHECK_INTERVAL_SEC, run_immediately: bool = True):
+    logger.info('Alert monitor started (interval=%ds)', interval_sec)
+    if run_immediately:
+        try:
+            await run_full_check()
+        except Exception as e:
+            logger.error('Initial monitor check error: %s', e)
     while True:
         await asyncio.sleep(interval_sec)
         try:
             await run_full_check()
         except Exception as e:
-            logger.error("Monitor loop error: %s", e)
+            logger.error('Monitor loop error: %s', e)

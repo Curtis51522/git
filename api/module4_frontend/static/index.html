@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -162,6 +162,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
   .receipt-footer{display:block!important}
 }
 
+
+.lang-toggle{display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #8b6914;margin:2px 4px}
+.lang-toggle button{padding:3px 8px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#8b6914;transition:all .15s}
+.lang-toggle button.active{background:#8b6914;color:#fff}
+.lang-toggle button:hover:not(.active){background:#f0e8d8}
 </style>
 </head>
 <body>
@@ -178,8 +183,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <div id="dashboard" class="hidden">
 <div class="sidebar">
 <h2>Bakery AI</h2>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
 <span id="role-badge" class="role-badge"></span>
 <span style="color:#6b5b4f;font-size:12px;margin-left:4px" id="user-display"></span>
+<div class="lang-toggle">
+<button id="lang-en" class="active" onclick="setLang('en')">EN</button>
+<button id="lang-bm" onclick="setLang('bm')">BM</button>
+</div>
+</div>
 <nav>
 <button class="active" data-panel="pos" onclick="showPanel('pos')">POS Checkout</button>
 <button data-panel="forecast" class="manager-only" onclick="showPanel('forecast')">Sales Forecast</button>
@@ -207,7 +219,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
 <h3 style="margin:0">System Alerts</h3>
 <div>
-<button onclick="ackAllAlerts()" style="background:#27ae60;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">Acknowledge All</button>
+<button onclick="ackAllAlerts()" style="background:#27ae60;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;margin-right:6px">Acknowledge All</button><button onclick="clearAllAlerts()" style="background:#e74c3c;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">Clear All</button>
 <button onclick="closeAlertPanel()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#8b6914;padding:0 0 0 12px;line-height:1">&times;</button>
 </div>
 </div>
@@ -235,11 +247,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button type="button" onclick="changeQty(1)" style="padding:10px 16px;border:2px solid #e0d5c7;border-left:none;border-radius:0 8px 8px 0;background:#f5f0eb;font-size:18px;font-weight:700;cursor:pointer;color:#8b6914">+</button>
 </div>
 
-<label>Freshness <span style="font-weight:400;color:#999;font-size:12px">(override tray detection)</span></label>
+<label>Freshness <span style="font-weight:400;color:#999;font-size:12px"></span></label>
 <select id="edit-freshness">
-<option value="auto">Auto (from tray color)</option>
-<option value="Fresh">Fresh (green tray)</option>
-<option value="Day-1">Day-1 (yellow tray)</option>
+<option value="auto">Auto</option>
+<option value="Fresh">Fresh</option>
+<option value="Day-1">Day-1 (20% off)</option>
 
 
 </select>
@@ -268,7 +280,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <label style="font-size:14px;font-weight:600;display:block;margin-bottom:8px">Swap with:</label>
 <div id="swap-employee-list" style="display:flex;flex-direction:column;gap:6px;max-height:250px;overflow-y:auto"></div>
 <div style="display:flex;gap:10px;margin-top:16px">
-<button onclick="document.getElementById('swap-modal').classList.remove('show')" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd;background:#f5f0e8;cursor:pointer;font-size:14px;font-weight:600">Close</button>
+<button onclick="document.getElementById('swap-modal').classList.remove('show')" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd;background:#f5f0e8;cursor:pointer;font-size:14px;font-weight:600">'+t('Close')+'</button>
 </div>
 </div>
 </div>
@@ -283,6 +295,126 @@ var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:4.0,bread_roll:3.5,chi
 var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
 var DISCOUNT_RATE=0.3;
 
+
+var LANG='en';
+var T={
+en:{
+'POS Checkout':'POS Checkout','Sales Forecast':'Sales Forecast','Shift Schedule':'Shift Schedule',
+'Inventory':'Inventory','AI Brain':'AI Brain','Sign Out':'Sign Out','Alerts':'Alerts',
+'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
+'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
+'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
+'Generating...':'Generating...','Save RM':'Save RM',
+'Sales Script':'Sales Script','Generating script...':'Generating script...',
+'Script generation failed. Try our combos!':'Script generation failed. Try our combos!',
+'Payment Complete':'Payment Complete','items deducted':'items deducted',
+'Refresh':'Refresh','Loading forecast...':'Loading forecast...',
+'Product':'Product','Date':'Date','Predicted':'Predicted','Range':'Range','Confidence':'Confidence',
+'today':'today','high':'high','medium':'medium','low':'low',
+'closed':'closed','Forecast error':'Forecast error','No forecast data available':'No forecast data available',
+'Solve Schedule':'Solve Schedule','Resync':'Resync','Add Sick Leave':'Add Sick Leave',
+'Prep Checklist':'Prep Checklist','Acknowledge':'Acknowledge',
+'Stock':'Stock','Fresh':'Fresh','Day-1':'Day-1','Day-2':'Day-2','Near-Expired':'Near-Expired',
+'Send':'Send','Ask me anything...':'Ask me anything...',
+'AI Summary':'AI Summary','System Alerts':'System Alerts',
+'Username':'Username','Password':'Password','Sign In':'Sign In',
+'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token',
+'Request failed':'Request failed','Manager only':'Manager only',
+'Cannot modify past schedules. Select today or a future date.':'Cannot modify past schedules. Select today or a future date.',
+'OK':'OK','Cancel':'Cancel','Error':'Error',
+'Delete':'Delete','Edit':'Edit','Confirm':'Confirm',
+'Confirmed':'Confirmed','Needs Review':'Needs Review','Pending':'Pending',
+'No corrections yet':'No corrections yet','corrections':'corrections',
+'Scan error':'Scan error','Bundle error':'Bundle error',
+'Payment Failed':'Payment Failed','No items in cart':'No items in cart',
+'Generate Top-3 bundles first':'Generate Top-3 bundles first',
+'Script generation failed':'Script generation failed',
+'No pending schedule found. Click Solve Schedule.':'No pending schedule found. Click Solve Schedule.',
+'Employee ID':'Employee ID','Date (YYYY-MM-DD)':'Date (YYYY-MM-DD)',
+'Sick leave recorded':'Sick leave recorded','Schedule resynced':'Schedule resynced',
+'Product Name':'Product Name','Quantity':'Quantity','Price (RM)':'Price (RM)',
+'Inflow Scan':'Inflow Scan','Manual Inflow':'Manual Inflow',
+'fresh':'fresh','day-1':'day-1','Total Stock':'Total Stock',
+'Inflow complete':'Inflow complete','batches created':'batches created',
+'Product:':'Product:','Qty:':'Qty:','Add Batch':'Add Batch',
+'Batches':'Batches','Details':'Details','Close':'Close',
+'Production Time':'Production Time','Status':'Status',
+'Shift':'Shift','Role':'Role','Employee':'Employee','Re-sync complete (fresh schedule)':'Re-sync complete (fresh schedule)','Day-1 stock:':'Day-1 stock:','Fresh stock:':'Fresh stock:','e.g. How many croissants tomorrow?':'e.g. How many croissants tomorrow?','Enter username and password':'Enter username and password','Signing in...':'Signing in...','Manager':'Manager','Staff':'Staff','Camera - Visual Recognition':'Camera - Visual Recognition','Click to scan / upload image':'Click to scan / upload image','Scanning tray...':'Scanning tray...','Fresh Batch Inflow':'Fresh Batch Inflow','Scan fresh-baked goods to add to inventory':'Scan fresh-baked goods to add to inventory','Scan Fresh Batch':'Scan Fresh Batch','Confirm Inflow':'Confirm Inflow','HITL Correction Log':'HITL Correction Log','AI Store Manager':'AI Store Manager','Loading...':'Loading...','Loading shifts...':'Loading shifts...','Loading inventory...':'Loading inventory...','Top-3 Bundle':'Top-3 Bundle','batches | Click Refresh to update':'batches | Click Refresh to update','KPI error':'KPI error','Loading KPI...':'Loading KPI...','Batch ID':'Batch ID','Area':'Area','Freshness':'Freshness','Qty':'Qty','Batch Inventory':'Batch Inventory','KPI':'KPI','Fair':'Fair','Gap (hrs)':'Gap (hrs)','Employees':'Employees','Get Sales Script':'Get Sales Script','Generate':'Generate','Actual':'Actual','Expected (shifts)':'Expected (shifts)','Extra':'Extra','Rate':'Rate','Ask':'Ask','Restock':'Restock','Waste':'Waste','Schedule':'Schedule','Audit':'Audit','Type a question':'Type a question','Enter a question':'Enter a question','Processing...':'Processing...','restock_q':'How many croissants should I bake tomorrow?','waste_q':'Why is waste high this week?','schedule_q':'Check schedule for anomalies','audit_q':'Run full store health check','Stock:':'Stock:',
+},
+bm:{
+'POS Checkout':'POS Daftar Keluar','Sales Forecast':'Ramalan Jualan','Shift Schedule':'Jadual Syif',
+'Inventory':'Inventori','AI Brain':'Otak AI','Sign Out':'Log Keluar','Alerts':'Amaran',
+'Cart':'Troli','Scan items or use manual entry':'Imbas barang atau guna entri manual',
+'Generate Top-3':'Jana Top-3','Checkout':'Bayar','Total':'Jumlah',
+'Add items to cart then generate Top-3 bundles':'Tambah barang ke troli kemudian jana pakej Top-3',
+'Generating...':'Menjana...','Save RM':'Jimat RM',
+'Sales Script':'Skrip Jualan','Generating script...':'Menjana skrip...',
+'Script generation failed. Try our combos!':'Penjanaan skrip gagal. Cuba pakej kami!',
+'Payment Complete':'Pembayaran Selesai','items deducted':'barang ditolak',
+'Refresh':'Muat Semula','Loading forecast...':'Memuat ramalan...',
+'Product':'Produk','Date':'Tarikh','Predicted':'Ramalan','Range':'Julat','Confidence':'Keyakinan',
+'today':'hari ini','high':'tinggi','medium':'sederhana','low':'rendah',
+'closed':'tutup','Forecast error':'Ralat ramalan','No forecast data available':'Tiada data ramalan',
+'Solve Schedule':'Selesai Jadual','Resync':'Segerak Semula','Add Sick Leave':'Tambah Cuti Sakit',
+'Prep Checklist':'Senarai Semak Persediaan','Acknowledge':'Sahkan',
+'Stock':'Stok','Fresh':'Segar','Day-1':'Hari-1','Day-2':'Hari-2','Near-Expired':'Hampir Luput',
+'Send':'Hantar','Ask me anything...':'Tanya apa sahaja...',
+'AI Summary':'Ringkasan AI','System Alerts':'Amaran Sistem',
+'Username':'Nama Pengguna','Password':'Kata Laluan','Sign In':'Log Masuk',
+'Invalid credentials':'Bukti kelayakan tidak sah','Missing token':'Token hilang','Invalid token':'Token tidak sah',
+'Request failed':'Permintaan gagal','Manager only':'Pengurus sahaja',
+'Cannot modify past schedules. Select today or a future date.':'Tidak boleh ubah jadual lepas. Pilih hari ini atau tarikh akan datang.',
+'OK':'OK','Cancel':'Batal','Error':'Ralat',
+'Delete':'Padam','Edit':'Sunting','Confirm':'Sahkan',
+'Confirmed':'Disahkan','Needs Review':'Perlu Semakan','Pending':'Tertunda',
+'No corrections yet':'Tiada pembetulan lagi','corrections':'pembetulan',
+'Scan error':'Ralat imbasan','Bundle error':'Ralat pakej',
+'Payment Failed':'Pembayaran Gagal','No items in cart':'Tiada barang dalam troli',
+'Generate Top-3 bundles first':'Jana pakej Top-3 dahulu',
+'Script generation failed':'Penjanaan skrip gagal',
+'No pending schedule found. Click Solve Schedule.':'Tiada jadual. Klik Selesai Jadual.',
+'Employee ID':'ID Pekerja','Date (YYYY-MM-DD)':'Tarikh (TTTT-BB-HH)',
+'Sick leave recorded':'Cuti sakit direkodkan','Schedule resynced':'Jadual disegerakkan',
+'Product Name':'Nama Produk','Quantity':'Kuantiti','Price (RM)':'Harga (RM)',
+'Inflow Scan':'Imbasan Masuk','Manual Inflow':'Kemasukan Manual',
+'fresh':'segar','day-1':'hari-1','Total Stock':'Jumlah Stok',
+'Inflow complete':'Kemasukan selesai','batches created':'kelompok dicipta',
+'Product:':'Produk:','Qty:':'Kuan:','Add Batch':'Tambah Kelompok',
+'Batches':'Kelompok','Details':'Butiran','Close':'Tutup',
+'Production Time':'Masa Pengeluaran','Status':'Status',
+'Shift':'Syif','Role':'Peranan','Employee':'Pekerja','Re-sync complete (fresh schedule)':'Segerak selesai (jadual baharu)','Day-1 stock:':'Stok Hari-1:','Fresh stock:':'Stok segar:','e.g. How many croissants tomorrow?':'cth. Berapa croissant esok?','Enter username and password':'Sila masukkan nama pengguna dan kata laluan','Signing in...':'Sedang log masuk...','Manager':'Pengurus','Staff':'Kakitangan','Camera - Visual Recognition':'Kamera - Pengecaman Visual','Click to scan / upload image':'Klik untuk imbas / muat naik imej','Scanning tray...':'Mengimbas dulang...','Fresh Batch Inflow':'Kemasukan Kelompok Segar','Scan fresh-baked goods to add to inventory':'Imbas barangan baru dibakar untuk ditambah ke inventori','Scan Fresh Batch':'Imbas Kelompok Segar','Confirm Inflow':'Sahkan Kemasukan','HITL Correction Log':'Log Pembetulan HITL','AI Store Manager':'Pengurus Kedai AI','Loading...':'Memuatkan...','Loading shifts...':'Memuatkan syif...','Loading inventory...':'Memuatkan inventori...','Top-3 Bundle':'Pakej Top-3','batches | Click Refresh to update':'kelompok | Klik Muat Semula','KPI error':'Ralat KPI','Loading KPI...':'Memuat KPI...','Batch ID':'ID Kelompok','Area':'Kawasan','Freshness':'Kesegaran','Qty':'Kuan','Batch Inventory':'Inventori Kelompok','KPI':'KPI','Fair':'Adil','Gap (hrs)':'Jurang (jam)','Employees':'Pekerja','Get Sales Script':'Dapatkan Skrip Jualan','Generate':'Jana','Actual':'Sebenar','Expected (shifts)':'Dijangka (syif)','Extra':'Lebihan','Rate':'Kadar','Ask':'Tanya','Restock':'Stok Semula','Waste':'Bazir','Schedule':'Jadual','Audit':'Audit','Type a question':'Taip soalan','Enter a question':'Masukkan soalan','Processing...':'Memproses...','restock_q':'Berapa croissant perlu saya bakar esok?','waste_q':'Kenapa pembaziran tinggi minggu ini?','schedule_q':'Periksa jadual untuk anomali','audit_q':'Jalankan pemeriksaan kesihatan kedai penuh','Stock:':'Stok:',
+}};
+function t(k){var m=T[LANG];if(m&&m[k])return m[k];if(LANG!=='en'&&T.en&&T.en[k])return T.en[k];return k;}
+function setLang(l){
+LANG=l;localStorage.setItem('bakery_lang',l);
+document.getElementById('lang-en').classList.toggle('active',l==='en');
+document.getElementById('lang-bm').classList.toggle('active',l==='bm');
+// Update static DOM elements
+var btns=document.querySelectorAll('.sidebar nav button');
+if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('AI Brain');}
+var lo=document.querySelector('.logout-btn');if(lo)lo.textContent=t('Sign Out');
+var ab=document.getElementById('alert-badge');if(ab){ab.title=t('System Alerts');ab.childNodes[1].textContent=' '+t('Alerts')+' ';}
+var un=document.getElementById('username');if(un)un.placeholder=t('Username');
+var pw=document.getElementById('password');if(pw)pw.placeholder=t('Password');
+var si=document.getElementById('signin-btn');if(si)si.textContent=t('Sign In');
+// Update modal buttons
+var modals=document.querySelectorAll('[id$="-modal"]');
+for(var i=0;i<modals.length;i++){
+var btns=modals[i].querySelectorAll('button');
+for(var j=0;j<btns.length;j++){
+var txt=btns[j].textContent.trim();
+if(txt==='Cancel'||txt==='Batal')btns[j].textContent=t('Cancel');
+if(txt==='Confirm'||txt==='Sahkan')btns[j].textContent=t('Confirm');
+if(txt==='Close'||txt==='Tutup')btns[j].textContent=t('Close');
+if(txt==='Delete'||txt==='Padam')btns[j].textContent=t('Delete');
+if(txt==='Edit'||txt==='Sunting')btns[j].textContent=t('Edit');
+}}
+// Update freshness dropdown
+var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
+agentState=null;cachedInventory=null;showPanel(currentPanel);
+}
+setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
+
 function doLogout(){
 token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];
 document.getElementById('dashboard').classList.add('hidden');
@@ -290,16 +422,18 @@ document.getElementById('login-page').classList.remove('hidden');
 document.getElementById('signin-btn').disabled=false;
 document.getElementById('signin-btn').textContent='Sign In';
 }
-function showPanel(panel){
+async function showPanel(panel){
 currentPanel=panel;
 var btns=document.querySelectorAll('.sidebar nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:'POS Checkout',forecast:'Sales Forecast',schedule:'Shift Schedule',inventory:'Inventory',agent:'AI Brain'};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),agent:t('AI Brain')};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,agent:renderAgent};
+if(panel==='pos')await loadS5DiscountCache();
+if(currentPanel!==panel)return;
 if(panels[panel])panels[panel](ca);
 }
 async function api(url,opts){
@@ -324,6 +458,7 @@ var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:3.5,bread_roll:3.5,chi
 var PRODUCT_COSTS={donut:1.35,croissant:1.9,bread_coconut:1.05,bread_roll:1.05,chiffon:1.75,croissant_chocolate:1.9};
 var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
 var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.py
+var s5DiscountCache={};
 
 var COFFEE_DRINKS=[
 {name:'Latte',desc:'Smooth espresso with steamed milk',price:'8.50',key:'latte'},
@@ -337,19 +472,19 @@ var COFFEE_DRINKS=[
 async function doLogin(){
 var u=document.getElementById('username').value.trim();
 var p=document.getElementById('password').value;
-if(!u||!p){document.getElementById('error-msg').textContent='Enter username and password';return}
+if(!u||!p){document.getElementById('error-msg').textContent=t('Enter username and password');return}
 document.getElementById('signin-btn').disabled=true;
-document.getElementById('signin-btn').textContent='Signing in...';
+document.getElementById('signin-btn').textContent=t('Signing in...');
 try{
 var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-if(!r.ok){var txt=await r.text();throw new Error(txt||'Invalid credentials')}
+if(!r.ok){var txt=await r.text();throw new Error(txt||t('Request failed'))}
 var d=await r.json();
-token=d.access_token;role=d.role;username=d.username;API=window.location.origin;S5_API=API.replace(":8002",":8001");
+token=d.access_token;role=d.role;username=d.username;API=window.location.origin;S5_API=API+'/s5';
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
 document.getElementById('user-display').textContent=username;
 var badge=document.getElementById('role-badge');
-badge.textContent=role==='manager'?'Manager':'Staff';
+badge.textContent=role==='manager'?t('Manager'):t('Staff');
 badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
 var mb=document.querySelectorAll('.manager-only');
 for(var i=0;i<mb.length;i++)mb[i].style.display=role==='manager'?'':'none';
@@ -361,6 +496,124 @@ document.getElementById('signin-btn').textContent='Sign In';
 }
 }
 
+
+var LANG='en';
+var T={
+en:{
+'POS Checkout':'POS Checkout','Sales Forecast':'Sales Forecast','Shift Schedule':'Shift Schedule',
+'Inventory':'Inventory','AI Brain':'AI Brain','Sign Out':'Sign Out','Alerts':'Alerts',
+'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
+'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
+'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
+'Generating...':'Generating...','Save RM':'Save RM',
+'Sales Script':'Sales Script','Generating script...':'Generating script...',
+'Script generation failed. Try our combos!':'Script generation failed. Try our combos!',
+'Payment Complete':'Payment Complete','items deducted':'items deducted',
+'Refresh':'Refresh','Loading forecast...':'Loading forecast...',
+'Product':'Product','Date':'Date','Predicted':'Predicted','Range':'Range','Confidence':'Confidence',
+'today':'today','high':'high','medium':'medium','low':'low',
+'closed':'closed','Forecast error':'Forecast error','No forecast data available':'No forecast data available',
+'Solve Schedule':'Solve Schedule','Resync':'Resync','Add Sick Leave':'Add Sick Leave',
+'Prep Checklist':'Prep Checklist','Acknowledge':'Acknowledge',
+'Stock':'Stock','Fresh':'Fresh','Day-1':'Day-1','Day-2':'Day-2','Near-Expired':'Near-Expired',
+'Send':'Send','Ask me anything...':'Ask me anything...',
+'AI Summary':'AI Summary','System Alerts':'System Alerts',
+'Username':'Username','Password':'Password','Sign In':'Sign In',
+'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token',
+'Request failed':'Request failed','Manager only':'Manager only',
+'Cannot modify past schedules. Select today or a future date.':'Cannot modify past schedules. Select today or a future date.',
+'OK':'OK','Cancel':'Cancel','Error':'Error',
+'Delete':'Delete','Edit':'Edit','Confirm':'Confirm',
+'Confirmed':'Confirmed','Needs Review':'Needs Review','Pending':'Pending',
+'No corrections yet':'No corrections yet','corrections':'corrections',
+'Scan error':'Scan error','Bundle error':'Bundle error',
+'Payment Failed':'Payment Failed','No items in cart':'No items in cart',
+'Generate Top-3 bundles first':'Generate Top-3 bundles first',
+'Script generation failed':'Script generation failed',
+'No pending schedule found. Click Solve Schedule.':'No pending schedule found. Click Solve Schedule.',
+'Employee ID':'Employee ID','Date (YYYY-MM-DD)':'Date (YYYY-MM-DD)',
+'Sick leave recorded':'Sick leave recorded','Schedule resynced':'Schedule resynced',
+'Product Name':'Product Name','Quantity':'Quantity','Price (RM)':'Price (RM)',
+'Inflow Scan':'Inflow Scan','Manual Inflow':'Manual Inflow',
+'fresh':'fresh','day-1':'day-1','Total Stock':'Total Stock',
+'Inflow complete':'Inflow complete','batches created':'batches created',
+'Product:':'Product:','Qty:':'Qty:','Add Batch':'Add Batch',
+'Batches':'Batches','Details':'Details','Close':'Close',
+'Production Time':'Production Time','Status':'Status',
+'Shift':'Shift','Role':'Role','Employee':'Employee','Re-sync complete (fresh schedule)':'Re-sync complete (fresh schedule)','Day-1 stock:':'Day-1 stock:','Fresh stock:':'Fresh stock:','e.g. How many croissants tomorrow?':'e.g. How many croissants tomorrow?','Enter username and password':'Enter username and password','Signing in...':'Signing in...','Manager':'Manager','Staff':'Staff','Camera - Visual Recognition':'Camera - Visual Recognition','Click to scan / upload image':'Click to scan / upload image','Scanning tray...':'Scanning tray...','Fresh Batch Inflow':'Fresh Batch Inflow','Scan fresh-baked goods to add to inventory':'Scan fresh-baked goods to add to inventory','Scan Fresh Batch':'Scan Fresh Batch','Confirm Inflow':'Confirm Inflow','HITL Correction Log':'HITL Correction Log','AI Store Manager':'AI Store Manager','Loading...':'Loading...','Loading shifts...':'Loading shifts...','Loading inventory...':'Loading inventory...','Top-3 Bundle':'Top-3 Bundle','batches | Click Refresh to update':'batches | Click Refresh to update','KPI error':'KPI error','Loading KPI...':'Loading KPI...','Batch ID':'Batch ID','Area':'Area','Freshness':'Freshness','Qty':'Qty','Batch Inventory':'Batch Inventory','KPI':'KPI','Fair':'Fair','Gap (hrs)':'Gap (hrs)','Employees':'Employees','Get Sales Script':'Get Sales Script','Generate':'Generate','Actual':'Actual','Expected (shifts)':'Expected (shifts)','Extra':'Extra','Rate':'Rate','Ask':'Ask','Restock':'Restock','Waste':'Waste','Schedule':'Schedule','Audit':'Audit','Type a question':'Type a question','Enter a question':'Enter a question','Processing...':'Processing...','restock_q':'How many croissants should I bake tomorrow?','waste_q':'Why is waste high this week?','schedule_q':'Check schedule for anomalies','audit_q':'Run full store health check','Stock:':'Stock:',
+},
+bm:{
+'POS Checkout':'POS Daftar Keluar','Sales Forecast':'Ramalan Jualan','Shift Schedule':'Jadual Syif',
+'Inventory':'Inventori','AI Brain':'Otak AI','Sign Out':'Log Keluar','Alerts':'Amaran',
+'Cart':'Troli','Scan items or use manual entry':'Imbas barang atau guna entri manual',
+'Generate Top-3':'Jana Top-3','Checkout':'Bayar','Total':'Jumlah',
+'Add items to cart then generate Top-3 bundles':'Tambah barang ke troli kemudian jana pakej Top-3',
+'Generating...':'Menjana...','Save RM':'Jimat RM',
+'Sales Script':'Skrip Jualan','Generating script...':'Menjana skrip...',
+'Script generation failed. Try our combos!':'Penjanaan skrip gagal. Cuba pakej kami!',
+'Payment Complete':'Pembayaran Selesai','items deducted':'barang ditolak',
+'Refresh':'Muat Semula','Loading forecast...':'Memuat ramalan...',
+'Product':'Produk','Date':'Tarikh','Predicted':'Ramalan','Range':'Julat','Confidence':'Keyakinan',
+'today':'hari ini','high':'tinggi','medium':'sederhana','low':'rendah',
+'closed':'tutup','Forecast error':'Ralat ramalan','No forecast data available':'Tiada data ramalan',
+'Solve Schedule':'Selesai Jadual','Resync':'Segerak Semula','Add Sick Leave':'Tambah Cuti Sakit',
+'Prep Checklist':'Senarai Semak Persediaan','Acknowledge':'Sahkan',
+'Stock':'Stok','Fresh':'Segar','Day-1':'Hari-1','Day-2':'Hari-2','Near-Expired':'Hampir Luput',
+'Send':'Hantar','Ask me anything...':'Tanya apa sahaja...',
+'AI Summary':'Ringkasan AI','System Alerts':'Amaran Sistem',
+'Username':'Nama Pengguna','Password':'Kata Laluan','Sign In':'Log Masuk',
+'Invalid credentials':'Bukti kelayakan tidak sah','Missing token':'Token hilang','Invalid token':'Token tidak sah',
+'Request failed':'Permintaan gagal','Manager only':'Pengurus sahaja',
+'Cannot modify past schedules. Select today or a future date.':'Tidak boleh ubah jadual lepas. Pilih hari ini atau tarikh akan datang.',
+'OK':'OK','Cancel':'Batal','Error':'Ralat',
+'Delete':'Padam','Edit':'Sunting','Confirm':'Sahkan',
+'Confirmed':'Disahkan','Needs Review':'Perlu Semakan','Pending':'Tertunda',
+'No corrections yet':'Tiada pembetulan lagi','corrections':'pembetulan',
+'Scan error':'Ralat imbasan','Bundle error':'Ralat pakej',
+'Payment Failed':'Pembayaran Gagal','No items in cart':'Tiada barang dalam troli',
+'Generate Top-3 bundles first':'Jana pakej Top-3 dahulu',
+'Script generation failed':'Penjanaan skrip gagal',
+'No pending schedule found. Click Solve Schedule.':'Tiada jadual. Klik Selesai Jadual.',
+'Employee ID':'ID Pekerja','Date (YYYY-MM-DD)':'Tarikh (TTTT-BB-HH)',
+'Sick leave recorded':'Cuti sakit direkodkan','Schedule resynced':'Jadual disegerakkan',
+'Product Name':'Nama Produk','Quantity':'Kuantiti','Price (RM)':'Harga (RM)',
+'Inflow Scan':'Imbasan Masuk','Manual Inflow':'Kemasukan Manual',
+'fresh':'segar','day-1':'hari-1','Total Stock':'Jumlah Stok',
+'Inflow complete':'Kemasukan selesai','batches created':'kelompok dicipta',
+'Product:':'Produk:','Qty:':'Kuan:','Add Batch':'Tambah Kelompok',
+'Batches':'Kelompok','Details':'Butiran','Close':'Tutup',
+'Production Time':'Masa Pengeluaran','Status':'Status',
+'Shift':'Syif','Role':'Peranan','Employee':'Pekerja','Re-sync complete (fresh schedule)':'Segerak selesai (jadual baharu)','Day-1 stock:':'Stok Hari-1:','Fresh stock:':'Stok segar:','e.g. How many croissants tomorrow?':'cth. Berapa croissant esok?','Enter username and password':'Sila masukkan nama pengguna dan kata laluan','Signing in...':'Sedang log masuk...','Manager':'Pengurus','Staff':'Kakitangan','Camera - Visual Recognition':'Kamera - Pengecaman Visual','Click to scan / upload image':'Klik untuk imbas / muat naik imej','Scanning tray...':'Mengimbas dulang...','Fresh Batch Inflow':'Kemasukan Kelompok Segar','Scan fresh-baked goods to add to inventory':'Imbas barangan baru dibakar untuk ditambah ke inventori','Scan Fresh Batch':'Imbas Kelompok Segar','Confirm Inflow':'Sahkan Kemasukan','HITL Correction Log':'Log Pembetulan HITL','AI Store Manager':'Pengurus Kedai AI','Loading...':'Memuatkan...','Loading shifts...':'Memuatkan syif...','Loading inventory...':'Memuatkan inventori...','Top-3 Bundle':'Pakej Top-3','batches | Click Refresh to update':'kelompok | Klik Muat Semula','KPI error':'Ralat KPI','Loading KPI...':'Memuat KPI...','Batch ID':'ID Kelompok','Area':'Kawasan','Freshness':'Kesegaran','Qty':'Kuan','Batch Inventory':'Inventori Kelompok','KPI':'KPI','Fair':'Adil','Gap (hrs)':'Jurang (jam)','Employees':'Pekerja','Get Sales Script':'Dapatkan Skrip Jualan','Generate':'Jana','Actual':'Sebenar','Expected (shifts)':'Dijangka (syif)','Extra':'Lebihan','Rate':'Kadar','Ask':'Tanya','Restock':'Stok Semula','Waste':'Bazir','Schedule':'Jadual','Audit':'Audit','Type a question':'Taip soalan','Enter a question':'Masukkan soalan','Processing...':'Memproses...','restock_q':'Berapa croissant perlu saya bakar esok?','waste_q':'Kenapa pembaziran tinggi minggu ini?','schedule_q':'Periksa jadual untuk anomali','audit_q':'Jalankan pemeriksaan kesihatan kedai penuh','Stock:':'Stok:',
+}};
+function t(k){var m=T[LANG];if(m&&m[k])return m[k];if(LANG!=='en'&&T.en&&T.en[k])return T.en[k];return k;}
+function setLang(l){
+LANG=l;localStorage.setItem('bakery_lang',l);
+document.getElementById('lang-en').classList.toggle('active',l==='en');
+document.getElementById('lang-bm').classList.toggle('active',l==='bm');
+// Update static DOM elements
+var btns=document.querySelectorAll('.sidebar nav button');
+if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('AI Brain');}
+var lo=document.querySelector('.logout-btn');if(lo)lo.textContent=t('Sign Out');
+var ab=document.getElementById('alert-badge');if(ab){ab.title=t('System Alerts');ab.childNodes[1].textContent=' '+t('Alerts')+' ';}
+var un=document.getElementById('username');if(un)un.placeholder=t('Username');
+var pw=document.getElementById('password');if(pw)pw.placeholder=t('Password');
+var si=document.getElementById('signin-btn');if(si)si.textContent=t('Sign In');
+var modals=document.querySelectorAll('[id$="-modal"]');
+for(var mi=0;mi<modals.length;mi++){
+var btns=modals[mi].querySelectorAll('button');
+for(var mj=0;mj<btns.length;mj++){
+var txt=btns[mj].textContent.trim();
+if(txt==='Cancel'||txt==='Batal')btns[mj].textContent=t('Cancel');
+if(txt==='Confirm'||txt==='Sahkan')btns[mj].textContent=t('Confirm');
+if(txt==='Close'||txt==='Tutup')btns[mj].textContent=t('Close');
+if(txt==='Delete'||txt==='Padam')btns[mj].textContent=t('Delete');
+if(txt==='Edit'||txt==='Sunting')btns[mj].textContent=t('Edit');
+}}
+var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
+agentState=null;cachedInventory=null;showPanel(currentPanel);
+}
+setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
+
 function doLogout(){
 token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];
 document.getElementById('dashboard').classList.add('hidden');
@@ -369,16 +622,18 @@ document.getElementById('signin-btn').disabled=false;
 document.getElementById('signin-btn').textContent='Sign In';
 }
 
-function showPanel(panel){
+async function showPanel(panel){
 currentPanel=panel;
 var btns=document.querySelectorAll('.sidebar nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:'POS Checkout',forecast:'Sales Forecast',schedule:'Shift Schedule',inventory:'Inventory',agent:'AI Brain'};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),agent:t('AI Brain')};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,agent:renderAgent};
+if(panel==='pos')await loadS5DiscountCache();
+if(currentPanel!==panel)return;
 if(panels[panel])panels[panel](ca);
 }
 
@@ -401,6 +656,19 @@ if(!rate && item.tray_color){
 return base*(1-rate);
 }
 
+async function loadS5DiscountCache(){
+if(Object.keys(s5DiscountCache).length>0)return;
+try{
+var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
+var r=await fetch(S5_API+'/discounts',{method:'POST',headers:hdrs,body:JSON.stringify({products:['donut','croissant','bread_coconut','bread_roll','chiffon','croissant_chocolate']})});
+if(r.ok){
+var d=await r.json();
+var discounts=d.discounts||{};
+for(var k in discounts){s5DiscountCache[k]=discounts[k].discount_pct||0;}
+}
+}catch(ex){console.log('S5 discount cache load failed');}
+}
+
 function renderPOS(c){
 var total=0;for(var i=0;i<cartItems.length;i++)total+=getItemPrice(cartItems[i])*cartItems[i].quantity;
 
@@ -410,9 +678,9 @@ for(var i=0;i<detections.length;i++){
 var d=detections[i];
 var cc=d.confidence>=0.9?'high':(d.confidence>=0.7?'mid':'low');
 var tc=d.tray_color==='green'?'detect-tag-fresh':(d.tray_color==='orange'?'detect-tag-discount':'detect-tag-day1');
-var tl=d.tray_color==='green'?'Fresh':(d.tray_color==='orange'?'30% Off':'Day-1');
+var tl=d.tray_color==='green'?t('Fresh'):(d.tray_color==='orange'?'30% Off':t('Day-1'));
 var sc=d.status==='confirmed'?'detect-status-confirmed':(d.status==='review'?'detect-status-review':'detect-status-pending');
-var sl=d.status==='confirmed'?'Confirmed':(d.status==='review'?'Needs Review':'Pending');
+var sl=d.status==='confirmed'?t('Confirmed'):(d.status==='review'?t('Needs Review'):t('Pending'));
 var pr=(PRODUCT_PRICES[d.product_name]||COFFEE_PRICES[d.product_name]||5).toFixed(2);
 detectHTML+='<div class="detect-card">';
 detectHTML+='<div class="detect-header"><span class="detect-name">'+d.product_name.replace(/_/g,' ')+'</span>';
@@ -423,9 +691,9 @@ detectHTML+='<span>AI: <span class="detect-confidence '+cc+'">'+Math.round(d.con
 detectHTML+='</div>';
 detectHTML+='<div><span class="detect-tag '+tc+'">'+tl+'</span> <span class="detect-status '+sc+'">'+sl+'</span></div>';
 detectHTML+='<div class="detect-actions">';
-detectHTML+='<button class="detect-confirm" onclick="confirmDetect('+i+')">Confirm</button>';
-detectHTML+='<button class="detect-edit" onclick="editDetect('+i+')">Edit</button>';
-detectHTML+='<button class="detect-delete" onclick="deleteDetect('+i+')">Delete</button>';
+detectHTML+='<button class="detect-confirm" onclick="confirmDetect('+i+')">'+t('Confirm')+'</button>';
+detectHTML+='<button class="detect-edit" onclick="editDetect('+i+')">'+t('Edit')+'</button>';
+detectHTML+='<button class="detect-delete" onclick="deleteDetect('+i+')">'+t('Delete')+'</button>';
 detectHTML+='</div></div>';
 }
 
@@ -437,7 +705,7 @@ var nm=capName(item.product_name);
 var pr=getItemPrice(item);
 var st=item.status||'pending';
 var stColors={confirmed:'detect-status-confirmed',review:'detect-status-review',pending:'detect-status-pending'};
-var stLabels={confirmed:'Confirmed',review:'Needs Review',pending:'Pending'};
+var stLabels={confirmed:t('Confirmed'),review:t('Needs Review'),pending:t('Pending')};
 cartHTML+='<div class="detect-card" style="margin-bottom:6px;padding:10px 12px">';
 cartHTML+='<div class="detect-header"><span class="detect-name" style="font-size:15px">'+nm+'</span>';
 cartHTML+='<span class="detect-qty">x'+item.quantity+'</span></div>';
@@ -451,8 +719,8 @@ if(item.discount_rate&&item.discount_rate>0){
 cartHTML+='<span class="detect-status '+stColors[st]+'" style="font-size:11px">'+stLabels[st]+'</span>';
 cartHTML+='</div>';
 cartHTML+='<div class="detect-actions" style="margin-top:4px">';
-cartHTML+='<button class="detect-confirm" onclick="editCartItem('+i+')">Edit</button>';
-cartHTML+='<button class="detect-delete" onclick="removeCartItem('+i+')">Delete</button>';
+cartHTML+='<button class="detect-confirm" onclick="editCartItem('+i+')">'+t('Edit')+'</button>';
+cartHTML+='<button class="detect-delete" onclick="removeCartItem('+i+')">'+t('Delete')+'</button>';
 cartHTML+='</div></div>';
 }
 
@@ -461,18 +729,18 @@ var bundleHTML='';
 if(bundleRecs.length>0){
 var isGenerating=bundleRecs.length===1&&bundleRecs[0].products==='Generating...';
 if(isGenerating){
-bundleHTML='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px"><span class="spinner"></span> Generating...</p>';
+bundleHTML='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px"><span class="spinner"></span> '+t('Generating...')+'</p>';
 }else{
 for(var i=0;i<bundleRecs.length;i++){
 var b=bundleRecs[i];
 bundleHTML+='<div class="bundle-card" onclick="addBundleToCart('+i+')">';
-bundleHTML+='<div class="bundle-rank">#'+(i+1)+' Top-3 Bundle</div>';
+bundleHTML+='<div class="bundle-rank">#'+(i+1)+' '+t('Top-3 Bundle')+'</div>';
 bundleHTML+='<div class="bundle-products">'+b.products+'</div>';
 bundleHTML+='<div class="bundle-price">RM '+b.total_price.toFixed(2)+'</div>';
-bundleHTML+='<div class="bundle-save">Save RM '+b.savings.toFixed(2)+'</div></div>';
+bundleHTML+='<div class="bundle-save">'+t('Save RM')+' '+b.savings.toFixed(2)+'</div></div>';
 }
 }
-}else{bundleHTML='<div class="bundle-hint">Add items to cart then generate Top-3 bundles</div>';}
+}else{bundleHTML='<div class="bundle-hint">'+t('Add items to cart then generate Top-3 bundles')+'</div>';}
 
 
 
@@ -513,12 +781,12 @@ if(discountRate>0){
 }
 bakeryBtns+='<div style="margin-top:4px;display:flex;gap:6px;align-items:center">';
                     if(freshQty>0){
-bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Fresh'"+')" title="Fresh stock: '+freshQty+'" style="width:14px;height:14px;border-radius:50%;background:#4caf50;cursor:pointer'+(curFresh==='Fresh'?'box-shadow:0 0 0 3px rgba(76,175,80,.4)':'opacity:0.5')+'"></div>';
+bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Fresh'"+')" title="'+t('Fresh stock:')+' '+freshQty+'" style="width:14px;height:14px;border-radius:50%;background:#4caf50;cursor:pointer'+(curFresh==='Fresh'?'box-shadow:0 0 0 3px rgba(76,175,80,.4)':'opacity:0.5')+'"></div>';
                     }
                     if(day1Qty>0){
-bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Day-1'"+')" title="Day-1 stock: '+day1Qty+'" style="width:14px;height:14px;border-radius:50%;background:#ff9800;cursor:pointer'+(curFresh==='Day-1'?'box-shadow:0 0 0 3px rgba(255,152,0,.4)':'opacity:0.5')+'"></div>';
+bakeryBtns+='<div onclick="event.stopPropagation();selectFreshness('+"'"+bk+"','Day-1'"+')" title="'+t('Day-1 stock:')+' '+day1Qty+'" style="width:14px;height:14px;border-radius:50%;background:#ff9800;cursor:pointer'+(curFresh==='Day-1'?'box-shadow:0 0 0 3px rgba(255,152,0,.4)':'opacity:0.5')+'"></div>';
                     }
-bakeryBtns+='<span style="font-size:9px;color:#888">'+(curFresh==='Day-1'?'Day-1 '+(DISCOUNT_RATE*100)+'%OFF':'Fresh')+'</span>';
+bakeryBtns+='<span style="font-size:9px;color:#888">'+(curFresh==='Day-1'?t('Day-1')+' '+(DISCOUNT_RATE*100)+'%OFF':t('Fresh'))+'</span>';
 bakeryBtns+='</div></button>';
 }
 
@@ -526,25 +794,25 @@ bakeryBtns+='</div></button>';
 var hitlHTML='';
 if(hitlLog.length>0){
 var recent=hitlLog.slice(-3);
-hitlHTML='<b>'+hitlLog.length+'</b> corrections: ';
+hitlHTML='<b>'+hitlLog.length+'</b> '+t('corrections')+': ';
 for(var i=0;i<recent.length;i++){hitlHTML+=recent[i].action+': '+recent[i].product;if(i<recent.length-1)hitlHTML+='; ';}
-}else{hitlHTML='No corrections yet';}
+}else{hitlHTML=t('No corrections yet');}
 
 var h='';
 h+='<div style="display:flex;gap:16px;flex:1;overflow:hidden;padding:0;min-height:0">';
 
 // LEFT
 h+='<div style="width:380px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto">';
-h+='<div class="panel"><h4>Camera - Visual Recognition</h4>';
+h+='<div class="panel"><h4>'+t('Camera - Visual Recognition')+'</h4>';
 h+='<div class="scan-area" style="padding:20px;margin-bottom:12px" onclick="triggerScan()">';
-h+='<div class="icon">&#128247;</div><p>Click to scan / upload image</p></div>';
+h+='<div class="icon">&#128247;</div><p>'+t('Click to scan / upload image')+'</p></div>';
 h+='<div id="detect-list">';
-if(detections.length>0){h+=detectHTML;}else if(scanning){h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:20px"><span class="spinner"></span> Scanning tray...</p>';}else{h+='<p style="color:#ccc;font-size:13px;text-align:center;padding:20px">Scan a tray to begin</p>';}
+if(detections.length>0){h+=detectHTML;}else if(scanning){h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:20px"><span class="spinner"></span> '+t('Scanning tray...')+'</p>';}else{h+='<p style="color:#ccc;font-size:13px;text-align:center;padding:20px">Scan a tray to begin</p>';}
 h+='</div>';
 h+='';
-h+='<div class="panel" style="border:2px solid #8b6914"><h4>Fresh Batch Inflow</h4>';
-h+='<p style="font-size:12px;color:#8b6914;margin-bottom:8px">Scan fresh-baked goods to add to inventory</p>';
-h+='<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:6px" onclick="startInflowScan()">Scan Fresh Batch</button>';
+h+='<div class="panel" style="border:2px solid #8b6914"><h4>'+t('Fresh Batch Inflow')+'</h4>';
+h+='<p style="font-size:12px;color:#8b6914;margin-bottom:8px">'+t('Scan fresh-baked goods to add to inventory')+'</p>';
+h+='<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:6px" onclick="startInflowScan()">'+t('Scan Fresh Batch')+'</button>';
 h+='<div id="inflow-preview" style="font-size:12px;color:#8b6914;margin-top:4px"></div>';
 if(inflowDets.length>0){
 var infHTML='';
@@ -560,17 +828,17 @@ infHTML+='<span>RM '+pr+'</span>';
 infHTML+='<span>AI: <span class="detect-confidence '+cc+'">'+Math.round((id.confidence||0.95)*100)+'%</span></span>';
 infHTML+='</div>';
 infHTML+='<div class="detect-actions">';
-infHTML+='<button class="detect-confirm" onclick="editInflowDetect('+j+')">Edit</button>';
-infHTML+='<button class="detect-delete" onclick="deleteInflowDetect('+j+')">Delete</button>';
+infHTML+='<button class="detect-confirm" onclick="editInflowDetect('+j+')">'+t('Edit')+'</button>';
+infHTML+='<button class="detect-delete" onclick="deleteInflowDetect('+j+')">'+t('Delete')+'</button>';
 infHTML+='</div></div>';
 }
-infHTML+='<button class="btn btn-success btn-sm" style="width:100%;margin-top:8px" onclick="confirmInflow()">Confirm Inflow</button>';
+infHTML+='<button class="btn btn-success btn-sm" style="width:100%;margin-top:8px" onclick="confirmInflow()">'+t('Confirm Inflow')+'</button>';
 h+=infHTML;
 }
 h+='</div>';
 
 h+='</div>';
-h+='<div class="panel"><h4>HITL Correction Log <span class="detect-tag '+(hitlLog.length>0?'detect-tag-day1':'detect-tag-fresh')+'">'+hitlLog.length+'</span></h4>';
+h+='<div class="panel"><h4>'+t('HITL Correction Log')+' <span class="detect-tag '+(hitlLog.length>0?'detect-tag-day1':'detect-tag-fresh')+'">'+hitlLog.length+'</span></h4>';
 h+='<div class="hit-log">'+hitlHTML+'</div></div>';
 h+='</div>';
 
@@ -593,10 +861,10 @@ h+='</div></div>';
 // RIGHT
 h+='<div style="width:360px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto">';
 h+='<div class="panel"><h4>AI Bundle Recommendation</h4>';
-h+='<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px" onclick="generateBundle()">Generate Top-3</button>';
+h+='<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px" onclick="generateBundle()">'+t('Generate Top-3')+'</button>';
 h+='<div class="bundle-grid">'+bundleHTML+'</div></div>';
-h+='<div class="panel"><h4>Sales Script</h4>';
-h+='<button class="btn btn-success btn-sm" style="width:100%" onclick="getScript()">Get Sales Script</button>';
+h+='<div class="panel"><h4>'+t('Sales Script')+'</h4>';
+h+='<button class="btn btn-success btn-sm" style="width:100%" onclick="getScript()">'+t('Get Sales Script')+'</button>';
 h+='<div id="script-area" style="margin-top:8px;font-size:13px;color:#8b6914"></div></div>';
 h+='</div>';
 
@@ -610,7 +878,7 @@ var d=detections[idx];if(!d)return;d.status='confirmed';
 var found=false;
 for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===d.product_name&&cartItems[i].tray_color===d.tray_color){cartItems[i].quantity+=d.quantity;found=true;break;}}
 if(!found)cartItems.push({product_name:d.product_name,quantity:d.quantity,confidence:d.confidence,bbox:[],tray_color:d.tray_color,status:d.status||'pending'});
-hitlLog.push({action:'Confirmed',product:d.product_name,time:new Date().toLocaleTimeString()});
+hitlLog.push({action:t('Confirmed'),product:d.product_name,time:new Date().toLocaleTimeString()});
 renderPOS(document.getElementById('content-area'));
 }
 function editDetect(idx){
@@ -650,7 +918,7 @@ var found=false;
 for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name){cartItems[i].quantity+=1;found=true;break;}}
 if(!fresh||fresh==="undefined")fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh";
 var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-var dr={"Fresh":0,"Day-1":DISCOUNT_RATE,"Day-2":DISCOUNT_RATE,"Near-Expired":DISCOUNT_RATE};
+var cacheLoaded=Object.keys(s5DiscountCache).length>0;var dynRate=cacheLoaded?Math.max((s5DiscountCache[name]||0)/100,DISCOUNT_RATE):DISCOUNT_RATE;var dr={"Fresh":0,"Day-1":dynRate,"Day-2":dynRate,"Near-Expired":dynRate};
 var tray=tc[fresh]||"green";
 var disc=dr[fresh]||0;
 if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tray,discount_rate:disc,freshness:fresh,status:'confirmed'});
@@ -667,12 +935,13 @@ var det=lastScanResult[i];
 detections.push({product_name:det.product_name,quantity:det.quantity||1,confidence:det.confidence||0.5,bbox:det.bbox||[],tray_color:det.tray_color||'green',status:det.confidence>=0.85?'confirmed':(det.confidence>=0.7?'review':'pending'),stock:det.stock||'--'});
 }
 scanning=false;hitlLog=[];renderPOS(document.getElementById('content-area'));
-}).catch(function(err){scanning=false;alert('Scan error: '+err.message);renderPOS(document.getElementById('content-area'));});
+}).catch(function(err){scanning=false;alert(t('Scan error')+': '+err.message);renderPOS(document.getElementById('content-area'));});
 document.getElementById('scan-file').value='';
 }
 async function completePayment(){
 if(!cartItems.length){alert('Cart is empty');return}
-for(var i=0;i<cartItems.length;i++){var ci=cartItems[i];if(!stockMap||!stockMap[ci.product_name]||stockMap[ci.product_name]<=0){alert('No stock for '+ci.product_name+'. Cannot checkout.');return;}}
+var COFFEE_KEYS={latte:1,americano:1,cappuccino:1,cold_brew:1,espresso:1,flat_white:1,mocha:1,iced_americano:1};
+for(var i=0;i<cartItems.length;i++){var ci=cartItems[i];if(!COFFEE_KEYS[ci.product_name]&&(!stockMap||!stockMap[ci.product_name]||stockMap[ci.product_name]<=0)){alert('No stock for '+ci.product_name+'. Cannot checkout.');return;}}
 var total=0;for(var i=0;i<cartItems.length;i++)total+=getItemPrice(cartItems[i])*cartItems[i].quantity;
 var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
@@ -680,7 +949,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert('Payment Complete - RM '+total.toFixed(2)+'\n'+d.deducted.length+' items deducted');cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
+if(d.status==='ok'){alert(t('Payment Complete')+' - RM '+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -692,6 +961,7 @@ var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color|
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 // Get dynamic discounts from S5 for accurate savings
+var discountOverrides={};
 try{
 var ALL_BAKERY=['donut','croissant','bread_coconut','bread_roll','chiffon','croissant_chocolate'];
 var productNames=items.map(function(it){return it.product_name;}).filter(function(v,i,a){return a.indexOf(v)===i;});
@@ -703,10 +973,10 @@ if(s5r.ok){
 var s5d=await s5r.json();
 var discounts=s5d.discounts||{};
 // Build per-product discount overrides (only for bakery products in discount results)
-var discountOverrides={};
+discountOverrides={};
 for(var k in discounts){if(discounts[k].discount_pct>0)discountOverrides[k]=discounts[k].discount_pct;}
 }
-}catch(ex){console.log('S5 discount lookup failed, using default');}
+}catch(ex){throw new Error('Dynamic discount service (S5) unavailable. Please start S5 server on port 8002.');}
 var comboBody={items:items};
 if(Object.keys(discountOverrides).length>0)comboBody.discount_overrides=discountOverrides;
 var r=await fetch(API+'/s4/combo',{method:'POST',headers:hdrs,body:JSON.stringify(comboBody)});
@@ -726,7 +996,7 @@ discount_rate: (discountOverrides[rc.product_name] || 0) / 100
 });
 }
 renderPOS(document.getElementById('content-area'));
-}catch(e){alert('Bundle error: '+e.message);}
+}catch(e){alert(t('Bundle error')+': '+e.message);}
 }
 function addBundleToCart(idx){
 var b=bundleRecs[idx];if(!b)return;
@@ -759,8 +1029,8 @@ for(var i=0;i<b.items.length;i++){
 bundleRecs=[];renderPOS(document.getElementById('content-area'));
 }
 async function getScript(){
-if(!bundleRecs.length){alert('Generate Top-3 bundles first');return}
-document.getElementById('script-area').textContent='Generating script...';
+if(!bundleRecs.length){alert(t('Generate Top-3 bundles first'));return}
+document.getElementById('script-area').textContent=t('Generating script...');
 try{
 var scores=[];
 for(var i=0;i<bundleRecs.length;i++){
@@ -782,18 +1052,18 @@ scriptsHtml+='<div style="background:#fdfaf5;border-radius:8px;padding:10px 12px
 }
 }
 document.getElementById('script-area').innerHTML=scriptsHtml;
-}catch(e){document.getElementById('script-area').textContent='Script generation failed. Try our combos!';}
+}catch(e){document.getElementById('script-area').textContent=t('Script generation failed. Try our combos!');}
 }
 
 function renderForecast(c){
-c.innerHTML='<div class="panel" style="flex:1"><h4>Sales Forecast <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadForecast(true)">Refresh</button></h4>'
+c.innerHTML='<div class="panel" style="flex:1"><h4>'+t('Sales Forecast')+' <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadForecast(true)">'+t('Refresh')+'</button></h4>'
 +'<div id="forecast-result" class="result-box"><span class="spinner"></span>Loading forecast...</div></div>';
 loadForecast(false);
 }
 async function loadForecast(force){
 var url=force?'/s2/forecast/refresh?days=7':'/s2/forecast?days=7';
 var el=document.getElementById('forecast-result');
-if(!force) el.innerHTML='<span class="spinner"></span>Loading forecast...';
+if(!force) el.innerHTML='<span class="spinner"></span>'+t('Loading forecast...');
 try{
 var t0=Date.now();
 var r=await api(url);
@@ -824,15 +1094,13 @@ el.innerHTML=tbl;
 function renderSchedule(c){
 c.innerHTML='<div class="panel" style="flex:1"><h4>Shift Schedule</h4>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
-+'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate</button>'
-+'<button class="btn btn-secondary btn-sm" onclick="resyncSchedule()" title="Full regeneration">Re-sync</button>'
-+'<button class="btn btn-secondary btn-sm" onclick="loadKPI()">KPI</button>'
-+'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="'+new Date().toISOString().slice(0,10)+'"><span onclick="setSchedToday()" style="font-size:11px;color:#2980b9;cursor:pointer;white-space:nowrap;margin-left:4px" title="Today">Today</span><span onclick="clearSchedDate()" style="font-size:11px;color:#999;cursor:pointer;white-space:nowrap;margin-left:4px" title="Clear">Clear</span>'
++'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">'+t('Generate')+'</button>'
++'<button class="btn btn-secondary btn-sm" onclick="resyncSchedule()" title="Full regeneration">'+t('Resync')+'</button>'
++'<button class="btn btn-secondary btn-sm" onclick="loadKPI()">'+t('KPI')+'</button>'
++'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="'+new Date().toISOString().slice(0,10)+'" onchange="cachedSchedule=null;cachedDate=null;loadSchedule();loadKPI()">'
 +'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:60vh"><span class="spinner"></span>Loading schedule...</div>'
 +'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'
 +'<div id="kpi-result" style="margin-top:8px"></div></div>';
-function setSchedToday(){var d=document.getElementById('sched-date');var t=new Date();d.value=t.toISOString().slice(0,10);loadSchedule();}
-function clearSchedDate(){document.getElementById('sched-date').value='';loadSchedule();}
 loadSchedule();
 }
 
@@ -845,15 +1113,19 @@ if(check.schedule&&check.schedule.length>0){
   if(!confirm('A schedule already exists. Generate will overwrite all sick/swap changes. Continue?'))return;
 }
 }catch(e){}
+var d2=new Date(sd+'T00:00:00');var genDays=daysToSunday(d2);
 document.getElementById('schedule-result').innerHTML='<span class="spinner"></span>Generating...';
 document.getElementById('swap-msg').textContent='';
 cachedSchedule=null;cachedDate=null;
 try{
-await api('/s3/solve',{method:'POST',body:{start_date:sd,days:7}});
-loadSchedule();loadKPI();
-document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule generated for '+sd+'</span>';
+var solveRes=await api('/s3/solve',{method:'POST',body:{start_date:sd,days:genDays}});
+  if(solveRes.status!=='ok'){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-err"></span>'+solveRes.message;document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+solveRes.message+'</span>';return;}
+  loadSchedule();loadKPI();
+  document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Schedule generated for '+sd+'</span>';
 }catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
+
+function daysToSunday(d){var dow=d.getDay();if(dow===0)return 7;return 7-dow+1;}
 
 async function loadSchedule(){
 var el=document.getElementById('schedule-result');
@@ -863,10 +1135,11 @@ if(cachedSchedule&&cachedDate===sd){
 renderScheduleTable(cachedSchedule,cachedSummary);
 return;
 }
-el.innerHTML='<span class="spinner"></span>Loading...';
+el.innerHTML='<span class="spinner"></span>'+t('Loading...');
 document.getElementById('swap-msg').textContent='';
 try{
-var r=await api('/s3/schedule?date='+sd+'&days=7');
+var d=new Date(sd+'T00:00:00');var days=daysToSunday(d);
+var r=await api('/s3/schedule?date='+sd+'&days='+days);
 var s=r.schedule||[];if(!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No schedule';return}
 renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
 }catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
@@ -874,8 +1147,11 @@ renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
 async function resyncSchedule(){
 if(!confirm('Clear all sick leaves and regenerate from scratch?'))return;
 try{var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
-await api('/s3/resync',{method:'POST',body:{start_date:sd,days:7}});cachedSchedule=null;cachedSummary=null;loadSchedule();loadKPI();
-document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Re-sync complete (fresh schedule)</span>';}
+var genDays=daysToSunday(new Date(sd+'T00:00:00'));
+var resyncRes=await api('/s3/resync',{method:'POST',body:{start_date:sd,days:genDays}});
+  if(resyncRes.status!=='ok'){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-err"></span>'+resyncRes.message;document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+resyncRes.message+'</span>';return;}
+  cachedSchedule=null;cachedSummary=null;loadSchedule();loadKPI();
+  document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+t('Re-sync complete (fresh schedule)')+'</span>';}
 catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
 async function undoSick(id,name,date){
@@ -887,23 +1163,28 @@ loadSchedule();loadKPI();
 document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">Sick leave undone for '+name+'</span>';
 }catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
-async function markSick(id,name,date){
+async function markSick(id,name,date,slot){
 if(!confirm('Mark '+name+' as sick on '+date+'?'))return;
 try{
 var sdEl=document.getElementById('sched-date');
 if(sdEl)sdEl.value=date;
 var ua={};ua[id]=[date];
-await api('/s3/sick',{method:'POST',body:{employee_id:id,date:date,start_date:date,days:7}});cachedSchedule=null;cachedDate=null;
-loadSchedule();loadKPI();
-document.getElementById('swap-msg').innerHTML='<span style="color:#e67e22">'+name+' marked sick on '+date+'</span> <button onclick="undoSick(&apos;'+id+'&apos;,&apos;'+name+'&apos;,&apos;'+date+'&apos;)" style="background:none;border:none;color:#8b6914;cursor:pointer;text-decoration:underline;font-size:12px">Undo</button>';
+var sickRes=await api('/s3/sick',{method:'POST',body:{employee_id:id,date:date,start_date:date,days:7,time_slot:slot||''}});
+  if(sickRes.status!=='ok'){
+    document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+sickRes.message+'</span>';
+    return;
+  }
+  cachedSchedule=null;cachedDate=null;
+  loadSchedule();loadKPI();
+  document.getElementById('swap-msg').innerHTML='<span style="color:#e67e22">'+name+' marked sick on '+date+'</span> <button onclick="undoSick(&apos;'+id+'&apos;,&apos;'+name+'&apos;,&apos;'+date+'&apos;)" style="background:none;border:none;color:#8b6914;cursor:pointer;text-decoration:underline;font-size:12px">Undo</button>';
 }catch(e){document.getElementById('swap-msg').textContent='Error: '+e.message;}
 }
 var SWAP_DATA=null;
-async function startSwap(fromId,fromName,date,slot){
+async function startSwap(fromId,fromName,date,slot,fromRole){
 SWAP_DATA={fromId:fromId,fromName:fromName,date:date,slot:slot};
 window.SWAP_SELECTED=null;
 var container=document.getElementById('swap-employee-list');
-container.innerHTML='<span class="spinner"></span>Loading shifts...';
+container.innerHTML='<span class="spinner"></span>'+t('Loading shifts...');
 document.getElementById('swap-modal-msg').textContent='Swap '+fromName+' on '+date+' ('+slot+')';
 document.getElementById('swap-modal').classList.add('show');
 // Fetch all shifts to list available swaps
@@ -918,7 +1199,13 @@ var s=allShifts[i];
 if(s.employee_id===fromId)continue; // skip self
 var e2=null;
 for(var k=0;k<EMPLOYEES.length;k++){if(EMPLOYEES[k].id===s.employee_id){e2=EMPLOYEES[k];break;}}
-if(!e2||!fromEmp||e2.role!==fromEmp.role)continue;
+var sameSlotSameEmp = (s.date===date && s.time_slot===slot);
+    var fromSkills=new Set([fromEmp.role]);if(fromEmp.sec)fromEmp.sec.forEach(function(x){fromSkills.add(x)});
+    var toSkills=new Set([e2.role]);if(e2.sec)e2.sec.forEach(function(x){toSkills.add(x)});
+    var toShiftRole=s.role;
+    var fromShiftRole=fromRole||fromEmp.role;
+    if(!e2||!fromEmp||sameSlotSameEmp)continue;
+    if(!fromSkills.has(toShiftRole)||!toSkills.has(fromShiftRole))continue;
 html+='<button class="swap-emp-btn" onclick="selectSwapEmployee(event,\''+s.employee_id+'\',\''+s.date+'\',\''+s.time_slot+'\')">'+s.date+' '+s.time_slot+' '+e2.name+'</button>';
 }
 if(!html)html='<p style="color:#999;padding:12px">No available swaps found</p>';
@@ -950,18 +1237,18 @@ else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">
 }
 
 function renderInventory(c){
-c.innerHTML='<div class="panel" style="flex:1"><h4>Batch Inventory <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadInventory(true)">Refresh</button></h4>'
+c.innerHTML='<div class="panel" style="flex:1"><h4>'+t('Batch Inventory')+' <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadInventory(true)">Refresh</button></h4>'
 +'<div id="inventory-result" class="result-box" style="overflow-x:auto;max-height:70vh"><span class="spinner"></span>Loading inventory...</div></div>';
 loadInventory(false);
 }
 async function loadInventory(force){
 var el=document.getElementById('inventory-result');
 if(!force&&cachedInventory){el.innerHTML=cachedInventory;return;}
-if(!force) el.innerHTML='<span class="spinner"></span>Loading inventory...';
+if(!force) el.innerHTML='<span class="spinner"></span>'+t('Loading inventory...');
 try{
 var r=await api('/s1/batch_inventory');var items=r.inventory||[];
 var tbl='<table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed"><colgroup><col style="width:30%"><col style="width:10%"><col style="width:18%"><col style="width:18%"><col style="width:24%"></colgroup><thead><tr style="background:#f5f0e8">';
-tbl+='<th style="padding:8px 6px;text-align:left">Product</th><th style="padding:8px 6px;text-align:center">Qty</th><th style="padding:8px 6px;text-align:center">Freshness</th><th style="padding:8px 6px;text-align:center">Area</th><th style="padding:8px 6px;text-align:left;font-size:11px">Batch ID</th>';
+tbl+='<th style="padding:8px 6px;text-align:left">'+t('Product')+'</th><th style="padding:8px 6px;text-align:center">'+t('Qty')+'</th><th style="padding:8px 6px;text-align:center">'+t('Freshness')+'</th><th style="padding:8px 6px;text-align:center">'+t('Area')+'</th><th style="padding:8px 6px;text-align:left;font-size:11px">'+t('Batch ID')+'</th>';
 tbl+='</tr></thead><tbody>';
 for(var i=0;i<items.length;i++){
 var it=items[i];var q=it.quantity_remaining!=null?it.quantity_remaining:it.quantity;
@@ -978,7 +1265,7 @@ tbl+='<td style="padding:8px 6px;font-size:10px;color:#999;overflow:hidden;text-
 tbl+='</tr>';
 }
 tbl+='</tbody></table>';
-tbl+='<div style="margin-top:6px;font-size:11px;color:#888">'+items.length+' batches | Click Refresh to update</div>';
+tbl+='<div style="margin-top:6px;font-size:11px;color:#888">'+items.length+' '+t('batches | Click Refresh to update')+'</div>';
 el.innerHTML=tbl;
 cachedInventory=tbl;
 }catch(e){el.innerHTML='<span class="status-dot dot-err"></span> Error: '+e.message;}
@@ -986,36 +1273,36 @@ cachedInventory=tbl;
 
 function renderAgent(c){
 if(agentState){c.innerHTML=agentState.html;var qEl=document.getElementById('agent-query');if(qEl)qEl.value=agentState.query||'';return;}
-c.innerHTML='<div class="panel" style="flex:1"><h4>AI Store Manager</h4>'
-+'<div style="margin-bottom:8px"><input id="agent-query" placeholder="e.g. How many croissants tomorrow?" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px" onkeydown="if(event.key==&quot;Enter&quot;)runAgentQuery()"></div>'
+c.innerHTML='<div class="panel" style="flex:1"><h4>'+t('AI Store Manager')+'</h4>'
++'<div style="margin-bottom:8px"><input id="agent-query" placeholder="'+t('e.g. How many croissants tomorrow?')+'" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px" onkeydown="if(event.key==&quot;Enter&quot;)runAgentQuery()"></div>'
 +'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
-+'<button class="btn btn-primary btn-sm" onclick="runAgentQuery()">Ask</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'How many croissants should I bake tomorrow?\')" >Restock</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Why is waste high this week?\')" >Waste</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Check schedule for anomalies\')" >Schedule</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\'Run a full store health check\')" >Audit</button>'
-+'</div><div id="agent-result" class="result-box" style="max-height:65vh;min-height:120px"><span class="status-dot dot-warn"></span>Type a question</div>'
++'<button class="btn btn-primary btn-sm" onclick="runAgentQuery()">'+t('Ask')+'</button>'
++'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('restock_q')+'\')" >'+t('Restock')+'</button>'
++'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('waste_q')+'\')" >'+t('Waste')+'</button>'
++'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('schedule_q')+'\')" >'+t('Schedule')+'</button>'
++'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('audit_q')+'\')" >'+t('Audit')+'</button>'
++'</div><div id="agent-result" class="result-box" style="max-height:65vh;min-height:120px"><span class="status-dot dot-warn"></span>'+t('Type a question')+'</div>'
 +'</div>';
 }
 function runQuickAgent(q){document.getElementById('agent-query').value=q;runAgentQuery();}
 async function runAgentQuery(){
 var q=document.getElementById('agent-query').value.trim();
-if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>Enter a question';return}
-document.getElementById('agent-result').innerHTML='<span class="spinner"></span>Processing...';
+if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>'+t('Enter a question');return}
+document.getElementById('agent-result').innerHTML='<span class="spinner"></span>'+t('Processing...');
 try{var r=await fetch('http://localhost:8001/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,params:{}})}).then(function(x){return x.json()});
 var out='<div style="font-size:13px;line-height:1.6">';
 if(r.rest_note){var rn=r.rest_note.replace('IMPORTANT: ','').replace('PENTING: ','').replace(/You MUST state this clearly at the start of your summary.?\s*/gi,'').replace(/Anda MESTI nyatakan ini pada permulaan ringkasan.?\s*/gi,'');out+='<div style="background:#fff3cd;border-left:3px solid #f39c12;padding:6px 10px;border-radius:0 6px 6px 0;margin:4px 0;font-size:12px;font-weight:600;color:#856404">'+rn+'</div>';}
 var prio=r.priority||'normal';var pc=prio==='critical'?'#e74c3c':prio==='warning'?'#e67e22':'#27ae60';
 out+='<strong>Intent:</strong> '+r.intent+' ('+Math.round((r.intent_confidence||0)*100)+'%)<br>';
-out+='<strong>Product:</strong> '+r.product+' | <strong>Decision:</strong> <span style="color:'+pc+';font-weight:700">'+r.decision+'</span> ('+(r.elapsed_ms||0)+'ms)<br>';
+out+='<strong>'+t('Product:')+'<strong> '+r.product+' | <strong>Decision:</strong> <span style="color:'+pc+';font-weight:700">'+r.decision+'</span> ('+(r.elapsed_ms||0)+'ms)<br>';
 out+='<hr style="border:0;border-top:1px solid #e0d5c7;margin:8px 0">';
 if(r.audit&&r.audit.conflicts&&r.audit.conflicts.length>0){out+='<strong style="color:#e74c3c">Conflicts:</strong><br>';for(var i=0;i<r.audit.conflicts.length;i++)out+='  <span style="color:#e74c3c">!</span> '+r.audit.conflicts[i]+'<br>';}
 if(r.audit&&r.audit.warnings&&r.audit.warnings.length>0){out+='<strong style="color:#e67e22">Warnings:</strong><br>';for(var i=0;i<r.audit.warnings.length;i++)out+='  <span style="color:#e67e22">*</span> '+r.audit.warnings[i]+'<br>';}
 if(r.errors&&r.errors.length>0){out+='<strong style="color:#e74c3c">Agent Errors:</strong><br>';for(var i=0;i<r.errors.length;i++)out+='  '+r.errors[i]+'<br>';}
-if(r.llm_summary){out+='<br><div style="background:#f0f4ff;border-left:3px solid #2980b9;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#2c3e50"><strong style="color:#2980b9">AI Summary</strong><br>'+r.llm_summary+'</div>';}
+if(r.llm_summary){out+='<br><div style="background:#f0f4ff;border-left:3px solid #2980b9;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#2c3e50"><strong style="color:#2980b9">'+t('AI Summary')+'</strong><br>'+r.llm_summary+'</div>';}
 if(r.shap){out+='<br><div style="background:#f5f0ff;border-left:3px solid #8e44ad;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#4a235a"><strong style="color:#8e44ad">Forecast Drivers</strong><br>';var spk=Object.keys(r.shap);for(var si=0;si<spk.length;si++){var sp=r.shap[spk[si]];out+='<strong>'+spk[si]+'</strong>: ';if(sp.top_features&&sp.top_features.length>0){for(var fi=0;fi<sp.top_features.length;fi++){var f=sp.top_features[fi];out+='<span style="background:#ede4f5;padding:1px 6px;border-radius:3px;margin:1px 2px;display:inline-block">'+f.feature+' <b>'+(f.contribution*100).toFixed(0)+'%</b></span> ';}out+='<br>';}else{out+='no data<br>';}}out+='</div>';}
-if(r.pareto_plans&&r.pareto_plans.length>0){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">Plan Options</strong><br>';for(var pi=0;pi<r.pareto_plans.length;pi++){var p=r.pareto_plans[pi];var sel=r.llm_choice&&r.llm_choice.selected_plan===p.label;var bg=sel?'#ffe0b2':'#fff';var bd=sel?'2px solid #e67e22':'1px solid #e8d5b0';out+='<div style="background:'+bg+';border:'+bd+';padding:4px 8px;margin:3px 0;border-radius:4px"><b>'+p.label+'</b>: bake '+p.bake+', waste '+p.waste+', shortage '+p.shortage+', profit RM'+p.profit_rm.toFixed(0)+(sel?' <b style="color:#e67e22">✔ SELECTED</b>':'')+'<br><small>'+p.desc+'</small></div>';}out+='</div>';}
-if(r.deliberation&&r.deliberation.consensus){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">Agent Deliberation</strong><br>'+r.deliberation.consensus;if(r.pareto_plans&&r.pareto_plans.length>0){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">Plan Options</strong><br>';for(var pi=0;pi<r.pareto_plans.length;pi++){var p=r.pareto_plans[pi];var sel=r.llm_choice&&r.llm_choice.selected_plan===p.label;var bg=sel?'#ffe0b2':'#fff';var bd=sel?'2px solid #e67e22':'1px solid #e8d5b0';out+='<div style="background:'+bg+';border:'+bd+';padding:4px 8px;margin:3px 0;border-radius:4px"><b>'+p.label+'</b>: bake '+p.bake+', waste '+p.waste+', shortage '+p.shortage+', profit RM'+p.profit_rm.toFixed(0)+(sel?' <b style="color:#e67e22">✔ SELECTED</b>':'')+'<br><small>'+p.desc+'</small></div>';}out+='</div>';}
+if(r.pareto_plans&&r.pareto_plans.length>0){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">Plan Options</strong><br>';for(var pi=0;pi<r.pareto_plans.length;pi++){var p=r.pareto_plans[pi];var sel=r.llm_choice&&r.llm_choice.selected_plan===p.label;var bg=sel?'#ffe0b2':'#fff';var bd=sel?'2px solid #e67e22':'1px solid #e8d5b0';out+='<div style="background:'+bg+';border:'+bd+';padding:4px 8px;margin:3px 0;border-radius:4px"><b>'+p.label+'</b>: bake '+p.bake+', waste '+p.waste+', shortage '+p.shortage+', profit RM'+p.profit_rm.toFixed(0)+(sel?' <b style="color:#e67e22">✓ SELECTED</b>':'')+'<br><small>'+p.desc+'</small></div>';}out+='</div>';}
+if(r.deliberation&&r.deliberation.consensus){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">Agent Deliberation</strong><br>'+r.deliberation.consensus;if(r.pareto_plans&&r.pareto_plans.length>0){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">Plan Options</strong><br>';for(var pi=0;pi<r.pareto_plans.length;pi++){var p=r.pareto_plans[pi];var sel=r.llm_choice&&r.llm_choice.selected_plan===p.label;var bg=sel?'#ffe0b2':'#fff';var bd=sel?'2px solid #e67e22':'1px solid #e8d5b0';out+='<div style="background:'+bg+';border:'+bd+';padding:4px 8px;margin:3px 0;border-radius:4px"><b>'+p.label+'</b>: bake '+p.bake+', waste '+p.waste+', shortage '+p.shortage+', profit RM'+p.profit_rm.toFixed(0)+(sel?' <b style="color:#e67e22">✓ SELECTED</b>':'')+'<br><small>'+p.desc+'</small></div>';}out+='</div>';}
 if(r.deliberation.votes){out+='<br><small>';var vk=Object.keys(r.deliberation.votes);for(var vi=0;vi<vk.length;vi++){out+=vk[vi]+': '+r.deliberation.votes[vk[vi]]+'<br>';}out+='</small>';}out+='</div>';}
 out+='<br><strong>Agents:</strong><br>';
 var agents=r.agents||{};var anames=Object.keys(agents);
@@ -1093,7 +1380,7 @@ item.product_name=document.getElementById('edit-name').value;
 item.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var if2=document.getElementById("edit-freshness").value;
 var cMap2={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
-var drMap={"Fresh":0,"Day-1":DISCOUNT_RATE,"Day-2":DISCOUNT_RATE,"Near-Expired":DISCOUNT_RATE};
+var ecLoaded=Object.keys(s5DiscountCache).length>0;var edDyn=ecLoaded?Math.max((s5DiscountCache[item.product_name]||0)/100,DISCOUNT_RATE):DISCOUNT_RATE;var drMap={"Fresh":0,"Day-1":edDyn,"Day-2":edDyn,"Near-Expired":edDyn};
 if(if2!=="auto"){item.tray_color=cMap2[if2]||item.tray_color;item.freshness=if2;item.discount_rate=drMap[if2]||0;}
 var changes=[];
 if(oldName!==item.product_name)changes.push('name: '+oldName+' -> '+item.product_name);
@@ -1260,8 +1547,8 @@ for(var di=0;di<dates.length;di++){var d=dates[di];tbl+='<td>';
 var found=false;
 for(var i=0;i<s.length;i++){if(s[i].date===d&&s[i].time_slot===slot){
 var dl=s[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';var empInfo=(r&&r.employee_summary)?r.employee_summary[s[i].employee_id]:null;var secRoles=empInfo&&empInfo.secondary_roles?empInfo.secondary_roles:[];var dualBadge=secRoles.length?' <span style="font-size:9px;background:#6c5ce7;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px" title="Also: '+secRoles.join(', ')+'">+'+secRoles.join('+')+'</span>':'';tbl+='<div class="shift-cell" style="font-size:13px"><strong>'+s[i].employee_name+'</strong>'+ (s[i].is_deputy?' <span style="font-size:9px;background:#8b6914;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px">DEPUTY</span>':'') +dualBadge+'<br>'+s[i].role+' <span style="font-size:10px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span><br>';
-tbl+=' <button class="sick-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" style="color:#e74c3c;background:none;border:none;cursor:pointer;font-size:11px">Sick</button>';
-tbl+=' <button class="swap-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" data-slot="'+slot+'" style="color:#8b6914;background:none;border:none;cursor:pointer;font-size:11px">Swap</button>';
+tbl+=' <button class="sick-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" data-slot="'+s[i].time_slot+'" style="color:#e74c3c;background:none;border:none;cursor:pointer;font-size:11px">Sick</button>';
+tbl+=' <button class="swap-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" data-slot="'+slot+'" data-role="'+s[i].role+'" style="color:#8b6914;background:none;border:none;cursor:pointer;font-size:11px">Swap</button>';
 tbl+='</div>';found=true;}}
 if(!found)tbl+='<span style="color:#ccc">-</span>';
 tbl+='</td>';}
@@ -1273,14 +1560,14 @@ document.getElementById('schedule-result').innerHTML=tbl;
 // === KPI rendering ===
 async function loadKPI(){
   var el=document.getElementById('kpi-result');
-  el.innerHTML='<span class="spinner"></span> Loading KPI...';
+  el.innerHTML='<span class="spinner"></span> '+t('Loading KPI...');
   try{
     var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
-    var r=await api('/s3/kpi?days=7&start_date='+sd);
-    if(r.status!=='ok'){el.innerHTML='KPI: '+ (r.message||'unknown error');return}
+    var kpiDays=daysToSunday(new Date(sd+'T00:00:00'));var r=await api('/s3/kpi?days='+kpiDays+'&start_date='+sd);
+    if(r.status!=='ok'){el.innerHTML=t('KPI error')+': '+ (r.message||'unknown error');return}
     var s=r.summary||{};var comp=r.compliance||{};var fair=r.fairness||{};var cov=r.coverage||[];
     var h='<div style="margin-top:12px">';
-    h+='<strong>KPI</strong> <span style="font-size:11px;color:#8b7355">('+r.period.start+' to '+r.period.end+', '+r.period.working_days+' working days)</span>';
+    h+='<strong>'+t('KPI')+'</strong> <span style="font-size:11px;color:#8b7355">('+r.period.start+' to '+r.period.end+', '+r.period.working_days+' working days)</span>';
     // Summary cards
     h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">';
     var cards=[{l:'Total Hours',v:s.total_hours},{l:'Avg Hrs/Emp',v:s.avg_hours_per_emp},{l:'Employees',v:s.employees_scheduled}];
@@ -1290,20 +1577,23 @@ async function loadKPI(){
       h+='<div style="font-size:20px;font-weight:700;color:#4a3728;margin-top:2px">'+cards[i].v+'</div></div>';
     }
     var viols=comp.violations||[];
-    h+='<div style="flex:1;min-width:100px;background:'+(comp.all_pass?'#d4edda':'#fce4e4')+';border-radius:8px;padding:10px;text-align:center;border:1px solid '+(comp.all_pass?'#c3e6cb':'#f5c6cb')+'">';
+    if(viols.length){
+    h+='<div style="flex:1;min-width:100px;background:#fce4e4;border-radius:8px;padding:10px;text-align:center;border:1px solid #f5c6cb">';
     h+='<div style="font-size:11px;color:#8b7355">Compliance</div>';
-    h+='<div style="font-size:14px;font-weight:700;margin-top:2px">'+(comp.all_pass?'<span style="color:#27ae60">All Pass</span>':'<span style="color:#e74c3c">'+viols.length+' violations</span>')+'</div></div>';
+    h+='<div style="font-size:14px;font-weight:700;margin-top:2px"><span style="color:#e74c3c">'+viols.length+' violations</span></div></div>';
+    }
     h+='</div>';
     // Employee coverage table
     if(cov.length){
       h+='<div style="margin-top:10px"><strong style="font-size:13px">Employee Coverage</strong></div>';
       h+='<table style="width:100%;margin-top:6px;border-collapse:collapse;font-size:12px">';
-      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Employee</th><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px;text-align:right">Actual (shifts)</th><th style="padding:4px 8px;text-align:right">Expected (shifts)</th><th style="padding:4px 8px;text-align:right">Rate</th></tr></thead><tbody>';
+      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">'+t('Employee')+'</th><th style="padding:4px 8px;text-align:left">'+t('Role')+'</th><th style="padding:4px 8px;text-align:right">'+t('Actual')+'</th> (shifts)</th><th style="padding:4px 8px;text-align:right">'+t('Expected (shifts)')+'</th><th style="padding:4px 8px;text-align:right">'+t('Extra')+'</th><th style="padding:4px 8px;text-align:right">'+t('Rate')+'</th></tr></thead><tbody>';
       for(var i=0;i<cov.length;i++){
         var e=cov[i];var rate=e.rate_pct||0;
         var rc=rate>=90?'#d4edda':rate>=70?'#fff3cd':'#fce4e4';
         var rtc=rate>=90?'#27ae60':rate>=70?'#e67e22':'#e74c3c';
-        h+='<tr style="background:'+rc+'"><td style="padding:4px 8px;font-weight:600">'+e.employee+'</td><td style="padding:4px 8px;color:#8b7355">'+e.role+'</td><td style="padding:4px 8px;text-align:right">'+e.filled+'</td><td style="padding:4px 8px;text-align:right">'+e.expected+'</td><td style="padding:4px 8px;text-align:right;font-weight:700;color:'+rtc+'">'+rate+'%</td></tr>';
+        var extra=e.extra_shifts||0;var extraStr=extra>0?'<span style="color:#27ae60;font-weight:700">+'+extra+'</span>':'-';
+        h+='<tr style="background:'+rc+'"><td style="padding:4px 8px;font-weight:600">'+e.employee+'</td><td style="padding:4px 8px;color:#8b7355">'+e.role+'</td><td style="padding:4px 8px;text-align:right">'+e.filled+'</td><td style="padding:4px 8px;text-align:right">'+e.expected+'</td><td style="padding:4px 8px;text-align:right">'+extraStr+'</td><td style="padding:4px 8px;text-align:right;font-weight:700;color:'+rtc+'">'+rate+'%</td></tr>';
       }
       h+='</tbody></table>';
     }
@@ -1311,7 +1601,7 @@ async function loadKPI(){
     var fairRoles=Object.keys(fair);
     if(fairRoles.length){
       h+='<table style="width:100%;margin-top:10px;border-collapse:collapse;font-size:12px">';
-      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">Role</th><th style="padding:4px 8px;text-align:left">Employees</th><th style="padding:4px 8px">Gap (hrs)</th><th style="padding:4px 8px">Fair</th></tr></thead><tbody>';
+      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">'+t('Role')+'</th><th style="padding:4px 8px;text-align:left">'+t('Employees')+'</th><th style="padding:4px 8px">'+t('Gap (hrs)')+'</th><th style="padding:4px 8px">'+t('Fair')+'</th></tr></thead><tbody>';
       for(var i=0;i<fairRoles.length;i++){
         var f=fair[fairRoles[i]];var ok=f.fair?'<span style="color:#27ae60">Yes</span>':'<span style="color:#e74c3c">No</span>';
         var emps=f.employees||{};var empStr=Object.entries(emps).map(function(e){return e[0]+' '+e[1]+'h'}).join(', ');
@@ -1331,7 +1621,7 @@ async function loadKPI(){
     el.innerHTML=h;
   }catch(e){el.innerHTML='KPI error: '+e.message;}
 }
-var EMPLOYEES=[{id:'E001',name:'Ali',role:'baker'},{id:'E002',name:'Mei',role:'cashier'},{id:'E003',name:'Raj',role:'barista'},{id:'E004',name:'Siti',role:'cleaner'},{id:'E005',name:'Ahmad',role:'baker'},{id:'E006',name:'Priya',role:'cashier'},{id:'E007',name:'Kumar',role:'barista'},{id:'E008',name:'Lisa',role:'cleaner'}];
+var EMPLOYEES=[{id:'E001',name:'Ali',role:'baker'},{id:'E002',name:'Mei',role:'cashier'},{id:'E003',name:'Raj',role:'barista',sec:['cashier']},{id:'E004',name:'Siti',role:'baker'},{id:'E005',name:'Ahmad',role:'baker',deputy:true},{id:'E006',name:'Priya',role:'baker'},{id:'E007',name:'Kumar',role:'baker'},{id:'E008',name:'David',role:'baker'},{id:'E009',name:'Chen',role:'barista',sec:['cashier']},{id:'E010',name:'Fatima',role:'manager'}];
 // Event delegation for sick/swap buttons (on document since schedule-result is recreated)
 document.addEventListener('click',function(e){
 var btn=e.target.closest('button');
@@ -1341,15 +1631,16 @@ e.preventDefault();
 var eid=btn.getAttribute('data-eid');
 var ename=btn.getAttribute('data-ename');
 var d=btn.getAttribute('data-date');
-markSick(eid,ename,d);
-}
+var sickSlot=btn.getAttribute('data-slot')||'';
+markSick(eid,ename,d,sickSlot);}
 if(btn.classList.contains('swap-btn')){
 e.preventDefault();
 var eid=btn.getAttribute('data-eid');
 var ename=btn.getAttribute('data-ename');
 var d=btn.getAttribute('data-date');
 var slot=btn.getAttribute('data-slot');
-startSwap(eid,ename,d,slot);
+var role=btn.getAttribute('data-role');
+startSwap(eid,ename,d,slot,role);
 }
 });
 
@@ -1366,6 +1657,9 @@ async function pollAlertCount(){
   var el=document.getElementById('alert-count');if(el)el.textContent=r.unacked_count||0;
   var badge=document.getElementById('alert-badge');
   if(badge){if(r.unacked_count>0)badge.style.display='inline-flex';}
+  // Refresh panel content if open
+  var panel=document.getElementById('alert-panel');
+  if(panel&&panel.style.display!=='none'){showAlertPanel();}
   }catch(e){}
 }
 async function showAlertPanel(){
@@ -1399,7 +1693,7 @@ async function ackAllAlerts(){
   try{await api('/s5/alerts/ack',{method:'POST',body:{ack_all:true}});
   showAlertPanel();pollAlertCount();}catch(e){}
 }
-function closeAlertPanel(){document.getElementById('alert-panel').style.display='none';}
+async function clearAllAlerts(){if(!confirm('Delete all alert history?'))return;try{await api('/s5/alerts/clear',{method:'POST',body:{}});showAlertPanel();pollAlertCount();}catch(e){}}function closeAlertPanel(){document.getElementById('alert-panel').style.display='none';}
 
 startAlertPoll();
 </script>
