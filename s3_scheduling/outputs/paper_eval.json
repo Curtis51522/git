@@ -1,0 +1,1669 @@
+{
+  "evaluation_period": "2023-07-01 to 2023-12-31",
+  "total_weeks": 27,
+  "aggregate": {
+    "total_bake_planned": 37769,
+    "total_actual_bread_sales": 40219,
+    "bake_to_actual_ratio": 0.939,
+    "total_profit_cny": 251532.85,
+    "avg_weekly_profit": 9316.03,
+    "avg_capacity_pct": 25.0
+  },
+  "weekly_results": [
+    {
+      "week_start": "2023-06-26",
+      "week_end": "2023-07-02",
+      "total_bake": 1879,
+      "total_actual_bread_sales": 286,
+      "bake_actual_ratio": 6.57,
+      "profit": 14806.470000000001,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-07-01",
+          "planned_bake": 171,
+          "actual_bread_sales": 148,
+          "profit": 1128.86
+        },
+        {
+          "date": "2023-07-02",
+          "planned_bake": 208,
+          "actual_bread_sales": 138,
+          "profit": 1364.26
+        }
+      ]
+    },
+    {
+      "week_start": "2023-07-03",
+      "week_end": "2023-07-09",
+      "total_bake": 1261,
+      "total_actual_bread_sales": 1518,
+      "bake_actual_ratio": 0.831,
+      "profit": 8346.64,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-07-03",
+          "planned_bake": 153,
+          "actual_bread_sales": 248,
+          "profit": 1005.7
+        },
+        {
+          "date": "2023-07-04",
+          "planned_bake": 167,
+          "actual_bread_sales": 367,
+          "profit": 1099.77
+        },
+        {
+          "date": "2023-07-05",
+          "planned_bake": 170,
+          "actual_bread_sales": 186,
+          "profit": 1103.82
+        },
+        {
+          "date": "2023-07-06",
+          "planned_bake": 165,
+          "actual_bread_sales": 186,
+          "profit": 1104.36
+        },
+        {
+          "date": "2023-07-07",
+          "planned_bake": 165,
+          "actual_bread_sales": 146,
+          "profit": 1102.56
+        },
+        {
+          "date": "2023-07-08",
+          "planned_bake": 210,
+          "actual_bread_sales": 171,
+          "profit": 1376.66
+        },
+        {
+          "date": "2023-07-09",
+          "planned_bake": 231,
+          "actual_bread_sales": 214,
+          "profit": 1553.77
+        }
+      ]
+    },
+    {
+      "week_start": "2023-07-10",
+      "week_end": "2023-07-16",
+      "total_bake": 1833,
+      "total_actual_bread_sales": 2290,
+      "bake_actual_ratio": 0.8,
+      "profit": 12250.539999999999,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-07-10",
+          "planned_bake": 193,
+          "actual_bread_sales": 286,
+          "profit": 1295.19
+        },
+        {
+          "date": "2023-07-11",
+          "planned_bake": 193,
+          "actual_bread_sales": 484,
+          "profit": 1308.43
+        },
+        {
+          "date": "2023-07-12",
+          "planned_bake": 221,
+          "actual_bread_sales": 301,
+          "profit": 1473.67
+        },
+        {
+          "date": "2023-07-13",
+          "planned_bake": 229,
+          "actual_bread_sales": 239,
+          "profit": 1524.26
+        },
+        {
+          "date": "2023-07-14",
+          "planned_bake": 221,
+          "actual_bread_sales": 372,
+          "profit": 1487.17
+        },
+        {
+          "date": "2023-07-15",
+          "planned_bake": 423,
+          "actual_bread_sales": 290,
+          "profit": 2767.74
+        },
+        {
+          "date": "2023-07-16",
+          "planned_bake": 353,
+          "actual_bread_sales": 318,
+          "profit": 2394.08
+        }
+      ]
+    },
+    {
+      "week_start": "2023-07-17",
+      "week_end": "2023-07-23",
+      "total_bake": 2251,
+      "total_actual_bread_sales": 2685,
+      "bake_actual_ratio": 0.838,
+      "profit": 14966.649999999998,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-07-17",
+          "planned_bake": 260,
+          "actual_bread_sales": 519,
+          "profit": 1732.35
+        },
+        {
+          "date": "2023-07-18",
+          "planned_bake": 311,
+          "actual_bread_sales": 607,
+          "profit": 2086.48
+        },
+        {
+          "date": "2023-07-19",
+          "planned_bake": 305,
+          "actual_bread_sales": 328,
+          "profit": 2030.78
+        },
+        {
+          "date": "2023-07-20",
+          "planned_bake": 298,
+          "actual_bread_sales": 304,
+          "profit": 2007.52
+        },
+        {
+          "date": "2023-07-21",
+          "planned_bake": 303,
+          "actual_bread_sales": 296,
+          "profit": 2006.75
+        },
+        {
+          "date": "2023-07-22",
+          "planned_bake": 374,
+          "actual_bread_sales": 274,
+          "profit": 2465.95
+        },
+        {
+          "date": "2023-07-23",
+          "planned_bake": 400,
+          "actual_bread_sales": 357,
+          "profit": 2636.82
+        }
+      ]
+    },
+    {
+      "week_start": "2023-07-24",
+      "week_end": "2023-07-30",
+      "total_bake": 2315,
+      "total_actual_bread_sales": 2470,
+      "bake_actual_ratio": 0.937,
+      "profit": 15597.93,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-07-24",
+          "planned_bake": 305,
+          "actual_bread_sales": 492,
+          "profit": 2048.33
+        },
+        {
+          "date": "2023-07-25",
+          "planned_bake": 308,
+          "actual_bread_sales": 595,
+          "profit": 2059.81
+        },
+        {
+          "date": "2023-07-26",
+          "planned_bake": 328,
+          "actual_bread_sales": 256,
+          "profit": 2195.7
+        },
+        {
+          "date": "2023-07-27",
+          "planned_bake": 292,
+          "actual_bread_sales": 243,
+          "profit": 1999.07
+        },
+        {
+          "date": "2023-07-28",
+          "planned_bake": 276,
+          "actual_bread_sales": 329,
+          "profit": 1897.6
+        },
+        {
+          "date": "2023-07-29",
+          "planned_bake": 404,
+          "actual_bread_sales": 286,
+          "profit": 2707.41
+        },
+        {
+          "date": "2023-07-30",
+          "planned_bake": 402,
+          "actual_bread_sales": 269,
+          "profit": 2690.01
+        }
+      ]
+    },
+    {
+      "week_start": "2023-07-31",
+      "week_end": "2023-08-06",
+      "total_bake": 2347,
+      "total_actual_bread_sales": 2670,
+      "bake_actual_ratio": 0.879,
+      "profit": 15816.530000000002,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-07-31",
+          "planned_bake": 281,
+          "actual_bread_sales": 337,
+          "profit": 1884.45
+        },
+        {
+          "date": "2023-08-01",
+          "planned_bake": 285,
+          "actual_bread_sales": 491,
+          "profit": 1934.15
+        },
+        {
+          "date": "2023-08-02",
+          "planned_bake": 290,
+          "actual_bread_sales": 367,
+          "profit": 1939.79
+        },
+        {
+          "date": "2023-08-03",
+          "planned_bake": 308,
+          "actual_bread_sales": 540,
+          "profit": 2081.65
+        },
+        {
+          "date": "2023-08-04",
+          "planned_bake": 367,
+          "actual_bread_sales": 338,
+          "profit": 2460.03
+        },
+        {
+          "date": "2023-08-05",
+          "planned_bake": 423,
+          "actual_bread_sales": 258,
+          "profit": 2826.25
+        },
+        {
+          "date": "2023-08-06",
+          "planned_bake": 393,
+          "actual_bread_sales": 339,
+          "profit": 2690.21
+        }
+      ]
+    },
+    {
+      "week_start": "2023-08-07",
+      "week_end": "2023-08-13",
+      "total_bake": 2573,
+      "total_actual_bread_sales": 2989,
+      "bake_actual_ratio": 0.861,
+      "profit": 17484.86,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-08-07",
+          "planned_bake": 299,
+          "actual_bread_sales": 360,
+          "profit": 2003.31
+        },
+        {
+          "date": "2023-08-08",
+          "planned_bake": 306,
+          "actual_bread_sales": 598,
+          "profit": 2080.01
+        },
+        {
+          "date": "2023-08-09",
+          "planned_bake": 326,
+          "actual_bread_sales": 461,
+          "profit": 2251.84
+        },
+        {
+          "date": "2023-08-10",
+          "planned_bake": 349,
+          "actual_bread_sales": 296,
+          "profit": 2408.66
+        },
+        {
+          "date": "2023-08-11",
+          "planned_bake": 312,
+          "actual_bread_sales": 425,
+          "profit": 2109.53
+        },
+        {
+          "date": "2023-08-12",
+          "planned_bake": 469,
+          "actual_bread_sales": 451,
+          "profit": 3176.07
+        },
+        {
+          "date": "2023-08-13",
+          "planned_bake": 512,
+          "actual_bread_sales": 398,
+          "profit": 3455.44
+        }
+      ]
+    },
+    {
+      "week_start": "2023-08-14",
+      "week_end": "2023-08-20",
+      "total_bake": 2543,
+      "total_actual_bread_sales": 2851,
+      "bake_actual_ratio": 0.892,
+      "profit": 17336.35,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-08-14",
+          "planned_bake": 323,
+          "actual_bread_sales": 454,
+          "profit": 2185.96
+        },
+        {
+          "date": "2023-08-15",
+          "planned_bake": 331,
+          "actual_bread_sales": 779,
+          "profit": 2286.96
+        },
+        {
+          "date": "2023-08-16",
+          "planned_bake": 349,
+          "actual_bread_sales": 304,
+          "profit": 2401.15
+        },
+        {
+          "date": "2023-08-17",
+          "planned_bake": 322,
+          "actual_bread_sales": 342,
+          "profit": 2204.31
+        },
+        {
+          "date": "2023-08-18",
+          "planned_bake": 352,
+          "actual_bread_sales": 301,
+          "profit": 2443.24
+        },
+        {
+          "date": "2023-08-19",
+          "planned_bake": 419,
+          "actual_bread_sales": 319,
+          "profit": 2809.88
+        },
+        {
+          "date": "2023-08-20",
+          "planned_bake": 447,
+          "actual_bread_sales": 352,
+          "profit": 3004.85
+        }
+      ]
+    },
+    {
+      "week_start": "2023-08-21",
+      "week_end": "2023-08-27",
+      "total_bake": 2419,
+      "total_actual_bread_sales": 2516,
+      "bake_actual_ratio": 0.961,
+      "profit": 16196.0,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-08-21",
+          "planned_bake": 316,
+          "actual_bread_sales": 531,
+          "profit": 2150.78
+        },
+        {
+          "date": "2023-08-22",
+          "planned_bake": 335,
+          "actual_bread_sales": 562,
+          "profit": 2264.14
+        },
+        {
+          "date": "2023-08-23",
+          "planned_bake": 330,
+          "actual_bread_sales": 336,
+          "profit": 2234.36
+        },
+        {
+          "date": "2023-08-24",
+          "planned_bake": 330,
+          "actual_bread_sales": 334,
+          "profit": 2219.76
+        },
+        {
+          "date": "2023-08-25",
+          "planned_bake": 339,
+          "actual_bread_sales": 208,
+          "profit": 2242.8
+        },
+        {
+          "date": "2023-08-26",
+          "planned_bake": 337,
+          "actual_bread_sales": 340,
+          "profit": 2213.01
+        },
+        {
+          "date": "2023-08-27",
+          "planned_bake": 432,
+          "actual_bread_sales": 205,
+          "profit": 2871.15
+        }
+      ]
+    },
+    {
+      "week_start": "2023-08-28",
+      "week_end": "2023-09-03",
+      "total_bake": 1839,
+      "total_actual_bread_sales": 1659,
+      "bake_actual_ratio": 1.108,
+      "profit": 12183.740000000002,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-08-28",
+          "planned_bake": 267,
+          "actual_bread_sales": 358,
+          "profit": 1737.53
+        },
+        {
+          "date": "2023-08-29",
+          "planned_bake": 297,
+          "actual_bread_sales": 407,
+          "profit": 2000.44
+        },
+        {
+          "date": "2023-08-30",
+          "planned_bake": 277,
+          "actual_bread_sales": 224,
+          "profit": 1844.21
+        },
+        {
+          "date": "2023-08-31",
+          "planned_bake": 254,
+          "actual_bread_sales": 214,
+          "profit": 1660.97
+        },
+        {
+          "date": "2023-09-01",
+          "planned_bake": 232,
+          "actual_bread_sales": 116,
+          "profit": 1537.66
+        },
+        {
+          "date": "2023-09-02",
+          "planned_bake": 234,
+          "actual_bread_sales": 172,
+          "profit": 1559.3
+        },
+        {
+          "date": "2023-09-03",
+          "planned_bake": 278,
+          "actual_bread_sales": 168,
+          "profit": 1843.63
+        }
+      ]
+    },
+    {
+      "week_start": "2023-09-04",
+      "week_end": "2023-09-10",
+      "total_bake": 1385,
+      "total_actual_bread_sales": 1409,
+      "bake_actual_ratio": 0.983,
+      "profit": 9087.400000000001,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-09-04",
+          "planned_bake": 182,
+          "actual_bread_sales": 319,
+          "profit": 1183.81
+        },
+        {
+          "date": "2023-09-05",
+          "planned_bake": 205,
+          "actual_bread_sales": 390,
+          "profit": 1359.57
+        },
+        {
+          "date": "2023-09-06",
+          "planned_bake": 199,
+          "actual_bread_sales": 155,
+          "profit": 1307.51
+        },
+        {
+          "date": "2023-09-07",
+          "planned_bake": 171,
+          "actual_bread_sales": 154,
+          "profit": 1117.54
+        },
+        {
+          "date": "2023-09-08",
+          "planned_bake": 176,
+          "actual_bread_sales": 105,
+          "profit": 1146.38
+        },
+        {
+          "date": "2023-09-09",
+          "planned_bake": 209,
+          "actual_bread_sales": 146,
+          "profit": 1369.3
+        },
+        {
+          "date": "2023-09-10",
+          "planned_bake": 243,
+          "actual_bread_sales": 140,
+          "profit": 1603.29
+        }
+      ]
+    },
+    {
+      "week_start": "2023-09-11",
+      "week_end": "2023-09-17",
+      "total_bake": 1183,
+      "total_actual_bread_sales": 1334,
+      "bake_actual_ratio": 0.887,
+      "profit": 7726.8,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-09-11",
+          "planned_bake": 160,
+          "actual_bread_sales": 267,
+          "profit": 1036.39
+        },
+        {
+          "date": "2023-09-12",
+          "planned_bake": 168,
+          "actual_bread_sales": 426,
+          "profit": 1101.08
+        },
+        {
+          "date": "2023-09-13",
+          "planned_bake": 171,
+          "actual_bread_sales": 154,
+          "profit": 1124.16
+        },
+        {
+          "date": "2023-09-14",
+          "planned_bake": 150,
+          "actual_bread_sales": 124,
+          "profit": 962.01
+        },
+        {
+          "date": "2023-09-15",
+          "planned_bake": 142,
+          "actual_bread_sales": 124,
+          "profit": 935.91
+        },
+        {
+          "date": "2023-09-16",
+          "planned_bake": 191,
+          "actual_bread_sales": 116,
+          "profit": 1236.21
+        },
+        {
+          "date": "2023-09-17",
+          "planned_bake": 201,
+          "actual_bread_sales": 123,
+          "profit": 1331.04
+        }
+      ]
+    },
+    {
+      "week_start": "2023-09-18",
+      "week_end": "2023-09-24",
+      "total_bake": 1026,
+      "total_actual_bread_sales": 1076,
+      "bake_actual_ratio": 0.954,
+      "profit": 6699.39,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-09-18",
+          "planned_bake": 140,
+          "actual_bread_sales": 195,
+          "profit": 936.92
+        },
+        {
+          "date": "2023-09-19",
+          "planned_bake": 157,
+          "actual_bread_sales": 337,
+          "profit": 1000.02
+        },
+        {
+          "date": "2023-09-20",
+          "planned_bake": 153,
+          "actual_bread_sales": 139,
+          "profit": 1000.64
+        },
+        {
+          "date": "2023-09-21",
+          "planned_bake": 141,
+          "actual_bread_sales": 119,
+          "profit": 895.86
+        },
+        {
+          "date": "2023-09-22",
+          "planned_bake": 129,
+          "actual_bread_sales": 3,
+          "profit": 852.91
+        },
+        {
+          "date": "2023-09-23",
+          "planned_bake": 119,
+          "actual_bread_sales": 136,
+          "profit": 789.41
+        },
+        {
+          "date": "2023-09-24",
+          "planned_bake": 187,
+          "actual_bread_sales": 147,
+          "profit": 1223.63
+        }
+      ]
+    },
+    {
+      "week_start": "2023-09-25",
+      "week_end": "2023-10-01",
+      "total_bake": 990,
+      "total_actual_bread_sales": 1134,
+      "bake_actual_ratio": 0.873,
+      "profit": 6374.78,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-09-25",
+          "planned_bake": 129,
+          "actual_bread_sales": 277,
+          "profit": 813.93
+        },
+        {
+          "date": "2023-09-26",
+          "planned_bake": 151,
+          "actual_bread_sales": 323,
+          "profit": 987.66
+        },
+        {
+          "date": "2023-09-27",
+          "planned_bake": 146,
+          "actual_bread_sales": 104,
+          "profit": 937.9
+        },
+        {
+          "date": "2023-09-28",
+          "planned_bake": 117,
+          "actual_bread_sales": 119,
+          "profit": 747.49
+        },
+        {
+          "date": "2023-09-29",
+          "planned_bake": 124,
+          "actual_bread_sales": 93,
+          "profit": 790.19
+        },
+        {
+          "date": "2023-09-30",
+          "planned_bake": 155,
+          "actual_bread_sales": 99,
+          "profit": 1001.33
+        },
+        {
+          "date": "2023-10-01",
+          "planned_bake": 168,
+          "actual_bread_sales": 119,
+          "profit": 1096.28
+        }
+      ]
+    },
+    {
+      "week_start": "2023-10-02",
+      "week_end": "2023-10-08",
+      "total_bake": 979,
+      "total_actual_bread_sales": 1061,
+      "bake_actual_ratio": 0.923,
+      "profit": 6254.93,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-10-02",
+          "planned_bake": 129,
+          "actual_bread_sales": 180,
+          "profit": 820.01
+        },
+        {
+          "date": "2023-10-03",
+          "planned_bake": 139,
+          "actual_bread_sales": 294,
+          "profit": 881.94
+        },
+        {
+          "date": "2023-10-04",
+          "planned_bake": 132,
+          "actual_bread_sales": 113,
+          "profit": 845.5
+        },
+        {
+          "date": "2023-10-05",
+          "planned_bake": 122,
+          "actual_bread_sales": 88,
+          "profit": 776.96
+        },
+        {
+          "date": "2023-10-06",
+          "planned_bake": 117,
+          "actual_bread_sales": 111,
+          "profit": 749.24
+        },
+        {
+          "date": "2023-10-07",
+          "planned_bake": 157,
+          "actual_bread_sales": 157,
+          "profit": 991.01
+        },
+        {
+          "date": "2023-10-08",
+          "planned_bake": 183,
+          "actual_bread_sales": 118,
+          "profit": 1190.27
+        }
+      ]
+    },
+    {
+      "week_start": "2023-10-09",
+      "week_end": "2023-10-15",
+      "total_bake": 955,
+      "total_actual_bread_sales": 1044,
+      "bake_actual_ratio": 0.915,
+      "profit": 6111.8,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-10-09",
+          "planned_bake": 123,
+          "actual_bread_sales": 197,
+          "profit": 791.27
+        },
+        {
+          "date": "2023-10-10",
+          "planned_bake": 137,
+          "actual_bread_sales": 328,
+          "profit": 866.24
+        },
+        {
+          "date": "2023-10-11",
+          "planned_bake": 139,
+          "actual_bread_sales": 130,
+          "profit": 878.94
+        },
+        {
+          "date": "2023-10-12",
+          "planned_bake": 137,
+          "actual_bread_sales": 73,
+          "profit": 866.44
+        },
+        {
+          "date": "2023-10-13",
+          "planned_bake": 117,
+          "actual_bread_sales": 82,
+          "profit": 751.81
+        },
+        {
+          "date": "2023-10-14",
+          "planned_bake": 151,
+          "actual_bread_sales": 75,
+          "profit": 961.46
+        },
+        {
+          "date": "2023-10-15",
+          "planned_bake": 151,
+          "actual_bread_sales": 159,
+          "profit": 995.64
+        }
+      ]
+    },
+    {
+      "week_start": "2023-10-16",
+      "week_end": "2023-10-22",
+      "total_bake": 937,
+      "total_actual_bread_sales": 1014,
+      "bake_actual_ratio": 0.924,
+      "profit": 5991.490000000001,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-10-16",
+          "planned_bake": 130,
+          "actual_bread_sales": 163,
+          "profit": 829.11
+        },
+        {
+          "date": "2023-10-17",
+          "planned_bake": 130,
+          "actual_bread_sales": 298,
+          "profit": 828.5
+        },
+        {
+          "date": "2023-10-18",
+          "planned_bake": 130,
+          "actual_bread_sales": 79,
+          "profit": 829.88
+        },
+        {
+          "date": "2023-10-19",
+          "planned_bake": 111,
+          "actual_bread_sales": 124,
+          "profit": 710.39
+        },
+        {
+          "date": "2023-10-20",
+          "planned_bake": 120,
+          "actual_bread_sales": 93,
+          "profit": 767.71
+        },
+        {
+          "date": "2023-10-21",
+          "planned_bake": 147,
+          "actual_bread_sales": 137,
+          "profit": 937.26
+        },
+        {
+          "date": "2023-10-22",
+          "planned_bake": 169,
+          "actual_bread_sales": 120,
+          "profit": 1088.64
+        }
+      ]
+    },
+    {
+      "week_start": "2023-10-23",
+      "week_end": "2023-10-29",
+      "total_bake": 1043,
+      "total_actual_bread_sales": 1376,
+      "bake_actual_ratio": 0.758,
+      "profit": 6665.4,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-10-23",
+          "planned_bake": 125,
+          "actual_bread_sales": 251,
+          "profit": 791.77
+        },
+        {
+          "date": "2023-10-24",
+          "planned_bake": 136,
+          "actual_bread_sales": 339,
+          "profit": 860.4
+        },
+        {
+          "date": "2023-10-25",
+          "planned_bake": 137,
+          "actual_bread_sales": 149,
+          "profit": 870.89
+        },
+        {
+          "date": "2023-10-26",
+          "planned_bake": 141,
+          "actual_bread_sales": 200,
+          "profit": 897.3
+        },
+        {
+          "date": "2023-10-27",
+          "planned_bake": 155,
+          "actual_bread_sales": 137,
+          "profit": 981.16
+        },
+        {
+          "date": "2023-10-28",
+          "planned_bake": 169,
+          "actual_bread_sales": 138,
+          "profit": 1068.75
+        },
+        {
+          "date": "2023-10-29",
+          "planned_bake": 180,
+          "actual_bread_sales": 162,
+          "profit": 1195.13
+        }
+      ]
+    },
+    {
+      "week_start": "2023-10-30",
+      "week_end": "2023-11-05",
+      "total_bake": 1217,
+      "total_actual_bread_sales": 1603,
+      "bake_actual_ratio": 0.759,
+      "profit": 7949.28,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-10-30",
+          "planned_bake": 152,
+          "actual_bread_sales": 292,
+          "profit": 976.7
+        },
+        {
+          "date": "2023-10-31",
+          "planned_bake": 163,
+          "actual_bread_sales": 442,
+          "profit": 1069.61
+        },
+        {
+          "date": "2023-11-01",
+          "planned_bake": 178,
+          "actual_bread_sales": 226,
+          "profit": 1167.35
+        },
+        {
+          "date": "2023-11-02",
+          "planned_bake": 170,
+          "actual_bread_sales": 160,
+          "profit": 1141.72
+        },
+        {
+          "date": "2023-11-03",
+          "planned_bake": 150,
+          "actual_bread_sales": 186,
+          "profit": 982.65
+        },
+        {
+          "date": "2023-11-04",
+          "planned_bake": 218,
+          "actual_bread_sales": 123,
+          "profit": 1383.45
+        },
+        {
+          "date": "2023-11-05",
+          "planned_bake": 186,
+          "actual_bread_sales": 174,
+          "profit": 1227.8
+        }
+      ]
+    },
+    {
+      "week_start": "2023-11-06",
+      "week_end": "2023-11-12",
+      "total_bake": 1080,
+      "total_actual_bread_sales": 1006,
+      "bake_actual_ratio": 1.074,
+      "profit": 6985.99,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-11-06",
+          "planned_bake": 159,
+          "actual_bread_sales": 170,
+          "profit": 1038.83
+        },
+        {
+          "date": "2023-11-07",
+          "planned_bake": 150,
+          "actual_bread_sales": 234,
+          "profit": 967.0
+        },
+        {
+          "date": "2023-11-08",
+          "planned_bake": 151,
+          "actual_bread_sales": 132,
+          "profit": 968.97
+        },
+        {
+          "date": "2023-11-09",
+          "planned_bake": 132,
+          "actual_bread_sales": 108,
+          "profit": 838.78
+        },
+        {
+          "date": "2023-11-10",
+          "planned_bake": 127,
+          "actual_bread_sales": 77,
+          "profit": 806.04
+        },
+        {
+          "date": "2023-11-11",
+          "planned_bake": 149,
+          "actual_bread_sales": 201,
+          "profit": 971.7
+        },
+        {
+          "date": "2023-11-12",
+          "planned_bake": 212,
+          "actual_bread_sales": 84,
+          "profit": 1394.67
+        }
+      ]
+    },
+    {
+      "week_start": "2023-11-13",
+      "week_end": "2023-11-19",
+      "total_bake": 846,
+      "total_actual_bread_sales": 797,
+      "bake_actual_ratio": 1.061,
+      "profit": 5453.84,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-11-13",
+          "planned_bake": 121,
+          "actual_bread_sales": 118,
+          "profit": 791.94
+        },
+        {
+          "date": "2023-11-14",
+          "planned_bake": 122,
+          "actual_bread_sales": 308,
+          "profit": 777.09
+        },
+        {
+          "date": "2023-11-15",
+          "planned_bake": 129,
+          "actual_bread_sales": 82,
+          "profit": 816.07
+        },
+        {
+          "date": "2023-11-16",
+          "planned_bake": 112,
+          "actual_bread_sales": 74,
+          "profit": 706.0
+        },
+        {
+          "date": "2023-11-17",
+          "planned_bake": 111,
+          "actual_bread_sales": 0,
+          "profit": 719.63
+        },
+        {
+          "date": "2023-11-18",
+          "planned_bake": 110,
+          "actual_bread_sales": 82,
+          "profit": 713.19
+        },
+        {
+          "date": "2023-11-19",
+          "planned_bake": 141,
+          "actual_bread_sales": 133,
+          "profit": 929.92
+        }
+      ]
+    },
+    {
+      "week_start": "2023-11-20",
+      "week_end": "2023-11-26",
+      "total_bake": 798,
+      "total_actual_bread_sales": 677,
+      "bake_actual_ratio": 1.179,
+      "profit": 5097.18,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-11-20",
+          "planned_bake": 119,
+          "actual_bread_sales": 177,
+          "profit": 757.15
+        },
+        {
+          "date": "2023-11-21",
+          "planned_bake": 123,
+          "actual_bread_sales": 220,
+          "profit": 774.96
+        },
+        {
+          "date": "2023-11-22",
+          "planned_bake": 114,
+          "actual_bread_sales": 79,
+          "profit": 719.09
+        },
+        {
+          "date": "2023-11-23",
+          "planned_bake": 104,
+          "actual_bread_sales": 52,
+          "profit": 669.56
+        },
+        {
+          "date": "2023-11-24",
+          "planned_bake": 97,
+          "actual_bread_sales": 0,
+          "profit": 617.11
+        },
+        {
+          "date": "2023-11-25",
+          "planned_bake": 102,
+          "actual_bread_sales": 96,
+          "profit": 657.09
+        },
+        {
+          "date": "2023-11-26",
+          "planned_bake": 139,
+          "actual_bread_sales": 53,
+          "profit": 902.22
+        }
+      ]
+    },
+    {
+      "week_start": "2023-11-27",
+      "week_end": "2023-12-03",
+      "total_bake": 754,
+      "total_actual_bread_sales": 893,
+      "bake_actual_ratio": 0.844,
+      "profit": 4853.469999999999,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-11-27",
+          "planned_bake": 84,
+          "actual_bread_sales": 113,
+          "profit": 550.28
+        },
+        {
+          "date": "2023-11-28",
+          "planned_bake": 95,
+          "actual_bread_sales": 328,
+          "profit": 609.17
+        },
+        {
+          "date": "2023-11-29",
+          "planned_bake": 106,
+          "actual_bread_sales": 113,
+          "profit": 674.67
+        },
+        {
+          "date": "2023-11-30",
+          "planned_bake": 107,
+          "actual_bread_sales": 89,
+          "profit": 678.09
+        },
+        {
+          "date": "2023-12-01",
+          "planned_bake": 115,
+          "actual_bread_sales": 0,
+          "profit": 738.62
+        },
+        {
+          "date": "2023-12-02",
+          "planned_bake": 109,
+          "actual_bread_sales": 85,
+          "profit": 699.14
+        },
+        {
+          "date": "2023-12-03",
+          "planned_bake": 138,
+          "actual_bread_sales": 165,
+          "profit": 903.5
+        }
+      ]
+    },
+    {
+      "week_start": "2023-12-04",
+      "week_end": "2023-12-10",
+      "total_bake": 677,
+      "total_actual_bread_sales": 500,
+      "bake_actual_ratio": 1.354,
+      "profit": 4344.189999999999,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-12-04",
+          "planned_bake": 121,
+          "actual_bread_sales": 87,
+          "profit": 774.41
+        },
+        {
+          "date": "2023-12-05",
+          "planned_bake": 107,
+          "actual_bread_sales": 237,
+          "profit": 685.27
+        },
+        {
+          "date": "2023-12-06",
+          "planned_bake": 110,
+          "actual_bread_sales": 0,
+          "profit": 701.16
+        },
+        {
+          "date": "2023-12-07",
+          "planned_bake": 71,
+          "actual_bread_sales": 0,
+          "profit": 460.47
+        },
+        {
+          "date": "2023-12-08",
+          "planned_bake": 63,
+          "actual_bread_sales": 0,
+          "profit": 412.78
+        },
+        {
+          "date": "2023-12-09",
+          "planned_bake": 85,
+          "actual_bread_sales": 104,
+          "profit": 546.06
+        },
+        {
+          "date": "2023-12-10",
+          "planned_bake": 120,
+          "actual_bread_sales": 72,
+          "profit": 764.04
+        }
+      ]
+    },
+    {
+      "week_start": "2023-12-11",
+      "week_end": "2023-12-17",
+      "total_bake": 671,
+      "total_actual_bread_sales": 825,
+      "bake_actual_ratio": 0.813,
+      "profit": 4282.42,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-12-11",
+          "planned_bake": 74,
+          "actual_bread_sales": 138,
+          "profit": 480.38
+        },
+        {
+          "date": "2023-12-12",
+          "planned_bake": 91,
+          "actual_bread_sales": 242,
+          "profit": 587.8
+        },
+        {
+          "date": "2023-12-13",
+          "planned_bake": 82,
+          "actual_bread_sales": 71,
+          "profit": 502.63
+        },
+        {
+          "date": "2023-12-14",
+          "planned_bake": 95,
+          "actual_bread_sales": 103,
+          "profit": 605.63
+        },
+        {
+          "date": "2023-12-15",
+          "planned_bake": 104,
+          "actual_bread_sales": 0,
+          "profit": 667.8
+        },
+        {
+          "date": "2023-12-16",
+          "planned_bake": 98,
+          "actual_bread_sales": 108,
+          "profit": 628.63
+        },
+        {
+          "date": "2023-12-17",
+          "planned_bake": 127,
+          "actual_bread_sales": 163,
+          "profit": 809.55
+        }
+      ]
+    },
+    {
+      "week_start": "2023-12-18",
+      "week_end": "2023-12-24",
+      "total_bake": 915,
+      "total_actual_bread_sales": 1194,
+      "bake_actual_ratio": 0.766,
+      "profit": 5860.9800000000005,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-12-18",
+          "planned_bake": 113,
+          "actual_bread_sales": 158,
+          "profit": 727.0
+        },
+        {
+          "date": "2023-12-19",
+          "planned_bake": 116,
+          "actual_bread_sales": 277,
+          "profit": 746.25
+        },
+        {
+          "date": "2023-12-20",
+          "planned_bake": 115,
+          "actual_bread_sales": 154,
+          "profit": 731.77
+        },
+        {
+          "date": "2023-12-21",
+          "planned_bake": 123,
+          "actual_bread_sales": 181,
+          "profit": 783.87
+        },
+        {
+          "date": "2023-12-22",
+          "planned_bake": 130,
+          "actual_bread_sales": 89,
+          "profit": 822.09
+        },
+        {
+          "date": "2023-12-23",
+          "planned_bake": 148,
+          "actual_bread_sales": 143,
+          "profit": 947.78
+        },
+        {
+          "date": "2023-12-24",
+          "planned_bake": 170,
+          "actual_bread_sales": 192,
+          "profit": 1102.22
+        }
+      ]
+    },
+    {
+      "week_start": "2023-12-25",
+      "week_end": "2023-12-31",
+      "total_bake": 1053,
+      "total_actual_bread_sales": 1342,
+      "bake_actual_ratio": 0.785,
+      "profit": 6807.799999999999,
+      "waste": 0,
+      "shortage": 0,
+      "daily": [
+        {
+          "date": "2023-12-25",
+          "planned_bake": 141,
+          "actual_bread_sales": 252,
+          "profit": 904.91
+        },
+        {
+          "date": "2023-12-26",
+          "planned_bake": 147,
+          "actual_bread_sales": 265,
+          "profit": 934.48
+        },
+        {
+          "date": "2023-12-27",
+          "planned_bake": 141,
+          "actual_bread_sales": 138,
+          "profit": 894.51
+        },
+        {
+          "date": "2023-12-28",
+          "planned_bake": 136,
+          "actual_bread_sales": 176,
+          "profit": 877.96
+        },
+        {
+          "date": "2023-12-29",
+          "planned_bake": 140,
+          "actual_bread_sales": 151,
+          "profit": 915.92
+        },
+        {
+          "date": "2023-12-30",
+          "planned_bake": 170,
+          "actual_bread_sales": 141,
+          "profit": 1101.96
+        },
+        {
+          "date": "2023-12-31",
+          "planned_bake": 178,
+          "actual_bread_sales": 219,
+          "profit": 1178.06
+        }
+      ]
+    }
+  ],
+  "per_product": {
+    "americano": {
+      "actual_sales": 5278,
+      "predicted_q50": 5280,
+      "prediction_error_pct": 0.0
+    },
+    "apple_pie": {
+      "actual_sales": 615,
+      "predicted_q50": 582,
+      "prediction_error_pct": 5.4
+    },
+    "bagel": {
+      "actual_sales": 20,
+      "predicted_q50": 7,
+      "prediction_error_pct": 65.0
+    },
+    "baguette": {
+      "actual_sales": 7899,
+      "predicted_q50": 7166,
+      "prediction_error_pct": 9.3
+    },
+    "bread_coconut": {
+      "actual_sales": 114,
+      "predicted_q50": 86,
+      "prediction_error_pct": 24.6
+    },
+    "bread_roll": {
+      "actual_sales": 557,
+      "predicted_q50": 521,
+      "prediction_error_pct": 6.5
+    },
+    "brioche": {
+      "actual_sales": 584,
+      "predicted_q50": 494,
+      "prediction_error_pct": 15.4
+    },
+    "brownie": {
+      "actual_sales": 12,
+      "predicted_q50": 8,
+      "prediction_error_pct": 33.3
+    },
+    "cappuccino": {
+      "actual_sales": 4763,
+      "predicted_q50": 4732,
+      "prediction_error_pct": 0.7
+    },
+    "caramel_macchiato": {
+      "actual_sales": 2578,
+      "predicted_q50": 2632,
+      "prediction_error_pct": 2.1
+    },
+    "chai_latte": {
+      "actual_sales": 1832,
+      "predicted_q50": 1844,
+      "prediction_error_pct": 0.7
+    },
+    "chiffon": {
+      "actual_sales": 148,
+      "predicted_q50": 104,
+      "prediction_error_pct": 29.7
+    },
+    "chocolate_cake": {
+      "actual_sales": 101,
+      "predicted_q50": 96,
+      "prediction_error_pct": 5.0
+    },
+    "chocopie": {
+      "actual_sales": 282,
+      "predicted_q50": 265,
+      "prediction_error_pct": 6.0
+    },
+    "cold_brew": {
+      "actual_sales": 4550,
+      "predicted_q50": 4543,
+      "prediction_error_pct": 0.2
+    },
+    "cookie": {
+      "actual_sales": 1295,
+      "predicted_q50": 1135,
+      "prediction_error_pct": 12.4
+    },
+    "cornbread": {
+      "actual_sales": 104,
+      "predicted_q50": 45,
+      "prediction_error_pct": 56.7
+    },
+    "cream_horn": {
+      "actual_sales": 1662,
+      "predicted_q50": 1495,
+      "prediction_error_pct": 10.0
+    },
+    "croissant": {
+      "actual_sales": 10232,
+      "predicted_q50": 8521,
+      "prediction_error_pct": 16.7
+    },
+    "croissant_chocolate": {
+      "actual_sales": 8630,
+      "predicted_q50": 7652,
+      "prediction_error_pct": 11.3
+    },
+    "donut": {
+      "actual_sales": 3253,
+      "predicted_q50": 3019,
+      "prediction_error_pct": 7.2
+    },
+    "earl_grey": {
+      "actual_sales": 1400,
+      "predicted_q50": 1419,
+      "prediction_error_pct": 1.4
+    },
+    "eggtart": {
+      "actual_sales": 314,
+      "predicted_q50": 277,
+      "prediction_error_pct": 11.8
+    },
+    "english_breakfast": {
+      "actual_sales": 1083,
+      "predicted_q50": 1035,
+      "prediction_error_pct": 4.4
+    },
+    "espresso": {
+      "actual_sales": 2240,
+      "predicted_q50": 2242,
+      "prediction_error_pct": 0.1
+    },
+    "flat_white": {
+      "actual_sales": 2842,
+      "predicted_q50": 2842,
+      "prediction_error_pct": 0.0
+    },
+    "flatbread": {
+      "actual_sales": 62,
+      "predicted_q50": 19,
+      "prediction_error_pct": 69.4
+    },
+    "hot_chocolate": {
+      "actual_sales": 4369,
+      "predicted_q50": 4329,
+      "prediction_error_pct": 0.9
+    },
+    "latte": {
+      "actual_sales": 6628,
+      "predicted_q50": 6486,
+      "prediction_error_pct": 2.1
+    },
+    "lemonade": {
+      "actual_sales": 5770,
+      "predicted_q50": 5702,
+      "prediction_error_pct": 1.2
+    },
+    "macaron": {
+      "actual_sales": 0,
+      "predicted_q50": 0,
+      "prediction_error_pct": 0.0
+    },
+    "mantequilla": {
+      "actual_sales": 107,
+      "predicted_q50": 73,
+      "prediction_error_pct": 31.8
+    },
+    "matcha_latte": {
+      "actual_sales": 2982,
+      "predicted_q50": 3052,
+      "prediction_error_pct": 2.3
+    },
+    "melon_bread": {
+      "actual_sales": 92,
+      "predicted_q50": 64,
+      "prediction_error_pct": 30.4
+    },
+    "milk_tea": {
+      "actual_sales": 5698,
+      "predicted_q50": 5615,
+      "prediction_error_pct": 1.5
+    },
+    "mocha": {
+      "actual_sales": 3571,
+      "predicted_q50": 3506,
+      "prediction_error_pct": 1.8
+    },
+    "muffin": {
+      "actual_sales": 517,
+      "predicted_q50": 464,
+      "prediction_error_pct": 10.3
+    },
+    "pancake": {
+      "actual_sales": 1972,
+      "predicted_q50": 1641,
+      "prediction_error_pct": 16.8
+    },
+    "pandesal": {
+      "actual_sales": 202,
+      "predicted_q50": 198,
+      "prediction_error_pct": 2.0
+    },
+    "pizza_bread": {
+      "actual_sales": 135,
+      "predicted_q50": 157,
+      "prediction_error_pct": 16.3
+    },
+    "pullman": {
+      "actual_sales": 130,
+      "predicted_q50": 147,
+      "prediction_error_pct": 13.1
+    },
+    "soboru_bread": {
+      "actual_sales": 53,
+      "predicted_q50": 43,
+      "prediction_error_pct": 18.9
+    },
+    "sourdough": {
+      "actual_sales": 437,
+      "predicted_q50": 425,
+      "prediction_error_pct": 2.7
+    },
+    "stickbread": {
+      "actual_sales": 651,
+      "predicted_q50": 600,
+      "prediction_error_pct": 7.8
+    },
+    "tostada": {
+      "actual_sales": 39,
+      "predicted_q50": 11,
+      "prediction_error_pct": 71.8
+    }
+  }
+}

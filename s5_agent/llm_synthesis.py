@@ -147,18 +147,16 @@ Rules:
 - Keep it under 100 words.""",
 }
 
-COMPOSER_TEMPLATE = """You are a bakery sales assistant generating a friendly, persuasive recommendation script for a cashier to say to a customer at checkout.
+COMPOSER_TEMPLATE = """You are a bakery pairing advisor explaining why each combo recommendation was chosen. Write a short reason (1-2 sentences).
 
 Combo Scores: {combo_text}
 
-Write ONE short, natural sales script (2-3 sentences) that the cashier can say directly to the customer. Include:
-- Mention the combo deal (what items together)
-- State the price or savings briefly
-- Use a warm, casual tone (like a friendly bakery staff member)
-- Do NOT use markdown, bullet points, or numbered lists
-- Keep it under 60 words
-"""
-
+Explain what makes this pairing good:
+- Mention why the products go well together (flavor complement, customer favorites)
+- Note if this helps clear stock (overstocked item paired with popular item)
+- Mention savings or value
+- Do NOT use markdown, bullet points
+- Keep it under 50 words"""
 DEFAULT_TEMPLATE = """You are a bakery AI assistant. Write a concise, FACTUAL summary (2-3 sentences). Do not sugarcoat.
 
 Query: {query}
@@ -173,7 +171,6 @@ Rules:
 - Report the actual numbers clearly. Avoid vague terms unless the data genuinely supports them.
 - If there are conflicts, address them directly and honestly.
 - Keep it under 80 words."""
-
 
 def _build_prompt(intent: str, query: str, decision: str, priority: str,
                   agent_summaries: str, conflicts: str, counterfactual: str = "",

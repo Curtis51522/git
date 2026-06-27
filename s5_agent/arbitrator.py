@@ -14,7 +14,6 @@ try:
 except ImportError:
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 LLM_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1") + "/chat/completions"
-LLM_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
 logger = logging.getLogger("s5.arbitrator")
 
@@ -236,8 +235,10 @@ class Arbitrator:
         else:
             # stock_query / cross_source_audit - OPTIMIZER computes numbers
             # Cap = 0 if no bakers scheduled (rest day); otherwise use production capacity
-            bakers_on_duty = results.get("staffing", {}).get("data", {}).get("bakers", 1)
-            if bakers_on_duty == 0:
+            bakers_on_duty = results.get("staffing", {}).get("data", {}).get("bakers", 0)
+            # Safety: if staffing agent failed entirely, refuse to recommend baking
+            staffing_ok = results.get("staffing", {}).get("confidence", 0) >= 0.4
+            if not staffing_ok or bakers_on_duty == 0:
                 cap = 0
             elif max_cap > 0:
                 cap = min(max_cap, self.config.daily_capacity)

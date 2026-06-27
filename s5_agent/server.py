@@ -425,6 +425,19 @@ async def handle_query(req: QueryRequest):
             params["intent"] = plan.get("intent", db_intent)
             params["intent_confidence"] = plan.get("llm_confidence", 0.95)
             params["product"] = plan.get("product", "croissant")
+            # Use LLM-planned date if parse_query didn't resolve one, or LLM is more specific
+            if plan.get("date") and plan["date"] != params.get("date", ""):
+                params["date"] = plan["date"]
+            # Validate LLM product against known products; reset if hallucinated
+            llm_product = params["product"]
+            if llm_product not in PRODUCT_NAMES:
+                # Try normalizing: lowercase + underscore
+                normalized = llm_product.lower().replace(" ", "_").replace("-", "_")
+                if normalized in PRODUCT_NAMES:
+                    params["product"] = normalized
+                else:
+                    # Not recognized — fall back to local extraction
+                    params["product"] = "pending"
             intent = params["intent"]
 
     # Product aliases (Malay + common variants)
@@ -472,7 +485,7 @@ async def handle_query(req: QueryRequest):
         elif intent in ("schedule_audit", "cross_source_audit", "profit_analysis", "waste_analysis"):
             params["product"] = product_found or "all"
         else:
-            params["product"] = product_found or "croissant"
+            params["product"] = product_found or "all"
 
     # Out-of-scope check
     if intent == "out_of_scope":

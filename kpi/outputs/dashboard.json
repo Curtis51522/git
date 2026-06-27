@@ -1,0 +1,534 @@
+{
+  "generated_at": "2026-06-28T00:35:41.002642",
+  "panel_1_attendance": {
+    "date": "2026-06-28",
+    "total": 9,
+    "present": 7,
+    "absent": 2,
+    "late": 2,
+    "employees": [
+      {
+        "id": "B001",
+        "name": "Zhang Wei",
+        "role": "baker",
+        "status": "on_time",
+        "punch_in": "07:55",
+        "punch_out": null
+      },
+      {
+        "id": "B002",
+        "name": "Li Ming",
+        "role": "baker",
+        "status": "absent",
+        "punch_in": "08:45",
+        "punch_out": null
+      },
+      {
+        "id": "B003",
+        "name": "Wang Fang",
+        "role": "baker",
+        "status": "late",
+        "punch_in": "08:03",
+        "punch_out": null
+      },
+      {
+        "id": "R001",
+        "name": "Chen Yu",
+        "role": "barista",
+        "status": "on_time",
+        "punch_in": "08:00",
+        "punch_out": null
+      },
+      {
+        "id": "R002",
+        "name": "Liu Na",
+        "role": "barista",
+        "status": "on_time",
+        "punch_in": "07:50",
+        "punch_out": null
+      },
+      {
+        "id": "R003",
+        "name": "Huang Li",
+        "role": "barista",
+        "status": "on_time",
+        "punch_in": "07:50",
+        "punch_out": null
+      },
+      {
+        "id": "C001",
+        "name": "Zhou Jie",
+        "role": "cashier",
+        "status": "on_time",
+        "punch_in": "07:50",
+        "punch_out": null
+      },
+      {
+        "id": "C002",
+        "name": "Wu Min",
+        "role": "cashier",
+        "status": "absent",
+        "punch_in": "08:18",
+        "punch_out": null
+      },
+      {
+        "id": "M001",
+        "name": "Sun Tao",
+        "role": "manager",
+        "status": "late",
+        "punch_in": "08:03",
+        "punch_out": null
+      }
+    ]
+  },
+  "panel_2_shift": {
+    "week_start": "2026-06-22",
+    "week_end": "2026-06-28",
+    "employees": [
+      {
+        "name": "Zhang Wei",
+        "role": "baker",
+        "schedule": {
+          "2026-06-22": "OPEN",
+          "2026-06-23": "OPEN",
+          "2026-06-24": "OFF",
+          "2026-06-25": "OPEN",
+          "2026-06-26": "OPEN",
+          "2026-06-27": "OFF",
+          "2026-06-28": "OPEN"
+        }
+      },
+      {
+        "name": "Li Ming",
+        "role": "baker",
+        "schedule": {
+          "2026-06-22": "OPEN",
+          "2026-06-23": "OFF",
+          "2026-06-24": "OPEN",
+          "2026-06-25": "OPEN",
+          "2026-06-26": "OFF",
+          "2026-06-27": "OPEN",
+          "2026-06-28": "OPEN"
+        }
+      },
+      {
+        "name": "Wang Fang",
+        "role": "baker",
+        "schedule": {
+          "2026-06-22": "OFF",
+          "2026-06-23": "OPEN",
+          "2026-06-24": "OPEN",
+          "2026-06-25": "OFF",
+          "2026-06-26": "OPEN",
+          "2026-06-27": "OPEN",
+          "2026-06-28": "OFF"
+        }
+      },
+      {
+        "name": "Chen Yu",
+        "role": "barista",
+        "schedule": {
+          "2026-06-22": "OPEN",
+          "2026-06-23": "OPEN",
+          "2026-06-24": "OPEN",
+          "2026-06-25": "OPEN",
+          "2026-06-26": "OPEN",
+          "2026-06-27": "OFF",
+          "2026-06-28": "OFF"
+        }
+      },
+      {
+        "name": "Liu Na",
+        "role": "barista",
+        "schedule": {
+          "2026-06-22": "MID",
+          "2026-06-23": "MID",
+          "2026-06-24": "MID",
+          "2026-06-25": "MID",
+          "2026-06-26": "MID",
+          "2026-06-27": "OFF",
+          "2026-06-28": "OFF"
+        }
+      },
+      {
+        "name": "Huang Li",
+        "role": "barista",
+        "schedule": {
+          "2026-06-22": "CLOSE",
+          "2026-06-23": "CLOSE",
+          "2026-06-24": "CLOSE",
+          "2026-06-25": "CLOSE",
+          "2026-06-26": "CLOSE",
+          "2026-06-27": "OFF",
+          "2026-06-28": "OFF"
+        }
+      },
+      {
+        "name": "Zhou Jie",
+        "role": "cashier",
+        "schedule": {
+          "2026-06-22": "MID",
+          "2026-06-23": "MID",
+          "2026-06-24": "MID",
+          "2026-06-25": "MID",
+          "2026-06-26": "MID",
+          "2026-06-27": "OFF",
+          "2026-06-28": "OFF"
+        }
+      },
+      {
+        "name": "Wu Min",
+        "role": "cashier",
+        "schedule": {
+          "2026-06-22": "CLOSE",
+          "2026-06-23": "CLOSE",
+          "2026-06-24": "CLOSE",
+          "2026-06-25": "CLOSE",
+          "2026-06-26": "CLOSE",
+          "2026-06-27": "OFF",
+          "2026-06-28": "OFF"
+        }
+      },
+      {
+        "name": "Sun Tao",
+        "role": "manager",
+        "schedule": {
+          "2026-06-22": "FULL",
+          "2026-06-23": "FULL",
+          "2026-06-24": "FULL",
+          "2026-06-25": "FULL",
+          "2026-06-26": "FULL",
+          "2026-06-27": "OFF",
+          "2026-06-28": "OFF"
+        }
+      }
+    ],
+    "coverage_ok": false
+  },
+  "panel_3_kpi": {
+    "month": "2026-06",
+    "total_employees": 9,
+    "top_performer": {
+      "name": "Huang Li",
+      "role": "咖啡师",
+      "score": 0.2757
+    },
+    "ranking": [
+      {
+        "rank": 1,
+        "name": "Huang Li",
+        "role": "咖啡师",
+        "score": 0.2757,
+        "percentile": 100.0,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "每小时出品",
+              "z": 1.1547
+            },
+            {
+              "kpi": "客户满意度",
+              "z": 1.1378
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "原料浪费率",
+              "z": 0.1048
+            },
+            {
+              "kpi": "拉花等级",
+              "z": -0.5774
+            }
+          ]
+        }
+      },
+      {
+        "rank": 2,
+        "name": "Li Ming",
+        "role": "面包师",
+        "score": 0.1685,
+        "percentile": 88.9,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "准时率",
+              "z": 1.1346
+            },
+            {
+              "kpi": "日出品量",
+              "z": 1.1327
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "浪费率",
+              "z": -0.8533
+            },
+            {
+              "kpi": "交叉技能数",
+              "z": -1.0
+            }
+          ]
+        }
+      },
+      {
+        "rank": 3,
+        "name": "Wu Min",
+        "role": "收银员",
+        "score": 0.0299,
+        "percentile": 77.8,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "结账速度",
+              "z": 0.7071
+            },
+            {
+              "kpi": "追加销售率",
+              "z": 0.7071
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "准确率",
+              "z": -0.7071
+            },
+            {
+              "kpi": "客户满意度",
+              "z": -0.7071
+            }
+          ]
+        }
+      },
+      {
+        "rank": 4,
+        "name": "Sun Tao",
+        "role": "店长",
+        "score": 0.0,
+        "percentile": 66.7,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "团队毛利率",
+              "z": 0.0
+            },
+            {
+              "kpi": "销售增长率",
+              "z": 0.0
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "员工留存率",
+              "z": 0.0
+            },
+            {
+              "kpi": "客户满意度",
+              "z": 0.0
+            }
+          ]
+        }
+      },
+      {
+        "rank": 5,
+        "name": "Zhou Jie",
+        "role": "收银员",
+        "score": -0.0299,
+        "percentile": 55.6,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "准确率",
+              "z": 0.7071
+            },
+            {
+              "kpi": "客户满意度",
+              "z": 0.7071
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "追加销售率",
+              "z": -0.7071
+            },
+            {
+              "kpi": "准时率",
+              "z": -0.7071
+            }
+          ]
+        }
+      },
+      {
+        "rank": 6,
+        "name": "Wang Fang",
+        "role": "面包师",
+        "score": -0.0739,
+        "percentile": 44.4,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "交叉技能数",
+              "z": 1.0
+            },
+            {
+              "kpi": "产品合格率",
+              "z": 0.8729
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "准时率",
+              "z": -0.3816
+            },
+            {
+              "kpi": "日出品量",
+              "z": -0.7605
+            }
+          ]
+        }
+      },
+      {
+        "rank": 7,
+        "name": "Zhang Wei",
+        "role": "面包师",
+        "score": -0.0946,
+        "percentile": 33.3,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "浪费率",
+              "z": 1.1004
+            },
+            {
+              "kpi": "交叉技能数",
+              "z": 0.0
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "准时率",
+              "z": -0.753
+            },
+            {
+              "kpi": "产品合格率",
+              "z": -1.0911
+            }
+          ]
+        }
+      },
+      {
+        "rank": 8,
+        "name": "Chen Yu",
+        "role": "咖啡师",
+        "score": -0.0984,
+        "percentile": 22.2,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "拉花等级",
+              "z": 1.1547
+            },
+            {
+              "kpi": "原料浪费率",
+              "z": 0.9435
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "每小时出品",
+              "z": -0.5774
+            },
+            {
+              "kpi": "准时率",
+              "z": -0.9373
+            }
+          ]
+        }
+      },
+      {
+        "rank": 9,
+        "name": "Liu Na",
+        "role": "咖啡师",
+        "score": -0.1773,
+        "percentile": 11.1,
+        "highlights": {
+          "strengths": [
+            {
+              "kpi": "准时率",
+              "z": -0.1154
+            },
+            {
+              "kpi": "每小时出品",
+              "z": -0.5774
+            }
+          ],
+          "weaknesses": [
+            {
+              "kpi": "客户满意度",
+              "z": -0.7395
+            },
+            {
+              "kpi": "原料浪费率",
+              "z": -1.0483
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "role_breakdown": {
+    "barista": {
+      "name": "咖啡师",
+      "avg_score": 0.0,
+      "top": "Huang Li"
+    },
+    "baker": {
+      "name": "面包师",
+      "avg_score": 0.0,
+      "top": "Li Ming"
+    },
+    "cashier": {
+      "name": "收银员",
+      "avg_score": 0.0,
+      "top": "Wu Min"
+    },
+    "manager": {
+      "name": "店长",
+      "avg_score": 0.0,
+      "top": "Sun Tao"
+    }
+  },
+  "trends": [
+    {
+      "month": "2026-01",
+      "avg_score": 0.0,
+      "top": "Liu Na"
+    },
+    {
+      "month": "2026-02",
+      "avg_score": 0.0,
+      "top": "Chen Yu"
+    },
+    {
+      "month": "2026-03",
+      "avg_score": -0.0,
+      "top": "Zhou Jie"
+    },
+    {
+      "month": "2026-04",
+      "avg_score": 0.0,
+      "top": "Chen Yu"
+    },
+    {
+      "month": "2026-05",
+      "avg_score": 0.0,
+      "top": "Liu Na"
+    },
+    {
+      "month": "2026-06",
+      "avg_score": -0.0,
+      "top": "Huang Li"
+    }
+  ]
+}

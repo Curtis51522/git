@@ -9,12 +9,9 @@ JWT_EXPIRE_MINUTES = 480
 YOLO_MODEL_PATH = "models/yolo/best.pt"
 YOLO_CONFIDENCE_THRESHOLD = 0.5
 PRODUCT_TYPES = [
-    "donut",
-    "croissant",
-    "bread_coconut",
-    "bread_roll",
-    "chiffon",
-    "croissant_chocolate",
+    "bread_coconut", "bread_roll", "chiffon", "croissant", "croissant_chocolate", "donut",
+    "eggtart", "cream_horn", "melon_bread", "pizza_bread",
+    "soboru_bread", "chocopie", "stickbread", "baguette", "pandesal", "sourdough",
 ]
 
 COFFEE_TYPES = [

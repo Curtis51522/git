@@ -1,0 +1,12 @@
+{
+  "experiment": "lr0.005_mosaic1.0_bs16_SGD_grid",
+  "lr0": 0.005,
+  "mosaic": 1.0,
+  "batch": 16,
+  "optimizer": "SGD",
+  "pretrained": true,
+  "epochs": 30,
+  "mAP50": 0.8944,
+  "mAP50_95": 0.7389,
+  "peak_gpu_memory_gb": 6.31
+}

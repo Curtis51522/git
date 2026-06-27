@@ -120,6 +120,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .modal-btn-cancel:hover{background:#d4c5b2}
 .modal-btn-delete{background:#e74c3c;color:#fff}
 .modal-btn-delete:hover{background:#c0392b}
+/* Coffee customization modal */
+.coffee-option-group{margin:12px 0}
+.coffee-option-group .opt-label{display:block;font-size:13px;font-weight:700;color:#8b6914;margin-bottom:6px}
+.coffee-option-row{display:flex;gap:6px;flex-wrap:wrap}
+.coffee-opt-btn{padding:8px 14px;border:2px solid #e0d5c7;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:#8b6914;transition:all .15s;white-space:nowrap}
+.coffee-opt-btn:hover{border-color:#8b6914;background:#fdf9f3}
+.coffee-opt-btn.selected{background:#8b6914;color:#fff;border-color:#8b6914}
+.coffee-modal-actions{display:flex;gap:8px;margin-top:20px}
+.coffee-modal-actions button{flex:1;padding:10px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
+.coffee-modal-add{background:#27ae60;color:#fff}
+.coffee-modal-add:hover{background:#2ecc71}
+.coffee-modal-cancel{background:#e0d5c7;color:#8b6914}
+.coffee-modal-cancel:hover{background:#d4c5b2}
+
+.coffee-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;background:#f0e8d8;color:#8b6914;margin-left:4px;font-weight:500}
 #edit-qty::-webkit-outer-spin-button,#edit-qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
 
@@ -276,6 +291,45 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <div class="modal-btns">
 <button class="modal-btn-delete" onclick="deleteCartItem()">Delete Item</button>
 <button class="modal-btn-save" onclick="saveCartItem()">Save Changes</button>
+</div>
+</div>
+</div>
+
+<!-- Coffee Customization Modal -->
+<div id="coffee-modal" class="modal-overlay" onclick="if(event.target===this)closeCoffeeModal()">
+<div class="modal-box" style="max-width:420px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<h3 style="margin:0" id="coffee-modal-title">Customize Drink</h3>
+<button onclick="closeCoffeeModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#8b6914;padding:0;line-height:1">&times;</button>
+</div>
+<div class="coffee-option-group">
+<span class="opt-label">Temperature</span>
+<div class="coffee-option-row" id="coffee-temp-options">
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('temp','hot')" data-val="hot">Hot</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('temp','cold')" data-val="cold">Cold</button>
+</div>
+</div>
+<div class="coffee-option-group">
+<span class="opt-label">Sugar</span>
+<div class="coffee-option-row" id="coffee-sugar-options">
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','full')" data-val="full">Full</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','half')" data-val="half">Half</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','light')" data-val="light">Light</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','none')" data-val="none">None</button>
+</div>
+</div>
+<div class="coffee-option-group coffee-modal-ice" id="coffee-ice-group" style="display:none">
+<span class="opt-label">Ice Level</span>
+<div class="coffee-option-row" id="coffee-ice-options">
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('ice','full')" data-val="full">Full</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('ice','normal')" data-val="normal">Normal</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('ice','less')" data-val="less">Less</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('ice','none')" data-val="none">None</button>
+</div>
+</div>
+<div class="coffee-modal-actions">
+<button class="coffee-modal-cancel" onclick="closeCoffeeModal()">Cancel</button>
+<button class="coffee-modal-add" onclick="confirmCoffeeAdd()">Add to Cart</button>
 </div>
 </div>
 </div>
@@ -463,12 +517,12 @@ var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.p
 var s5DiscountCache={};
 
 var COFFEE_DRINKS=[
-{name:'Latte',desc:'Smooth espresso with steamed milk',price:'8.50',key:'latte'},
-{name:'Americano',desc:'Espresso with hot water',price:'6.50',key:'americano'},
-{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:'9.00',key:'cappuccino'},
-{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:'10.00',key:'cold_brew'},
-{name:'Iced Americano',desc:'Chilled espresso over ice',price:'7.20',key:'iced_americano'},
-{name:'Mocha',desc:'Espresso with chocolate',price:'10.50',key:'mocha'}
+{name:'Latte',desc:'Smooth espresso with steamed milk',price:'8.50',key:'latte',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Americano',desc:'Espresso with hot water',price:'6.50',key:'americano',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:'9.00',key:'cappuccino',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:'10.00',key:'cold_brew',default_temp:'cold',default_sugar:'light',default_ice:'normal'},
+{name:'Iced Americano',desc:'Chilled espresso over ice',price:'7.20',key:'iced_americano',default_temp:'cold',default_sugar:'none',default_ice:'normal'},
+{name:'Mocha',desc:'Espresso with chocolate',price:'10.50',key:'mocha',default_temp:'hot',default_sugar:'half',default_ice:'normal'}
 ];
 
 async function doLogin(){
@@ -711,7 +765,13 @@ var stLabels={confirmed:t('Confirmed'),review:t('Needs Review'),pending:t('Pendi
 cartHTML+='<div class="detect-card" style="margin-bottom:6px;padding:8px 10px;display:flex;justify-content:space-between;align-items:flex-start">';
 cartHTML+='<div style="flex:1;min-width:0">';
 cartHTML+='<div class="detect-header">';
-cartHTML+='<span class="detect-name" style="font-size:15px">'+nm+'</span></div>';
+cartHTML+='<span class="detect-name" style="font-size:15px">'+nm+'</span>';
+if(item.temperature&&(COFFEE_PRICES[item.product_name]!==undefined)){
+cartHTML+='<span class="coffee-tag">'+(item.temperature==='hot'?'Hot':'Cold')+'</span>';
+cartHTML+='<span class="coffee-tag">'+{full:'Full',half:'Half',light:'Light',none:'None'}[item.sugar||'full']+'</span>';
+if(item.temperature==='cold'){cartHTML+='<span class="coffee-tag">Ice '+{full:'Full',normal:'Normal',less:'Less',none:'None'}[item.ice_level||'normal']+'</span>';}
+}
+cartHTML+='</div>';
 cartHTML+='<div class="detect-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
 var fullPrice=PRODUCT_PRICES[item.product_name]||COFFEE_PRICES[item.product_name]||5.0;
 if(item.discount_rate&&item.discount_rate>0){
@@ -750,7 +810,7 @@ bundleHTML+='<div class="bundle-save">'+t('Save RM')+' '+b.savings.toFixed(2)+'<
 var coffeeBtns='';
 for(var i=0;i<COFFEE_DRINKS.length;i++){
 var cd=COFFEE_DRINKS[i];
-coffeeBtns+='<button class="drink-btn" onclick="quickAddCoffee('+"'"+cd.key+"'"+')">';
+coffeeBtns+='<button class="drink-btn" onclick="openCoffeeModal('+"'"+cd.key+"'"+')">';
 coffeeBtns+='<span class="drink-name">'+cd.name+'</span>';
 coffeeBtns+='<span class="drink-desc">'+cd.desc+'</span>';
 coffeeBtns+='<span class="drink-price">RM '+cd.price+'</span></button>';
@@ -903,11 +963,72 @@ detections.splice(idx,1);
 renderPOS(document.getElementById('content-area'));
 }
 
-function quickAddCoffee(name){
+var _coffeeModalKey='',_coffeeModalTemp='',_coffeeModalSugar='full',_coffeeModalIce='normal';
+
+function openCoffeeModal(key){
+_coffeeModalKey=key;
+var drink=null;
+for(var i=0;i<COFFEE_DRINKS.length;i++){if(COFFEE_DRINKS[i].key===key){drink=COFFEE_DRINKS[i];break;}}
+if(!drink)return;
+_coffeeModalTemp=drink.default_temp||'hot';
+_coffeeModalSugar=drink.default_sugar||'full';
+_coffeeModalIce=drink.default_ice||'normal';
+document.getElementById('coffee-modal-title').textContent=drink.name;
+// Reset temp buttons
+var tbtns=document.querySelectorAll('#coffee-temp-options .coffee-opt-btn');
+for(var i=0;i<tbtns.length;i++){tbtns[i].classList.toggle('selected',tbtns[i].getAttribute('data-val')===_coffeeModalTemp);}
+// Reset sugar buttons
+var sbtns=document.querySelectorAll('#coffee-sugar-options .coffee-opt-btn');
+for(var i=0;i<sbtns.length;i++){sbtns[i].classList.toggle('selected',sbtns[i].getAttribute('data-val')===_coffeeModalSugar);}
+// Reset ice buttons
+var ibtns=document.querySelectorAll('#coffee-ice-options .coffee-opt-btn');
+for(var i=0;i<ibtns.length;i++){ibtns[i].classList.toggle('selected',ibtns[i].getAttribute('data-val')===_coffeeModalIce);}
+// Show/hide ice group
+document.getElementById('coffee-ice-group').style.display=_coffeeModalTemp==='cold'?'block':'none';
+document.getElementById('coffee-modal').classList.add('show');
+}
+
+function selectCoffeeOption(type,val){
+if(type==='temp'){
+_coffeeModalTemp=val;
+var tbtns=document.querySelectorAll('#coffee-temp-options .coffee-opt-btn');
+for(var i=0;i<tbtns.length;i++){tbtns[i].classList.toggle('selected',tbtns[i].getAttribute('data-val')===val);}
+document.getElementById('coffee-ice-group').style.display=val==='cold'?'block':'none';
+}else if(type==='sugar'){
+_coffeeModalSugar=val;
+var sbtns=document.querySelectorAll('#coffee-sugar-options .coffee-opt-btn');
+for(var i=0;i<sbtns.length;i++){sbtns[i].classList.toggle('selected',sbtns[i].getAttribute('data-val')===val);}
+}else if(type==='ice'){
+_coffeeModalIce=val;
+var ibtns=document.querySelectorAll('#coffee-ice-options .coffee-opt-btn');
+for(var i=0;i<ibtns.length;i++){ibtns[i].classList.toggle('selected',ibtns[i].getAttribute('data-val')===val);}
+}
+}
+
+function confirmCoffeeAdd(){
+var name=_coffeeModalKey;
+var temp=_coffeeModalTemp;
+var sugar=_coffeeModalSugar;
+var ice=_coffeeModalIce;
 var found=false;
-for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name){cartItems[i].quantity+=1;found=true;break;}}
-if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:'green',status:'confirmed'});
+for(var i=0;i<cartItems.length;i++){
+var ci=cartItems[i];
+if(ci.product_name===name&&ci.temperature===temp&&ci.sugar===sugar&&(ci.ice_level||'normal')===ice){
+ci.quantity+=1;found=true;break;
+}
+}
+if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:'green',status:'confirmed',temperature:temp,sugar:sugar,ice_level:ice});
+closeCoffeeModal();
 renderPOS(document.getElementById('content-area'));
+}
+
+function closeCoffeeModal(){
+document.getElementById('coffee-modal').classList.remove('show');
+_coffeeModalKey='';
+}
+
+function quickAddCoffee(name){
+openCoffeeModal(name);
 }
 
 function selectFreshness(name,fresh){
@@ -974,7 +1095,7 @@ async function confirmPayment(){
 if(_payMethod==="qr"){showReceipt(null);return;}
 try{
 var hdrs={"Content-Type":"application/json","Authorization":"Bearer "+token};
-var items=cartItems.map(function(ci){return{product_name:ci.product_name,quantity:ci.quantity,freshness:ci.freshness};});
+var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantity:ci.quantity,freshness:ci.freshness};if(ci.temperature)o.temperature=ci.temperature;if(ci.sugar)o.sugar=ci.sugar;if(ci.ice_level)o.ice_level=ci.ice_level;return o;});
 var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
@@ -986,7 +1107,7 @@ cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];
 }
 function showReceipt(r){
 document.getElementById("payment-modal").classList.remove("show");document.getElementById("payment-modal").classList.add("hidden");
-if(!r){r={items:cartItemsRaw.map(function(ci){return{product_name:ci.product_name,quantity:ci.quantity,line_total:getItemPrice(ci)*ci.quantity};}),total:_payTotal,payment_method:_payMethod};}
+if(!r){r={items:cartItemsRaw.map(function(ci){var nm=ci.product_name;if(ci.temperature){nm+=' ('+(ci.temperature==='hot'?'Hot':'Cold');if(ci.sugar)nm+=', '+{full:'Full',half:'Half',light:'Light',none:'None'}[ci.sugar||'full'];if(ci.temperature==='cold')nm+=', Ice '+{full:'Full',normal:'Normal',less:'Less',none:'None'}[ci.ice_level||'normal'];nm+=')';}return{product_name:nm,quantity:ci.quantity,line_total:getItemPrice(ci)*ci.quantity};}),total:_payTotal,payment_method:_payMethod};}
 document.getElementById("receipt-id-display").textContent=r.receipt_id||"";
 var h="";
 for(var i=0;i<r.items.length;i++){var it=r.items[i];h+="<div class=\"receipt-line\"><span class=\"item-name\">"+it.product_name+"</span><span class=\"item-qty\">x"+it.quantity+"</span><span>RM"+(it.line_total||0).toFixed(2)+"</span></div>";}
@@ -1009,7 +1130,7 @@ if(!cartItems.length){alert('Cart is empty');return}
 var COFFEE_KEYS={latte:1,americano:1,cappuccino:1,cold_brew:1,espresso:1,flat_white:1,mocha:1,iced_americano:1};
 for(var i=0;i<cartItems.length;i++){var ci=cartItems[i];if(!COFFEE_KEYS[ci.product_name]&&(!stockMap||!stockMap[ci.product_name]||stockMap[ci.product_name]<=0)){alert('No stock for '+ci.product_name+'. Cannot checkout.');return;}}
 var total=0;for(var i=0;i<cartItems.length;i++)total+=getItemPrice(cartItems[i])*cartItems[i].quantity;
-var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
+var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};var extras={};if(cartItems[i].temperature)extras.temperature=cartItems[i].temperature;if(cartItems[i].sugar)extras.sugar=cartItems[i].sugar;if(cartItems[i].ice_level)extras.ice_level=cartItems[i].ice_level;items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});

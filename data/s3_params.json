@@ -1,0 +1,295 @@
+{
+  "currency": "CNY",
+  "location": "Guangzhou, China",
+  "daily_capacity_bread_units": 800,
+  "daily_capacity_drink_units": 300,
+  "cost_ratios": {
+    "production_cost_ratio": 0.3,
+    "waste_cost_ratio_of_production": 0.5,
+    "stockout_cost_ratio_of_price": 0.25
+  },
+  "products": {
+    "donut": {
+      "selling_price": 6.0,
+      "production_cost": 1.8,
+      "waste_cost": 0.9,
+      "stockout_cost": 1.5
+    },
+    "eggtart": {
+      "selling_price": 7.0,
+      "production_cost": 2.1,
+      "waste_cost": 1.05,
+      "stockout_cost": 1.75
+    },
+    "bread_roll": {
+      "selling_price": 6.5,
+      "production_cost": 1.95,
+      "waste_cost": 0.97,
+      "stockout_cost": 1.62
+    },
+    "stickbread": {
+      "selling_price": 5.5,
+      "production_cost": 1.65,
+      "waste_cost": 0.82,
+      "stockout_cost": 1.38
+    },
+    "pandesal": {
+      "selling_price": 5.0,
+      "production_cost": 1.5,
+      "waste_cost": 0.75,
+      "stockout_cost": 1.25
+    },
+    "cornbread": {
+      "selling_price": 7.0,
+      "production_cost": 2.1,
+      "waste_cost": 1.05,
+      "stockout_cost": 1.75
+    },
+    "flatbread": {
+      "selling_price": 8.0,
+      "production_cost": 2.4,
+      "waste_cost": 1.2,
+      "stockout_cost": 2.0
+    },
+    "mantequilla": {
+      "selling_price": 7.5,
+      "production_cost": 2.25,
+      "waste_cost": 1.12,
+      "stockout_cost": 1.88
+    },
+    "pullman": {
+      "selling_price": 9.0,
+      "production_cost": 2.7,
+      "waste_cost": 1.35,
+      "stockout_cost": 2.25
+    },
+    "croissant": {
+      "selling_price": 12.0,
+      "production_cost": 3.6,
+      "waste_cost": 1.8,
+      "stockout_cost": 3.0
+    },
+    "croissant_chocolate": {
+      "selling_price": 14.0,
+      "production_cost": 4.2,
+      "waste_cost": 2.1,
+      "stockout_cost": 3.5
+    },
+    "cream_horn": {
+      "selling_price": 13.0,
+      "production_cost": 3.9,
+      "waste_cost": 1.95,
+      "stockout_cost": 3.25
+    },
+    "bread_coconut": {
+      "selling_price": 10.0,
+      "production_cost": 3.0,
+      "waste_cost": 1.5,
+      "stockout_cost": 2.5
+    },
+    "melon_bread": {
+      "selling_price": 10.0,
+      "production_cost": 3.0,
+      "waste_cost": 1.5,
+      "stockout_cost": 2.5
+    },
+    "soboru_bread": {
+      "selling_price": 11.0,
+      "production_cost": 3.3,
+      "waste_cost": 1.65,
+      "stockout_cost": 2.75
+    },
+    "pizza_bread": {
+      "selling_price": 16.0,
+      "production_cost": 4.8,
+      "waste_cost": 2.4,
+      "stockout_cost": 4.0
+    },
+    "baguette": {
+      "selling_price": 18.0,
+      "production_cost": 5.4,
+      "waste_cost": 2.7,
+      "stockout_cost": 4.5
+    },
+    "sourdough": {
+      "selling_price": 22.0,
+      "production_cost": 6.6,
+      "waste_cost": 3.3,
+      "stockout_cost": 5.5
+    },
+    "bagel": {
+      "selling_price": 12.0,
+      "production_cost": 3.6,
+      "waste_cost": 1.8,
+      "stockout_cost": 3.0
+    },
+    "brioche": {
+      "selling_price": 14.0,
+      "production_cost": 4.2,
+      "waste_cost": 2.1,
+      "stockout_cost": 3.5
+    },
+    "muffin": {
+      "selling_price": 12.0,
+      "production_cost": 3.6,
+      "waste_cost": 1.8,
+      "stockout_cost": 3.0
+    },
+    "tostada": {
+      "selling_price": 10.0,
+      "production_cost": 3.0,
+      "waste_cost": 1.5,
+      "stockout_cost": 2.5
+    },
+    "chocopie": {
+      "selling_price": 10.0,
+      "production_cost": 3.0,
+      "waste_cost": 1.5,
+      "stockout_cost": 2.5
+    },
+    "cookie": {
+      "selling_price": 8.0,
+      "production_cost": 2.4,
+      "waste_cost": 1.2,
+      "stockout_cost": 2.0
+    },
+    "apple_pie": {
+      "selling_price": 14.0,
+      "production_cost": 4.2,
+      "waste_cost": 2.1,
+      "stockout_cost": 3.5
+    },
+    "macaron": {
+      "selling_price": 15.0,
+      "production_cost": 4.5,
+      "waste_cost": 2.25,
+      "stockout_cost": 3.75
+    },
+    "waffle": {
+      "selling_price": 12.0,
+      "production_cost": 3.6,
+      "waste_cost": 1.8,
+      "stockout_cost": 3.0
+    },
+    "pancake": {
+      "selling_price": 13.0,
+      "production_cost": 3.9,
+      "waste_cost": 1.95,
+      "stockout_cost": 3.25
+    },
+    "chiffon": {
+      "selling_price": 18.0,
+      "production_cost": 5.4,
+      "waste_cost": 2.7,
+      "stockout_cost": 4.5
+    },
+    "chocolate_cake": {
+      "selling_price": 28.0,
+      "production_cost": 8.4,
+      "waste_cost": 4.2,
+      "stockout_cost": 7.0
+    },
+    "tiramisu": {
+      "selling_price": 32.0,
+      "production_cost": 9.6,
+      "waste_cost": 4.8,
+      "stockout_cost": 8.0
+    },
+    "brownie": {
+      "selling_price": 16.0,
+      "production_cost": 4.8,
+      "waste_cost": 2.4,
+      "stockout_cost": 4.0
+    },
+    "latte": {
+      "selling_price": 22.0,
+      "production_cost": 6.6,
+      "waste_cost": 3.3,
+      "stockout_cost": 5.5
+    },
+    "americano": {
+      "selling_price": 18.0,
+      "production_cost": 5.4,
+      "waste_cost": 2.7,
+      "stockout_cost": 4.5
+    },
+    "cappuccino": {
+      "selling_price": 22.0,
+      "production_cost": 6.6,
+      "waste_cost": 3.3,
+      "stockout_cost": 5.5
+    },
+    "mocha": {
+      "selling_price": 26.0,
+      "production_cost": 7.8,
+      "waste_cost": 3.9,
+      "stockout_cost": 6.5
+    },
+    "espresso": {
+      "selling_price": 15.0,
+      "production_cost": 4.5,
+      "waste_cost": 2.25,
+      "stockout_cost": 3.75
+    },
+    "flat_white": {
+      "selling_price": 24.0,
+      "production_cost": 7.2,
+      "waste_cost": 3.6,
+      "stockout_cost": 6.0
+    },
+    "caramel_macchiato": {
+      "selling_price": 26.0,
+      "production_cost": 7.8,
+      "waste_cost": 3.9,
+      "stockout_cost": 6.5
+    },
+    "cold_brew": {
+      "selling_price": 22.0,
+      "production_cost": 6.6,
+      "waste_cost": 3.3,
+      "stockout_cost": 5.5
+    },
+    "hot_chocolate": {
+      "selling_price": 18.0,
+      "production_cost": 5.4,
+      "waste_cost": 2.7,
+      "stockout_cost": 4.5
+    },
+    "matcha_latte": {
+      "selling_price": 22.0,
+      "production_cost": 6.6,
+      "waste_cost": 3.3,
+      "stockout_cost": 5.5
+    },
+    "milk_tea": {
+      "selling_price": 16.0,
+      "production_cost": 4.8,
+      "waste_cost": 2.4,
+      "stockout_cost": 4.0
+    },
+    "chai_latte": {
+      "selling_price": 18.0,
+      "production_cost": 5.4,
+      "waste_cost": 2.7,
+      "stockout_cost": 4.5
+    },
+    "earl_grey": {
+      "selling_price": 12.0,
+      "production_cost": 3.6,
+      "waste_cost": 1.8,
+      "stockout_cost": 3.0
+    },
+    "english_breakfast": {
+      "selling_price": 12.0,
+      "production_cost": 3.6,
+      "waste_cost": 1.8,
+      "stockout_cost": 3.0
+    },
+    "lemonade": {
+      "selling_price": 14.0,
+      "production_cost": 4.2,
+      "waste_cost": 2.1,
+      "stockout_cost": 3.5
+    }
+  }
+}

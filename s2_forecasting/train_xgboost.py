@@ -1,0 +1,454 @@
+﻿#!/usr/bin/env python
+"""
+XGBoost Sales Forecasting -- Experiment 1: Baseline Regression
+================================================================
+Daily SKU-level demand prediction for 45 bakery products (30 breads + 15 drinks).
+
+Problem Formulation
+-------------------
+Given feature vector x_t at day t:
+  x_t = [product_id, temp_mean, temp_max, temp_min, humidity, precipitation,
+         day_of_week, month, is_weekend, is_holiday, lag_1, lag_7_avg, lag_30_avg]
+
+Predict daily sales quantity:
+  y_t = quantity sold of product i on day t
+
+Model: XGBoost Regressor with objective = reg:squarederror
+  Loss: L = (1/n) * sum_{t=1}^{n} (y_t - y_t_pred)^2
+
+Data Split (time-series, no shuffle)
+-------------------------------------
+  Train: 2021-01-01 to 2022-12-31  (2 years, 28,986 rows)
+  Val:   2023-01-01 to 2023-06-30  (6 months,  6,816 rows)
+  Test:  2023-07-01 to 2023-12-31  (6 months,  6,807 rows)
+
+Hyperparameter Tuning (5-fold CV on Train+Val)
+-----------------------------------------------
+  Parameter         | Range                    | Best        | Rationale
+  ------------------|--------------------------|-------------|-------------------------
+  n_estimators      | [100, 200, 300]          | 100         | Prevent overfit on noise
+  max_depth         | [3, 5, 7]                | 3           | Shallow -- signal is weak
+  learning_rate     | [0.01, 0.05, 0.1]        | 0.1         | Fast convergence
+  subsample         | [0.8, 1.0]               | 0.8         | Regularisation
+  colsample_bytree  | [0.8, 1.0]               | 0.8         | Feature sampling
+  reg_alpha         | [0, 0.1]                 | 0.1         | L1 regularisation
+  reg_lambda        | [1, 1.5]                 | 1.5         | L2 regularisation
+
+Ablation Studies
+----------------
+  - no_weather: remove temp/humidity/precipitation features
+  - no_lag:     remove lag_1, lag_7_avg, lag_30_avg features
+  - product_only: predict using product_id alone
+
+Evaluation Metrics
+------------------
+  RMSE  = sqrt( (1/n) * sum (y_t - y_t_pred)^2 )
+  MAE   = (1/n) * sum |y_t - y_t_pred|
+  MAPE  = (1/n) * sum |(y_t - y_t_pred) / y_t| * 100   (y_t > 0 only)
+  R^2   = 1 - [ sum(y_t - y_t_pred)^2 / sum(y_t - y_mean)^2 ]
+
+References
+----------
+  [1] Makridakis et al. (2022). M5 accuracy competition: Results, findings
+      and conclusions. International Journal of Forecasting, 38(4), 1346-1364.
+  [2] Chen & Guestrin (2016). XGBoost: A scalable tree boosting system.
+      Proceedings of the 22nd ACM SIGKDD, 785-794.
+
+Reproducibility
+---------------
+  random_state = 42
+  numpy random seed = 42
+  sklearn version >= 1.0
+  xgboost version >= 1.7
+
+Outputs
+-------
+  outputs/xgboost_model.pkl      : trained XGBoost regressor
+  outputs/metrics.json            : train/test/gap metrics + baseline + ablation
+  outputs/best_params.json        : GridSearchCV best hyperparameters
+  outputs/per_product_metrics.csv : per-SKU RMSE/MAPE
+  outputs/shap_summary.png        : SHAP feature importance (summary)
+  outputs/shap_bar.png            : SHAP feature importance (bar)
+  outputs/residuals.png           : residual distribution + actual-vs-predicted + Q-Q
+
+Author: Bakery AI System
+""";
+
+import os, warnings, json, joblib
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.model_selection import GridSearchCV
+import xgboost as xgb
+
+warnings.filterwarnings("ignore")
+np.random.seed(42)
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
+import os as _os
+BASE_DIR = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+DATA_DIR = _os.path.join(BASE_DIR, "data")
+OUT_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "outputs")
+os.makedirs(OUT_DIR, exist_ok=True)
+
+FEATURES = [
+    "product_id", "temp_mean", "temp_max", "temp_min",
+    "humidity", "precipitation", "day_of_week", "month",
+    "is_weekend", "is_holiday", "lag_1", "lag_7_avg", "lag_30_avg",
+]
+TARGET = "quantity"
+
+CV_FOLDS = 5
+N_JOBS = -1
+
+# ============================================================
+# LOAD DATA
+# ============================================================
+def load_data():
+    """Run full preprocessing pipeline; return train/val/test DataFrames."""
+    from preprocess import run_preprocessing
+    print("\n" + "=" * 60)
+    print("  PREPROCESSING: raw ticket-level -> daily + features + split")
+    print("=" * 60)
+    train, val, test = run_preprocessing(verbose=True)
+    print("  Preprocessing complete.\n")
+    return train, val, test
+
+
+def get_xy(df):
+    """Extract feature matrix X and target vector y."""
+    X = df[FEATURES].copy()
+    y = df[TARGET].copy()
+    return X, y
+
+
+# ============================================================
+# METRICS
+# ============================================================
+def mape(y_true, y_pred):
+    """Mean Absolute Percentage Error, handling zeros."""
+    mask = y_true > 0
+    if mask.sum() == 0:
+        return np.nan
+    return np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+
+
+def compute_metrics(y_true, y_pred, prefix=""):
+    """Compute RMSE, MAE, MAPE, R^2."""
+    rmse_val = np.sqrt(mean_squared_error(y_true, y_pred))
+    mae_val  = mean_absolute_error(y_true, y_pred)
+    mape_val = mape(y_true, y_pred)
+    r2_val   = r2_score(y_true, y_pred)
+    metrics = {
+        f"{prefix}RMSE": rmse_val, f"{prefix}MAE": mae_val,
+        f"{prefix}MAPE": mape_val, f"{prefix}R2": r2_val,
+    }
+    return metrics
+
+
+def print_metrics(metrics, title):
+    """Pretty-print metrics dict."""
+    print(f"\n{'='*50}")
+    print(f"  {title}")
+    print(f"{'='*50}")
+    for k, v in metrics.items():
+        print(f"  {k:12s}: {v:>10.4f}")
+
+
+# ============================================================
+# BASELINE: Naive lag_7_avg predictor
+# ============================================================
+def baseline_evaluate(test_df):
+    """Use lag_7_avg directly as prediction (no model)."""
+    y_true = test_df[TARGET].values
+    y_pred = test_df["lag_7_avg"].values
+    return compute_metrics(y_true, y_pred, prefix="baseline_")
+
+
+# ============================================================
+# HYPERPARAMETER TUNING (5-fold Cross-Validation)
+# ============================================================
+PARAM_GRID = {
+    "n_estimators": [100, 200, 300],
+    "max_depth": [3, 5, 7],
+    "learning_rate": [0.01, 0.05, 0.1],
+    "subsample": [0.8, 1.0],
+    "colsample_bytree": [0.8, 1.0],
+    "reg_alpha": [0, 0.1],
+    "reg_lambda": [1, 1.5],
+}
+
+
+def tune_hyperparameters(train_df, val_df):
+    """GridSearchCV over PARAM_GRID with 5-fold CV on train+val combined."""
+    print("\n--- Hyperparameter Tuning (5-fold CV) ---")
+
+    combined = pd.concat([train_df, val_df], ignore_index=True)
+    X, y = get_xy(combined)
+
+    base_model = xgb.XGBRegressor(
+        objective="reg:squarederror",
+        random_state=42,
+        n_jobs=N_JOBS,
+        verbosity=0,
+    )
+
+    grid = GridSearchCV(
+        base_model, PARAM_GRID,
+        cv=CV_FOLDS,
+        scoring="neg_root_mean_squared_error",
+        n_jobs=N_JOBS,
+        verbose=1,
+    )
+    grid.fit(X, y)
+
+    print(f"\n  Best params: {grid.best_params_}")
+    print(f"  Best CV RMSE: {-grid.best_score_:.4f}")
+
+    return grid.best_params_, grid.best_estimator_
+
+
+# ============================================================
+# TRAIN FINAL MODEL
+# ============================================================
+def train_final_model(train_df, best_params):
+    """Train XGBoost on full train set with best hyperparameters."""
+    print("\n--- Training Final Model ---")
+    X_train, y_train = get_xy(train_df)
+
+    model = xgb.XGBRegressor(
+        **best_params,
+        objective="reg:squarederror",
+        random_state=42,
+        n_jobs=N_JOBS,
+        verbosity=0,
+    )
+    model.fit(X_train, y_train)
+
+    joblib.dump(model, os.path.join(OUT_DIR, "xgboost_model.pkl"))
+    print("  Model saved to outputs/xgboost_model.pkl")
+    return model
+
+
+# ============================================================
+# ABLATION STUDIES
+# ============================================================
+def run_ablation(train_df, val_df, test_df, best_params):
+    """Train models with ablated feature sets and evaluate on test."""
+    print("\n--- Ablation Studies ---")
+
+    weather_features = ["temp_mean", "temp_max", "temp_min", "humidity", "precipitation"]
+    lag_features = ["lag_1", "lag_7_avg", "lag_30_avg"]
+
+    ablations = {
+        "no_weather": [f for f in FEATURES if f not in weather_features],
+        "no_lag":     [f for f in FEATURES if f not in lag_features],
+        "product_only": ["product_id"],
+    }
+
+    results = {}
+    combined = pd.concat([train_df, val_df], ignore_index=True)
+    X_test, y_test = get_xy(test_df)
+
+    for name, feats in ablations.items():
+        X_train = combined[feats]
+        y_train = combined[TARGET]
+
+        m = xgb.XGBRegressor(
+            **{k: v for k, v in best_params.items() if k != "n_estimators"},
+            n_estimators=best_params.get("n_estimators", 200),
+            objective="reg:squarederror",
+            random_state=42, n_jobs=N_JOBS, verbosity=0,
+        )
+        m.fit(X_train, y_train)
+        y_pred = m.predict(X_test[feats])
+        metrics = compute_metrics(y_test, y_pred, prefix=f"ablation_{name}_")
+        results[name] = metrics
+        print(f"  {name:15s}  RMSE={metrics[f'ablation_{name}_RMSE']:.4f}  MAPE={metrics[f'ablation_{name}_MAPE']:.1f}%")
+
+    return results
+
+
+# ============================================================
+# FEATURE IMPORTANCE  (SHAP)
+# ============================================================
+def shap_analysis(model, test_df):
+    """Compute and plot SHAP feature importance."""
+    print("\n--- SHAP Analysis ---")
+    try:
+        import shap
+        X_test, _ = get_xy(test_df)
+        # Use a sample for speed
+        sample = X_test.sample(n=min(500, len(X_test)), random_state=42)
+
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(sample)
+
+        # Summary plot
+        plt.figure(figsize=(10, 6))
+        shap.summary_plot(shap_values, sample, show=False)
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUT_DIR, "shap_summary.png"), dpi=150)
+        plt.close()
+
+        # Bar plot
+        plt.figure(figsize=(10, 6))
+        shap.summary_plot(shap_values, sample, plot_type="bar", show=False)
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUT_DIR, "shap_bar.png"), dpi=150)
+        plt.close()
+
+        print("  SHAP plots saved.")
+    except ImportError:
+        print("  SHAP not installed, skipping.")
+
+
+# ============================================================
+# RESIDUAL ANALYSIS
+# ============================================================
+def residual_analysis(y_true, y_pred):
+    """Plot residuals and actual-vs-predicted."""
+    print("\n--- Residual Analysis ---")
+    residuals = y_true - y_pred
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+    # Residual distribution
+    axes[0].hist(residuals, bins=50, color="steelblue", edgecolor="white", alpha=0.8)
+    axes[0].axvline(0, color="red", linestyle="--", linewidth=1.5)
+    axes[0].set_xlabel("Residual")
+    axes[0].set_ylabel("Frequency")
+    axes[0].set_title("Residual Distribution")
+
+    # Actual vs Predicted
+    axes[1].scatter(y_true, y_pred, alpha=0.3, s=4, color="steelblue")
+    lims = [0, max(y_true.max(), y_pred.max()) * 1.05]
+    axes[1].plot(lims, lims, "r--", linewidth=1.5)
+    axes[1].set_xlim(lims)
+    axes[1].set_ylim(lims)
+    axes[1].set_xlabel("Actual")
+    axes[1].set_ylabel("Predicted")
+    axes[1].set_title("Actual vs Predicted")
+
+    # Q-Q plot
+    from scipy import stats
+    stats.probplot(residuals, dist="norm", plot=axes[2])
+    axes[2].set_title("Q-Q Plot")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUT_DIR, "residuals.png"), dpi=150)
+    plt.close()
+    print("  Residual plots saved.")
+
+
+# ============================================================
+# PER-PRODUCT METRICS
+# ============================================================
+def per_product_metrics(test_df, y_pred):
+    """Compute per-product RMSE and MAPE."""
+    print("\n--- Per-Product Metrics ---")
+    test_df = test_df.copy()
+    test_df["predicted"] = y_pred
+
+    results = []
+    for pid in sorted(test_df["product_id"].unique()):
+        sub = test_df[test_df["product_id"] == pid]
+        yt = sub[TARGET].values
+        yp = sub["predicted"].values
+        if len(yt) < 5:
+            continue
+        rmse = np.sqrt(mean_squared_error(yt, yp))
+        m = mape(yt, yp)
+        results.append({"product_id": pid, "samples": len(yt), "RMSE": rmse, "MAPE": m})
+
+    df_p = pd.DataFrame(results).sort_values("MAPE")
+    print(df_p.to_string(index=False))
+    df_p.to_csv(os.path.join(OUT_DIR, "per_product_metrics.csv"), index=False)
+    return df_p
+
+
+# ============================================================
+# MAIN
+# ============================================================
+def main():
+    print("=" * 60)
+    print("  XGBoost Sales Forecasting — 45 Products")
+    print("=" * 60)
+
+    # ----- Load -----
+    train, val, test = load_data()
+    print(f"\nTrain: {len(train)} rows | Val: {len(val)} rows | Test: {len(test)} rows")
+
+    # ----- Baseline -----
+    baseline_metrics = baseline_evaluate(test)
+    print_metrics(baseline_metrics, "BASELINE (lag_7_avg)")
+
+    # ----- Tune -----
+    best_params, _ = tune_hyperparameters(train, val)
+    with open(os.path.join(OUT_DIR, "best_params.json"), "w") as f:
+        json.dump(best_params, f, indent=2, default=str)
+
+    # ----- Train -----
+    model = train_final_model(train, best_params)
+
+    # ----- Evaluate on Train (overfitting check) -----
+    X_train, y_train = get_xy(train)
+    y_train_pred = model.predict(X_train)
+    y_train_pred = np.maximum(y_train_pred, 0)
+    train_metrics = compute_metrics(y_train, y_train_pred, prefix="xgboost_train_")
+    print_metrics(train_metrics, "XGBOOST (Training Set)")
+
+    # ----- Evaluate on Test -----
+    X_test, y_test = get_xy(test)
+    y_pred = model.predict(X_test)
+    y_pred = np.maximum(y_pred, 0)  # Clip negative predictions
+
+    test_metrics = compute_metrics(y_test, y_pred, prefix="xgboost_test_")
+    print_metrics(test_metrics, "XGBOOST (Test Set)")
+
+    # ----- Train-Test Gap (overfitting diagnostic) -----
+    gap_metrics = {}
+    for k_test, k_train in [("xgboost_test_RMSE", "xgboost_train_RMSE"),
+                            ("xgboost_test_MAE", "xgboost_train_MAE"),
+                            ("xgboost_test_MAPE", "xgboost_train_MAPE"),
+                            ("xgboost_test_R2", "xgboost_train_R2")]:
+        v_test = test_metrics[k_test]
+        v_train = train_metrics[k_train]
+        short_key = k_test.replace("xgboost_test_", "")
+        gap_metrics[f"gap_{short_key}"] = round(v_test - v_train, 4)
+    print_metrics(gap_metrics, "TRAIN-TEST GAP (Test minus Train, positive = overfitting)")
+
+    # ----- Ablation -----
+    ablation_results = run_ablation(train, val, test, best_params)
+
+    # ----- SHAP -----
+    shap_analysis(model, test)
+
+    # ----- Residuals -----
+    residual_analysis(y_test, y_pred)
+
+    # ----- Per-product -----
+    per_product_metrics(test, y_pred)
+
+    # ----- Save all metrics -----
+    all_metrics = {**baseline_metrics, **train_metrics, **test_metrics, **gap_metrics}
+    for k, v in ablation_results.items():
+        all_metrics.update(v)
+    all_metrics["best_params"] = str(best_params)
+
+    with open(os.path.join(OUT_DIR, "metrics.json"), "w") as f:
+        json.dump(all_metrics, f, indent=2, default=str)
+
+    print(f"\n{'='*60}")
+    print("  All results saved to s2_forecasting/outputs/")
+    print(f"{'='*60}")
+
+
+if __name__ == "__main__":
+    main()

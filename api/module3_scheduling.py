@@ -1325,3 +1325,109 @@ async def acknowledge_prep():
         "message": f"Prep checklist acknowledged. {updated} batches moved to Discount Area.",
     }
 
+
+
+# ======================================================================
+# S3 Production Scheduler endpoints (from s3_scheduling/scheduler.py)
+# ======================================================================
+@router.get("/plan/7day")
+async def get_7day_production_plan(date: str = None):
+    """
+    Forecasting Dashboard Panel 2: 7-day production plan grid.
+    Uses real S2 quantile models for demand prediction.
+    Query: GET /s3/plan/7day?date=2026-06-30
+    """
+    import os as _os3, sys as _sys3, json as _json3
+    _base3 = _os3.path.dirname(_os3.path.dirname(_os3.path.abspath(__file__)))
+    if _base3 not in _sys3.path:
+        _sys3.path.insert(0, _base3)
+    from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
+    import numpy as np
+    from datetime import datetime as _dt, timedelta as _td
+
+    if date is None:
+        date = _dt.now().strftime("%Y-%m-%d")
+    start_dt = _dt.strptime(date, "%Y-%m-%d")
+    if start_dt.weekday() != 0:
+        start_dt -= _td(days=start_dt.weekday())
+    start_date = start_dt.strftime("%Y-%m-%d")
+
+    s = Scheduler()
+    day1_stock = {p: np.random.randint(0, 5) for p in s.breads}
+    forecast = generate_7day_s2_forecast(start_date)
+    result = s.generate_7day_plan(start_date, day1_stock, forecast)
+
+    return {
+        "status": "ok",
+        "generated_at": _dt.now().isoformat(),
+        "dashboard_7day": result["dashboard_7day"],
+        "weekly_summary": {
+            "total_bake": result["weekly_summary"]["total_bake"],
+            "total_profit": result["weekly_summary"]["total_profit"],
+            "total_revenue": result["weekly_summary"]["total_revenue"],
+            "daily_profits": result["weekly_summary"]["daily_profits"],
+            "scenarios": result["weekly_summary"]["scenarios"],
+            "top_products": result["weekly_summary"]["top_products"],
+        },
+    }
+
+
+@router.get("/materials")
+async def get_materials_procurement(date: str = None):
+    """
+    Forecasting Dashboard Panel 3: Raw material procurement list.
+    Query: GET /s3/materials?date=2026-06-30
+    """
+    import os as _os4, sys as _sys4
+    _base4 = _os4.path.dirname(_os4.path.dirname(_os4.path.abspath(__file__)))
+    if _base4 not in _sys4.path:
+        _sys4.path.insert(0, _base4)
+    from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
+    import numpy as np
+    from datetime import datetime as _dt2, timedelta as _td2
+
+    if date is None:
+        date = _dt2.now().strftime("%Y-%m-%d")
+    start_dt = _dt2.strptime(date, "%Y-%m-%d")
+    if start_dt.weekday() != 0:
+        start_dt -= _td2(days=start_dt.weekday())
+    start_date = start_dt.strftime("%Y-%m-%d")
+
+    s = Scheduler()
+    day1_stock = {p: np.random.randint(0, 5) for p in s.breads}
+    forecast = generate_7day_s2_forecast(start_date)
+    result = s.generate_7day_plan(start_date, day1_stock, forecast)
+
+    return {
+        "status": "ok",
+        "generated_at": _dt2.now().isoformat(),
+        "dashboard_materials": result["dashboard_materials"],
+    }
+
+
+@router.get("/eval")
+async def get_paper_evaluation():
+    """
+    Paper evaluation: S3 on test set with real lag features.
+    Query: GET /s3/eval
+    Note: Takes ~30 seconds, caches result for subsequent calls.
+    """
+    import os as _os5, sys as _sys5, json as _json5
+    _base5 = _os5.path.dirname(_os5.path.dirname(_os5.path.abspath(__file__)))
+    if _base5 not in _sys5.path:
+        _sys5.path.insert(0, _base5)
+
+    _eval_cache = _os5.path.join(_base5, "s3_scheduling", "outputs", "paper_eval.json")
+
+    # Return cached result if available
+    if _os5.path.exists(_eval_cache):
+        with open(_eval_cache, "r") as f:
+            cached = _json5.load(f)
+        return {"status": "ok", "cached": True, **cached}
+
+    # Run fresh evaluation
+    from s3_scheduling.scheduler import run_paper_evaluation
+    result = run_paper_evaluation(save_path=_eval_cache)
+    if result is None:
+        return {"status": "error", "message": "Evaluation failed. Check S2 models."}
+    return {"status": "ok", "cached": False, **result}
