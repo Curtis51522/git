@@ -1113,14 +1113,14 @@ function exactCash(){document.getElementById('pay-cash').value=_payTotal.toFixed
 _payCashInput=rc;
 }
 async function confirmPayment(){
-if(_payMethod==="qr"){showReceipt(null);return;}
 try{
 var hdrs={"Content-Type":"application/json","Authorization":"Bearer "+token};
 var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantity:ci.quantity,freshness:ci.freshness};if(ci.temperature)o.temperature=ci.temperature;if(ci.sugar)o.sugar=ci.sugar;if(ci.ice_level)o.ice_level=ci.ice_level;return o;});
 var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
-if(d.status==="ok"&&d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
+if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
+else if(d.errors&&d.errors.length>0){alert("Checkout errors: "+d.errors.join(", "));renderPOS(document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
 hitlLog.push({action:"Checkout: "+(_payReceipt?(_payReceipt.total||_payTotal).toFixed(2):_payTotal.toFixed(2))+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
 cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];

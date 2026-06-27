@@ -104,10 +104,10 @@
       "source": "trend",
       "severity": "info",
       "title": "Trend: donut inventory",
-      "detail": "donut inventory is rising (3.4/day over 5 days, avg 31.8).",
+      "detail": "donut inventory is rising (3.2/day over 5 days, avg 31.6).",
       "acknowledged": false,
-      "created_at": "2026-06-28T02:16:45.761820",
-      "created_ts": 1782584205.7618206,
+      "created_at": "2026-06-28T02:46:35.898550",
+      "created_ts": 1782585995.8985507,
       "ttl_sec": 86400
     },
     {

@@ -398,13 +398,25 @@ async def checkout_complete(payload: dict):
     bakery_items = []
     coffee_items = []
     BAKERY_KEYS = {"apple_pie","bagel","baguette","bread_coconut","bread_roll","brioche","brownie","chiffon","chocolate_cake","chocopie","cookie","cornbread","cream_horn","croissant","croissant_chocolate","donut","eggtart","flatbread","macaron","mantequilla","melon_bread","muffin","pancake","pandesal","pizza_bread","pullman","soboru_bread","sourdough","stickbread","tostada"}
+    COFFEE_KEYS = {"latte","americano","cappuccino","mocha","espresso","flat_white","caramel_macchiato","cold_brew","hot_chocolate","matcha_latte","milk_tea","chai_latte","earl_grey","english_breakfast","lemonade"}
+    unknown_items = []
     for item in items:
         pn = item.get("product_name", "")
         if pn in BAKERY_KEYS:
             bakery_items.append(item)
-        else:
+        elif pn in COFFEE_KEYS:
             coffee_items.append(item)
-    
+        else:
+            unknown_items.append(pn)
+
+    if unknown_items:
+        return {
+            "status": "error",
+            "deducted": [],
+            "errors": [f"Unknown product(s): {', '.join(unknown_items)}"],
+            "receipt": None,
+            "message": f"Checkout rejected: unknown products {unknown_items}",
+        }
     # Deduct bakery items via FIFO
     result = None
     if bakery_items:
@@ -437,6 +449,16 @@ async def checkout_complete(payload: dict):
     deducted = (result.deducted if result else []) + coffee_deducted
     all_errors = (result.errors if result else [])
     status = result.status if result else "ok"
+
+    # If deduction has errors, do NOT create an order - return errors to frontend
+    if all_errors:
+        return {
+            "status": status,
+            "deducted": deducted,
+            "errors": all_errors,
+            "receipt": None,
+            "message": f"{len(deducted)} items deducted, {len(all_errors)} items failed",
+        }
 
     # ---- Build receipt ----
     prices = get_product_prices()
@@ -473,95 +495,109 @@ async def checkout_complete(payload: dict):
     
     # Generate receipt ID
         
-    # ---- Record to orders / order_items / payments tables ----
-    now = datetime.now()
-    payment_method = payload.get("payment_method", "cash")
-    cash_received = payload.get("cash_received", None)
+    try:
+        # ---- Record to orders / order_items / payments tables ----
+        now = datetime.now()
+        payment_method = payload.get("payment_method", "cash")
+        cash_received = payload.get("cash_received", None)
     
-    # Build product cost lookup
-    all_product_names = [it.get("product_name","") for it in items]
-    placeholders = ",".join(["%s"] * len(all_product_names))
-    cur = db.cursor()
-    cur.execute(f"SELECT product_name, material_cost FROM products WHERE product_name IN ({placeholders})", all_product_names)
-    cost_map = {r[0]: float(r[1]) for r in cur.fetchall()}
+        # Build product cost lookup
+        all_product_names = [it.get("product_name","") for it in items]
+        placeholders = ",".join(["%s"] * len(all_product_names))
+        cur = db.cursor()
+        cur.execute(f"SELECT product_name, material_cost FROM products WHERE product_name IN ({placeholders})", all_product_names)
+        cost_map = {r[0]: float(r[1]) for r in cur.fetchall()}
     
-    # Calculate order totals
-    order_subtotal = subtotal
-    order_discount = discount_total
-    order_total = total
-    order_profit = 0.0
-    order_item_count = 0
+        # Calculate order totals
+        order_subtotal = subtotal
+        order_discount = discount_total
+        order_total = total
+        order_profit = 0.0
+        order_item_count = 0
     
-    for item in items:
-        pn = item.get("product_name","")
-        qty = item.get("quantity", 1)
-        uprice = prices.get(pn, 5.0)
-        mat_cost = cost_map.get(pn, uprice * 0.30)
-        freshness = item.get("freshness", "Fresh")
-        disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
-        line_total = uprice * qty
-        line_disc = line_total * disc_rate
-        line_final = line_total - line_disc
-        line_profit = line_final - (mat_cost * qty)
-        order_profit += line_profit
-        order_item_count += qty
+        for item in items:
+            pn = item.get("product_name","")
+            qty = item.get("quantity", 1)
+            uprice = prices.get(pn, 5.0)
+            mat_cost = cost_map.get(pn, uprice * 0.30)
+            freshness = item.get("freshness", "Fresh")
+            disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+            line_total = uprice * qty
+            line_disc = line_total * disc_rate
+            line_final = line_total - line_disc
+            line_profit = line_final - (mat_cost * qty)
+            order_profit += line_profit
+            order_item_count += qty
     
-    # INSERT orders
-    cur.execute(
-        "INSERT INTO orders (ticket_id, order_date, order_time, subtotal, discount_total, total_amount, total_profit, item_count, state) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-        (receipt_id, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S"), round(order_subtotal,2), round(order_discount,2), round(order_total,2), round(order_profit,2), order_item_count, "paid")
-    )
-    order_id = cur.lastrowid
-    
-    # INSERT order_items
-    for item in items:
-        pn = item.get("product_name","")
-        qty = item.get("quantity", 1)
-        uprice = prices.get(pn, 5.0)
-        mat_cost = cost_map.get(pn, uprice * 0.30)
-        freshness = item.get("freshness", "Fresh")
-        disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
-        line_total = uprice * qty
-        line_disc = line_total * disc_rate
-        line_final = line_total - line_disc
-        line_profit = line_final - (mat_cost * qty)
-        
-        coffee_temp = item.get("temperature", None)
-        coffee_ice = item.get("ice_level", None)
-        coffee_sugar = item.get("sugar", None)
-        
-        cur.execute(
-            "INSERT INTO order_items (order_id, product_name, quantity, unit_price, discount_rate, line_total, line_profit, freshness, coffee_temp, coffee_ice, coffee_sugar) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (order_id, pn, qty, uprice, disc_rate, round(line_final,2), round(line_profit,2), freshness, coffee_temp, coffee_ice, coffee_sugar)
-        )
-    
-    # INSERT payments
-    cur.execute(
-        "INSERT INTO payments (order_id, amount, payment_method, payment_date) VALUES (%s,%s,%s,%s)",
-        (order_id, round(order_total,2), payment_method, now.strftime("%Y-%m-%d"))
-    )
-    db.commit()
-    
-    receipt_id = f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{now.microsecond // 1000:03d}"
-    receipt = {
-        "receipt_id": receipt_id,
-        "date": now.strftime("%Y-%m-%d %H:%M"),
-        "items": receipt_items,
-        "subtotal": round(subtotal, 2),
-        "discount_total": round(discount_total, 2),
-        "total": round(total, 2),
-        "savings": round(savings, 2),
-        "order_id": order_id,
-    }
+        receipt_id = f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{now.microsecond // 1000:03d}"
 
-    return {
-        "status": status,
-        "deducted": deducted,
-        "errors": all_errors,
-        "receipt": receipt,
-        "message": f"{len(deducted)} items deducted" + (f", {len(all_errors)} items failed" if all_errors else ""),
-    }
-# ======================================================================
+        # INSERT orders
+        cur.execute(
+            "INSERT INTO orders (ticket_id, order_date, order_time, subtotal, discount_total, total_amount, total_profit, item_count, state) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (receipt_id, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S"), round(order_subtotal,2), round(order_discount,2), round(order_total,2), round(order_profit,2), order_item_count, "paid")
+        )
+        order_id = cur.lastrowid
+    
+        # INSERT order_items
+        for item in items:
+            pn = item.get("product_name","")
+            qty = item.get("quantity", 1)
+            uprice = prices.get(pn, 5.0)
+            mat_cost = cost_map.get(pn, uprice * 0.30)
+            freshness = item.get("freshness", "Fresh")
+            disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+            line_total = uprice * qty
+            line_disc = line_total * disc_rate
+            line_final = line_total - line_disc
+            line_profit = line_final - (mat_cost * qty)
+        
+            coffee_temp = item.get("temperature", None)
+            coffee_ice = item.get("ice_level", None)
+            coffee_sugar = item.get("sugar", None)
+        
+            cur.execute(
+                "INSERT INTO order_items (order_id, product_name, quantity, unit_price, discount_rate, line_total, line_profit, freshness, coffee_temp, coffee_ice, coffee_sugar) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (order_id, pn, qty, uprice, disc_rate, round(line_final,2), round(line_profit,2), freshness, coffee_temp, coffee_ice, coffee_sugar)
+            )
+    
+        # INSERT payments
+        cur.execute(
+            "INSERT INTO payments (order_id, amount, payment_method, payment_date) VALUES (%s,%s,%s,%s)",
+            (order_id, round(order_total,2), payment_method, now.strftime("%Y-%m-%d"))
+        )
+        db.commit()
+    
+
+        receipt = {
+            "receipt_id": receipt_id,
+            "date": now.strftime("%Y-%m-%d %H:%M"),
+            "items": receipt_items,
+            "subtotal": round(subtotal, 2),
+            "discount_total": round(discount_total, 2),
+            "total": round(total, 2),
+            "savings": round(savings, 2),
+            "order_id": order_id,
+        }
+
+        return {
+            "status": status,
+            "deducted": deducted,
+            "errors": all_errors,
+            "receipt": receipt,
+            "message": f"{len(deducted)} items deducted" + (f", {len(all_errors)} items failed" if all_errors else ""),
+        }
+
+    except Exception as e:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "deducted": deducted,
+            "errors": [f"Database write failed: {str(e)}"],
+            "receipt": None,
+            "message": f"Checkout failed: {str(e)}",
+        }
 # GET /s4/revenue/daily -- Revenue dashboard data from MySQL
 # ======================================================================
 @router.get("/revenue/daily")
