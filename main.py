@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+﻿from dotenv import load_dotenv
 load_dotenv()
 import logging
 
@@ -12,6 +12,7 @@ logging.basicConfig(
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 import os, sys
 import httpx
 
@@ -54,10 +55,6 @@ async def startup_freshness():
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATIC = os.path.join(BASE, "api", "module4_frontend", "static")
 
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    with open(os.path.join(STATIC, "index.html"), encoding="utf-8") as f:
-        return f.read()
 
 
 @app.get("/ping")
@@ -106,6 +103,8 @@ app.include_router(s1_router)
 app.include_router(s2_router)
 app.include_router(s3_router)
 app.include_router(s4_router)
+
+app.mount("/", StaticFiles(directory=STATIC, html=True), name="static")
 
 if __name__ == "__main__":
     import hypercorn.asyncio

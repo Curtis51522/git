@@ -1,4 +1,3 @@
-<script>
 var token='', role='', username='', currentPanel='pos';
 var API='';
 var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null;
@@ -63,4 +62,3 @@ function getItemPrice(item){
 var base=PRODUCT_PRICES[item.product_name]||COFFEE_PRICES[item.product_name]||5.0;
 return item.tray_color==='orange'?base*(1-DISCOUNT_RATE):base;
 }
-</script>
