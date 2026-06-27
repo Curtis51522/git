@@ -1094,7 +1094,7 @@ document.getElementById("pay-cash-row").style.display="none";
 document.getElementById("pay-qr-msg").style.display="none";
 document.getElementById("pay-cash").value="";
 document.getElementById("pay-change").textContent="";
-document.getElementById("pay-confirm-btn").disabled=true;
+document.getElementById("pay-confirm-btn").disabled=true;_payCashInput=0;
 document.getElementById("payment-modal").classList.remove("hidden");document.getElementById("payment-modal").classList.add("show");
 }
 function selectPaymentMethod(m){
@@ -1119,11 +1119,11 @@ var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantit
 var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
-if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
+if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
 else if(d.errors&&d.errors.length>0){alert("Checkout errors: "+d.errors.join(", "));renderPOS(document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
 hitlLog.push({action:"Checkout: "+(_payReceipt?(_payReceipt.total||_payTotal).toFixed(2):_payTotal.toFixed(2))+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
-cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];
+cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();
 }catch(e){alert("Payment Failed: "+e.message);}
 }
 function showReceipt(r){
@@ -1141,7 +1141,7 @@ document.getElementById("receipt-overlay").classList.remove("hidden");document.g
 function closePaymentModal(){document.getElementById("payment-modal").classList.remove("show");document.getElementById("payment-modal").classList.add("hidden");}
 function clearCart(){
 if(!confirm('Clear cart?'))return;
-cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];
+cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();
 renderPOS(document.getElementById('content-area'));
 }
 function printReceipt(){window.print();}
@@ -1157,7 +1157,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
+if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();loadStock();renderPOS(document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -1481,14 +1481,14 @@ cachedInventory=tbl;
 
 
 function renderRevenue(container){
-var today='2023-12-31';
+var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="rev-date" value="'+today+'" onchange="loadRevenueData(this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b"></div>'
 +'<div class="dash-grid" id="rev-kpis"></div>'
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Category Breakdown</h4><div id="rev-category-chart" style="height:260px"></div></div></div>'
 
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>7-Day Profit Trend</h4><div id="rev-trend-chart" style="height:260px"></div></div></div>'
 +'<div class="table-panel"><h4>Today Sales Ranking</h4><div id="rev-ranking-table"></div></div>';
-loadRevenueData();
+loadRevenueData(today);
 }
 
 function loadRevenueData(date){

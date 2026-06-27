@@ -155,7 +155,7 @@ while current <= end_dt:
             # Add noise: random walk from 2021 baseline
             years_diff = current.year - 2021
             growth = 1.0 + years_diff * 0.05  # 5% annual growth
-            noise = np.random.normal(1.0, 0.15)
+            noise = np.random.normal(1.0, 0.12)
             qty = max(0, int(ref_qty * growth * noise))
             if qty == 0:
                 continue
@@ -278,10 +278,10 @@ drink_rows = []
 # Drink demand patterns: coffee peaks 07:00-10:00 and 14:00-16:00
 # Base daily quantities (realistic for a small bakery-cafe in Guangzhou)
 drink_base_daily = {
-    "latte": 35, "americano": 28, "cappuccino": 25, "mocha": 18,
-    "espresso": 12, "flat_white": 15, "caramel_macchiato": 14, "cold_brew": 20,
-    "hot_chocolate": 22, "matcha_latte": 16, "milk_tea": 30,
-    "chai_latte": 10, "earl_grey": 8, "english_breakfast": 6, "lemonade": 25,
+    "latte": 10, "americano": 10, "cappuccino": 7, "mocha": 5,
+    "espresso": 5, "flat_white": 3, "caramel_macchiato": 3, "cold_brew": 5,
+    "hot_chocolate": 4, "matcha_latte": 5, "milk_tea": 4,
+    "chai_latte": 3, "earl_grey": 3, "english_breakfast": 3, "lemonade": 3,
 }
 
 current = datetime.strptime(START_DATE, "%Y-%m-%d")
@@ -295,14 +295,14 @@ while current <= end_dt:
         # Seasonal adjustment
         seasonal = 1.0
         if drink_name in ("cold_brew", "lemonade") and month in (6, 7, 8, 9):
-            seasonal = 1.4  # Summer cold drink boost
+            seasonal = 1.1  # Summer cold drink boost (mild)
         if drink_name in ("hot_chocolate", "mocha") and month in (12, 1, 2):
-            seasonal = 1.3  # Winter hot drink boost
+            seasonal = 1.1  # Winter hot drink boost (mild)
         
         # Weekend effect
-        weekend_mult = 1.15 if weekday >= 5 else 1.0
+        weekend_mult = 1.05 if weekday >= 5 else 1.0
         
-        noise = np.random.normal(1.0, 0.15)
+        noise = np.random.normal(1.0, 0.12)
         qty = max(0, int(base_qty * seasonal * weekend_mult * noise))
         
         if qty == 0:
