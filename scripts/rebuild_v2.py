@@ -39,7 +39,7 @@ CREATE TABLE payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    payment_method VARCHAR(10) NOT NULL,
+    payment_method VARCHAR(10) DEFAULT NULL,
     payment_date DATE,
     transaction_id VARCHAR(50),
     is_change BOOLEAN DEFAULT FALSE,
@@ -114,14 +114,12 @@ if order_rows:
     db.commit()
 print(f"Orders done: {len(tk)}")
 
-# Payments
+# Payments - only insert amount, skip payment_method (POS records real payment methods)
 cur.execute("SELECT id, total_amount, order_date FROM orders ORDER BY id")
 order_data = cur.fetchall()
-PM = ["cash","card","qr"]; PW = [0.45,0.20,0.35]
 pay_rows = []
 for oid, total, odate in order_data:
-    pm = random.choices(PM, PW)[0]
-    pay_rows.append((oid, float(total), pm, str(odate)))
+    pay_rows.append((oid, float(total), None, str(odate)))
     if len(pay_rows) >= BATCH:
         cur.executemany("INSERT INTO payments (order_id, amount, payment_method, payment_date) VALUES (%s,%s,%s,%s)", pay_rows)
         db.commit(); pay_rows = []

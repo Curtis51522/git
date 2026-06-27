@@ -655,10 +655,14 @@ async def revenue_daily(date: str = None):
     """, (date,))
     payment = {"Cash": 0, "Card": 0, "QR": 0}
     for prow in cur.fetchall():
-        key = prow[0] if prow[0] else "cash"
+        key = prow[0]
+        if not key:
+            continue  # skip NULL payment_method (historical orders)
         if key in ("cash",): key = "Cash"
         elif key in ("card",): key = "Card"
         elif key in ("qr",): key = "QR"
+        else:
+            continue  # skip unknown payment methods
         if key in payment:
             payment[key] = round(float(prow[1] or 0), 2)
     

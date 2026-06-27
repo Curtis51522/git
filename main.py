@@ -83,7 +83,7 @@ from api.module4_frontend.bff import router as s4_router
 @app.api_route("/s5/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_s5(path: str, request: Request):
     async with httpx.AsyncClient() as client:
-        url = f"http://localhost:8001/{path}"
+        url = f"http://127.0.0.1:8001/{path}"
         if request.query_params:
             url += f"?{request.query_params}"
         body = await request.body()
@@ -107,13 +107,8 @@ app.include_router(s4_router)
 app.mount("/", StaticFiles(directory=STATIC, html=True), name="static")
 
 if __name__ == "__main__":
-    import hypercorn.asyncio
-    config = hypercorn.Config()
-    config.bind = ["0.0.0.0:8002"]
-    config.keep_alive_timeout = 300
-    config.graceful_timeout = 300
-    config.read_timeout = 300
-    asyncio.run(hypercorn.asyncio.serve(app, config))
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8002, log_level="warning")
 
 
 

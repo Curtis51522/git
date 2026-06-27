@@ -176,12 +176,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .receipt-btn-print{background:#8b6914;color:#fff}
 .receipt-btn-close{background:#eee;color:#333}
 @media print{
-  body>*{display:none!important}
-  .receipt-overlay{position:static!important;background:none!important;display:flex!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important}
-  .receipt-overlay *{visibility:visible!important}
+  body>:not(#receipt-overlay):not(#payment-modal){display:none!important}
+  #receipt-overlay{position:static!important;background:none!important;display:flex!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important}
   .receipt-panel{box-shadow:none!important;width:100%!important;max-width:100%!important;max-height:none!important;border-radius:0!important}
-  .receipt-btn-close{display:none!important}
-  .receipt-footer{display:block!important}
+  .receipt-btn-close,.receipt-footer{display:none!important}
+  .receipt-header h3{font-size:18px!important;margin:0 0 8px 0!important}
+  .receipt-line{font-size:13px!important;padding:4px 0!important}
+  .receipt-total{font-size:16px!important;font-weight:700!important}
 }
 
 
@@ -360,7 +361,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 
 
 
-<script src="_core.js"></script>
+
 <script>
 
 
@@ -500,7 +501,7 @@ var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue};
-if(panel==='pos'||panel==='revenue')await loadS5DiscountCache();
+if(panel==='pos'||panel==='revenue')loadS5DiscountCache();
 if(currentPanel!==panel)return;
 if(panels[panel])panels[panel](ca);
 }
@@ -556,7 +557,7 @@ try{
 var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
 if(!r.ok){var txt=await r.text();throw new Error(txt||t('Request failed'))}
 var d=await r.json();
-token=d.access_token;role=d.role;username=d.username;API=window.location.origin;S5_API=API+'/s5';
+token=d.access_token;role=d.role;username=d.username;API=window.location.origin.replace('localhost','127.0.0.1');S5_API=API+'/s5';
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
 document.getElementById('user-display').textContent=username;
@@ -709,7 +710,7 @@ var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue};
-if(panel==='pos'||panel==='revenue')await loadS5DiscountCache();
+if(panel==='pos'||panel==='revenue')loadS5DiscountCache();
 if(currentPanel!==panel)return;
 if(panels[panel])panels[panel](ca);
 }
@@ -1109,9 +1110,9 @@ var rc=parseFloat(document.getElementById("pay-cash").value)||0;
 var ch=rc-_payTotal;
 document.getElementById("pay-change").textContent=ch>=0?"Change: ¥"+ch.toFixed(2):"";
 document.getElementById("pay-confirm-btn").disabled=ch<0;
-function exactCash(){document.getElementById('pay-cash').value=_payTotal.toFixed(2);calcChange();}
 _payCashInput=rc;
 }
+function exactCash(){document.getElementById('pay-cash').value=_payTotal.toFixed(2);calcChange();}
 async function confirmPayment(){
 try{
 var hdrs={"Content-Type":"application/json","Authorization":"Bearer "+token};
@@ -1482,14 +1483,18 @@ cachedInventory=tbl;
 
 function renderRevenue(container){
 var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+fetch(API+'/s4/revenue/daily').then(function(r){return r.json()}).then(function(dd){var defDate=dd.data?dd.data.date:today;
+document.getElementById('rev-date').value=defDate;
+loadRevenueData(defDate);
+}).catch(function(){loadRevenueData();});
 container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="rev-date" value="'+today+'" onchange="loadRevenueData(this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b"></div>'
 +'<div class="dash-grid" id="rev-kpis"></div>'
-+'<div class="chart-row"><div class="chart-panel chart-full"><h4>Category Breakdown</h4><div id="rev-category-chart" style="height:260px"></div></div></div>'
++'<div class="chart-row"><div class="chart-panel chart-half"><h4>Category Breakdown</h4><div id="rev-category-chart" style="height:260px"></div></div><div class="chart-panel chart-half"><h4>Payment Methods</h4><div id="rev-payment-chart" style="height:260px"></div></div></div>'
 
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>7-Day Profit Trend</h4><div id="rev-trend-chart" style="height:260px"></div></div></div>'
 +'<div class="table-panel"><h4>Today Sales Ranking</h4><div id="rev-ranking-table"></div></div>';
-loadRevenueData(today);
 }
+
 
 function loadRevenueData(date){
 date=date||'';var url=API+'/s4/revenue/daily'+(date?'?date='+date:'');
@@ -1508,9 +1513,19 @@ var cc=document.getElementById('rev-category-chart');
   if(cc&&typeof echarts!=='undefined'){
     var chart2=echarts.init(cc);
     chart2.setOption({tooltip:{trigger:'item'},color:['#8b6914','#d4a853'],
-      series:[{type:'pie',radius:['45%','70%'],data:[
+      series:[{type:'pie',radius:['40%','65%'],data:[
         {value:m.category.Bread,name:'Bread'},{value:m.category.Coffee,name:'Coffee'}
       ],label:{color:'#3d322b',formatter:'{b}: {d}%'}}]});
+    var pc=document.getElementById('rev-payment-chart');
+    if(pc){
+      var pchart=echarts.init(pc);
+      var pdata=[];
+      if(m.payment.Cash>0)pdata.push({value:m.payment.Cash,name:'Cash'});
+      if(m.payment.Card>0)pdata.push({value:m.payment.Card,name:'Card'});
+      if(m.payment.QR>0)pdata.push({value:m.payment.QR,name:'QR'});
+      pchart.setOption({tooltip:{trigger:'item'},color:['#27ae60','#2980b9','#e67e22'],
+        series:[{type:'pie',radius:['40%','65%'],data:pdata,label:{color:'#3d322b',formatter:'{b}: {d}%'}}]});
+    }
   }
   var tc=document.getElementById('rev-trend-chart');
   if(tc&&typeof echarts!=='undefined'){
@@ -1992,7 +2007,7 @@ startAlertPoll();
 </div>
 <div id="pay-cash-row" style="display:none;margin-bottom:12px">
 <label style="font-size:12px;color:#666">Received (RM)</label>
-<div style="display:flex;gap:8px"><input type="number" id="pay-cash" step="0.01" min="0" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:16px" oninput="calcChange()"><button class="btn btn-outline btn-sm" style="padding:8px 14px" onclick="exactCash()">Exact</button></div>
+<div style="display:flex;gap:8px"><input type="number" id="pay-cash" step="0.01" min="0" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:16px" oninput="calcChange()"><button class="btn btn-outline btn-sm" style="padding:8px 14px" onclick="exactCash()">Exact Amount</button></div>
 <div id="pay-change" style="font-size:14px;color:#4caf50;margin-top:4px;font-weight:600"></div>
 </div>
 <div id="pay-qr-msg" style="display:none;text-align:center;padding:16px;background:#f5f5f5;border-radius:8px;margin-bottom:12px">
