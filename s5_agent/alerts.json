@@ -7,8 +7,8 @@
       "title": "Trend: croissant inventory",
       "detail": "croissant inventory is rising (2.5/day over 5 days, avg 44.0).",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:06.236583",
-      "created_ts": 1782578466.2365837,
+      "created_at": "2026-06-28T01:56:39.116889",
+      "created_ts": 1782582999.1168897,
       "ttl_sec": 86400
     },
     {
@@ -18,8 +18,8 @@
       "title": "Trend: bread_roll inventory",
       "detail": "bread_roll inventory is rising (10.7/day over 5 days, avg 56.0).",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:06.249587",
-      "created_ts": 1782578466.249587,
+      "created_at": "2026-06-28T01:56:39.126994",
+      "created_ts": 1782582999.126994,
       "ttl_sec": 86400
     },
     {
@@ -104,10 +104,10 @@
       "source": "trend",
       "severity": "info",
       "title": "Trend: donut inventory",
-      "detail": "donut inventory is rising (10.2/day over 5 days, avg 38.6).",
+      "detail": "donut inventory is rising (3.4/day over 5 days, avg 31.8).",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:06.243583",
-      "created_ts": 1782578466.2435837,
+      "created_at": "2026-06-28T02:16:45.761820",
+      "created_ts": 1782584205.7618206,
       "ttl_sec": 86400
     },
     {
@@ -117,8 +117,8 @@
       "title": "Trend: bread_coconut inventory",
       "detail": "bread_coconut inventory is rising (5.7/day over 5 days, avg 48.4).",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:06.255583",
-      "created_ts": 1782578466.2555835,
+      "created_at": "2026-06-28T01:56:39.131042",
+      "created_ts": 1782582999.1310422,
       "ttl_sec": 86400
     },
     {
@@ -128,8 +128,8 @@
       "title": "Trend: croissant_chocolate inventory",
       "detail": "croissant_chocolate inventory is rising (3.2/day over 5 days, avg 28.8).",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:06.261586",
-      "created_ts": 1782578466.2615867,
+      "created_at": "2026-06-28T01:56:39.136045",
+      "created_ts": 1782582999.136045,
       "ttl_sec": 86400
     },
     {
@@ -139,8 +139,8 @@
       "title": "Critical waste: bread_coconut",
       "detail": "55/55 (100%) of bread_coconut is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:05.384418",
-      "created_ts": 1782578465.3844182,
+      "created_at": "2026-06-28T01:51:36.628790",
+      "created_ts": 1782582696.6287909,
       "ttl_sec": 86400
     },
     {
@@ -150,8 +150,8 @@
       "title": "Critical waste: bread_roll",
       "detail": "70/70 (100%) of bread_roll is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:05.390419",
-      "created_ts": 1782578465.3904197,
+      "created_at": "2026-06-28T01:51:36.634895",
+      "created_ts": 1782582696.6348956,
       "ttl_sec": 86400
     },
     {
@@ -161,8 +161,8 @@
       "title": "Critical waste: chiffon",
       "detail": "22/22 (100%) of chiffon is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:05.396515",
-      "created_ts": 1782578465.3965151,
+      "created_at": "2026-06-28T01:51:36.640895",
+      "created_ts": 1782582696.6408958,
       "ttl_sec": 86400
     },
     {
@@ -172,8 +172,8 @@
       "title": "Critical waste: croissant",
       "detail": "45/45 (100%) of croissant is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:05.402514",
-      "created_ts": 1782578465.4025147,
+      "created_at": "2026-06-28T01:51:36.646893",
+      "created_ts": 1782582696.646893,
       "ttl_sec": 86400
     },
     {
@@ -183,8 +183,8 @@
       "title": "Critical waste: croissant_chocolate",
       "detail": "38/38 (100%) of croissant_chocolate is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:05.407514",
-      "created_ts": 1782578465.4075148,
+      "created_at": "2026-06-28T01:51:36.651893",
+      "created_ts": 1782582696.6518939,
       "ttl_sec": 86400
     },
     {
@@ -194,8 +194,8 @@
       "title": "Critical waste: donut",
       "detail": "59/59 (100%) of donut is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T00:41:05.412515",
-      "created_ts": 1782578465.4125154,
+      "created_at": "2026-06-28T01:51:36.656896",
+      "created_ts": 1782582696.6568964,
       "ttl_sec": 86400
     }
   ],

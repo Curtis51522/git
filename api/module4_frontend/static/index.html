@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -189,7 +189,19 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .lang-toggle button{padding:3px 8px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#8b6914;transition:all .15s}
 .lang-toggle button.active{background:#8b6914;color:#fff}
 .lang-toggle button:hover:not(.active){background:#f0e8d8}
-</style>
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi-card{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.04);text-align:center;border:1px solid #f0e8d8}
+.kpi-card .kpi-value{font-size:26px;font-weight:700;color:#8b6914}
+.kpi-card .kpi-label{font-size:11px;color:#6b5b4f;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.kpi-card .kpi-change{font-size:10px;margin-top:2px}
+.kpi-up{color:#27ae60}.kpi-down{color:#e74c3c}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.chart-panel{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #f0e8d8}
+.chart-panel h4{font-size:14px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}
+.chart-full{grid-column:1/-1}
+.table-panel{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #f0e8d8;margin-bottom:14px}
+.table-panel h4{font-size:14px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}</style>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 </head>
 <body>
 <div id="login-page">
@@ -219,7 +231,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button data-panel="forecast" class="manager-only" onclick="showPanel('forecast')">Sales Forecast</button>
 <button data-panel="schedule" class="manager-only" onclick="showPanel('schedule')">Shift Schedule</button>
 <button data-panel="inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
-<button data-panel="agent" class="manager-only" onclick="showPanel('agent')">AI Brain</button>
+<button data-panel="revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
 </nav>
 <button class="logout-btn" onclick="doLogout()">Sign Out</button>
 <div class="alert-badge manager-only" id="alert-badge" onclick="showAlertPanel()" title="System Alerts">
@@ -356,7 +368,7 @@ var LANG='en';
 var T={
 en:{
 'POS Checkout':'POS Checkout','Sales Forecast':'Sales Forecast','Shift Schedule':'Shift Schedule',
-'Inventory':'Inventory','AI Brain':'AI Brain','Sign Out':'Sign Out','Alerts':'Alerts',
+'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out','Alerts':'Alerts',
 'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
 'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
 'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
@@ -399,7 +411,7 @@ en:{
 },
 bm:{
 'POS Checkout':'POS Daftar Keluar','Sales Forecast':'Ramalan Jualan','Shift Schedule':'Jadual Syif',
-'Inventory':'Inventori','AI Brain':'Otak AI','Sign Out':'Log Keluar','Alerts':'Amaran',
+'Inventory':'Inventori','Revenue':'Hasil','Sign Out':'Log Keluar','Alerts':'Amaran',
 'Cart':'Troli','Scan items or use manual entry':'Imbas barang atau guna entri manual',
 'Generate Top-3':'Jana Top-3','Checkout':'Bayar','Total':'Jumlah',
 'Add items to cart then generate Top-3 bundles':'Tambah barang ke troli kemudian jana pakej Top-3',
@@ -447,7 +459,7 @@ document.getElementById('lang-en').classList.toggle('active',l==='en');
 document.getElementById('lang-bm').classList.toggle('active',l==='bm');
 // Update static DOM elements
 var btns=document.querySelectorAll('.sidebar nav button');
-if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('AI Brain');}
+if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('Revenue');}
 var lo=document.querySelector('.logout-btn');if(lo)lo.textContent=t('Sign Out');
 var ab=document.getElementById('alert-badge');if(ab){ab.title=t('System Alerts');ab.childNodes[1].textContent=' '+t('Alerts')+' ';}
 var un=document.getElementById('username');if(un)un.placeholder=t('Username');
@@ -484,11 +496,11 @@ var btns=document.querySelectorAll('.sidebar nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),agent:t('AI Brain')};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),revenue:t('Revenue')};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
-var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,agent:renderAgent};
-if(panel==='pos')await loadS5DiscountCache();
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue};
+if(panel==='pos'||panel==='revenue')await loadS5DiscountCache();
 if(currentPanel!==panel)return;
 if(panels[panel])panels[panel](ca);
 }
@@ -510,19 +522,28 @@ console.log("JS loaded v1779702768");
 var token='', role='', username='', currentPanel='pos';
 var API='';
 var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false;
-var PRODUCT_PRICES={donut:4.5,croissant:5.5,bread_coconut:3.5,bread_roll:3.5,chiffon:5.0,croissant_chocolate:5.5};
-var PRODUCT_COSTS={donut:1.35,croissant:1.9,bread_coconut:1.05,bread_roll:1.05,chiffon:1.75,croissant_chocolate:1.9};
-var COFFEE_PRICES={latte:8.5,americano:6.5,cappuccino:9.0,cold_brew:10.0,espresso:5.5,flat_white:9.5,mocha:10.5,iced_americano:7.2};
+var PRODUCT_PRICES={apple_pie:14.00,bagel:12.00,baguette:10.00,bread_coconut:10.00,bread_roll:8.00,brioche:18.00,brownie:18.00,chiffon:18.00,chocolate_cake:20.00,chocopie:10.00,cookie:9.00,cornbread:8.00,cream_horn:14.00,croissant:10.00,croissant_chocolate:12.00,donut:7.00,eggtart:7.00,flatbread:9.00,macaron:10.00,mantequilla:9.00,melon_bread:10.00,muffin:12.00,pancake:14.00,pandesal:6.00,pizza_bread:16.00,pullman:10.00,soboru_bread:13.00,sourdough:22.00,stickbread:7.00,tostada:10.00};
+var PRODUCT_COSTS={apple_pie:1.90,bagel:0.66,baguette:0.48,bread_coconut:1.42,bread_roll:1.18,brioche:1.97,brownie:7.56,chiffon:1.32,chocolate_cake:4.10,chocopie:3.05,cookie:1.26,cornbread:1.45,cream_horn:2.03,croissant:2.07,croissant_chocolate:3.15,donut:1.31,eggtart:1.87,flatbread:0.62,macaron:0.33,mantequilla:1.77,melon_bread:1.52,muffin:1.77,pancake:1.41,pandesal:1.07,pizza_bread:1.02,pullman:0.89,soboru_bread:1.59,sourdough:0.52,stickbread:0.87,tostada:0.96};
+var COFFEE_PRICES={latte:18.00,americano:14.00,cappuccino:18.00,mocha:22.00,espresso:12.00,flat_white:20.00,caramel_macchiato:22.00,cold_brew:18.00,hot_chocolate:16.00,matcha_latte:18.00,milk_tea:14.00,chai_latte:16.00,earl_grey:12.00,english_breakfast:12.00,lemonade:12.00};
 var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.py
 var s5DiscountCache={};
 
 var COFFEE_DRINKS=[
-{name:'Latte',desc:'Smooth espresso with steamed milk',price:'8.50',key:'latte',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
-{name:'Americano',desc:'Espresso with hot water',price:'6.50',key:'americano',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
-{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:'9.00',key:'cappuccino',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
-{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:'10.00',key:'cold_brew',default_temp:'cold',default_sugar:'light',default_ice:'normal'},
-{name:'Iced Americano',desc:'Chilled espresso over ice',price:'7.20',key:'iced_americano',default_temp:'cold',default_sugar:'none',default_ice:'normal'},
-{name:'Mocha',desc:'Espresso with chocolate',price:'10.50',key:'mocha',default_temp:'hot',default_sugar:'half',default_ice:'normal'}
+{name:'Latte',desc:'Smooth espresso with steamed milk',price:'18.00',key:'latte',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Americano',desc:'Espresso with hot water',price:'14.00',key:'americano',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:'18.00',key:'cappuccino',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Mocha',desc:'Espresso with chocolate',price:'22.00',key:'mocha',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Espresso',desc:'Pure concentrated coffee shot',price:'12.00',key:'espresso',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'Flat White',desc:'Velvety microfoam with espresso',price:'20.00',key:'flat_white',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Caramel Macchiato',desc:'Vanilla syrup with caramel drizzle',price:'22.00',key:'caramel_macchiato',default_temp:'hot',default_sugar:'full',default_ice:'normal'},
+{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:'18.00',key:'cold_brew',default_temp:'cold',default_sugar:'light',default_ice:'normal'},
+{name:'Hot Chocolate',desc:'Rich cocoa with steamed milk',price:'16.00',key:'hot_chocolate',default_temp:'hot',default_sugar:'full',default_ice:'normal'},
+{name:'Matcha Latte',desc:'Japanese green tea with milk',price:'18.00',key:'matcha_latte',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Milk Tea',desc:'Classic black tea with milk',price:'14.00',key:'milk_tea',default_temp:'hot',default_sugar:'full',default_ice:'normal'},
+{name:'Chai Latte',desc:'Spiced Indian tea with milk',price:'16.00',key:'chai_latte',default_temp:'hot',default_sugar:'half',default_ice:'normal'},
+{name:'Earl Grey',desc:'Bergamot-infused black tea',price:'12.00',key:'earl_grey',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'English Breakfast',desc:'Full-bodied black tea',price:'12.00',key:'english_breakfast',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'Lemonade',desc:'Freshly squeezed lemon juice',price:'12.00',key:'lemonade',default_temp:'cold',default_sugar:'full',default_ice:'normal'}
 ];
 
 async function doLogin(){
@@ -557,7 +578,7 @@ var LANG='en';
 var T={
 en:{
 'POS Checkout':'POS Checkout','Sales Forecast':'Sales Forecast','Shift Schedule':'Shift Schedule',
-'Inventory':'Inventory','AI Brain':'AI Brain','Sign Out':'Sign Out','Alerts':'Alerts',
+'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out','Alerts':'Alerts',
 'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
 'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
 'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
@@ -600,7 +621,7 @@ en:{
 },
 bm:{
 'POS Checkout':'POS Daftar Keluar','Sales Forecast':'Ramalan Jualan','Shift Schedule':'Jadual Syif',
-'Inventory':'Inventori','AI Brain':'Otak AI','Sign Out':'Log Keluar','Alerts':'Amaran',
+'Inventory':'Inventori','Revenue':'Hasil','Sign Out':'Log Keluar','Alerts':'Amaran',
 'Cart':'Troli','Scan items or use manual entry':'Imbas barang atau guna entri manual',
 'Generate Top-3':'Jana Top-3','Checkout':'Bayar','Total':'Jumlah',
 'Add items to cart then generate Top-3 bundles':'Tambah barang ke troli kemudian jana pakej Top-3',
@@ -648,7 +669,7 @@ document.getElementById('lang-en').classList.toggle('active',l==='en');
 document.getElementById('lang-bm').classList.toggle('active',l==='bm');
 // Update static DOM elements
 var btns=document.querySelectorAll('.sidebar nav button');
-if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('AI Brain');}
+if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('Revenue');}
 var lo=document.querySelector('.logout-btn');if(lo)lo.textContent=t('Sign Out');
 var ab=document.getElementById('alert-badge');if(ab){ab.title=t('System Alerts');ab.childNodes[1].textContent=' '+t('Alerts')+' ';}
 var un=document.getElementById('username');if(un)un.placeholder=t('Username');
@@ -684,11 +705,11 @@ var btns=document.querySelectorAll('.sidebar nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),agent:t('AI Brain')};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),revenue:t('Revenue')};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var ca=document.getElementById('content-area');
-var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,agent:renderAgent};
-if(panel==='pos')await loadS5DiscountCache();
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue};
+if(panel==='pos'||panel==='revenue')await loadS5DiscountCache();
 if(currentPanel!==panel)return;
 if(panels[panel])panels[panel](ca);
 }
@@ -716,7 +737,7 @@ async function loadS5DiscountCache(){
 if(Object.keys(s5DiscountCache).length>0)return;
 try{
 var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
-var r=await fetch(S5_API+'/discounts',{method:'POST',headers:hdrs,body:JSON.stringify({products:['donut','croissant','bread_coconut','bread_roll','chiffon','croissant_chocolate']})});
+var r=await fetch(S5_API+'/discounts',{method:'POST',headers:hdrs,body:JSON.stringify({products:Object.keys(PRODUCT_PRICES)})});
 if(r.ok){
 var d=await r.json();
 var discounts=d.discounts||{};
@@ -742,7 +763,7 @@ detectHTML+='<div class="detect-card">';
 detectHTML+='<div class="detect-header"><span class="detect-name">'+d.product_name.replace(/_/g,' ')+'</span>';
 detectHTML+='<span class="detect-qty">x'+d.quantity+'</span></div>';
 detectHTML+='<div class="detect-meta">';
-detectHTML+='<span>RM '+pr+'</span><span>Stock: '+(d.stock||'--')+'</span>';
+detectHTML+='<span>¥'+pr+'</span><span>Stock: '+(d.stock||'--')+'</span>';
 detectHTML+='<span>AI: <span class="detect-confidence '+cc+'">'+Math.round(d.confidence*100)+'%</span></span>';
 detectHTML+='</div>';
 detectHTML+='<div><span class="detect-tag '+tc+'">'+tl+'</span> <span class="detect-status '+sc+'">'+sl+'</span></div>';
@@ -775,9 +796,9 @@ cartHTML+='</div>';
 cartHTML+='<div class="detect-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
 var fullPrice=PRODUCT_PRICES[item.product_name]||COFFEE_PRICES[item.product_name]||5.0;
 if(item.discount_rate&&item.discount_rate>0){
-    cartHTML+='<span><s style="color:#999;font-size:12px">RM '+(fullPrice*item.quantity).toFixed(2)+'</s> RM '+(pr*item.quantity).toFixed(2)+'</span>';
+    cartHTML+='<span><s style="color:#999;font-size:12px">¥'+(fullPrice*item.quantity).toFixed(2)+'</s> ¥'+(pr*item.quantity).toFixed(2)+'</span>';
 }else{
-    cartHTML+='<span>RM '+(pr*item.quantity).toFixed(2)+'</span>';
+    cartHTML+='<span>¥'+(pr*item.quantity).toFixed(2)+'</span>';
 }
 cartHTML+='<span style="margin-left:auto;display:flex;align-items:center;gap:2px"><button onclick="decrQty('+i+')" style="background:none;border:1px solid #d4c5b2;border-radius:3px;color:#8b6914;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1;padding:0">&minus;</button><span style="font-size:15px;font-weight:600;min-width:18px;text-align:center">'+item.quantity+'</span><button onclick="incrQty('+i+')" style="background:none;border:1px solid #d4c5b2;border-radius:3px;color:#8b6914;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1;padding:0">+</button></span><span class="detect-status '+stColors[st]+'" style="font-size:10px;margin-left:4px">'+stLabels[st]+'</span></div>';
 cartHTML+='</div>';
@@ -798,7 +819,7 @@ var b=bundleRecs[i];
 bundleHTML+='<div class="bundle-card" onclick="addBundleToCart('+i+')">';
 bundleHTML+='<div class="bundle-rank">#'+(i+1)+' '+t('Top-3 Bundle')+'</div>';
 bundleHTML+='<div class="bundle-products">'+b.products+'</div>';
-bundleHTML+='<div class="bundle-price">RM '+b.total_price.toFixed(2)+'</div>';
+bundleHTML+='<div class="bundle-price">¥'+b.total_price.toFixed(2)+'</div>';
 bundleHTML+='<div class="bundle-save">'+t('Save RM')+' '+b.savings.toFixed(2)+'</div></div>';
 }
 }
@@ -813,7 +834,7 @@ var cd=COFFEE_DRINKS[i];
 coffeeBtns+='<button class="drink-btn" onclick="openCoffeeModal('+"'"+cd.key+"'"+')">';
 coffeeBtns+='<span class="drink-name">'+cd.name+'</span>';
 coffeeBtns+='<span class="drink-desc">'+cd.desc+'</span>';
-coffeeBtns+='<span class="drink-price">RM '+cd.price+'</span></button>';
+coffeeBtns+='<span class="drink-price">¥'+cd.price+'</span></button>';
 }
 
 
@@ -837,9 +858,9 @@ bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"','"+cu
 bakeryBtns+='<span class="drink-name">'+capName(bk)+'</span>';
 bakeryBtns+='<span class="drink-desc">Stock: '+stockInfo+'</span>';
 if(discountRate>0){
-    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">RM '+bp.toFixed(2)+'</s> RM '+(bp*(1-discountRate)).toFixed(2)+'</span>';
+    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">¥'+bp.toFixed(2)+'</s> ¥'+(bp*(1-discountRate)).toFixed(2)+'</span>';
 }else{
-    bakeryBtns+='<span class="drink-price">RM '+bp.toFixed(2)+'</span>';
+    bakeryBtns+='<span class="drink-price">¥'+bp.toFixed(2)+'</span>';
 }
 bakeryBtns+='<div style="margin-top:4px;display:flex;gap:6px;align-items:center">';
                     if(freshQty>0){
@@ -886,7 +907,7 @@ infHTML+='<div class="detect-card">';
 infHTML+='<div class="detect-header"><span class="detect-name">'+capName(id.product_name)+'</span>';
 infHTML+='<span class="detect-qty">x'+id.quantity+'</span></div>';
 infHTML+='<div class="detect-meta">';
-infHTML+='<span>RM '+pr+'</span>';
+infHTML+='<span>¥'+pr+'</span>';
 infHTML+='<span>AI: <span class="detect-confidence '+cc+'">'+Math.round((id.confidence||0.95)*100)+'%</span></span>';
 infHTML+='</div>';
 infHTML+='<div class="detect-actions">';
@@ -914,10 +935,10 @@ h+='<div class="drink-grid">'+coffeeBtns+'</div></div>';
 
 h+='<div class="panel"><h4>Cart - Current Order</h4>';
 h+='<div class="cart-summary">';
-if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>Total</span><span>RM '+total.toFixed(2)+'</span></div>';}
+if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>Total</span><span>¥'+total.toFixed(2)+'</span></div>';}
 else{h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px">No items in cart</p>';}
 h+='</div>';
-if(cartItems.length>0){h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="clearCart()">Clear</button><button class="checkout-btn" onclick="completePayment()" style="flex:1">Checkout - RM '+total.toFixed(2)+'</button></div>';}
+if(cartItems.length>0){h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="clearCart()">Clear</button><button class="checkout-btn" onclick="completePayment()" style="flex:1">Checkout - ¥'+total.toFixed(2)+'</button></div>';}
 h+='</div></div>';
 
 // RIGHT
@@ -1068,7 +1089,7 @@ var total=0;_payTotal=0;
 for(var i=0;i<cartItems.length;i++){var it=cartItems[i];var pr=getItemPrice(it);total+=pr*it.quantity;}
 _payTotal=Math.round(total*100)/100;
 cartItemsRaw=cartItems.map(function(ci){return Object.assign({},ci);});
-document.getElementById("pay-total").textContent="RM "+_payTotal.toFixed(2);
+document.getElementById("pay-total").textContent="¥"+_payTotal.toFixed(2);
 document.getElementById("pay-cash-row").style.display="none";
 document.getElementById("pay-qr-msg").style.display="none";
 document.getElementById("pay-cash").value="";
@@ -1086,7 +1107,7 @@ if(m==="card"){confirmPayment();return;}
 function calcChange(){
 var rc=parseFloat(document.getElementById("pay-cash").value)||0;
 var ch=rc-_payTotal;
-document.getElementById("pay-change").textContent=ch>=0?"Change: RM "+ch.toFixed(2):"";
+document.getElementById("pay-change").textContent=ch>=0?"Change: ¥"+ch.toFixed(2):"";
 document.getElementById("pay-confirm-btn").disabled=ch<0;
 function exactCash(){document.getElementById('pay-cash').value=_payTotal.toFixed(2);calcChange();}
 _payCashInput=rc;
@@ -1096,7 +1117,7 @@ if(_payMethod==="qr"){showReceipt(null);return;}
 try{
 var hdrs={"Content-Type":"application/json","Authorization":"Bearer "+token};
 var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantity:ci.quantity,freshness:ci.freshness};if(ci.temperature)o.temperature=ci.temperature;if(ci.sugar)o.sugar=ci.sugar;if(ci.ice_level)o.ice_level=ci.ice_level;return o;});
-var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items})});
+var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
 if(d.status==="ok"&&d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
@@ -1111,9 +1132,9 @@ if(!r){r={items:cartItemsRaw.map(function(ci){var nm=ci.product_name;if(ci.tempe
 document.getElementById("receipt-id-display").textContent=r.receipt_id||"";
 var h="";
 for(var i=0;i<r.items.length;i++){var it=r.items[i];h+="<div class=\"receipt-line\"><span class=\"item-name\">"+it.product_name+"</span><span class=\"item-qty\">x"+it.quantity+"</span><span>RM"+(it.line_total||0).toFixed(2)+"</span></div>";}
-h+="<hr><div class=\"receipt-total\"><span>Total</span><span>RM "+(r.total||_payTotal).toFixed(2)+"</span></div>";
+h+="<hr><div class=\"receipt-total\"><span>Total</span><span>¥"+(r.total||_payTotal).toFixed(2)+"</span></div>";
 if(r.payment_method){h+="<div style=\"font-size:11px;color:#666;margin-top:4px\">"+r.payment_method.toUpperCase()+"</div>";}
-if(r.cash_received&&r.cash_received>0){h+="<div style=\"font-size:11px;color:#666\">Received: RM "+r.cash_received.toFixed(2)+"</div>";var ch2=r.cash_received-(r.total||_payTotal);h+="<div style=\"font-size:11px;color:#666\">Change: RM "+ch2.toFixed(2)+"</div>";}
+if(r.cash_received&&r.cash_received>0){h+="<div style=\"font-size:11px;color:#666\">Received: ¥"+r.cash_received.toFixed(2)+"</div>";var ch2=r.cash_received-(r.total||_payTotal);h+="<div style=\"font-size:11px;color:#666\">Change: ¥"+ch2.toFixed(2)+"</div>";}
 document.getElementById("receipt-content").innerHTML=h;
 document.getElementById("receipt-overlay").classList.remove("hidden");document.getElementById("receipt-overlay").classList.add("show");
 }
@@ -1136,7 +1157,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - RM '+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
+if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();renderPOS(document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -1150,7 +1171,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 // Get dynamic discounts from S5 for accurate savings
 var discountOverrides={};
 try{
-var ALL_BAKERY=['donut','croissant','bread_coconut','bread_roll','chiffon','croissant_chocolate'];
+var ALL_BAKERY=Object.keys(PRODUCT_PRICES);
 var productNames=items.map(function(it){return it.product_name;}).filter(function(v,i,a){return a.indexOf(v)===i;});
 // Always query all bakery products for S5 dynamic discounts (even when cart only has coffee)
 var s5Products=ALL_BAKERY.filter(function(b){return productNames.indexOf(b)===-1;});
@@ -1187,7 +1208,7 @@ renderPOS(document.getElementById('content-area'));
 }
 function addBundleToCart(idx){
 var b=bundleRecs[idx];if(!b)return;
-var BAKERY_KEYS={donut:1,croissant:1,bread_coconut:1,bread_roll:1,chiffon:1,croissant_chocolate:1};
+var BAKERY_KEYS={};for(var k=0;k<ALL_BAKERY.length;k++)BAKERY_KEYS[ALL_BAKERY[k]]=1;
 for(var i=0;i<b.items.length;i++){
     var name=b.items[i];
     var isBread=!!BAKERY_KEYS[name];
@@ -1258,7 +1279,7 @@ var t1=Date.now();
 var f=r.forecasts||[], byDay={};
 for(var i=0;i<f.length;i++){var fd=f[i].forecast_date;if(!byDay[fd])byDay[fd]={};byDay[fd][f[i].product_name]={predicted:f[i].predicted_demand,low:f[i].lower_bound,high:f[i].upper_bound};}
 var dates=Object.keys(byDay).sort();
-var prods=['donut','croissant','bread_coconut','bread_roll','chiffon','croissant_chocolate'];
+var prods=Object.keys(PRODUCT_PRICES).slice(0,12);
 var tbl='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f5f0e8">';
 tbl+='<th style="padding:8px;text-align:left">Date</th>';
 for(var p=0;p<prods.length;p++) tbl+='<th style="padding:8px;text-align:right">'+prods[p].replace(/_/g,' ').replace(/\b\w/g,function(x){return x.toUpperCase()})+'</th>';
@@ -1456,6 +1477,63 @@ tbl+='<div style="margin-top:6px;font-size:11px;color:#888">'+items.length+' '+t
 el.innerHTML=tbl;
 cachedInventory=tbl;
 }catch(e){el.innerHTML='<span class="status-dot dot-err"></span> Error: '+e.message;}
+}
+
+
+function renderRevenue(container){
+var today='2023-12-31';
+container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="rev-date" value="'+today+'" onchange="loadRevenueData(this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b"></div>'
++'<div class="dash-grid" id="rev-kpis"></div>'
++'<div class="chart-row"><div class="chart-panel chart-full"><h4>Category Breakdown</h4><div id="rev-category-chart" style="height:260px"></div></div></div>'
+
++'<div class="chart-row"><div class="chart-panel chart-full"><h4>7-Day Profit Trend</h4><div id="rev-trend-chart" style="height:260px"></div></div></div>'
++'<div class="table-panel"><h4>Today Sales Ranking</h4><div id="rev-ranking-table"></div></div>';
+loadRevenueData();
+}
+
+function loadRevenueData(date){
+date=date||'';var url=API+'/s4/revenue/daily'+(date?'?date='+date:'');
+var revKpis=document.getElementById('rev-kpis');
+if(revKpis)revKpis.innerHTML='<div class="kpi-card" style="grid-column:1/-1"><span class="spinner"></span>Loading revenue data...</div>';
+fetch(url,{headers:{'Authorization':'Bearer '+token}}).then(function(r){return r.json();}).then(function(d){
+if(!d.data){if(revKpis)revKpis.innerHTML='<div class="kpi-card" style="grid-column:1/-1">No data for this date</div>';return;}
+var m=d.data;
+document.getElementById('rev-kpis').innerHTML=
+  '<div class="kpi-card"><div class="kpi-value">¥'+m.today_revenue.toFixed(0)+'</div><div class="kpi-label">Today Revenue</div><div class="kpi-change '+(m.revenue_change>=0?'kpi-up':'kpi-down')+'">'+(m.revenue_change>=0?'+':'')+m.revenue_change+'% vs yesterday</div></div>'
+  +'<div class="kpi-card"><div class="kpi-value">¥'+m.today_profit.toFixed(0)+'</div><div class="kpi-label">Today Profit</div><div class="kpi-change '+(m.profit_change>=0?'kpi-up':'kpi-down')+'">'+(m.profit_change>=0?'+':'')+m.profit_change+'% vs yesterday</div></div>'
+  +'<div class="kpi-card"><div class="kpi-value">'+m.today_orders+'</div><div class="kpi-label">Today Orders</div><div class="kpi-change '+(m.orders_change>=0?'kpi-up':'kpi-down')+'">'+(m.orders_change>=0?'+':'')+m.orders_change+'% vs yesterday</div></div>'
+  +'<div class="kpi-card"><div class="kpi-value">¥'+m.avg_order.toFixed(2)+'</div><div class="kpi-label">Avg Order Value</div><div class="kpi-change '+(m.avg_change>=0?'kpi-up':'kpi-down')+'">'+(m.avg_change>=0?'+':'')+m.avg_change+'% vs yesterday</div></div>';
+setTimeout(function(){
+var cc=document.getElementById('rev-category-chart');
+  if(cc&&typeof echarts!=='undefined'){
+    var chart2=echarts.init(cc);
+    chart2.setOption({tooltip:{trigger:'item'},color:['#8b6914','#d4a853'],
+      series:[{type:'pie',radius:['45%','70%'],data:[
+        {value:m.category.Bread,name:'Bread'},{value:m.category.Coffee,name:'Coffee'}
+      ],label:{color:'#3d322b',formatter:'{b}: {d}%'}}]});
+  }
+  var tc=document.getElementById('rev-trend-chart');
+  if(tc&&typeof echarts!=='undefined'){
+    var chart3=echarts.init(tc);
+    chart3.setOption({tooltip:{trigger:'axis'},legend:{data:['Bread','Coffee'],textStyle:{color:'#3d322b'}},
+      grid:{left:'3%',right:'4%',bottom:'3%',containLabel:true},
+      xAxis:{type:'category',data:m.trend.dates,axisLine:{lineStyle:{color:'#e0d5c7'}},axisLabel:{color:'#6b5b4f'}},
+      yAxis:{type:'value',axisLine:{lineStyle:{color:'#e0d5c7'}},axisLabel:{color:'#6b5b4f'},splitLine:{lineStyle:{color:'#f0e8d8'}}},
+      series:[{name:'Bread',type:'line',data:m.trend.bread,color:'#8b6914',smooth:true},
+              {name:'Coffee',type:'line',data:m.trend.coffee,color:'#d4a853',smooth:true}]});
+  }
+},100);
+var tbl='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f5f0e8">'
+  +'<th style="padding:8px;text-align:left">#</th><th style="padding:8px;text-align:left">Product</th><th style="padding:8px;text-align:right">Qty</th><th style="padding:8px;text-align:right">Revenue</th><th style="padding:8px;text-align:right">Profit</th></tr></thead><tbody>';
+for(var i=0;i<m.ranking.length;i++){
+  var r=m.ranking[i];
+  tbl+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:8px;font-weight:600;color:#8b6914">'+(i+1)+'</td>';
+  tbl+='<td style="padding:8px">'+r.name+'</td><td style="padding:8px;text-align:right">'+r.qty+'</td>';
+  tbl+='<td style="padding:8px;text-align:right">¥'+r.revenue.toFixed(2)+'</td><td style="padding:8px;text-align:right;color:#27ae60">¥'+r.profit.toFixed(2)+'</td></tr>';
+}
+tbl+='</tbody></table>';
+document.getElementById('rev-ranking-table').innerHTML=tbl;
+}).catch(function(e){if(revKpis)revKpis.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">Error: '+e.message+'</div>';});
 }
 
 function renderAgent(c){
@@ -1906,7 +1984,7 @@ startAlertPoll();
 <div class="payment-panel">
 <div class="payment-header"><h3>Payment</h3><button class="close-btn" onclick="closePaymentModal()">&times;</button></div>
 <div style="padding:12px 20px 20px">
-<div style="padding:12px 0">Total: <strong id="pay-total" style="font-size:18px">RM 0.00</strong></div>
+<div style="padding:12px 0">Total: <strong id="pay-total" style="font-size:18px">¥0.00</strong></div>
 <div style="display:flex;gap:8px;margin-bottom:12px">
 <button class="btn btn-outline btn-sm" style="flex:1" onclick="selectPaymentMethod('cash')">Cash</button>
 <button class="btn btn-outline btn-sm" style="flex:1" onclick="selectPaymentMethod('card')">Card</button>

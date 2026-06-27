@@ -397,7 +397,7 @@ async def checkout_complete(payload: dict):
     # Split items: bakery (deduct from inventory) vs coffee (no inventory limit)
     bakery_items = []
     coffee_items = []
-    BAKERY_KEYS = {"donut","croissant","bread_coconut","bread_roll","chiffon","croissant_chocolate"}
+    BAKERY_KEYS = {"apple_pie","bagel","baguette","bread_coconut","bread_roll","brioche","brownie","chiffon","chocolate_cake","chocopie","cookie","cornbread","cream_horn","croissant","croissant_chocolate","donut","eggtart","flatbread","macaron","mantequilla","melon_bread","muffin","pancake","pandesal","pizza_bread","pullman","soboru_bread","sourdough","stickbread","tostada"}
     for item in items:
         pn = item.get("product_name", "")
         if pn in BAKERY_KEYS:
@@ -472,22 +472,77 @@ async def checkout_complete(payload: dict):
     savings = discount_total
     
     # Generate receipt ID
-    from datetime import datetime
+        
+    # ---- Record to orders / order_items / payments tables ----
     now = datetime.now()
-    receipt_id = f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{now.microsecond // 1000:03d}"
+    payment_method = payload.get("payment_method", "cash")
+    cash_received = payload.get("cash_received", None)
     
-    # Store receipt in DB
-    import json
-    try:
-        cursor = db.cursor()
-        cursor.execute(
-            "INSERT INTO receipts(receipt_id, items, subtotal, discount_total, total, savings) VALUES(%s,%s,%s,%s,%s,%s)",
-            (receipt_id, json.dumps(receipt_items), round(subtotal,2), round(discount_total,2), round(total,2), round(savings,2))
+    # Build product cost lookup
+    all_product_names = [it.get("product_name","") for it in items]
+    placeholders = ",".join(["%s"] * len(all_product_names))
+    cur = db.cursor()
+    cur.execute(f"SELECT product_name, material_cost FROM products WHERE product_name IN ({placeholders})", all_product_names)
+    cost_map = {r[0]: float(r[1]) for r in cur.fetchall()}
+    
+    # Calculate order totals
+    order_subtotal = subtotal
+    order_discount = discount_total
+    order_total = total
+    order_profit = 0.0
+    order_item_count = 0
+    
+    for item in items:
+        pn = item.get("product_name","")
+        qty = item.get("quantity", 1)
+        uprice = prices.get(pn, 5.0)
+        mat_cost = cost_map.get(pn, uprice * 0.30)
+        freshness = item.get("freshness", "Fresh")
+        disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+        line_total = uprice * qty
+        line_disc = line_total * disc_rate
+        line_final = line_total - line_disc
+        line_profit = line_final - (mat_cost * qty)
+        order_profit += line_profit
+        order_item_count += qty
+    
+    # INSERT orders
+    cur.execute(
+        "INSERT INTO orders (ticket_id, order_date, order_time, subtotal, discount_total, total_amount, total_profit, item_count, state) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        (receipt_id, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S"), round(order_subtotal,2), round(order_discount,2), round(order_total,2), round(order_profit,2), order_item_count, "paid")
+    )
+    order_id = cur.lastrowid
+    
+    # INSERT order_items
+    for item in items:
+        pn = item.get("product_name","")
+        qty = item.get("quantity", 1)
+        uprice = prices.get(pn, 5.0)
+        mat_cost = cost_map.get(pn, uprice * 0.30)
+        freshness = item.get("freshness", "Fresh")
+        disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+        line_total = uprice * qty
+        line_disc = line_total * disc_rate
+        line_final = line_total - line_disc
+        line_profit = line_final - (mat_cost * qty)
+        
+        coffee_temp = item.get("temperature", None)
+        coffee_ice = item.get("ice_level", None)
+        coffee_sugar = item.get("sugar", None)
+        
+        cur.execute(
+            "INSERT INTO order_items (order_id, product_name, quantity, unit_price, discount_rate, line_total, line_profit, freshness, coffee_temp, coffee_ice, coffee_sugar) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (order_id, pn, qty, uprice, disc_rate, round(line_final,2), round(line_profit,2), freshness, coffee_temp, coffee_ice, coffee_sugar)
         )
-        db.commit()
-    except Exception:
-        pass  # receipt storage is non-critical
     
+    # INSERT payments
+    cur.execute(
+        "INSERT INTO payments (order_id, amount, payment_method, payment_date) VALUES (%s,%s,%s,%s)",
+        (order_id, round(order_total,2), payment_method, now.strftime("%Y-%m-%d"))
+    )
+    db.commit()
+    
+    receipt_id = f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{now.microsecond // 1000:03d}"
     receipt = {
         "receipt_id": receipt_id,
         "date": now.strftime("%Y-%m-%d %H:%M"),
@@ -496,13 +551,150 @@ async def checkout_complete(payload: dict):
         "discount_total": round(discount_total, 2),
         "total": round(total, 2),
         "savings": round(savings, 2),
+        "order_id": order_id,
     }
-    
+
     return {
         "status": status,
         "deducted": deducted,
         "errors": all_errors,
         "receipt": receipt,
-        "message": f"{len(deducted)} items deducted" + 
-                   (f", {len(all_errors)} items failed" if all_errors else ""),
+        "message": f"{len(deducted)} items deducted" + (f", {len(all_errors)} items failed" if all_errors else ""),
+    }
+# ======================================================================
+# GET /s4/revenue/daily -- Revenue dashboard data from MySQL
+# ======================================================================
+@router.get("/revenue/daily")
+async def revenue_daily(date: str = None):
+    """Return revenue dashboard data from MySQL orders/order_items/products tables."""
+    from datetime import datetime as dt, timedelta
+    
+    db = get_db()
+    cur = db.cursor()
+    
+    # Default to latest order date
+    if date is None:
+        cur.execute("SELECT MAX(order_date) FROM orders")
+        date = str(cur.fetchone()[0])
+    
+    # Today KPIs
+    cur.execute("""
+        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit
+        FROM orders WHERE order_date = %s
+    """, (date,))
+    row = cur.fetchone()
+    if not row or not row[0]:
+        return {"status": "ok", "data": None, "message": f"No sales data for {date}"}
+    
+    today_orders = int(row[0])
+    today_revenue = round(float(row[1] or 0), 2)
+    today_profit = round(float(row[2] or 0), 2)
+    avg_order = round(today_revenue / today_orders, 2) if today_orders else 0
+    
+    # Yesterday comparison
+    yesterday = (dt.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    cur.execute("""
+        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit
+        FROM orders WHERE order_date = %s
+    """, (yesterday,))
+    yrow = cur.fetchone()
+    if yrow and yrow[0]:
+        y_orders = int(yrow[0])
+        y_revenue = round(float(yrow[1] or 0), 2)
+        y_profit = round(float(yrow[2] or 0), 2)
+        y_avg = round(y_revenue / y_orders, 2) if y_orders else 0
+        rev_change = round((today_revenue - y_revenue) / y_revenue * 100, 1) if y_revenue else 0
+        prof_change = round((today_profit - y_profit) / y_profit * 100, 1) if y_profit else 0
+        ord_change = round((today_orders - y_orders) / y_orders * 100, 1) if y_orders else 0
+        avg_change = round((avg_order - y_avg) / y_avg * 100, 1) if y_avg else 0
+    else:
+        rev_change = prof_change = ord_change = avg_change = 0
+    
+        # Payment breakdown (real data from payments table)
+    cur.execute("""
+        SELECT p.payment_method, SUM(p.amount) as total
+        FROM payments p JOIN orders o ON p.order_id = o.id
+        WHERE o.order_date = %s AND o.state IN ('paid','draft')
+        GROUP BY p.payment_method
+    """, (date,))
+    payment = {"Cash": 0, "Card": 0, "QR": 0}
+    for prow in cur.fetchall():
+        key = prow[0] if prow[0] else "cash"
+        if key in ("cash",): key = "Cash"
+        elif key in ("card",): key = "Card"
+        elif key in ("qr",): key = "QR"
+        if key in payment:
+            payment[key] = round(float(prow[1] or 0), 2)
+    
+    # Category breakdown (bread vs coffee)
+    cur.execute("""
+        SELECT p.category, SUM(oi.line_total) as revenue
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_name = p.product_name
+        WHERE o.order_date = %s
+        GROUP BY p.category
+    """, (date,))
+    cat_data = {"Bread": 0, "Coffee": 0}
+    for crow in cur.fetchall():
+        cat_key = "Bread" if crow[0] == "bakery" else "Coffee"
+        cat_data[cat_key] = round(float(crow[1] or 0), 2)
+    
+    # Sales ranking (top 8 by revenue)
+    cur.execute("""
+        SELECT oi.product_name, SUM(oi.quantity) as qty, SUM(oi.line_total) as revenue,
+               SUM(oi.line_profit) as profit
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        WHERE o.order_date = %s
+        GROUP BY oi.product_name
+        ORDER BY revenue DESC LIMIT 8
+    """, (date,))
+    ranking = []
+    for rrow in cur.fetchall():
+        ranking.append({
+            "name": rrow[0].replace("_", " ").title(),
+            "qty": int(rrow[1]),
+            "revenue": round(float(rrow[2]), 2),
+            "profit": round(float(rrow[3]), 2)
+        })
+    
+    # 7-day trend (bread vs coffee revenue per day)
+    trend_dates = []
+    trend_bread = []
+    trend_coffee = []
+    for i in range(6, -1, -1):
+        d = (dt.strptime(date, "%Y-%m-%d") - timedelta(days=i)).strftime("%Y-%m-%d")
+        trend_dates.append(d[5:])  # MM-DD
+        cur.execute("""
+            SELECT p.category, COALESCE(SUM(oi.line_total), 0)
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN products p ON oi.product_name = p.product_name
+            WHERE o.order_date = %s
+            GROUP BY p.category
+        """, (d,))
+        day_cat = {"bakery": 0, "coffee": 0}
+        for crow in cur.fetchall():
+            day_cat[crow[0]] = round(float(crow[1]), 2)
+        trend_bread.append(day_cat["bakery"])
+        trend_coffee.append(day_cat["coffee"])
+    
+    return {
+        "status": "ok",
+        "data": {
+            "date": date,
+            "today_revenue": today_revenue,
+            "today_profit": today_profit,
+            "today_orders": today_orders,
+            "avg_order": avg_order,
+            "revenue_change": rev_change,
+            "profit_change": prof_change,
+            "orders_change": ord_change,
+            "avg_change": avg_change,
+            "payment": payment,
+            "category": cat_data,
+            "trend": {"dates": trend_dates, "bread": trend_bread, "coffee": trend_coffee},
+            "ranking": ranking,
+        }
     }
