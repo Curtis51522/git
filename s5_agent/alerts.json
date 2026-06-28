@@ -95,8 +95,8 @@
       "title": "Critical waste: croissant",
       "detail": "5/6 (83%) of croissant is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.727210",
-      "created_ts": 1782634777.72721,
+      "created_at": "2026-06-28T18:14:11.398063",
+      "created_ts": 1782641651.3980637,
       "ttl_sec": 86400
     },
     {
@@ -128,8 +128,8 @@
       "title": "Low stock: baguette",
       "detail": "baguette has only 6 units remaining.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.691668",
-      "created_ts": 1782634777.6916685,
+      "created_at": "2026-06-28T18:14:11.366909",
+      "created_ts": 1782641651.3669093,
       "ttl_sec": 86400
     },
     {
@@ -139,8 +139,8 @@
       "title": "Critical waste: baguette",
       "detail": "5/6 (83%) of baguette is Day-1 stock. Immediate discount or disposal required.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.697783",
-      "created_ts": 1782634777.6977832,
+      "created_at": "2026-06-28T18:14:11.371907",
+      "created_ts": 1782641651.371907,
       "ttl_sec": 86400
     },
     {
@@ -150,8 +150,8 @@
       "title": "Waste watch: bread_coconut",
       "detail": "5/11 (45%) of bread_coconut is Day-1. Monitor closely.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.702783",
-      "created_ts": 1782634777.7027836,
+      "created_at": "2026-06-28T18:14:11.376906",
+      "created_ts": 1782641651.3769064,
       "ttl_sec": 86400
     },
     {
@@ -172,8 +172,8 @@
       "title": "Low stock: croissant",
       "detail": "croissant has only 6 units remaining.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.723207",
-      "created_ts": 1782634777.7232075,
+      "created_at": "2026-06-28T18:14:11.392906",
+      "created_ts": 1782641651.3929062,
       "ttl_sec": 86400
     },
     {
@@ -183,8 +183,8 @@
       "title": "Low stock: donut",
       "detail": "donut has only 8 units remaining.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.731382",
-      "created_ts": 1782634777.7313821,
+      "created_at": "2026-06-28T18:14:11.402063",
+      "created_ts": 1782641651.4020631,
       "ttl_sec": 86400
     },
     {
@@ -194,8 +194,8 @@
       "title": "High waste risk: donut",
       "detail": "5/8 (62%) of donut is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.735381",
-      "created_ts": 1782634777.735382,
+      "created_at": "2026-06-28T18:14:11.407067",
+      "created_ts": 1782641651.407068,
       "ttl_sec": 86400
     },
     {
@@ -205,8 +205,8 @@
       "title": "Low stock: chocolate_cake",
       "detail": "chocolate_cake has only 9 units remaining.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.706780",
-      "created_ts": 1782634777.706781,
+      "created_at": "2026-06-28T18:14:11.382906",
+      "created_ts": 1782641651.382907,
       "ttl_sec": 86400
     },
     {
@@ -216,8 +216,8 @@
       "title": "High waste risk: chocolate_cake",
       "detail": "5/9 (56%) of chocolate_cake is Day-1 stock. Prioritize sale or discount to avoid spoilage.",
       "acknowledged": false,
-      "created_at": "2026-06-28T16:19:37.711934",
-      "created_ts": 1782634777.711934,
+      "created_at": "2026-06-28T18:14:11.387906",
+      "created_ts": 1782641651.3879063,
       "ttl_sec": 86400
     }
   ],

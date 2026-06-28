@@ -967,13 +967,62 @@ async def revenue_historical(start: str = None, end: str = None, granularity: st
 
 
 
+
 # ======================================================================
 # S4 Raw Material Inventory Wastage API
 # ======================================================================
 
+def _get_theoretical(material_name):
+    """Shared: return (theo_stock, consumed, restocked, ref_actual, ref_ts)."""
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT check_date, actual_stock, created_at FROM material_wastage_log WHERE material_name = %s ORDER BY id DESC LIMIT 1",
+        (material_name,)
+    )
+    last = cur.fetchone()
+    if last:
+        ref_actual = float(last[1])
+        ref_ts = str(last[2])
+    else:
+        cur.execute("SELECT stock_quantity FROM raw_materials WHERE material_name = %s", (material_name,))
+        stock = float(cur.fetchone()[0])
+        today_start = datetime.now().strftime("%Y-%m-%d") + " 00:00:00"
+        cur.execute(
+            "SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s",
+            (material_name, today_start)
+        )
+        consumed_today = float(cur.fetchone()[0]) / 1000
+        ref_actual = stock + consumed_today
+        cur.execute(
+            "INSERT INTO material_wastage_log (material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate) VALUES (%s,%s,%s,%s,0,0,0,0)",
+            (material_name, datetime.now().strftime("%Y-%m-%d"), stock, stock)
+        )
+        db.commit()
+        ref_ts = today_start
+
+    cur.execute("""
+        SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0)
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s
+        WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s
+    """, (material_name, ref_ts))
+    consumed = float(cur.fetchone()[0]) / 1000
+
+    cur.execute(
+        "SELECT COALESCE(SUM(quantity), 0) FROM material_transactions WHERE material_name = %s AND transaction_type IN ('inflow','restock') AND created_at >= %s",
+        (material_name, ref_ts)
+    )
+    restocked = float(cur.fetchone()[0])
+
+    theoretical_stock = ref_actual - consumed + restocked
+    return theoretical_stock, consumed, restocked, ref_actual, ref_ts
+
+
 @router.get("/inventory/materials")
 async def get_materials():
-    """Get all raw materials with current theoretical stock."""
+    """Get all raw materials with current stock."""
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT material_name, stock_quantity, unit, unit_price FROM raw_materials ORDER BY material_name")
@@ -991,233 +1040,73 @@ async def get_materials():
 
 @router.get("/inventory/materials/theoretical")
 async def get_materials_theoretical():
-    """Get each material's theoretical remaining stock based on recipe deductions since last check."""
+    """Get theoretical stock for each material based on last check."""
     db = get_db()
     cur = db.cursor()
-    
-    # Get all raw materials with current stock
     cur.execute("SELECT material_name, stock_quantity, unit, unit_price FROM raw_materials ORDER BY material_name")
     rows = cur.fetchall()
-    
-    # Get last check date for each material
     materials = []
     for r in rows:
         mn = r[0]
-        # Always use the first check of current week as baseline
-        from datetime import datetime as _dt, timedelta as _td
-        week_start = (_dt.now() - _td(days=_dt.now().weekday())).strftime("%Y-%m-%d")
-        cur.execute(
-            "SELECT check_date, actual_stock FROM material_wastage_log WHERE material_name = %s AND check_date >= %s ORDER BY check_date ASC LIMIT 1",
-            (mn, week_start)
-        )
+        theo_stock, consumed, restocked, ref_actual, ref_ts = _get_theoretical(mn)
+        cur.execute("SELECT check_date FROM material_wastage_log WHERE material_name = %s ORDER BY id DESC LIMIT 1", (mn,))
         last = cur.fetchone()
-        if last:
-            last_actual = float(last[1])
-            cur.execute(
-                "SELECT created_at FROM material_wastage_log WHERE material_name = %s AND check_date = %s ORDER BY created_at ASC LIMIT 1",
-                (mn, str(last[0]))
-            )
-            ts_row = cur.fetchone()
-            last_timestamp = str(ts_row[0]) if ts_row else str(last[0])
-            
-            cur.execute("""
-                SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0)
-                FROM order_items oi
-                JOIN orders o ON oi.order_id = o.id
-                JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s
-                WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s
-            """, (mn, last_timestamp))
-            consumed = float(cur.fetchone()[0]) / 1000
-            
-            cur.execute(
-                "SELECT COALESCE(SUM(quantity), 0) FROM material_transactions WHERE material_name = %s AND transaction_type IN ('inflow','restock') AND created_at >= %s",
-                (mn, last_timestamp)
-            )
-            restocked = float(cur.fetchone()[0])
-            
-            theoretical_stock = last_actual - consumed + restocked
-            last_date = str(last[0])
-        else:
-            last_actual = float(r[1])
-            last_date = None
-            consumed = 0.0
-            restocked = 0.0
-            theoretical_stock = float(r[1])
-        
         materials.append({
             "material_name": mn,
             "current_stock": float(r[1]),
-            "theoretical_stock": round(theoretical_stock, 3),
-            "last_actual": round(last_actual, 3),
+            "theoretical_stock": round(theo_stock, 3),
             "consumed_since": round(consumed, 3),
-            "restocked_since": round(restocked, 3),
             "unit": r[2],
             "unit_price": float(r[3]) if r[3] else 0,
             "last_check_date": str(last[0]) if last else None,
         })
-    
     return {"status": "ok", "materials": materials}
 
 
 @router.post("/inventory/check")
 async def inventory_check(payload: dict):
-    """Submit raw material inventory check. Input actual stock for each material."""
+    """Submit inventory check. Compare actual vs theoretical stock."""
     check_date = payload.get("check_date", datetime.now().strftime("%Y-%m-%d"))
-    counts = payload.get("counts", [])  # [{material_name: "...", actual_stock: N}]
-    
+    counts = payload.get("counts", [])
     if not counts:
         raise HTTPException(400, "No material counts provided")
-    
+
     db = get_db()
     cur = db.cursor()
     results = []
-    
+
     for item in counts:
         mn = item.get("material_name", "")
-        actual_stock = float(item.get("actual_stock", 0))
-        
-        # Always use the first check of current week as baseline
-        from datetime import datetime as _dt, timedelta as _td
-        week_start = (_dt.now() - _td(days=_dt.now().weekday())).strftime("%Y-%m-%d")
-        cur.execute(
-            "SELECT check_date, actual_stock FROM material_wastage_log WHERE material_name = %s AND check_date >= %s ORDER BY check_date ASC LIMIT 1",
-            (mn, week_start)
-        )
-        last = cur.fetchone()
-        
-        if last:
-            last_check_date = str(last[0])
-            last_actual = float(last[1])
-            
-            # Get the created_at timestamp of the last check
-            cur.execute(
-                "SELECT created_at FROM material_wastage_log WHERE material_name = %s AND check_date = %s ORDER BY created_at ASC LIMIT 1",
-                (mn, last_check_date)
-            )
-            last_ts = cur.fetchone()
-            last_timestamp = str(last_ts[0]) if last_ts else last_check_date
-            
-            # Theoretical consumed = recipe qty * items sold since last check timestamp
-            cur.execute("""
-                SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0)
-                FROM order_items oi
-                JOIN orders o ON oi.order_id = o.id
-                JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s
-                WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s
-            """, (mn, last_timestamp))
-            theoretical_consumed = float(cur.fetchone()[0]) / 1000  # grams -> kg
-            
-            # Restocks since last check timestamp
-            cur.execute(
-                "SELECT COALESCE(SUM(quantity), 0) FROM material_transactions WHERE material_name = %s AND transaction_type IN ('inflow','restock') AND created_at >= %s",
-                (mn, last_timestamp)
-            )
-            restocked = float(cur.fetchone()[0])
-            
-            # Actual consumed = last actual + restocks - current actual
-            actual_consumed = max(0, last_actual + restocked - actual_stock)
-            
-            # Wastage = actual consumed - theoretical consumed
-            theoretical_stock_val = last_actual - theoretical_consumed + restocked
-            # If input matches theoretical (within 0.5%), user did not change it -> zero wastage
-            if theoretical_stock_val > 0 and abs(actual_stock - theoretical_stock_val) / theoretical_stock_val < 0.005:
-                actual_consumed = theoretical_consumed
-                wastage_qty = 0.0
-                actual_stock = theoretical_stock_val
-            else:
-                wastage_qty = round(actual_consumed - theoretical_consumed, 3)
-            wastage_rate = round(wastage_qty / theoretical_consumed, 4) if theoretical_consumed > 0 else 0.0
-            theoretical_stock = theoretical_stock_val
+        user_actual = float(item.get("actual_stock", 0))
+
+        theo_stock, theo_consumed, restocked, ref_actual, ref_ts = _get_theoretical(mn)
+
+        actual_consumed = round(ref_actual + restocked - user_actual, 3)
+        wastage_qty = round(actual_consumed - theo_consumed, 3)
+
+        if theo_consumed > 0.0001:
+            wastage_rate = round(wastage_qty / theo_consumed, 4)
         else:
-            # First check: establish baseline only, no consumption comparison
-            last_date = None
-            last_actual = actual_stock
-            theoretical_consumed = 0.0
-            restocked = 0.0
-            actual_consumed = 0.0
-            wastage_qty = 0.0
             wastage_rate = 0.0
-            theoretical_stock_val = actual_stock
-            theoretical_stock = actual_stock
-        
-        # Log
+
         cur.execute(
             "INSERT INTO material_wastage_log (material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-            (mn, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate)
+            (mn, check_date, round(theo_stock, 3), user_actual, round(theo_consumed, 3), actual_consumed, wastage_qty, wastage_rate)
         )
-        
+        cur.execute("UPDATE raw_materials SET stock_quantity = %s WHERE material_name = %s", (user_actual, mn))
+
         results.append({
             "material_name": mn,
-            "theoretical_stock": round(theoretical_stock, 3),
-            "actual_stock": round(actual_stock, 3),
-            "theoretical_consumed": round(theoretical_consumed, 3),
-            "actual_consumed": round(actual_consumed, 3),
+            "theoretical_stock": round(theo_stock, 3),
+            "actual_stock": user_actual,
+            "theoretical_consumed": round(theo_consumed, 3),
+            "actual_consumed": actual_consumed,
             "wastage_qty": wastage_qty,
             "wastage_rate": wastage_rate,
         })
-    
-    # Update product wastage_pct based on material wastage rates
-    _update_product_wastage_from_materials(cur)
-    
+
     db.commit()
     return {"status": "ok", "check_date": check_date, "results": results}
-
-
-def _update_product_wastage_from_materials(cur):
-    """Recalculate product wastage_pct from each product's recipe materials' wastage rates."""
-    
-    # Calculate rolling weighted average wastage rate per material
-    cur.execute("SELECT DISTINCT material_name FROM material_wastage_log WHERE theoretical_consumed > 0 AND wastage_rate > 0")
-    materials = [r[0] for r in cur.fetchall()]
-    
-    if not materials:
-        return  # No meaningful wastage data yet, keep existing defaults
-    
-    mat_wastage = {}
-    for mn in materials:
-        cur.execute(
-            "SELECT wastage_rate, theoretical_consumed FROM material_wastage_log WHERE material_name = %s AND theoretical_consumed > 0 ORDER BY check_date DESC LIMIT 10",
-            (mn,)
-        )
-        history = cur.fetchall()
-        if history:
-            total_weight = sum(float(h[1]) for h in history)
-            if total_weight > 0:
-                weighted_avg = sum(float(h[0]) * float(h[1]) for h in history) / total_weight
-                mat_wastage[mn] = max(0, weighted_avg)
-    
-    if not mat_wastage:
-        return
-    
-    # For each product, compute weighted average wastage from its recipe
-    cur.execute("SELECT DISTINCT product_name FROM product_recipes")
-    products = [r[0] for r in cur.fetchall()]
-    
-    for pn in products:
-        cur.execute("SELECT material_name, quantity_per_unit FROM product_recipes WHERE product_name = %s", (pn,))
-        recipe = cur.fetchall()
-        if not recipe:
-            continue
-        
-        total_cost_weight = 0
-        weighted_wastage = 0
-        for mat_name, qty in recipe:
-            if mat_name in mat_wastage:
-                cur.execute("SELECT unit_price FROM raw_materials WHERE material_name = %s", (mat_name,))
-                row = cur.fetchone()
-                unit_price = float(row[0]) if row and row[0] else 0
-                cost_contribution = float(qty) / 1000 * unit_price
-                weighted_wastage += mat_wastage[mat_name] * cost_contribution
-                total_cost_weight += cost_contribution
-        
-        if total_cost_weight > 0:
-            product_wastage = weighted_wastage / total_cost_weight
-            # Only update if meaningful (> 0.5% to avoid noise)
-            if product_wastage > 0.005:
-                cur.execute(
-                    "UPDATE products SET wastage_pct = %s WHERE product_name = %s",
-                    (round(product_wastage, 4), pn)
-                )
 
 
 @router.get("/inventory/check/history")
@@ -1225,18 +1114,16 @@ async def inventory_check_history(material_name: str = None, limit: int = 30):
     """Get material wastage log history."""
     db = get_db()
     cur = db.cursor()
-    
     if material_name:
         cur.execute(
-            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log WHERE material_name = %s ORDER BY check_date DESC LIMIT %s",
+            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log WHERE material_name = %s ORDER BY id DESC LIMIT %s",
             (material_name, limit)
         )
     else:
         cur.execute(
-            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log ORDER BY check_date DESC LIMIT %s",
+            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log ORDER BY id DESC LIMIT %s",
             (limit,)
         )
-    
     rows = cur.fetchall()
     history = []
     for r in rows:
@@ -1252,23 +1139,31 @@ async def inventory_check_history(material_name: str = None, limit: int = 30):
             "wastage_rate": float(r[8]),
             "created_at": str(r[9]) if r[9] else "",
         })
-    
     return {"status": "ok", "history": history}
 
 
 @router.get("/inventory/wastage/summary")
 async def wastage_summary():
-    """Get current wastage rates for all products, calculated from material wastage."""
+    """Get latest wastage rates per material."""
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT product_name, material_cost, wastage_pct FROM products ORDER BY wastage_pct DESC")
+    cur.execute("""
+        SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
+        FROM material_wastage_log m1
+        INNER JOIN (
+            SELECT material_name, MAX(id) as max_id
+            FROM material_wastage_log
+            GROUP BY material_name
+        ) m2 ON m1.id = m2.max_id
+    """)
     rows = cur.fetchall()
     summary = []
     for r in rows:
         summary.append({
-            "product_name": r[0],
-            "material_cost": float(r[1]),
-            "wastage_pct": float(r[2]) if r[2] else 0.03,
-            "effective_cost": round(float(r[1]) * (1 + float(r[2] or 0.03)), 2),
+            "material_name": r[0],
+            "theoretical_consumed": float(r[1]),
+            "wastage_qty": float(r[2]),
+            "wastage_rate": float(r[3]),
+            "check_date": str(r[4]),
         })
     return {"status": "ok", "summary": summary}
