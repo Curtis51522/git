@@ -1195,11 +1195,20 @@ async def inventory_dashboard(date: str = None):
     """)
     baking_materials = []
     for r in cur.fetchall():
+        mn = r[0]
         stock = float(r[3] or 0)
         reorder = float(r[4] or 0)
+        cur.execute("SELECT MAX(created_at) FROM material_transactions WHERE material_name = %s AND transaction_type = 'restock'", (mn,))
+        lr = cur.fetchone()[0]
+        if lr:
+            cur.execute("SELECT COALESCE(SUM(quantity),0) FROM material_transactions WHERE material_name = %s AND transaction_type = 'outflow' AND created_at >= %s", (mn, lr))
+            baseline = round(stock + float(cur.fetchone()[0]), 3)
+        else:
+            baseline = round(stock, 3)
         baking_materials.append({
-            "material_name": r[0], "category": r[1], "unit": r[2],
+            "material_name": mn, "category": r[1], "unit": r[2],
             "stock": round(stock, 3), "reorder_point": reorder,
+            "baseline": baseline,
         })
 
     # ---- Coffee materials ----
@@ -1211,11 +1220,20 @@ async def inventory_dashboard(date: str = None):
     """)
     coffee_materials = []
     for r in cur.fetchall():
+        mn = r[0]
         stock = float(r[3] or 0)
         reorder = float(r[4] or 0)
+        cur.execute("SELECT MAX(created_at) FROM material_transactions WHERE material_name = %s AND transaction_type = 'restock'", (mn,))
+        lr = cur.fetchone()[0]
+        if lr:
+            cur.execute("SELECT COALESCE(SUM(quantity),0) FROM material_transactions WHERE material_name = %s AND transaction_type = 'outflow' AND created_at >= %s", (mn, lr))
+            baseline = round(stock + float(cur.fetchone()[0]), 3)
+        else:
+            baseline = round(stock, 3)
         coffee_materials.append({
-            "material_name": r[0], "category": r[1], "unit": r[2],
+            "material_name": mn, "category": r[1], "unit": r[2],
             "stock": round(stock, 3), "reorder_point": reorder,
+            "baseline": baseline,
         })
 
     # ---- 1. Inventory Value ----
@@ -1330,3 +1348,42 @@ async def wastage_summary():
             "check_date": str(r[4]),
         })
     return {"status": "ok", "summary": summary}
+@router.post("/inventory/restock")
+async def inventory_restock(payload: dict):
+    """Restock raw materials. Adds quantity to stock_quantity and records transaction."""
+    material_name = payload.get("material_name", "")
+    add_qty = float(payload.get("quantity", 0))
+    if not material_name or add_qty <= 0:
+        raise HTTPException(400, "Invalid material or quantity")
+
+    db = get_db()
+    cur = db.cursor()
+
+    # Get current stock
+    cur.execute("SELECT stock_quantity, unit FROM raw_materials WHERE material_name = %s", (material_name,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(404, f"Material '{material_name}' not found")
+
+    current = float(row[0])
+    unit = row[1]
+    new_stock = round(current + add_qty, 6)
+
+    cur.execute("UPDATE raw_materials SET stock_quantity = %s WHERE material_name = %s", (new_stock, material_name))
+    cur.execute(
+        "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
+        (material_name, "restock", add_qty, unit, "manual_restock")
+    )
+    db.commit()
+
+    return {
+        "status": "ok",
+        "material_name": material_name,
+        "previous_stock": round(current, 3),
+        "added": add_qty,
+        "new_stock": round(new_stock, 3),
+        "unit": unit,
+    }
+
+
+

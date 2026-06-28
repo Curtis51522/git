@@ -1602,31 +1602,56 @@ async function fetchInventoryDashboard(){
     dt+='</tbody></table>';
     document.getElementById("inv-days-table").innerHTML=dt;
 
-    function buildMatTable(materials){
+    function buildMatTable(materials, tableId){
       var t='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">'
-        +'<th style="padding:6px;text-align:left">Material</th><th style="padding:6px;text-align:left">Stock</th><th style="padding:6px;text-align:right">Threshold</th></tr></thead><tbody>';
+        +'<th style="padding:6px;text-align:left">Material</th><th style="padding:6px;text-align:left">Stock</th><th style="padding:6px;width:28px"></th></tr></thead><tbody>';
       if(materials.length===0){
         t+='<tr><td colspan="3" style="padding:12px;text-align:center;color:#6b5b4f">No data</td></tr>';
       }else{
         for(var i=0;i<materials.length;i++){
           var m=materials[i];
-          var pct=m.reorder_point>0?Math.min(Math.round(m.stock/m.reorder_point*100),200):100;
+          var baseline=m.baseline||m.stock;
+          var pct=baseline>0?Math.min(Math.round(m.stock/baseline*100),100):100;
           var barCol="#8b6914";
-          if(pct<50)barCol="#d4a853";else if(pct<100)barCol="#b8952e";
-          t+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;font-weight:600;font-size:11px">'+m.material_name+'</td>'
+          if(pct<30)barCol="#d4a853";else if(pct<70)barCol="#b8952e";
+          var rowId=tableId+'_row_'+i;
+          t+='<tr style="border-bottom:1px solid #f0e8d8" id="'+rowId+'"><td style="padding:5px;font-weight:600;font-size:11px">'+m.material_name+'</td>'
             +'<td style="padding:5px;width:50%"><div style="background:#f0e8d8;border-radius:6px;height:14px;overflow:hidden">'
-            +'<div style="height:100%;width:'+Math.min(pct,100)+'%;background:'+barCol+';border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700">'+m.stock.toFixed(2)+' '+m.unit+'</div></div></td>'
-            +'<td style="padding:5px;text-align:right;color:#6b5b4f;font-size:10px">'+m.reorder_point.toFixed(1)+'</td></tr>';
+            +'<div style="height:100%;width:'+pct+'%;background:'+barCol+';border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700">'+m.stock.toFixed(3)+' / '+baseline.toFixed(3)+' '+m.unit+'</div></div></td>'
+            +'<td style="padding:3px"><button onclick="showRestockInput(\''+m.material_name+'\',\''+rowId+'\',\''+m.unit+'\')" style="background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1" title="Restock">+</button></td></tr>';
         }
       }
       t+='</tbody></table>';return t;
     }
-    document.getElementById("inv-baking-table").innerHTML=buildMatTable(baking);
-    document.getElementById("inv-coffee-table").innerHTML=buildMatTable(coffee);
+    document.getElementById("inv-baking-table").innerHTML=buildMatTable(baking,"baking");
+    document.getElementById("inv-coffee-table").innerHTML=buildMatTable(coffee,"coffee");
 
   }catch(e){if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">Error: '+e.message+'</div>';}
 }
 
+
+    function showRestockInput(materialName, rowId, unit){
+      var row=document.getElementById(rowId);
+      if(!row)return;
+      var cells=row.getElementsByTagName('td');
+      cells[1].innerHTML='<div style="display:flex;align-items:center;gap:4px">'
+        +'<input type="number" id="restock-qty" step="0.01" min="0.01" style="width:60px;padding:2px 4px;border:1px solid #8b6914;border-radius:4px;font-size:11px" placeholder="Qty"><span style="font-size:10px;color:#888;margin-left:2px">'+unit+'</span>'
+        +'<button onclick="doRestock(\''+materialName+'\',\''+rowId+'\')" style="background:#27ae60;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;padding:2px 6px">OK</button>'
+        +'<button onclick="cancelRestock(\''+rowId+'\')" style="background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;padding:2px 6px">x</button></div>';
+    }
+    function cancelRestock(rowId){
+      fetchInventoryDashboard();
+    }
+    async function doRestock(materialName, rowId){
+      var qtyEl=document.getElementById('restock-qty');
+      var qty=parseFloat(qtyEl.value);
+      if(!qty||qty<=0)return;
+      try{
+        var r=await api('/s4/inventory/restock',{method:'POST',body:{material_name:materialName,quantity:qty}});
+        if(r.status==='ok'){fetchInventoryDashboard();}
+        else{alert('Restock failed');}
+      }catch(e){alert('Restock error: '+e.message);}
+    }
 function renderWastage(c){
 var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 c.innerHTML='<div class="panel" style="flex:1"><h4>Raw Material Inventory Check</h4>'
