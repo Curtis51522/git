@@ -1142,6 +1142,169 @@ async def inventory_check_history(material_name: str = None, limit: int = 30):
     return {"status": "ok", "history": history}
 
 
+@router.get("/inventory/dashboard")
+async def inventory_dashboard(date: str = None):
+    """Return bread stock + baking materials + coffee materials + BI metrics for dashboard."""
+    db = get_db()
+    cur = db.cursor()
+
+    # ---- Bread finished goods (date-aware) ----
+    from datetime import datetime as dt, timedelta
+    if date is None:
+        date = dt.now().strftime("%Y-%m-%d")
+
+    # Get current stock as baseline
+    cur.execute("""SELECT product_name, freshness_status, SUM(quantity_remaining) as qty FROM batch_inventory GROUP BY product_name, freshness_status""")
+    current_map = {}
+    for r in cur.fetchall():
+        current_map[(r[0], r[1])] = int(r[2] or 0)
+
+    # Get sales AFTER the given date (to add back for earlier dates)
+    cur.execute("""SELECT oi.product_name, oi.freshness, SUM(oi.quantity) as sold FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.order_date > %s AND o.order_date <= %s GROUP BY oi.product_name, oi.freshness""", (date, dt.now().strftime("%Y-%m-%d")))
+    addback_map = {}
+    for r in cur.fetchall():
+        addback_map[(r[0], r[1])] = int(r[2] or 0)
+
+    bread_map = {}
+    for (pn, status), current in current_map.items():
+        addback = addback_map.get((pn, status), 0)
+        remaining = current + addback
+        if pn not in bread_map:
+            bread_map[pn] = {"product_name": pn, "fresh_qty": 0, "day1_qty": 0, "total_qty": 0}
+        if status == "Fresh":
+            bread_map[pn]["fresh_qty"] += remaining
+        else:
+            bread_map[pn]["day1_qty"] += remaining
+        bread_map[pn]["total_qty"] += remaining
+
+    bread_stock = []
+    fresh_total = 0
+    day1_total = 0
+    for pn in sorted(bread_map.keys()):
+        b = bread_map[pn]
+        fresh_total += b["fresh_qty"]
+        day1_total += b["day1_qty"]
+        bread_stock.append(b)
+
+    # ---- Baking materials ----
+    cur.execute("""
+        SELECT material_name, category, unit, stock_quantity, reorder_point
+        FROM raw_materials
+        WHERE category IN ('flour','baking','dairy','sugar','packaging')
+        ORDER BY category, material_name
+    """)
+    baking_materials = []
+    for r in cur.fetchall():
+        stock = float(r[3] or 0)
+        reorder = float(r[4] or 0)
+        baking_materials.append({
+            "material_name": r[0], "category": r[1], "unit": r[2],
+            "stock": round(stock, 3), "reorder_point": reorder,
+        })
+
+    # ---- Coffee materials ----
+    cur.execute("""
+        SELECT material_name, category, unit, stock_quantity, reorder_point
+        FROM raw_materials
+        WHERE category IN ('coffee')
+        ORDER BY material_name
+    """)
+    coffee_materials = []
+    for r in cur.fetchall():
+        stock = float(r[3] or 0)
+        reorder = float(r[4] or 0)
+        coffee_materials.append({
+            "material_name": r[0], "category": r[1], "unit": r[2],
+            "stock": round(stock, 3), "reorder_point": reorder,
+        })
+
+    # ---- 1. Inventory Value ----
+    # Bread finished goods value (quantity x price, Day-1 at 80%)
+    cur.execute("""
+        SELECT COALESCE(SUM(
+            CASE WHEN bi.freshness_status = 'Day-1'
+                THEN bi.quantity_remaining * p.unit_price * 0.8
+                ELSE bi.quantity_remaining * p.unit_price
+            END
+        ), 0)
+        FROM batch_inventory bi
+        JOIN products p ON bi.product_name = p.product_name
+    """)
+    bread_value = round(float(cur.fetchone()[0]), 2)
+    # Raw materials value (stock x unit_price)
+    cur.execute("SELECT COALESCE(SUM(stock_quantity * unit_price), 0) FROM raw_materials")
+    material_value = round(float(cur.fetchone()[0]), 2)
+    inventory_value = round(bread_value + material_value, 2)
+
+    # ---- 2. Fresh vs Day-1 pie (date-aware) ----
+    from datetime import datetime as dt
+    if date is None:
+        date = dt.now().strftime("%Y-%m-%d")
+    pie_data = [{"name": "Fresh", "value": fresh_total}, {"name": "Day-1", "value": day1_total}]
+
+    # ---- 3. Stock Days Remaining ----
+    cur.execute("""
+        SELECT material_name, stock_quantity, unit
+        FROM raw_materials
+        ORDER BY material_name
+    """)
+    stock_days = []
+    for r in cur.fetchall():
+        mn = r[0]
+        stock = float(r[1] or 0)
+        # Get daily average consumption from outflow transactions (last 30 days or all available)
+        cur.execute("""
+            SELECT COALESCE(SUM(quantity), 0),
+                   DATEDIFF(MAX(created_at), MIN(created_at)) + 1
+            FROM material_transactions
+            WHERE material_name = %s AND transaction_type = 'outflow'
+        """, (mn,))
+        crow = cur.fetchone()
+        total_outflow = float(crow[0] or 0)
+        date_span = int(crow[1] or 0)
+        if total_outflow > 0 and date_span > 0:
+            daily_avg = round(total_outflow / date_span, 3)
+            days_remaining = round(stock / daily_avg, 1) if daily_avg > 0 else None
+        else:
+            daily_avg = None
+            days_remaining = None
+        stock_days.append({
+            "material_name": mn,
+            "stock": round(stock, 3),
+            "daily_avg": daily_avg,
+            "days_remaining": days_remaining,
+            "unit": r[2],
+        })
+
+    # ---- 4. Material Consumption Top 5 ----
+    cur.execute("""
+        SELECT material_name, SUM(quantity) as total
+        FROM material_transactions
+        WHERE transaction_type = 'outflow'
+        GROUP BY material_name
+        ORDER BY total DESC
+        LIMIT 5
+    """)
+    consumption_top5 = []
+    for r in cur.fetchall():
+        consumption_top5.append({
+            "material_name": r[0],
+            "consumed_qty": round(float(r[1]), 3),
+        })
+
+    return {
+        "status": "ok",
+        "bread_stock": bread_stock,
+        "baking_materials": baking_materials,
+        "coffee_materials": coffee_materials,
+        "inventory_value": inventory_value,
+        "fresh_day1_pie": pie_data,
+        "fresh_total": fresh_total,
+        "day1_total": day1_total,
+        "stock_days": stock_days,
+        "consumption_top5": consumption_top5,
+    }
+
 @router.get("/inventory/wastage/summary")
 async def wastage_summary():
     """Get latest wastage rates per material."""

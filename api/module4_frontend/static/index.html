@@ -478,7 +478,7 @@ if(txt==='Edit'||txt==='Sunting')btns[j].textContent=t('Edit');
 }}
 // Update freshness dropdown
 var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
-agentState=null;cachedInventory=null;showPanel(currentPanel);
+agentState=null;showPanel(currentPanel);
 }
 setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
 
@@ -716,7 +716,7 @@ if(txt==='Delete'||txt==='Padam')btns[mj].textContent=t('Delete');
 if(txt==='Edit'||txt==='Sunting')btns[mj].textContent=t('Edit');
 }}
 var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
-agentState=null;cachedInventory=null;showPanel(currentPanel);
+agentState=null;showPanel(currentPanel);
 }
 setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
 
@@ -1503,41 +1503,129 @@ else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">
 }
 
 function renderInventory(c){
-c.innerHTML='<div class="panel" style="flex:1"><h4>'+t('Batch Inventory')+' <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadInventory(true)">Refresh</button></h4>'
-+'<div id="inventory-result" class="result-box" style="overflow-x:auto;max-height:70vh"><span class="spinner"></span>Loading inventory...</div></div>';
-loadInventory(false);
+  c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="inv-date" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b" onchange="fetchInventoryDashboard()"></div>' + '<div class="dash-grid" id="inv-kpis" style="margin-bottom:12px"></div>'
+    +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Bread Stock Levels</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel"><h4>Fresh vs Day-1 Ratio</h4><div id="inv-fresh-pie" style="height:180px"></div></div><div class="chart-panel"><h4>Top 5 Material Consumption</h4><div id="inv-consumption-chart" style="height:180px"></div></div></div>'
+    
+    +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Material Stock Days Remaining</h4><div id="inv-days-table"></div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel"><h4>Baking Materials</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>Coffee Materials</h4><div id="inv-coffee-table"></div></div></div>';
+  fetchInventoryDashboard();
 }
-async function loadInventory(force){
-var el=document.getElementById('inventory-result');
-if(!force&&cachedInventory){el.innerHTML=cachedInventory;return;}
-if(!force) el.innerHTML='<span class="spinner"></span>'+t('Loading inventory...');
-try{
-var r=await api('/s1/batch_inventory');var items=r.inventory||[];
-var tbl='<table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed"><colgroup><col style="width:30%"><col style="width:10%"><col style="width:18%"><col style="width:18%"><col style="width:24%"></colgroup><thead><tr style="background:#f5f0e8">';
-tbl+='<th style="padding:8px 6px;text-align:left">'+t('Product')+'</th><th style="padding:8px 6px;text-align:center">'+t('Qty')+'</th><th style="padding:8px 6px;text-align:center">'+t('Freshness')+'</th><th style="padding:8px 6px;text-align:center">'+t('Area')+'</th><th style="padding:8px 6px;text-align:left;font-size:11px">'+t('Batch ID')+'</th>';
-tbl+='</tr></thead><tbody>';
-for(var i=0;i<items.length;i++){
-var it=items[i];var q=it.quantity_remaining!=null?it.quantity_remaining:it.quantity;
-if(q<=0)continue;
-var f=it.freshness_status||'Fresh';
-var fc={'Fresh':'#4caf50','Day-1':'#ff9800','Day-2':'#ef6c00','Near-Expired':'#d32f2f','Expired':'#999'};
-var fcol=fc[f]||'#4caf50';
-tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
-tbl+='<td style="padding:8px 6px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.product_name.replace(/_/g,' ').replace(/\b\w/g,function(x){return x.toUpperCase()})+'</td>';
-tbl+='<td style="padding:8px 6px;text-align:center;font-weight:700">'+q+'</td>';
-tbl+='<td style="padding:8px 6px;text-align:center;color:'+fcol+';font-weight:600">'+f+'</td>';
-tbl+='<td style="padding:8px 6px;text-align:center">'+(it.sales_area||it.tray_color||'-')+'</td>';
-tbl+='<td style="padding:8px 6px;font-size:10px;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(it.batch_id||'-')+'</td>';
-tbl+='</tr>';
-}
-tbl+='</tbody></table>';
-tbl+='<div style="margin-top:6px;font-size:11px;color:#888">'+items.length+' '+t('batches | Click Refresh to update')+'</div>';
-el.innerHTML=tbl;
-cachedInventory=tbl;
-}catch(e){el.innerHTML='<span class="status-dot dot-err"></span> Error: '+e.message;}
-}
+async function fetchInventoryDashboard(){
+  var bkpi=document.getElementById("inv-kpis");
+  if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1"><span class="spinner"></span>Loading inventory...</div>';
+  try{
+    var invDate=document.getElementById("inv-date");var dateParam=invDate&&invDate.value?"?date="+invDate.value:"";var r=await api("/s4/inventory/dashboard"+dateParam);
+    var d=r;
+    if(!d.status){if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">API error</div>';return;}
+    var bread=d.bread_stock||[], baking=d.baking_materials||[], coffee=d.coffee_materials||[];
+    var totalBreadStock=d.fresh_total+d.day1_total;
+    var totalBaking=0;for(var i=0;i<baking.length;i++)totalBaking+=baking[i].stock;
+    var totalCoffee=0;for(var i=0;i<coffee.length;i++)totalCoffee+=coffee[i].stock;
 
+    if(bkpi){
+      bkpi.innerHTML='<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+totalBreadStock+'</div><div class="kpi-label">Bread Stock</div><div class="kpi-change">'+d.fresh_total+' Fresh | '+d.day1_total+' Day-1</div></div>'
+        +'<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+totalBaking.toFixed(1)+'</div><div class="kpi-label">Baking Materials (kg/L)</div><div class="kpi-change">'+baking.length+' items</div></div>'
+        +'<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+totalCoffee.toFixed(1)+'</div><div class="kpi-label">Coffee Materials (kg/L)</div><div class="kpi-change">'+coffee.length+' items</div></div>';
+      if(d.inventory_value>0){
+        bkpi.innerHTML+='<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+d.inventory_value.toLocaleString()+'</div><div class="kpi-label">Inventory Value (CNY)</div><div class="kpi-change">Total stock value</div></div>';
+      }
+    }
 
+    bread.sort(function(a,b){return b.total_qty-a.total_qty});
+    setTimeout(function(){
+      var bc=document.getElementById("inv-bread-chart");
+      if(bc&&typeof echarts!=="undefined"){
+        var obc=echarts.getInstanceByDom(bc);if(obc)obc.dispose();var chart=echarts.init(bc);
+        chart.setOption({
+          tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+          legend:{data:["Fresh","Day-1"],textStyle:{color:"#3d322b"}},
+          grid:{left:"2%",right:"2%",bottom:"8%",containLabel:true},
+          xAxis:{type:"value",axisLabel:{color:"#6b5b4f",fontSize:10},splitLine:{lineStyle:{color:"#f0e8d8"}}},
+          yAxis:{type:"category",data:bread.map(function(b){return b.product_name.replace(/_/g," ").replace(/\b\w/g,function(x){return x.toUpperCase()})}),axisLabel:{color:"#6b5b4f",fontSize:10}},
+          series:[{name:"Fresh",type:"bar",data:bread.map(function(b){return b.fresh_qty}),color:"#8b6914",stack:"total",barWidth:"60%"},{name:"Day-1",type:"bar",data:bread.map(function(b){return b.day1_qty}),color:"#d4a853",stack:"total"}]
+        });
+      }
+      // Fresh vs Day-1 pie
+      var pc=document.getElementById("inv-fresh-pie");
+      if(pc&&typeof echarts!=="undefined"){
+        var opc=echarts.getInstanceByDom(pc);if(opc)opc.dispose();var pchart=echarts.init(pc);
+        var pieData=(d.fresh_day1_pie||[]).length>0?d.fresh_day1_pie:[];
+        if(pieData.length>0){
+          pchart.setOption({
+            tooltip:{trigger:"item",formatter:"{b}: {c} ({d}%)"},
+            color:["#8b6914","#d4a853"],
+            series:[{type:"pie",radius:["45%","70%"],data:pieData,label:{color:"#3d322b",fontSize:13,fontWeight:"bold",formatter:"{b}\n{d}%"}}]
+          });
+        }else{
+          pchart.setOption({title:{text:"No data",left:"center",top:"center",textStyle:{color:"#6b5b4f",fontSize:13}}});
+        }
+      }
+      // Top 5 consumption
+      var cc=document.getElementById("inv-consumption-chart");
+      if(cc&&typeof echarts!=="undefined"){
+        var occ=echarts.getInstanceByDom(cc);if(occ)occ.dispose();var cchart=echarts.init(cc);
+        var cdata=d.consumption_top5||[];
+        if(cdata.length>0){
+          cchart.setOption({
+            tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+            grid:{left:"2%",right:"2%",bottom:"5%",containLabel:true},
+            xAxis:{type:"value",axisLabel:{color:"#6b5b4f",fontSize:9},splitLine:{lineStyle:{color:"#f0e8d8"}}},
+            yAxis:{type:"category",data:cdata.map(function(x){return x.material_name}),axisLabel:{color:"#6b5b4f",fontSize:9}},
+            series:[{type:"bar",data:cdata.map(function(x){return x.consumed_qty}),color:"#8b6914",barWidth:"50%"}]
+          });
+        }else{
+          cchart.setOption({title:{text:"No data",left:"center",top:"center",textStyle:{color:"#6b5b4f",fontSize:13}}});
+        }
+      }
+    },50);
+
+    // Stock days table
+    var dt='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">'
+      +'<th style="padding:6px;text-align:left">Material</th><th style="padding:6px;text-align:right">Stock</th><th style="padding:6px;text-align:right">Daily Avg</th><th style="padding:6px;text-align:right">Days Left</th><th style="padding:6px;text-align:center">Status</th></tr></thead><tbody>';
+    var sd=d.stock_days||[];
+    if(sd.length===0){
+      dt+='<tr><td colspan="4" style="padding:12px;text-align:center;color:#6b5b4f">No consumption data yet</td></tr>';
+    }else{
+      for(var i=0;i<sd.length;i++){
+        var s=sd[i];
+        var daysLeft=s.days_remaining;
+        var daysDisplay=daysLeft!==null?daysLeft.toFixed(0):"--";
+
+        dt+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;font-weight:600;font-size:11px">'+s.material_name+'</td>'
+          +'<td style="padding:5px;text-align:right;font-weight:700">'+s.stock.toFixed(1)+' '+s.unit+'</td>'
+          +'<td style="padding:5px;text-align:right;color:#6b5b4f">'+(s.daily_avg!==null?s.daily_avg.toFixed(2):"--")+'</td>'
+          +'<td style="padding:5px;text-align:right;font-weight:700">'+daysDisplay+'</td>'
+          +'</tr>';
+      }
+    }
+    dt+='</tbody></table>';
+    document.getElementById("inv-days-table").innerHTML=dt;
+
+    function buildMatTable(materials){
+      var t='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">'
+        +'<th style="padding:6px;text-align:left">Material</th><th style="padding:6px;text-align:left">Stock</th><th style="padding:6px;text-align:right">Threshold</th></tr></thead><tbody>';
+      if(materials.length===0){
+        t+='<tr><td colspan="3" style="padding:12px;text-align:center;color:#6b5b4f">No data</td></tr>';
+      }else{
+        for(var i=0;i<materials.length;i++){
+          var m=materials[i];
+          var pct=m.reorder_point>0?Math.min(Math.round(m.stock/m.reorder_point*100),200):100;
+          var barCol="#8b6914";
+          if(pct<50)barCol="#d4a853";else if(pct<100)barCol="#b8952e";
+          t+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;font-weight:600;font-size:11px">'+m.material_name+'</td>'
+            +'<td style="padding:5px;width:50%"><div style="background:#f0e8d8;border-radius:6px;height:14px;overflow:hidden">'
+            +'<div style="height:100%;width:'+Math.min(pct,100)+'%;background:'+barCol+';border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700">'+m.stock.toFixed(2)+' '+m.unit+'</div></div></td>'
+            +'<td style="padding:5px;text-align:right;color:#6b5b4f;font-size:10px">'+m.reorder_point.toFixed(1)+'</td></tr>';
+        }
+      }
+      t+='</tbody></table>';return t;
+    }
+    document.getElementById("inv-baking-table").innerHTML=buildMatTable(baking);
+    document.getElementById("inv-coffee-table").innerHTML=buildMatTable(coffee);
+
+  }catch(e){if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">Error: '+e.message+'</div>';}
+}
 
 function renderWastage(c){
 var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');

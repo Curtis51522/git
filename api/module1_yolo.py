@@ -291,7 +291,7 @@ async def deduct_inventory(req: DeductRequest):
 
     # Single query: fetch all batches for all products at once (raw SQL for IN clause)
     placeholders = ", ".join(["%s"] * len(product_names))
-    sql = f"SELECT * FROM batch_inventory WHERE product_name IN ({placeholders}) AND quantity > 0 ORDER BY production_time ASC"
+    sql = f"SELECT * FROM batch_inventory WHERE product_name IN ({placeholders}) AND quantity_remaining > 0 ORDER BY production_time ASC"
     cur = db.cursor(dictionary=True)
     cur.execute(sql, tuple(product_names))
     all_batches_data = cur.fetchall()
@@ -343,13 +343,13 @@ async def deduct_inventory(req: DeductRequest):
             if remaining_to_deduct <= 0:
                 break
 
-            available = batch["quantity"]
+            available = batch["quantity_remaining"]
             take = min(available, remaining_to_deduct)
             new_remaining = available - take
 
             # Update batch_inventory
             q(db, "batch_inventory").update({
-                "quantity": new_remaining,
+                "quantity_remaining": new_remaining,
             }).eq("batch_id", batch["batch_id"]).execute()
 
             # Write outflow transaction
