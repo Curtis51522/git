@@ -92,6 +92,36 @@ DRINKS = {
     "lemonade":          12,
 }
 
+# All 30 bread product names for baseline filling
+PRODUCTS_BREAD = [
+    "croissant", "baguette", "croissant_chocolate", "cookie", "brioche",
+    "brownie", "macaron", "apple_pie", "chocolate_cake",
+    "donut", "eggtart", "cream_horn", "bread_coconut", "melon_bread",
+    "bread_roll", "pizza_bread", "chiffon", "soboru_bread", "chocopie",
+    "stickbread", "pandesal", "sourdough", "cornbread", "flatbread",
+    "mantequilla", "muffin", "pancake", "pullman", "tostada", "bagel",
+]
+
+# Bread prices map (from products table)
+BREAD_PRICES = {
+    "croissant": 8.58, "baguette": 7.02, "croissant_chocolate": 9.36,
+    "cookie": 6.24, "brioche": 13.26, "brownie": 15.60,
+    "macaron": 18.72, "apple_pie": 10.92, "chocolate_cake": 19.50,
+    "donut": 6.00, "eggtart": 7.00, "cream_horn": 13.00,
+    "bread_coconut": 10.00, "melon_bread": 10.00, "bread_roll": 6.50,
+    "pizza_bread": 16.00, "chiffon": 18.00, "soboru_bread": 11.00,
+    "chocopie": 10.00, "stickbread": 5.50, "pandesal": 5.00,
+    "sourdough": 22.00, "cornbread": 7.00, "flatbread": 8.00,
+    "mantequilla": 7.50, "muffin": 12.00, "pancake": 13.00,
+    "pullman": 9.00, "tostada": 10.00, "bagel": 12.00,
+}
+
+REAL_PRICES = {
+    "croissant": 8.58, "baguette": 7.02, "croissant_chocolate": 9.36,
+    "cookie": 6.24, "brioche": 13.26, "brownie": 15.60,
+    "macaron": 18.72, "apple_pie": 10.92, "chocolate_cake": 19.50,
+}
+
 # ============================================================
 # LOAD FRENCH BAKERY
 # ============================================================
@@ -350,6 +380,61 @@ for drink_name in sorted(DRINKS.keys()):
     day_count = len(set(r["date"] for r in drink_rows if r["product_name"]==drink_name))
     total_qty = sum(r["quantity"] for r in drink_rows if r["product_name"]==drink_name)
     print(f"  {drink_name:25s}: {total_qty:>8,} cups, {day_count:>4} selling days")
+
+# ============================================================
+# POST-PROCESSING: Per-product daily bread baseline
+# ============================================================
+print("\n=== Ensuring per-product daily bread baseline ===")
+# Track existing bread quantities per date per product
+from collections import defaultdict
+daily_prod_qty = defaultdict(lambda: defaultdict(int))
+for r in real_rows + synthetic_rows:
+    daily_prod_qty[r["date"]][r["product_name"]] += r["quantity"]
+
+# Per-product minimum: each bread product sells at least 1 unit/day (weekday), 0.7/day avg
+# High-volume products get higher baseline
+high_volume = {"croissant", "baguette", "croissant_chocolate", "bread_roll", "donut", "pancake"}
+medium_volume = {"cookie", "brioche", "apple_pie", "sourdough", "stickbread", "chocopie", "muffin"}
+
+current = datetime.strptime(START_DATE, "%Y-%m-%d")
+added_bread = 0
+while current <= end_dt:
+    date_str = current.strftime("%Y-%m-%d")
+    weekday = current.weekday()
+    weekend_mult = 1.3 if weekday >= 5 else 1.0
+    
+    for prod in PRODUCTS_BREAD:
+        existing = daily_prod_qty[date_str].get(prod, 0)
+        # Determine base minimum per product
+        if prod in high_volume:
+            base = max(1, int(np.random.normal(3, 1) * weekend_mult))
+        elif prod in medium_volume:
+            base = max(1, int(np.random.normal(2, 0.7) * weekend_mult))
+        else:
+            # Low volume: 70% chance of 1 unit, 30% chance of 0
+            base = 1 if random.random() < (0.7 * weekend_mult) else 0
+        
+        shortfall = max(0, base - existing)
+        if shortfall <= 0:
+            continue
+        
+        hour = np.random.randint(7, 18)
+        minute = np.random.randint(0, 60)
+        ticket_counter += 1
+        price = REAL_PRICES.get(prod) or BREAD_PRICES.get(prod, 10.0)
+        synthetic_rows.append({
+            "date": date_str,
+            "time": f"{hour:02d}:{minute:02d}",
+            "ticket_id": ticket_counter,
+            "product_name": prod,
+            "quantity": shortfall,
+            "unit_price_cny": price,
+            "source": "bread_baseline",
+        })
+        added_bread += shortfall
+    
+    current += timedelta(days=1)
+print(f"  Added {added_bread} bread units (per-product baseline)")
 
 # ============================================================
 # MERGE AND SAVE

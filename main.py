@@ -36,19 +36,39 @@ if sys.platform == "win32":
 
 @app.on_event("startup")
 async def startup_freshness():
-    """Run freshness update on server start + schedule periodic updates."""
+    """Run freshness update on server start + weekly auto-baseline."""
     from api.freshness_service import update_all_freshness
+    from datetime import datetime, timedelta
     update_all_freshness()
-    
+
+    # Record opening stock as baseline (once per week, before any sales)
+    try:
+        now = datetime.now()
+        week_start = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
+        from db.mysql_client import get_db
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("SELECT COUNT(*) FROM material_wastage_log WHERE check_date >= %s", (week_start,))
+        if cur.fetchone()[0] == 0:
+            cur.execute("SELECT material_name, stock_quantity FROM raw_materials")
+            for r in cur.fetchall():
+                cur.execute(
+                    "INSERT INTO material_wastage_log (material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate) VALUES (%s,%s,%s,%s,0,0,0,0)",
+                    (r[0], now.strftime("%Y-%m-%d"), float(r[1]), float(r[1]))
+                )
+            db.commit()
+            print(f"[STARTUP] Auto-baseline: {now.strftime('%Y-%m-%d %H:%M')}")
+    except Exception as e:
+        print(f"[STARTUP] Baseline skip: {e}")
+
     async def periodic_freshness():
         while True:
-            await asyncio.sleep(1800)  # every 30 minutes
+            await asyncio.sleep(1800)
             try:
                 update_all_freshness()
             except Exception:
                 pass
 
-    
     asyncio.create_task(periodic_freshness())
 
 

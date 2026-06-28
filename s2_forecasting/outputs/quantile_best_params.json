@@ -1,8 +1,8 @@
 {
-  "colsample_bytree": 0.8,
-  "learning_rate": 0.05,
+  "colsample_bytree": 1.0,
+  "learning_rate": 0.1,
   "max_depth": 3,
-  "n_estimators": 300,
+  "n_estimators": 200,
   "reg_alpha": 0,
   "reg_lambda": 1.5,
   "subsample": 0.8

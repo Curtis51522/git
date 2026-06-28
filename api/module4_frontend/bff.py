@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+﻿from fastapi import APIRouter, HTTPException, Depends, Request
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -496,7 +496,7 @@ async def checkout_complete(payload: dict):
     # Generate receipt ID
         
     try:
-        # ---- Record to orders / order_items / payments tables ----
+            # ---- Record to orders / order_items / payments tables ----
         now = datetime.now()
         payment_method = payload.get("payment_method", "cash")
         cash_received = payload.get("cash_received", None)
@@ -505,14 +505,15 @@ async def checkout_complete(payload: dict):
         all_product_names = [it.get("product_name","") for it in items]
         placeholders = ",".join(["%s"] * len(all_product_names))
         cur = db.cursor()
-        cur.execute(f"SELECT product_name, material_cost FROM products WHERE product_name IN ({placeholders})", all_product_names)
-        cost_map = {r[0]: float(r[1]) for r in cur.fetchall()}
+        cur.execute(f"SELECT product_name, material_cost, wastage_pct FROM products WHERE product_name IN ({placeholders})", all_product_names)
+        rows = cur.fetchall(); cost_map = {r[0]: float(r[1]) for r in rows}; wastage_map = {r[0]: float(r[2]) if r[2] else 0.03 for r in rows}
     
         # Calculate order totals
         order_subtotal = subtotal
         order_discount = discount_total
         order_total = total
         order_profit = 0.0
+        order_cost = 0.0
         order_item_count = 0
     
         for item in items:
@@ -520,15 +521,25 @@ async def checkout_complete(payload: dict):
             qty = item.get("quantity", 1)
             uprice = prices.get(pn, 5.0)
             mat_cost = cost_map.get(pn, uprice * 0.30)
+            wastage_pct = wastage_map.get(pn, 0.03)
+            actual_cost = mat_cost * (1 + wastage_pct)
             freshness = item.get("freshness", "Fresh")
             disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
             line_total = uprice * qty
             line_disc = line_total * disc_rate
             line_final = line_total - line_disc
-            line_profit = line_final - (mat_cost * qty)
-            order_profit += line_profit
+            line_profit_raw = line_final - (actual_cost * qty)
+            order_cost += actual_cost * qty
+            order_profit += line_profit_raw
             order_item_count += qty
     
+        # Recalculate profit using final total (includes Top-3 dynamic discount)
+        if order_total > 0:
+            discount_ratio = order_total / order_subtotal if order_subtotal > 0 else 1.0
+        else:
+            discount_ratio = 1.0
+        order_profit = order_total - (order_cost * discount_ratio)
+
         receipt_id = f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{now.microsecond // 1000:03d}"
 
         # INSERT orders
@@ -544,12 +555,14 @@ async def checkout_complete(payload: dict):
             qty = item.get("quantity", 1)
             uprice = prices.get(pn, 5.0)
             mat_cost = cost_map.get(pn, uprice * 0.30)
+            wastage_pct = wastage_map.get(pn, 0.03)
+            actual_cost = mat_cost * (1 + wastage_pct)
             freshness = item.get("freshness", "Fresh")
             disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
             line_total = uprice * qty
             line_disc = line_total * disc_rate
             line_final = line_total - line_disc
-            line_profit = line_final - (mat_cost * qty)
+            line_profit = line_final - (actual_cost * qty)
         
             coffee_temp = item.get("temperature", None)
             coffee_ice = item.get("ice_level", None)
@@ -559,14 +572,32 @@ async def checkout_complete(payload: dict):
                 "INSERT INTO order_items (order_id, product_name, quantity, unit_price, discount_rate, line_total, line_profit, freshness, coffee_temp, coffee_ice, coffee_sugar) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (order_id, pn, qty, uprice, disc_rate, round(line_final,2), round(line_profit,2), freshness, coffee_temp, coffee_ice, coffee_sugar)
             )
-    
+
+            # Deduct raw materials
+            cur.execute(
+                "SELECT material_name, quantity_per_unit FROM product_recipes WHERE product_name = %s",
+                (pn,)
+            )
+            for mat_row in cur.fetchall():
+                mat_name = mat_row[0]
+                used_qty = round(float(mat_row[1]) * qty / 1000, 6)
+                actual_used_qty = round(used_qty * (1 + wastage_pct), 6)
+                cur.execute(
+                    "UPDATE raw_materials SET stock_quantity = stock_quantity - %s WHERE material_name = %s",
+                    (actual_used_qty, mat_name)
+                )
+                cur.execute(
+                    "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
+                    (mat_name, 'outflow', actual_used_qty, 'g', receipt_id)
+                )
+
         # INSERT payments
         cur.execute(
             "INSERT INTO payments (order_id, amount, payment_method, payment_date) VALUES (%s,%s,%s,%s)",
             (order_id, round(order_total,2), payment_method, now.strftime("%Y-%m-%d"))
         )
         db.commit()
-    
+        
 
         receipt = {
             "receipt_id": receipt_id,
@@ -615,7 +646,7 @@ async def revenue_daily(date: str = None):
     
     # Today KPIs
     cur.execute("""
-        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit
+        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit, COALESCE(SUM(discount_total),0) as discount
         FROM orders WHERE order_date = %s
     """, (date,))
     row = cur.fetchone()
@@ -626,11 +657,26 @@ async def revenue_daily(date: str = None):
     today_revenue = round(float(row[1] or 0), 2)
     today_profit = round(float(row[2] or 0), 2)
     avg_order = round(today_revenue / today_orders, 2) if today_orders else 0
+    today_discount = round(float(row[3] or 0), 2)
+    
+    # Profit margin
+    profit_margin = round(today_profit / today_revenue * 100, 1) if today_revenue else 0
+    
+    # MTD (Month-to-Date cumulative)
+    month_start = date[:8] + "01"
+    cur.execute("""
+        SELECT COALESCE(SUM(total_amount),0), COALESCE(SUM(total_profit),0), COUNT(*)
+        FROM orders WHERE order_date >= %s AND order_date <= %s
+    """, (month_start, date))
+    mtd_row = cur.fetchone()
+    mtd_revenue = round(float(mtd_row[0] or 0), 2)
+    mtd_profit = round(float(mtd_row[1] or 0), 2)
+    mtd_orders = int(mtd_row[2] or 0)
     
     # Yesterday comparison
     yesterday = (dt.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
     cur.execute("""
-        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit
+        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit, COALESCE(SUM(discount_total),0) as discount
         FROM orders WHERE order_date = %s
     """, (yesterday,))
     yrow = cur.fetchone()
@@ -648,7 +694,7 @@ async def revenue_daily(date: str = None):
     
         # Payment breakdown (real data from payments table)
     cur.execute("""
-        SELECT p.payment_method, SUM(p.amount) as total
+        SELECT p.payment_method, COUNT(*) as cnt
         FROM payments p JOIN orders o ON p.order_id = o.id
         WHERE o.order_date = %s AND o.state IN ('paid','draft')
         GROUP BY p.payment_method
@@ -664,9 +710,9 @@ async def revenue_daily(date: str = None):
         else:
             continue  # skip unknown payment methods
         if key in payment:
-            payment[key] = round(float(prow[1] or 0), 2)
+            payment[key] = int(prow[1] or 0)
     
-    # Category breakdown (bread vs coffee)
+    # Category breakdown (bread vs beverages)
     cur.execute("""
         SELECT p.category, SUM(oi.line_total) as revenue
         FROM order_items oi
@@ -675,34 +721,61 @@ async def revenue_daily(date: str = None):
         WHERE o.order_date = %s
         GROUP BY p.category
     """, (date,))
-    cat_data = {"Bread": 0, "Coffee": 0}
+    cat_data = {"Bread": 0, "Beverages": 0}
     for crow in cur.fetchall():
         cat_key = "Bread" if crow[0] == "bakery" else "Coffee"
         cat_data[cat_key] = round(float(crow[1] or 0), 2)
     
-    # Sales ranking (top 8 by revenue)
-    cur.execute("""
+    # Split ranking: bread vs beverages
+    BEVERAGE_NAMES = {"latte","americano","cappuccino","mocha","espresso","flat_white","caramel_macchiato","cold_brew","hot_chocolate","matcha_latte","milk_tea","chai_latte","earl_grey","english_breakfast","lemonade"}
+    beverage_placeholders = ', '.join(['%s'] * len(BEVERAGE_NAMES))
+
+    # Bread ranking (top 5)
+    cur.execute(f"""
         SELECT oi.product_name, SUM(oi.quantity) as qty, SUM(oi.line_total) as revenue,
                SUM(oi.line_profit) as profit
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
-        WHERE o.order_date = %s
+        JOIN products p ON oi.product_name = p.product_name
+        WHERE o.order_date = %s AND oi.product_name NOT IN ({beverage_placeholders})
         GROUP BY oi.product_name
-        ORDER BY revenue DESC LIMIT 8
-    """, (date,))
-    ranking = []
+        ORDER BY revenue DESC LIMIT 5
+    """, [date] + list(BEVERAGE_NAMES))
+    bread_ranking = []
     for rrow in cur.fetchall():
-        ranking.append({
+        bread_ranking.append({
+            "name": rrow[0].replace("_", " ").title(),
+            "qty": int(rrow[1]),
+            "revenue": round(float(rrow[2]), 2),
+            "profit": round(float(rrow[3]), 2)
+        })
+
+    # Beverages ranking (top 5)
+    cur.execute(f"""
+        SELECT oi.product_name, SUM(oi.quantity) as qty, SUM(oi.line_total) as revenue,
+               SUM(oi.line_profit) as profit
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_name = p.product_name
+        WHERE o.order_date = %s AND oi.product_name IN ({beverage_placeholders})
+        GROUP BY oi.product_name
+        ORDER BY revenue DESC LIMIT 5
+    """, [date] + list(BEVERAGE_NAMES))
+    beverage_ranking = []
+    for rrow in cur.fetchall():
+        beverage_ranking.append({
             "name": rrow[0].replace("_", " ").title(),
             "qty": int(rrow[1]),
             "revenue": round(float(rrow[2]), 2),
             "profit": round(float(rrow[3]), 2)
         })
     
-    # 7-day trend (bread vs coffee revenue per day)
+    # 7-day trend (bread vs beverages revenue + orders + avg per day)
     trend_dates = []
     trend_bread = []
-    trend_coffee = []
+    trend_beverages = []
+    trend_orders = []
+    trend_avg = []
     for i in range(6, -1, -1):
         d = (dt.strptime(date, "%Y-%m-%d") - timedelta(days=i)).strftime("%Y-%m-%d")
         trend_dates.append(d[5:])  # MM-DD
@@ -714,11 +787,17 @@ async def revenue_daily(date: str = None):
             WHERE o.order_date = %s
             GROUP BY p.category
         """, (d,))
-        day_cat = {"bakery": 0, "coffee": 0}
+        day_cat = {"bakery": 0, "beverages": 0}
         for crow in cur.fetchall():
             day_cat[crow[0]] = round(float(crow[1]), 2)
         trend_bread.append(day_cat["bakery"])
-        trend_coffee.append(day_cat["coffee"])
+        trend_beverages.append(day_cat["beverages"])
+        cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM orders WHERE order_date = %s", (d,))
+        orow = cur.fetchone()
+        day_orders = int(orow[0] or 0)
+        day_rev = float(orow[1] or 0)
+        trend_orders.append(day_orders)
+        trend_avg.append(round(day_rev / day_orders, 2) if day_orders else 0)
     
     return {
         "status": "ok",
@@ -728,13 +807,468 @@ async def revenue_daily(date: str = None):
             "today_profit": today_profit,
             "today_orders": today_orders,
             "avg_order": avg_order,
+            "today_discount": today_discount,
+            "profit_margin": profit_margin,
+            "mtd_revenue": mtd_revenue,
+            "mtd_profit": mtd_profit,
+            "mtd_orders": mtd_orders,
             "revenue_change": rev_change,
             "profit_change": prof_change,
             "orders_change": ord_change,
             "avg_change": avg_change,
             "payment": payment,
             "category": cat_data,
-            "trend": {"dates": trend_dates, "bread": trend_bread, "coffee": trend_coffee},
-            "ranking": ranking,
+            "trend": {"dates": trend_dates, "bread": trend_bread, "beverages": trend_beverages, "orders": trend_orders, "avg_order": trend_avg},
+            "bread_ranking": bread_ranking,
+            "beverage_ranking": beverage_ranking,
         }
     }
+
+
+# GET /s4/revenue/hourly -- Hourly breakdown of bread vs beverages sales
+@router.get("/revenue/hourly")
+async def revenue_hourly(date: str = None):
+    """Return hourly sales breakdown (bread vs beverages) for a given date."""
+    from datetime import datetime as dt
+
+    db = get_db()
+    cur = db.cursor()
+
+    if date is None:
+        cur.execute("SELECT MAX(order_date) FROM orders")
+        date = str(cur.fetchone()[0])
+
+    cur.execute("""
+        SELECT HOUR(o.order_time) as hr, p.category, SUM(oi.line_total) as revenue
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_name = p.product_name
+        WHERE o.order_date = %s
+        GROUP BY hr, p.category
+        ORDER BY hr
+    """, (date,))
+    rows = [r for r in cur]
+    if rows:
+        all_hours = sorted(set(int(r[0]) for r in rows))
+        raw_min = min(all_hours)
+        raw_max = max(all_hours)
+        min_hr = max(6, raw_min - 1)
+        max_hr = min(23, raw_max + 1)
+        if min_hr >= max_hr:
+            min_hr = 6
+            max_hr = 22
+    else:
+        cur.execute("""SELECT COALESCE(MIN(HOUR(order_time)), 8), COALESCE(MAX(HOUR(order_time)), 21) FROM orders WHERE order_date >= DATE_SUB(%s, INTERVAL 30 DAY)""", (date,))
+        range_row = cur.fetchone()
+        min_hr = max(6, int(range_row[0] or 8) - 1)
+        max_hr = min(23, int(range_row[1] or 21) + 1)
+
+    num_hours = max_hr - min_hr + 1
+    hours = [f"{h:02d}:00" for h in range(min_hr, max_hr + 1)]
+    bread_data = [0.0] * num_hours
+    beverage_data = [0.0] * num_hours
+
+    for row in rows:
+        hr = int(row[0])
+        cat = row[1]
+        rev = round(float(row[2] or 0), 2)
+        idx = hr - min_hr
+        if 0 <= idx < num_hours:
+            if cat == "bakery":
+                bread_data[idx] = rev
+            else:
+                beverage_data[idx] = rev
+
+    return {
+        "status": "ok",
+        "data": {
+            "date": date,
+            "hours": hours,
+            "bread": bread_data,
+            "beverages": beverage_data,
+        }
+    }
+
+
+# GET /s4/revenue/historical -- Sales query by date range + granularity
+@router.get("/revenue/historical")
+async def revenue_historical(start: str = None, end: str = None, granularity: str = "day", category: str = "total"):
+    """Return per-product sales per period (for time-slider chart)."""
+    from datetime import datetime as dt, timedelta
+
+    db = get_db()
+    cur = db.cursor()
+
+    if end is None:
+        cur.execute("SELECT MAX(order_date) FROM orders")
+        end = str(cur.fetchone()[0])
+    if start is None:
+        end_dt = dt.strptime(end, "%Y-%m-%d")
+        start = (end_dt - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    if granularity == "week":
+        group_expr = "YEARWEEK(o.order_date, 1)"
+        label_expr = "CONCAT(YEAR(o.order_date), '-W', LPAD(WEEK(o.order_date, 1), 2, '0'))"
+    elif granularity == "month":
+        group_expr = "DATE_FORMAT(o.order_date, '%Y-%m')"
+        label_expr = group_expr
+    elif granularity == "year":
+        group_expr = "YEAR(o.order_date)"
+        label_expr = "YEAR(o.order_date)"
+    else:
+        group_expr = "o.order_date"
+        label_expr = "o.order_date"
+
+    cur.execute(f"""
+        SELECT oi.product_name, {label_expr} as period_label, {group_expr} as period_val,
+               SUM(oi.line_total) as total_revenue, SUM(oi.line_profit) as total_profit
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_name = p.product_name
+        WHERE o.order_date BETWEEN %s AND %s
+        AND (%s = 'total' OR p.category = CASE WHEN %s = 'bread' THEN 'bakery' WHEN %s = 'beverages' THEN 'beverages' END)
+        GROUP BY oi.product_name, period_val, period_label
+        ORDER BY period_val, oi.product_name
+    """, (start, end, category, category, category))
+
+    products = {}
+    period_set = set()
+    for row in cur.fetchall():
+        pname = row[0]
+        period = str(row[1])
+        rev = round(float(row[3] or 0), 2)
+        prof = round(float(row[4] or 0), 2)
+        period_set.add(period)
+        if pname not in products:
+            products[pname] = {
+                "name": pname.replace("_", " ").title(),
+                "total_revenue": 0.0,
+                "total_profit": 0.0,
+                "periods": {}
+            }
+        products[pname]["total_revenue"] = round(products[pname]["total_revenue"] + rev, 2)
+        products[pname]["total_profit"] = round(products[pname]["total_profit"] + prof, 2)
+        products[pname]["periods"][period] = {"revenue": rev, "profit": prof}
+
+    all_periods = sorted(period_set)
+    product_list = sorted(products.values(), key=lambda x: x["total_revenue"], reverse=True)
+
+    return {
+        "status": "ok",
+        "data": {
+            "start": start,
+            "end": end,
+            "granularity": granularity,
+            "category": category,
+            "periods": all_periods,
+            "products": product_list,
+        }
+    }
+
+
+
+# ======================================================================
+# S4 Raw Material Inventory Wastage API
+# ======================================================================
+
+@router.get("/inventory/materials")
+async def get_materials():
+    """Get all raw materials with current theoretical stock."""
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT material_name, stock_quantity, unit, unit_price FROM raw_materials ORDER BY material_name")
+    rows = cur.fetchall()
+    materials = []
+    for r in rows:
+        materials.append({
+            "material_name": r[0],
+            "stock_quantity": float(r[1]),
+            "unit": r[2],
+            "unit_price": float(r[3]) if r[3] else 0,
+        })
+    return {"status": "ok", "materials": materials}
+
+
+@router.get("/inventory/materials/theoretical")
+async def get_materials_theoretical():
+    """Get each material's theoretical remaining stock based on recipe deductions since last check."""
+    db = get_db()
+    cur = db.cursor()
+    
+    # Get all raw materials with current stock
+    cur.execute("SELECT material_name, stock_quantity, unit, unit_price FROM raw_materials ORDER BY material_name")
+    rows = cur.fetchall()
+    
+    # Get last check date for each material
+    materials = []
+    for r in rows:
+        mn = r[0]
+        # Always use the first check of current week as baseline
+        from datetime import datetime as _dt, timedelta as _td
+        week_start = (_dt.now() - _td(days=_dt.now().weekday())).strftime("%Y-%m-%d")
+        cur.execute(
+            "SELECT check_date, actual_stock FROM material_wastage_log WHERE material_name = %s AND check_date >= %s ORDER BY check_date ASC LIMIT 1",
+            (mn, week_start)
+        )
+        last = cur.fetchone()
+        if last:
+            last_actual = float(last[1])
+            cur.execute(
+                "SELECT created_at FROM material_wastage_log WHERE material_name = %s AND check_date = %s ORDER BY created_at ASC LIMIT 1",
+                (mn, str(last[0]))
+            )
+            ts_row = cur.fetchone()
+            last_timestamp = str(ts_row[0]) if ts_row else str(last[0])
+            
+            cur.execute("""
+                SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0)
+                FROM order_items oi
+                JOIN orders o ON oi.order_id = o.id
+                JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s
+                WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s
+            """, (mn, last_timestamp))
+            consumed = float(cur.fetchone()[0]) / 1000
+            
+            cur.execute(
+                "SELECT COALESCE(SUM(quantity), 0) FROM material_transactions WHERE material_name = %s AND transaction_type IN ('inflow','restock') AND created_at >= %s",
+                (mn, last_timestamp)
+            )
+            restocked = float(cur.fetchone()[0])
+            
+            theoretical_stock = last_actual - consumed + restocked
+            last_date = str(last[0])
+        else:
+            last_actual = float(r[1])
+            last_date = None
+            consumed = 0.0
+            restocked = 0.0
+            theoretical_stock = float(r[1])
+        
+        materials.append({
+            "material_name": mn,
+            "current_stock": float(r[1]),
+            "theoretical_stock": round(theoretical_stock, 3),
+            "last_actual": round(last_actual, 3),
+            "consumed_since": round(consumed, 3),
+            "restocked_since": round(restocked, 3),
+            "unit": r[2],
+            "unit_price": float(r[3]) if r[3] else 0,
+            "last_check_date": str(last[0]) if last else None,
+        })
+    
+    return {"status": "ok", "materials": materials}
+
+
+@router.post("/inventory/check")
+async def inventory_check(payload: dict):
+    """Submit raw material inventory check. Input actual stock for each material."""
+    check_date = payload.get("check_date", datetime.now().strftime("%Y-%m-%d"))
+    counts = payload.get("counts", [])  # [{material_name: "...", actual_stock: N}]
+    
+    if not counts:
+        raise HTTPException(400, "No material counts provided")
+    
+    db = get_db()
+    cur = db.cursor()
+    results = []
+    
+    for item in counts:
+        mn = item.get("material_name", "")
+        actual_stock = float(item.get("actual_stock", 0))
+        
+        # Always use the first check of current week as baseline
+        from datetime import datetime as _dt, timedelta as _td
+        week_start = (_dt.now() - _td(days=_dt.now().weekday())).strftime("%Y-%m-%d")
+        cur.execute(
+            "SELECT check_date, actual_stock FROM material_wastage_log WHERE material_name = %s AND check_date >= %s ORDER BY check_date ASC LIMIT 1",
+            (mn, week_start)
+        )
+        last = cur.fetchone()
+        
+        if last:
+            last_check_date = str(last[0])
+            last_actual = float(last[1])
+            
+            # Get the created_at timestamp of the last check
+            cur.execute(
+                "SELECT created_at FROM material_wastage_log WHERE material_name = %s AND check_date = %s ORDER BY created_at ASC LIMIT 1",
+                (mn, last_check_date)
+            )
+            last_ts = cur.fetchone()
+            last_timestamp = str(last_ts[0]) if last_ts else last_check_date
+            
+            # Theoretical consumed = recipe qty * items sold since last check timestamp
+            cur.execute("""
+                SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0)
+                FROM order_items oi
+                JOIN orders o ON oi.order_id = o.id
+                JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s
+                WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s
+            """, (mn, last_timestamp))
+            theoretical_consumed = float(cur.fetchone()[0]) / 1000  # grams -> kg
+            
+            # Restocks since last check timestamp
+            cur.execute(
+                "SELECT COALESCE(SUM(quantity), 0) FROM material_transactions WHERE material_name = %s AND transaction_type IN ('inflow','restock') AND created_at >= %s",
+                (mn, last_timestamp)
+            )
+            restocked = float(cur.fetchone()[0])
+            
+            # Actual consumed = last actual + restocks - current actual
+            actual_consumed = max(0, last_actual + restocked - actual_stock)
+            
+            # Wastage = actual consumed - theoretical consumed
+            theoretical_stock_val = last_actual - theoretical_consumed + restocked
+            # If input matches theoretical (within 0.5%), user did not change it -> zero wastage
+            if theoretical_stock_val > 0 and abs(actual_stock - theoretical_stock_val) / theoretical_stock_val < 0.005:
+                actual_consumed = theoretical_consumed
+                wastage_qty = 0.0
+                actual_stock = theoretical_stock_val
+            else:
+                wastage_qty = round(actual_consumed - theoretical_consumed, 3)
+            wastage_rate = round(wastage_qty / theoretical_consumed, 4) if theoretical_consumed > 0 else 0.0
+            theoretical_stock = theoretical_stock_val
+        else:
+            # First check: establish baseline only, no consumption comparison
+            last_date = None
+            last_actual = actual_stock
+            theoretical_consumed = 0.0
+            restocked = 0.0
+            actual_consumed = 0.0
+            wastage_qty = 0.0
+            wastage_rate = 0.0
+            theoretical_stock_val = actual_stock
+            theoretical_stock = actual_stock
+        
+        # Log
+        cur.execute(
+            "INSERT INTO material_wastage_log (material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            (mn, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate)
+        )
+        
+        results.append({
+            "material_name": mn,
+            "theoretical_stock": round(theoretical_stock, 3),
+            "actual_stock": round(actual_stock, 3),
+            "theoretical_consumed": round(theoretical_consumed, 3),
+            "actual_consumed": round(actual_consumed, 3),
+            "wastage_qty": wastage_qty,
+            "wastage_rate": wastage_rate,
+        })
+    
+    # Update product wastage_pct based on material wastage rates
+    _update_product_wastage_from_materials(cur)
+    
+    db.commit()
+    return {"status": "ok", "check_date": check_date, "results": results}
+
+
+def _update_product_wastage_from_materials(cur):
+    """Recalculate product wastage_pct from each product's recipe materials' wastage rates."""
+    
+    # Calculate rolling weighted average wastage rate per material
+    cur.execute("SELECT DISTINCT material_name FROM material_wastage_log WHERE theoretical_consumed > 0 AND wastage_rate > 0")
+    materials = [r[0] for r in cur.fetchall()]
+    
+    if not materials:
+        return  # No meaningful wastage data yet, keep existing defaults
+    
+    mat_wastage = {}
+    for mn in materials:
+        cur.execute(
+            "SELECT wastage_rate, theoretical_consumed FROM material_wastage_log WHERE material_name = %s AND theoretical_consumed > 0 ORDER BY check_date DESC LIMIT 10",
+            (mn,)
+        )
+        history = cur.fetchall()
+        if history:
+            total_weight = sum(float(h[1]) for h in history)
+            if total_weight > 0:
+                weighted_avg = sum(float(h[0]) * float(h[1]) for h in history) / total_weight
+                mat_wastage[mn] = max(0, weighted_avg)
+    
+    if not mat_wastage:
+        return
+    
+    # For each product, compute weighted average wastage from its recipe
+    cur.execute("SELECT DISTINCT product_name FROM product_recipes")
+    products = [r[0] for r in cur.fetchall()]
+    
+    for pn in products:
+        cur.execute("SELECT material_name, quantity_per_unit FROM product_recipes WHERE product_name = %s", (pn,))
+        recipe = cur.fetchall()
+        if not recipe:
+            continue
+        
+        total_cost_weight = 0
+        weighted_wastage = 0
+        for mat_name, qty in recipe:
+            if mat_name in mat_wastage:
+                cur.execute("SELECT unit_price FROM raw_materials WHERE material_name = %s", (mat_name,))
+                row = cur.fetchone()
+                unit_price = float(row[0]) if row and row[0] else 0
+                cost_contribution = float(qty) / 1000 * unit_price
+                weighted_wastage += mat_wastage[mat_name] * cost_contribution
+                total_cost_weight += cost_contribution
+        
+        if total_cost_weight > 0:
+            product_wastage = weighted_wastage / total_cost_weight
+            # Only update if meaningful (> 0.5% to avoid noise)
+            if product_wastage > 0.005:
+                cur.execute(
+                    "UPDATE products SET wastage_pct = %s WHERE product_name = %s",
+                    (round(product_wastage, 4), pn)
+                )
+
+
+@router.get("/inventory/check/history")
+async def inventory_check_history(material_name: str = None, limit: int = 30):
+    """Get material wastage log history."""
+    db = get_db()
+    cur = db.cursor()
+    
+    if material_name:
+        cur.execute(
+            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log WHERE material_name = %s ORDER BY check_date DESC LIMIT %s",
+            (material_name, limit)
+        )
+    else:
+        cur.execute(
+            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log ORDER BY check_date DESC LIMIT %s",
+            (limit,)
+        )
+    
+    rows = cur.fetchall()
+    history = []
+    for r in rows:
+        history.append({
+            "id": r[0],
+            "material_name": r[1],
+            "check_date": str(r[2]),
+            "theoretical_stock": float(r[3]),
+            "actual_stock": float(r[4]),
+            "theoretical_consumed": float(r[5]),
+            "actual_consumed": float(r[6]),
+            "wastage_qty": float(r[7]),
+            "wastage_rate": float(r[8]),
+            "created_at": str(r[9]) if r[9] else "",
+        })
+    
+    return {"status": "ok", "history": history}
+
+
+@router.get("/inventory/wastage/summary")
+async def wastage_summary():
+    """Get current wastage rates for all products, calculated from material wastage."""
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT product_name, material_cost, wastage_pct FROM products ORDER BY wastage_pct DESC")
+    rows = cur.fetchall()
+    summary = []
+    for r in rows:
+        summary.append({
+            "product_name": r[0],
+            "material_cost": float(r[1]),
+            "wastage_pct": float(r[2]) if r[2] else 0.03,
+            "effective_cost": round(float(r[1]) * (1 + float(r[2] or 0.03)), 2),
+        })
+    return {"status": "ok", "summary": summary}

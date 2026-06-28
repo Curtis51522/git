@@ -1,8 +1,8 @@
 {
-  "coverage_Q10_Q90": 0.8178,
-  "coverage_Q10_Q50": 0.4984,
-  "coverage_Q50_Q90": 0.3434,
-  "interval_width_Q10_Q90": 7.84,
-  "interval_width_Q10_Q50": 3.92,
-  "best_params": "{'colsample_bytree': 0.8, 'learning_rate': 0.05, 'max_depth': 3, 'n_estimators': 300, 'reg_alpha': 0, 'reg_lambda': 1.5, 'subsample': 0.8}"
+  "coverage_Q10_Q90": 0.849,
+  "coverage_Q10_Q50": 0.5557,
+  "coverage_Q50_Q90": 0.2934,
+  "interval_width_Q10_Q90": 8.43,
+  "interval_width_Q10_Q50": 4.48,
+  "best_params": "{'colsample_bytree': 1.0, 'learning_rate': 0.1, 'max_depth': 3, 'n_estimators': 200, 'reg_alpha': 0, 'reg_lambda': 1.5, 'subsample': 0.8}"
 }

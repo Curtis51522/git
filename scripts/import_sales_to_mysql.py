@@ -50,9 +50,12 @@ def main():
 
     # 1. Create tables
     print("Creating tables...")
+    cur.execute("SET FOREIGN_KEY_CHECKS=0")
     cur.execute("DROP TABLE IF EXISTS order_items")
     cur.execute("DROP TABLE IF EXISTS orders")
     cur.execute("DROP TABLE IF EXISTS products")
+    cur.execute("DROP TABLE IF EXISTS payments")
+    cur.execute("SET FOREIGN_KEY_CHECKS=1")
 
     cur.execute("""
         CREATE TABLE products (
@@ -88,6 +91,16 @@ def main():
             line_profit DECIMAL(10,2),
             FOREIGN KEY (order_id) REFERENCES orders(id),
             INDEX idx_order (order_id)
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE payments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_id INT,
+            amount DECIMAL(10,2),
+            payment_method VARCHAR(10),
+            payment_date DATE,
+            FOREIGN KEY (order_id) REFERENCES orders(id)
         )
     """)
 
