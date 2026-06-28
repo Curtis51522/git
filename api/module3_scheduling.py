@@ -60,16 +60,16 @@ class ShiftResult(BaseModel):
 # ======================================================================
 
 DEFAULT_EMPLOYEES = [
-    Employee(id="E001", name="Ali",     role="baker",    min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E002", name="Mei",     role="cashier",  min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E003", name="Raj",     role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
-    Employee(id="E004", name="Siti",    role="baker",    min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E005", name="Ahmad",   role="baker",    min_hours_per_week=14, max_hours_per_week=56, is_deputy=True),
-    Employee(id="E006", name="Priya",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E007", name="Kumar",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E008", name="David",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E009", name="Chen",    role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
-    Employee(id="E010", name="Fatima",  role="manager",  min_hours_per_week=14, max_hours_per_week=42),
+    Employee(id="E001", name="Zhang Wei",  role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E002", name="Li Na",      role="cashier",  min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E003", name="Wang Lei",   role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
+    Employee(id="E004", name="Liu Yang",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E005", name="Chen Hao",   role="baker",    min_hours_per_week=14, max_hours_per_week=56, is_deputy=True),
+    Employee(id="E006", name="Zhao Min",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E007", name="Huang Jian", role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E008", name="Wu Tao",     role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E009", name="Lin Yue",    role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
+    Employee(id="E010", name="Sun Jie",    role="manager",  min_hours_per_week=14, max_hours_per_week=42),
 ]
 
 TIME_SLOTS = ["06:00-13:00", "12:00-19:00"]
@@ -1431,3 +1431,123 @@ async def get_paper_evaluation():
     if result is None:
         return {"status": "error", "message": "Evaluation failed. Check S2 models."}
     return {"status": "ok", "cached": False, **result}
+
+
+# ======================================================================
+# KPI Attendance endpoints
+# ======================================================================
+
+from kpi.attendance import AttendanceSystem
+
+_attendance_system = None
+
+def _get_attendance():
+    global _attendance_system
+    if _attendance_system is None:
+        _attendance_system = AttendanceSystem()
+    return _attendance_system
+
+
+@router.get("/attendance")
+async def get_attendance_dashboard():
+    """Shift+KPI Dashboard Panel 1: Today attendance + weekly grid + monthly summary."""
+    att = _get_attendance()
+    # Try to get today's schedule for shift-aware attendance
+    schedule = []
+    try:
+        from datetime import datetime as _dt2
+        today_str = _dt2.now().strftime("%Y-%m-%d")
+        sched_resp = await get_schedule(date=today_str, days=7)
+        schedule = sched_resp.get("schedule", [])
+    except Exception:
+        pass
+    result = att.dashboard_format()
+    # Override today_attendance with schedule-aware version
+    result["today_attendance"] = {
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "employees": att.get_today_attendance(schedule),
+    }
+    result["today_attendance"]["total"] = len(result["today_attendance"]["employees"])
+    result["today_attendance"]["present"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] in ("on_time", "late", "present"))
+    result["today_attendance"]["absent"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] == "absent")
+    result["today_attendance"]["late"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] == "late")
+    return {"status": "ok", **result}
+
+
+@router.post("/attendance/punch")
+async def punch_attendance(emp_id: str = "", pin: str = ""):
+    """Record a punch-in or punch-out for an employee."""
+    att = _get_attendance()
+    success, msg, record = att.punch(emp_id, pin)
+    return {"status": "ok" if success else "error", "message": msg, "record": record}
+
+
+# ======================================================================
+
+@router.get("/attendance/history")
+async def get_attendance_history(date: str = ""):
+    """Get attendance for a specific historical date."""
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    att = _get_attendance()
+    schedule = []
+    try:
+        sched_resp = await get_schedule(date=date, days=1)
+        schedule = sched_resp.get("schedule", [])
+    except Exception:
+        pass
+    employees = att.get_date_attendance(date, schedule)
+    present = sum(1 for e in employees if e["status"] in ("on_time", "late", "present"))
+    absent = sum(1 for e in employees if e["status"] == "absent")
+    late = sum(1 for e in employees if e["status"] == "late")
+    return {
+        "status": "ok",
+        "date": date,
+        "total": len(employees),
+        "present": present,
+        "absent": absent,
+        "late": late,
+        "employees": employees,
+    }
+
+# KPI Ranking endpoint (Z-Score + BSC + Cross-Role)
+# ======================================================================
+
+import numpy as _np_kpi
+_kpi_cache = None
+
+@router.get("/kpi/ranking")
+async def get_kpi_ranking(month: str = ""):
+    """Shift+KPI Dashboard Panel 3: Cross-role KPI ranking with Z-Score + BSC."""
+    global _kpi_cache
+    cache_key = month if month else "current"
+    if _kpi_cache and _kpi_cache.get("cache_key") == cache_key:
+        return {"status": "ok", "cached": True, "data": _kpi_cache["data"]}
+
+    import sys as _sys_kpi, os as _os_kpi
+    _base_kpi = _os_kpi.path.dirname(_os_kpi.path.dirname(_os_kpi.path.abspath(__file__)))
+    if _base_kpi not in _sys_kpi.path:
+        _sys_kpi.path.insert(0, _base_kpi)
+
+    from kpi.calculator import KPICalculator
+    from kpi.collector import KPIDataCollector
+    
+    year = None
+    mon = None
+    if month:
+        parts = month.split("-")
+        if len(parts) == 2:
+            year = int(parts[0])
+            mon = int(parts[1])
+
+    _np_kpi.random.seed(42)
+    collector = KPIDataCollector()
+    employees_data = [e for e in collector.collect_monthly(year=year, month=mon) if e.get('role') != 'manager']
+
+    calc = KPICalculator()
+    ranked = calc.full_pipeline(employees_data)
+    report = calc.generate_report(ranked, month=month if month else None)
+    dashboard_kpi = calc.dashboard_format(report)
+
+    _kpi_cache = {"cache_key": cache_key, "data": dashboard_kpi}
+    return {"status": "ok", "cached": False, "data": dashboard_kpi}

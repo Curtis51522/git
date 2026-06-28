@@ -1,16 +1,16 @@
-﻿"""
-KPI Calculator — Z-Score + BSC + Cross-Role Ranking
-=====================================================
-Implements the 3-step fairness pipeline from [[employee-KPI-normalization-research]]:
+"""
+KPI Calculator - Robust Z + BSC Weighted Aggregation
+======================================================
+Two-phase fairness pipeline:
 
-  1. Within-role Z-Score:  z = (x - mu) / sigma
-  2. BSC weighted sum:     S = sum(w_k * z_k) per role
-  3. Cross-role ranking:   all employees ranked by S_i (same scale)
+  1. Within-role Robust Z:  z = (x - median) / MAD
+     (Iglewicz & Hoaglin 1993)
+  2. BSC weighted aggregation: group Z-scores by BSC dimension,
+     apply per-KPI weights, then cross-dimension BSC weights
+     (Kaplan & Norton 1992)
 
-References:
-  - Kaplan & Norton (1992), Balanced Scorecard
-  - Fisher (1925), Z-Score formalization
-  - Purwanto & Asbari (2021), procedural fairness > outcome fairness
+Dual-role support: employees with role2 are evaluated in both roles,
+                    the higher BSC score is kept for final ranking.
 """
 
 import json
@@ -23,20 +23,12 @@ from kpi.config import ROLES, BSC_WEIGHTS
 class KPICalculator:
     def __init__(self):
         self.roles = ROLES
-        self.bsc_weights = BSC_WEIGHTS
+
+    # ==================================================================
+    # PHASE 1: Robust Z-Score within each role
+    # ==================================================================
 
     def normalize_within_role(self, employees_data):
-        """
-        Step 1: Z-Score normalization within each role.
-
-        Args:
-            employees_data: list of dicts, each with:
-                {id, name, role, kpis: {kpi_name: raw_value, ...}}
-
-        Returns:
-            Same list with added "z_scores" field per employee.
-        """
-        # Group by role
         by_role = defaultdict(list)
         for emp in employees_data:
             by_role[emp["role"]].append(emp)
@@ -47,7 +39,6 @@ class KPICalculator:
                 continue
 
             for kpi_name, kpi_config in role_config["kpis"].items():
-                # Collect raw values for this KPI across all employees in this role
                 values = []
                 for emp in emps:
                     raw = emp.get("kpis", {}).get(kpi_name)
@@ -55,12 +46,16 @@ class KPICalculator:
                         values.append(raw)
 
                 if len(values) < 2:
-                    continue  # Need at least 2 to compute std
+                    for emp in emps:
+                        if "z_scores" not in emp:
+                            emp["z_scores"] = {}
+                        emp["z_scores"][kpi_name] = 0.0
+                    continue
 
-                mean = np.mean(values)
-                std = np.std(values, ddof=1)  # Sample std
-                if std == 0:
-                    std = 1.0  # Avoid division by zero
+                median = np.median(values)
+                mad = np.median(np.abs(np.array(values) - median))
+                if mad == 0:
+                    mad = 1.0
 
                 for emp in emps:
                     raw = emp.get("kpis", {}).get(kpi_name)
@@ -68,91 +63,148 @@ class KPICalculator:
                         continue
                     if "z_scores" not in emp:
                         emp["z_scores"] = {}
-
-                    # For "lower_better" KPIs, invert the Z-score
-                    z = (raw - mean) / std
+                    z = (raw - median) / mad
                     if kpi_config["direction"] == "lower_better":
                         z = -z
-                    emp["z_scores"][kpi_name] = round(z, 4)
+                    emp["z_scores"][kpi_name] = round(float(z), 4)
 
-        return employees_data
-
-    def compute_bsc_score(self, employees_data):
-        """
-        Step 2: Weighted BSC aggregation per employee.
-
-        For each KPI: z_score * kpi_weight
-        Aggregated by BSC dimension, then by BSC dimension weight.
-
-        Args:
-            employees_data: must already have "z_scores" from normalize_within_role()
-
-        Returns:
-            Same list with added "bsc_scores" and "total_score" fields.
-        """
-        for emp in employees_data:
-            role = emp["role"]
+        # Cross-role normalization for shared KPIs (punctuality)
+        cross_kpis = {}
+        for role, emps in by_role.items():
             role_config = self.roles.get(role)
             if not role_config:
                 continue
-
-            emp["bsc_scores"] = {dim: 0.0 for dim in self.bsc_weights}
-            emp["total_score"] = 0.0
-
             for kpi_name, kpi_config in role_config["kpis"].items():
-                z = emp.get("z_scores", {}).get(kpi_name, 0.0)
-                dim = kpi_config["bsc_dimension"]
-                kpi_weight = kpi_config["weight"]
+                if kpi_config.get("cross_role"):
+                    if kpi_name not in cross_kpis:
+                        cross_kpis[kpi_name] = []
+                    for emp in emps:
+                        raw = emp.get("kpis", {}).get(kpi_name)
+                        if raw is not None:
+                            cross_kpis[kpi_name].append((emp, raw))
 
-                # Weight the Z-score
-                weighted_z = z * kpi_weight
-                emp["bsc_scores"][dim] += weighted_z
-
-            # Aggregate by BSC dimension weights
-            for dim, dim_weight in self.bsc_weights.items():
-                emp["total_score"] += emp["bsc_scores"][dim] * dim_weight
-
-            emp["total_score"] = round(emp["total_score"], 4)
+        for kpi_name, pairs in cross_kpis.items():
+            values = [v for _, v in pairs]
+            if len(values) < 2:
+                continue
+            median = np.median(values)
+            mad = np.median(np.abs(np.array(values) - median))
+            if mad == 0:
+                mad = 1.0
+            for emp, raw in pairs:
+                if "z_scores" not in emp:
+                    emp["z_scores"] = {}
+                z = (raw - median) / mad
+                direction = "higher_better"
+                for role_cfg in self.roles.values():
+                    kc = role_cfg.get("kpis", {}).get(kpi_name)
+                    if kc:
+                        direction = kc.get("direction", "higher_better")
+                        break
+                if direction == "lower_better":
+                    z = -z
+                emp["z_scores"][kpi_name] = round(float(z), 4)
 
         return employees_data
 
+    # ==================================================================
+    # PHASE 2: BSC Weighted Aggregation
+    # ==================================================================
+
+    def compute_bsc_aggregation(self, employees_data):
+        if not employees_data:
+            return employees_data
+
+        for emp in employees_data:
+            role = emp.get("role")
+            role_config = self.roles.get(role)
+            if not role_config:
+                emp["total_score"] = 0.0
+                emp["bsc_breakdown"] = {}
+                continue
+
+            dim_scores = {}
+            dim_weight_sum = {}
+            for dim_name in BSC_WEIGHTS:
+                dim_scores[dim_name] = 0.0
+                dim_weight_sum[dim_name] = 0.0
+
+            for kpi_name, kpi_config in role_config["kpis"].items():
+                dim = kpi_config.get("bsc_dimension", "Internal Process")
+                z = emp.get("z_scores", {}).get(kpi_name, 0.0)
+                w = kpi_config.get("weight", 0.0)
+                dim_scores[dim] += z * w
+                dim_weight_sum[dim] += w
+
+            total_score = 0.0
+            bsc_breakdown = {}
+            for dim_name, dim_weight in BSC_WEIGHTS.items():
+                if dim_weight_sum[dim_name] > 0:
+                    dim_avg = dim_scores[dim_name] / dim_weight_sum[dim_name]
+                else:
+                    dim_avg = 0.0
+                weighted = dim_avg * dim_weight
+                total_score += weighted
+                bsc_breakdown[dim_name] = round(weighted, 4)
+
+            emp["total_score"] = round(total_score, 4)
+            emp["bsc_breakdown"] = bsc_breakdown
+
+        return employees_data
+
+    # ==================================================================
+    # PHASE 2.5: Dual-role resolution
+    # ==================================================================
+
+    def _resolve_dual_roles(self, employees_data):
+        """For dual-role entries, keep the one with higher total_score."""
+        groups = defaultdict(list)
+        for emp in employees_data:
+            if emp.get("is_dual_role"):
+                primary = emp.get("primary_role")
+                key = (emp["id"], primary)
+                groups[key].append(emp)
+            else:
+                groups[(emp["id"], emp["role"])].append(emp)
+
+        resolved = []
+        for key, entries in groups.items():
+            if len(entries) == 1:
+                resolved.append(entries[0])
+            else:
+                best = max(entries, key=lambda e: e.get("total_score", -999))
+                best["dual_role_evaluated_as"] = best["role"]
+                best["role"] = key[1]  # primary role for display
+                resolved.append(best)
+        return resolved
+
+    # ==================================================================
+    # PHASE 3: Cross-role ranking
+    # ==================================================================
+
     def cross_role_ranking(self, employees_data):
-        """
-        Step 3: Unified cross-role ranking.
-
-        All employees sorted by total_score (same scale, comparable).
-        Adds "rank" and "percentile" fields.
-
-        Returns:
-            List sorted by total_score descending.
-        """
-        ranked = sorted(employees_data, key=lambda e: e.get("total_score", 0), reverse=True)
-        n = len(ranked)
-
-        for i, emp in enumerate(ranked):
+        employees_data.sort(key=lambda e: e["total_score"], reverse=True)
+        n = len(employees_data)
+        for i, emp in enumerate(employees_data):
             emp["rank"] = i + 1
-            emp["percentile"] = round((n - i) / n * 100, 1)
+            emp["percentile"] = round(100.0 - (i / max(n - 1, 1)) * 100.0, 1) if n > 1 else 100.0
+        return employees_data
 
-        return ranked
+    # ==================================================================
+    # Full pipeline
+    # ==================================================================
 
     def full_pipeline(self, employees_data):
-        """
-        Run the complete 3-step pipeline.
-
-        Returns:
-            Ranked list with z_scores, bsc_scores, total_score, rank, percentile.
-        """
         data = self.normalize_within_role(employees_data)
-        data = self.compute_bsc_score(data)
+        data = self.compute_bsc_aggregation(data)
+        data = self._resolve_dual_roles(data)
         return self.cross_role_ranking(data)
 
-    def generate_report(self, ranked_data, month=None):
-        """
-        Generate a monthly KPI report ready for dashboard display.
+    # ==================================================================
+    # Report generation
+    # ==================================================================
 
-        Returns:
-            dict with summary, ranking, per-role breakdown
-        """
+    def generate_report(self, ranked_data, month=None):
         if month is None:
             month = datetime.now().strftime("%Y-%m")
 
@@ -163,11 +215,10 @@ class KPICalculator:
             "ranking": [],
             "by_role": {},
             "top_performer": None,
-            "most_improved": None,  # requires previous month data
         }
 
         for emp in ranked_data:
-            role = emp["role"]
+            role = emp.get("dual_role_evaluated_as") or emp["role"]
             if role not in report["by_role"]:
                 report["by_role"][role] = {
                     "role_name": self.roles.get(role, {}).get("name_cn", role),
@@ -179,16 +230,17 @@ class KPICalculator:
                 "id": emp["id"],
                 "name": emp["name"],
                 "role": emp["role"],
-                "role_name": self.roles.get(role, {}).get("name_cn", role),
+                "primary_role": emp.get("primary_role", emp["role"]),
+                "evaluated_as": emp.get("dual_role_evaluated_as"),
                 "total_score": emp["total_score"],
                 "rank": emp["rank"],
                 "percentile": emp["percentile"],
-                "bsc_breakdown": emp.get("bsc_scores", {}),
+                "bsc_breakdown": emp.get("bsc_breakdown", {}),
                 "kpi_details": {},
             }
 
-            # Add individual KPI details
-            role_config = self.roles.get(role, {})
+            eval_role = emp.get("dual_role_evaluated_as") or emp["role"]
+            role_config = self.roles.get(eval_role, {})
             for kpi_name, kpi_config in role_config.get("kpis", {}).items():
                 raw = emp.get("kpis", {}).get(kpi_name)
                 z = emp.get("z_scores", {}).get(kpi_name, 0.0)
@@ -198,20 +250,16 @@ class KPICalculator:
                         "raw_value": raw,
                         "z_score": z,
                         "unit": kpi_config["unit"],
-                        "dimension": kpi_config["bsc_dimension"],
                     }
 
             report["ranking"].append(entry)
             report["by_role"][role]["employees"].append(entry)
 
-        # Compute per-role averages
         for role, data in report["by_role"].items():
             scores = [e["total_score"] for e in data["employees"]]
             data["avg_total_score"] = round(np.mean(scores), 4) if scores else 0.0
-            # Sort within role
             data["employees"].sort(key=lambda e: e["total_score"], reverse=True)
 
-        # Top performer
         if ranked_data:
             top = ranked_data[0]
             report["top_performer"] = {
@@ -223,12 +271,6 @@ class KPICalculator:
         return report
 
     def dashboard_format(self, report):
-        """
-        Convert report to dashboard-ready format matching [[dashboard-designs]].
-
-        Returns:
-            dict with panels: attendance, shift, kpi_summary
-        """
         return {
             "kpi_summary": {
                 "month": report["month"],
@@ -238,7 +280,8 @@ class KPICalculator:
                     {
                         "rank": e["rank"],
                         "name": e["name"],
-                        "role": e["role_name"],
+                        "role": e["role_name"] if isinstance(e.get("role_name"), str) else e["role"],
+                        "evaluated_as": e.get("evaluated_as"),
                         "score": e["total_score"],
                         "percentile": e["percentile"],
                         "highlights": self._get_highlights(e),
@@ -257,14 +300,12 @@ class KPICalculator:
         }
 
     def _get_highlights(self, entry, top_n=2):
-        """Extract top-2 highest and lowest Z-scores for display."""
         details = entry.get("kpi_details", {})
         if not details:
             return {"strengths": [], "weaknesses": []}
-
         sorted_kpis = sorted(details.items(), key=lambda x: x[1]["z_score"], reverse=True)
-        strengths = [{"kpi": kpi_config["name_cn"], "z": kpi_config["z_score"]}
-                     for _, kpi_config in sorted_kpis[:top_n]]
-        weaknesses = [{"kpi": kpi_config["name_cn"], "z": kpi_config["z_score"]}
-                      for _, kpi_config in sorted_kpis[-top_n:]]
+        strengths = [{"kpi": v["name_cn"], "z": v["z_score"]}
+                     for _, v in sorted_kpis[:top_n]]
+        weaknesses = [{"kpi": v["name_cn"], "z": v["z_score"]}
+                      for _, v in sorted_kpis[-top_n:]]
         return {"strengths": strengths, "weaknesses": weaknesses}

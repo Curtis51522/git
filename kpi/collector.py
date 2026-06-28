@@ -1,232 +1,326 @@
-﻿"""
-KPI Data Collector — POS + Sales + Inventory Integration
-===========================================================
-Gathers raw KPI values from system data sources for automated monthly reporting.
+"""
+KPI Data Collector - 7-Metric System (MySQL only, no fabricated data)
+======================================================================
+Reads real data: attendance_records, orders, material_wastage_log, employees.
 
-Data sources:
-  - Attendance records       → attendance_rate, punctuality_rate
-  - POS sales data          → upselling_rate, checkout_speed, sales_growth
-  - Inventory               → waste_rate, inventory_accuracy
-  - Manager ratings         → product_quality, customer_satisfaction, cross_skills
+Dual-role: employees with role2 run through both role pipelines,
+           calculator picks the higher score.
 
-Integrates with: [[commercial-requirements]] — "POS auto-collection"
+Metrics computed:
+  1. revenue_contribution - Attributed revenue (distributed by attendance_rate)
+  2. revenue_growth       - Revenue contribution MoM change
+  3. work_hours           - Total punch hours this month
+  4. hours_vs_avg         - Hours vs 9-person avg
+  5. attendance_rate      - Actual / expected working days
+  6. waste_rate           - Material wastage (baker/barista only)
+  7. punctuality          - On-time punch rate (cross-role)
 """
 
-import os, json
-import numpy as np
-import pandas as pd
+import os, sys, calendar, logging
 from datetime import datetime, timedelta
 from collections import defaultdict
 
+_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+
+logger = logging.getLogger('kpi.collector')
+
 
 class KPIDataCollector:
-    """Collect raw KPI values from system data."""
-
     def __init__(self, data_dir=None):
-        if data_dir is None:
-            import os as _os
-            _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-            data_dir = _os.path.join(_base, "data")
-        self.data_dir = data_dir
+        self.data_dir = data_dir or os.path.join(_PARENT, "data")
+
+    def _get_db(self):
+        from db.mysql_client import get_db
+        return get_db()
+
+    # ==================================================================
+    # Main entry: collect all KPIs for a month
+    # ==================================================================
 
     def collect_monthly(self, year=None, month=None):
-        """
-        Collect all KPIs for a given month from available data sources.
-
-        Returns:
-            list of employee dicts ready for KPICalculator.full_pipeline()
-        """
         if year is None:
             year = datetime.now().year
         if month is None:
             month = datetime.now().month
-
         month_str = f"{year}-{month:02d}"
 
         employees = self._load_employees()
-        attendance = self._collect_attendance(employees, month_str)
-        sales = self._collect_sales_data(month_str)
-        inventory = self._collect_inventory(month_str)
-        ratings = self._collect_manager_ratings(employees, month_str)
+        if not employees:
+            return []
 
-        result = []
+        # Phase 1: attendance and work hours (per person, before role expansion)
+        attendance_data = self._collect_attendance(employees, month_str)
+
+        # Phase 2: expand dual roles BEFORE revenue attribution
+        all_entries = []
         for emp in employees:
-            emp_id = emp["id"]
-            entry = {
-                "id": emp_id,
-                "name": emp["name"],
-                "role": emp["role"],
-                "kpis": {},
-            }
+            eid = emp["id"]
+            entry = {"id": eid, "name": emp["name"], "role": emp["role"],
+                     "role2": emp.get("role2"), "is_dual_role": False, "primary_role": emp["role"],
+                     "kpis": dict(attendance_data.get(eid, {}))}
+            all_entries.append(entry)
+            # Add secondary role entry if dual-role
+            role2 = emp.get("role2")
+            if role2 and role2 != emp["role"]:
+                sec_entry = {"id": eid, "name": emp["name"], "role": role2,
+                             "is_dual_role": True, "primary_role": emp["role"],
+                             "kpis": dict(attendance_data.get(eid, {}))}
+                all_entries.append(sec_entry)
 
-            # Merge all data sources
-            entry["kpis"].update(attendance.get(emp_id, {}))
-            entry["kpis"].update(sales.get(emp_id, {}))
-            entry["kpis"].update(inventory.get(emp_id, {}))
-            entry["kpis"].update(ratings.get(emp_id, {}))
+        # Phase 3: revenue data (per role-entry, distributed by attendance rate)
+        revenue_data = self._collect_revenue(all_entries, month_str, attendance_data)
+        for entry in all_entries:
+            eid = entry["id"]
+            role = entry["role"]
+            key = (eid, role)
+            if key in revenue_data:
+                entry["kpis"].update(revenue_data[key])
 
-            result.append(entry)
+        # Phase 4: inventory/waste (per role)
+        waste_data = self._collect_waste(all_entries, month_str)
+        for entry in all_entries:
+            eid = entry["id"]
+            role = entry["role"]
+            key = (eid, role)
+            if key in waste_data:
+                entry["kpis"].update(waste_data[key])
 
-        return result
+        return all_entries
+
+    # ==================================================================
+    # Employee loading
+    # ==================================================================
 
     def _load_employees(self):
-        """Load employee roster. Falls back to sample data."""
-        emp_path = os.path.join(self.data_dir, "employees.json")
-        if os.path.exists(emp_path):
-            with open(emp_path) as f:
-                return json.load(f)
-        # Fallback sample
-        return [
-            {"id": "B001", "name": "Zhang Wei", "role": "baker"},
-            {"id": "B002", "name": "Li Ming", "role": "baker"},
-            {"id": "B003", "name": "Wang Fang", "role": "baker"},
-            {"id": "R001", "name": "Chen Yu", "role": "barista"},
-            {"id": "R002", "name": "Liu Na", "role": "barista"},
-            {"id": "R003", "name": "Huang Li", "role": "barista"},
-            {"id": "C001", "name": "Zhou Jie", "role": "cashier"},
-            {"id": "C002", "name": "Wu Min", "role": "cashier"},
-            {"id": "M001", "name": "Sun Tao", "role": "manager"},
-        ]
+        try:
+            db = self._get_db()
+            cur = db.cursor(dictionary=True)
+            cur.execute("SELECT id, name, role, role2 FROM employees WHERE available=1")
+            rows = cur.fetchall()
+            cur.close()
+            if rows:
+                return [{"id": r["id"], "name": r["name"], "role": r["role"], "role2": r.get("role2")} for r in rows]
+        except Exception as e:
+            logger.warning('Employee load failed: %s', e)
+        return []
+
+
+    # Dual-role expansion handled inline in collect_monthly
+
+
+    # ==================================================================
+    # Metric 5: Attendance Rate  +  Metric 7: Punctuality
+    # ==================================================================
 
     def _collect_attendance(self, employees, month_str):
-        """
-        Collect attendance KPIs.
-        Tries to load from attendance records, falls back to simulation.
-        """
-        # Try real data
-        att_path = os.path.join(self.data_dir, "attendance.json")
-        if os.path.exists(att_path):
-            with open(att_path) as f:
-                records = json.load(f)
-            return self._compute_attendance_kpis(employees, records, month_str)
-
-        # Simulate realistic data
         kpis = {}
-        for emp in employees:
-            kpis[emp["id"]] = {
-                "attendance_rate": round(np.random.uniform(88, 100), 1),
-                "punctuality": round(np.random.uniform(85, 100), 1),
-            }
+        try:
+            db = self._get_db()
+            cur = db.cursor(dictionary=True)
+            cur.execute(
+                "SELECT emp_id, status, date FROM attendance_records WHERE date LIKE %s",
+                (month_str + "%",)
+            )
+            records = cur.fetchall()
+            cur.close()
+
+            year, mon = int(month_str[:4]), int(month_str[5:7])
+            working_days = sum(1 for d in range(1, calendar.monthrange(year, mon)[1] + 1)
+                              if datetime(year, mon, d).weekday() < 6)
+
+            for emp in employees:
+                eid = emp["id"]
+                emp_recs = [r for r in records if r["emp_id"] == eid]
+                date_strs = set()
+                for r in emp_recs:
+                    d = r["date"]
+                    date_strs.add(d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d))
+                days_present = len(date_strs)
+
+                on_time_count = sum(1 for r in emp_recs if r.get("status") == "on_time")
+                total_punches = len(emp_recs)
+                punct = round(on_time_count / max(total_punches, 1) * 100, 1)
+
+                # Rough work hours estimate from punch records
+                work_hours = 0.0
+                by_date = defaultdict(list)
+                for r in emp_recs:
+                    d = r["date"].strftime("%Y-%m-%d") if hasattr(r["date"], "strftime") else str(r["date"])
+                    by_date[d].append(r)
+                for date_str, day_recs in by_date.items():
+                    # Simple: assume 8h per day if present
+                    if any(r.get("status") in ("on_time", "late", "present") for r in day_recs):
+                        work_hours += 8.0
+
+                kpis[eid] = {
+                    "attendance_rate": round(days_present / max(working_days, 1) * 100, 1),
+                    "punctuality": punct,
+                    "work_hours": work_hours,
+                }
+        except Exception as e:
+            logger.warning('Attendance collection failed: %s', e)
         return kpis
 
-    def _compute_attendance_kpis(self, employees, records, month_str):
-        """Compute attendance_rate and punctuality from punch records."""
-        month_records = [r for r in records if r.get("date", "").startswith(month_str)]
+    # ==================================================================
+    # Metric 1: Revenue Contribution  +  Metric 2: Revenue Growth
+    # ==================================================================
+
+    def _collect_revenue(self, employees, month_str, attendance_data):
+        """Attribute revenue by attendance_rate proportion within role pools."""
         kpis = {}
-        for emp in employees:
-            emp_records = [r for r in month_records if r.get("id") == emp["id"]]
-            days_present = len(emp_records)
-            on_time = sum(1 for r in emp_records if r.get("status") == "on_time")
-            # Assume 26 working days
-            working_days = 26
-            kpis[emp["id"]] = {
-                "attendance_rate": round(min(100, days_present / working_days * 100), 1),
-                "punctuality": round(on_time / max(days_present, 1) * 100, 1),
+        try:
+            db = self._get_db()
+            cur = db.cursor(dictionary=True)
+
+            # Current month revenue by category
+            cur.execute("""
+                SELECT 
+                    CASE WHEN p.category = 'bakery' THEN 'bakery'
+                         WHEN p.category = 'beverages' THEN 'beverage'
+                         ELSE 'other' END as cat,
+                    SUM(oi.quantity * oi.unit_price) as rev
+                FROM order_items oi
+                JOIN orders o ON oi.order_id = o.id
+                JOIN products p ON oi.product_name = p.product_name
+                WHERE o.order_date LIKE %s
+                GROUP BY cat
+            """, (month_str + "%",))
+            rows = cur.fetchall()
+            cur.close()
+
+            rev_map = {}
+            for r in rows:
+                rev_map[r["cat"]] = float(r["rev"] or 0)
+            bakery_rev = rev_map.get("bakery", 0)
+            bev_rev = rev_map.get("beverage", 0)
+            total_rev = bakery_rev + bev_rev
+
+            # Also get previous month for growth calculation
+            prev_month = self._prev_month_str(month_str)
+            cur = db.cursor()
+            cur.execute("""
+                SELECT SUM(oi.quantity * oi.unit_price) as rev
+                FROM order_items oi
+                JOIN orders o ON oi.order_id = o.id
+                WHERE o.order_date LIKE %s
+            """, (prev_month + "%",))
+            row = cur.fetchone()
+            prev_total = float(row[0] or 0) if row else 0
+            cur.close()
+
+            # Attribution by attendance_rate proportion within role pool
+            role_pools = {
+                "baker": bakery_rev,
+                "barista": bev_rev,
+                "cashier": total_rev,  # cashier touches all transactions
             }
+
+            for role, pool_rev in role_pools.items():
+                role_emps = [e for e in employees if e["role"] == role]
+                if not role_emps or pool_rev <= 0:
+                    continue
+                # Sum attendance rates for this role
+                total_att = sum(
+                    attendance_data.get(e["id"], {}).get("attendance_rate", 0)
+                    for e in role_emps
+                ) or 1
+                for emp in role_emps:
+                    eid = emp["id"]
+                    att_rate = attendance_data.get(eid, {}).get("attendance_rate", 0)
+                    share = att_rate / total_att if total_att > 0 else 1.0 / len(role_emps)
+                    attributed = pool_rev * share
+
+                    # Previous month attribution (same proportion)
+                    prev_month_att = prev_total * (att_rate / total_att) if prev_total > 0 else 0
+
+                    # Revenue growth
+                    if prev_month_att > 0:
+                        growth = round((attributed - prev_month_att) / prev_month_att * 100, 1)
+                    else:
+                        growth = 0.0
+
+                    key = (eid, role)
+                    if key not in kpis:
+                        kpis[key] = {}
+                    kpis[key]["revenue_contribution"] = round(attributed, 2)
+                    kpis[key]["revenue_growth"] = growth
+
+            # Hours vs average (Metric 4)
+            all_hours = [attendance_data.get(e["id"], {}).get("work_hours", 0) for e in employees]
+            avg_hours = sum(all_hours) / max(len(all_hours), 1)
+            for emp in employees:
+                eid = emp["id"]
+                wh = attendance_data.get(eid, {}).get("work_hours", 0)
+                if avg_hours > 0:
+                    hours_vs = round((wh - avg_hours) / avg_hours * 100, 1)
+                else:
+                    hours_vs = 0.0
+                key = (eid, emp["role"])
+                if key not in kpis:
+                    kpis[key] = {}
+                kpis[key]["hours_vs_avg"] = hours_vs
+
+        except Exception as e:
+            logger.warning('Revenue collection failed: %s', e)
         return kpis
 
-    def _collect_sales_data(self, month_str):
-        """
-        Collect sales-derived KPIs: upselling_rate, checkout_speed, sales_growth.
-        Simulated for now — in production, reads from POS orders table.
-        """
+    # ==================================================================
+    # Metric 6: Waste Rate (baker/barista only)
+    # ==================================================================
+
+    def _collect_waste(self, employees, month_str):
         kpis = {}
-        # Cashier KPIs
-        cashiers = ["C001", "C002"]
-        for cid in cashiers:
-            kpis[cid] = {
-                "checkout_speed": round(np.random.uniform(3.5, 7.5), 1),
-                "accuracy_rate": round(np.random.uniform(96, 100), 1),
-                "upselling_rate": round(np.random.uniform(12, 32), 1),
-            }
-        # Manager KPIs
-        kpis["M001"] = {
-            "sales_growth": round(np.random.uniform(-3, 12), 1),
-            "team_profit_margin": round(np.random.uniform(58, 72), 1),
-        }
+        try:
+            db = self._get_db()
+            cur = db.cursor(dictionary=True)
+            cur.execute(
+                "SELECT AVG(wastage_rate) as avg_waste FROM material_wastage_log WHERE check_date LIKE %s",
+                (month_str + "%",)
+            )
+            row = cur.fetchone()
+            avg_waste = round(float(row["avg_waste"] or 0) * 100, 1) if row and row["avg_waste"] else 0.0
+            cur.close()
+
+            for emp in employees:
+                role = emp["role"]
+                if role in ("baker", "barista"):
+                    kpis[(emp["id"], role)] = {"waste_rate": avg_waste}
+        except Exception as e:
+            logger.warning('Waste collection failed: %s', e)
         return kpis
 
-    def _collect_inventory(self, month_str):
-        """
-        Collect inventory KPIs: waste_rate, inventory_accuracy, daily_output.
-        Simulated for now.
-        """
-        kpis = {}
-        # Baker: waste_rate, daily_output
-        bakers = ["B001", "B002", "B003"]
-        for bid in bakers:
-            kpis[bid] = {
-                "daily_output": int(np.random.normal(185, 20)),
-                "waste_rate_baker": round(np.random.uniform(2.5, 7.5), 1),
-            }
+    # ==================================================================
+    # Helpers
+    # ==================================================================
 
-        # Barista: waste_rate, drinks_per_hour
-        baristas = ["R001", "R002", "R003"]
-        for rid in baristas:
-            kpis[rid] = {
-                "drinks_per_hour": int(np.random.normal(26, 4)),
-                "waste_rate_barista": round(np.random.uniform(1.5, 4.5), 1),
-            }
+    def _prev_month_str(self, month_str):
+        y, m = int(month_str[:4]), int(month_str[5:7])
+        if m == 1:
+            return f"{y-1}-12"
+        return f"{y}-{m-1:02d}"
 
-        # Manager
-        kpis["M001"] = {
-            "inventory_accuracy": round(np.random.uniform(91, 99), 1),
-        }
-
-        # Normalize waste_rate keys (baker and barista have same KPI name)
-        for emp_id, vals in kpis.items():
-            if "waste_rate_baker" in vals:
-                vals["waste_rate"] = vals.pop("waste_rate_baker")
-            if "waste_rate_barista" in vals:
-                vals["waste_rate"] = vals.pop("waste_rate_barista")
-
-        return kpis
-
-    def _collect_manager_ratings(self, employees, month_str):
-        """
-        Collect subjective ratings: product_quality, customer_satisfaction,
-        cross_skills, latte_art_skill, staff_retention.
-        In production: manager fills a monthly form.
-        """
-        kpis = {}
-        for emp in employees:
-            role = emp["role"]
-            ratings = {
-                "customer_satisfaction": round(np.random.uniform(3.5, 5.0), 1),
-            }
-            if role == "baker":
-                ratings["product_quality"] = round(np.random.uniform(3.5, 5.0), 1)
-                ratings["cross_skills"] = np.random.randint(1, 5)
-            elif role == "barista":
-                ratings["latte_art_skill"] = np.random.randint(1, 4)
-            elif role == "manager":
-                ratings["staff_retention"] = round(np.random.uniform(78, 100), 1)
-            kpis[emp["id"]] = ratings
-        return kpis
+    # ==================================================================
+    # Trend data for dashboard (last N months)
+    # ==================================================================
 
     def generate_trend_data(self, months=6):
-        """
-        Generate multi-month trend data for KPI visualization.
-
-        Returns:
-            list of monthly reports (for line charts in dashboard)
-        """
-        from kpi.calculator import KPICalculator
-        calc = KPICalculator()
-
-        now = datetime.now()
         trends = []
-
-        for i in range(months):
-            target = now - timedelta(days=30 * (months - 1 - i))
-            employees = self.collect_monthly(target.year, target.month)
-            ranked = calc.full_pipeline(employees)
-            report = calc.generate_report(ranked, month=target.strftime("%Y-%m"))
-            trends.append({
-                "month": target.strftime("%Y-%m"),
-                "avg_score": round(np.mean([e["total_score"] for e in ranked]), 4),
-                "top_performer": report["top_performer"],
-                "total_employees": len(ranked),
-            })
-
+        now = datetime.now()
+        for i in range(months - 1, -1, -1):
+            dt = now.replace(day=1) - timedelta(days=1)
+            dt = dt.replace(day=1)
+            if i > 0:
+                dt = (dt - timedelta(days=i * 30)).replace(day=1)
+            data = self.collect_monthly(year=dt.year, month=dt.month)
+            if data:
+                scores = [e["kpis"].get("revenue_contribution", 0) for e in data if e.get("role") != "manager"]
+                avg_score = sum(scores) / max(len(scores), 1)
+                top = max(data, key=lambda e: e.get("total_score", 0.0)) if data else None
+                trends.append({
+                    "month": dt.strftime("%Y-%m"),
+                    "avg_score": round(avg_score, 1),
+                    "top_performer": {"name": top["name"], "role": top["role"]} if top else None,
+                })
         return trends
