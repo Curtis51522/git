@@ -1,8 +1,9 @@
 {
-  "coverage_Q10_Q90": 0.849,
-  "coverage_Q10_Q50": 0.5557,
-  "coverage_Q50_Q90": 0.2934,
-  "interval_width_Q10_Q90": 8.43,
-  "interval_width_Q10_Q50": 4.48,
-  "best_params": "{'colsample_bytree': 1.0, 'learning_rate': 0.1, 'max_depth': 3, 'n_estimators': 200, 'reg_alpha': 0, 'reg_lambda': 1.5, 'subsample': 0.8}"
+  "baseline_wape": 40.58,
+  "Q10_wape": 54.05,
+  "Q50_wape": 34.35,
+  "Q90_wape": 44.33,
+  "coverage_Q10_Q90": 0.7801,
+  "coverage_Q50_Q90": 0.3564,
+  "interval_width_Q50_Q90": 3.49
 }

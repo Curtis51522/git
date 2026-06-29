@@ -127,32 +127,25 @@ class KPIDataCollector:
             cur.close()
 
             year, mon = int(month_str[:4]), int(month_str[5:7])
-            working_days = sum(1 for d in range(1, calendar.monthrange(year, mon)[1] + 1)
-                              if datetime(year, mon, d).weekday() < 6)
+            working_days = calendar.monthrange(year, mon)[1]  # 7-day operation, rest by shift rotation
 
             for emp in employees:
                 eid = emp["id"]
                 emp_recs = [r for r in records if r["emp_id"] == eid]
+                # Only count present days (exclude absent)
+                present_recs = [r for r in emp_recs if r.get("status") != "absent"]
                 date_strs = set()
-                for r in emp_recs:
+                for r in present_recs:
                     d = r["date"]
                     date_strs.add(d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d))
                 days_present = len(date_strs)
 
-                on_time_count = sum(1 for r in emp_recs if r.get("status") == "on_time")
-                total_punches = len(emp_recs)
-                punct = round(on_time_count / max(total_punches, 1) * 100, 1)
+                on_time_count = sum(1 for r in present_recs if r.get("status") == "on_time")
+                total_present = len(present_recs)
+                punct = round(on_time_count / max(total_present, 1) * 100, 1)
 
-                # Rough work hours estimate from punch records
-                work_hours = 0.0
-                by_date = defaultdict(list)
-                for r in emp_recs:
-                    d = r["date"].strftime("%Y-%m-%d") if hasattr(r["date"], "strftime") else str(r["date"])
-                    by_date[d].append(r)
-                for date_str, day_recs in by_date.items():
-                    # Simple: assume 8h per day if present
-                    if any(r.get("status") in ("on_time", "late", "present") for r in day_recs):
-                        work_hours += 8.0
+                # Work hours: 8h per present day
+                work_hours = len(date_strs) * 8.0
 
                 kpis[eid] = {
                     "attendance_rate": round(days_present / max(working_days, 1) * 100, 1),
@@ -221,19 +214,19 @@ class KPIDataCollector:
                 role_emps = [e for e in employees if e["role"] == role]
                 if not role_emps or pool_rev <= 0:
                     continue
-                # Sum attendance rates for this role
-                total_att = sum(
-                    attendance_data.get(e["id"], {}).get("attendance_rate", 0)
+                # Sum work hours for this role (more granular than attendance_rate)
+                total_hrs = sum(
+                    attendance_data.get(e["id"], {}).get("work_hours", 0)
                     for e in role_emps
                 ) or 1
                 for emp in role_emps:
                     eid = emp["id"]
-                    att_rate = attendance_data.get(eid, {}).get("attendance_rate", 0)
-                    share = att_rate / total_att if total_att > 0 else 1.0 / len(role_emps)
+                    hrs = attendance_data.get(eid, {}).get("work_hours", 0)
+                    share = hrs / total_hrs if total_hrs > 0 else 1.0 / len(role_emps)
                     attributed = pool_rev * share
 
                     # Previous month attribution (same proportion)
-                    prev_month_att = prev_total * (att_rate / total_att) if prev_total > 0 else 0
+                    prev_month_att = prev_total * (hrs / total_hrs) if prev_total > 0 and total_hrs > 0 else 0
 
                     # Revenue growth
                     if prev_month_att > 0:

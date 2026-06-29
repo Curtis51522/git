@@ -98,9 +98,11 @@ OUT_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "outputs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 FEATURES = [
-    "product_id", "temp_mean", "temp_max", "temp_min",
-    "humidity", "precipitation", "day_of_week", "month",
-    "is_weekend", "is_holiday", "lag_1", "lag_7_avg", "lag_30_avg",
+    "product_id", "daily_tickets", "day_of_week", "month",
+    "is_weekend", "is_holiday",
+    "lag_1", "lag_7_avg", "lag_30_avg",
+    "is_day1", "is_top3", "discount_pct",
+    "is_member_day", "is_new_product", "is_competitor", "is_rainy",
 ]
 TARGET = "quantity"
 
@@ -111,15 +113,13 @@ N_JOBS = -1
 # LOAD DATA
 # ============================================================
 def load_data():
-    """Run full preprocessing pipeline; return train/val/test DataFrames."""
-    from preprocess import run_preprocessing
-    print("\n" + "=" * 60)
-    print("  PREPROCESSING: raw ticket-level -> daily + features + split")
-    print("=" * 60)
-    train, val, test = run_preprocessing(verbose=True)
-    print("  Preprocessing complete.\n")
+    import pandas as pd
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    train = pd.read_csv(os.path.join(data_dir, "xgboost_train.csv"))
+    val = pd.read_csv(os.path.join(data_dir, "xgboost_val.csv"))
+    test = pd.read_csv(os.path.join(data_dir, "xgboost_test.csv"))
+    print(f"Loaded from CSVs: Train={len(train)}  Val={len(val)}  Test={len(test)}")
     return train, val, test
-
 
 def get_xy(df):
     """Extract feature matrix X and target vector y."""

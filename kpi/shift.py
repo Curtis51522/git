@@ -45,8 +45,10 @@ class ShiftScheduler:
 
     def auto_schedule(self, start_date=None):
         """
-        Auto-generate a 7-day shift schedule ensuring minimum coverage.
-        Simple round-robin with role constraints.
+        Auto-generate a 7-day shift schedule with constraints:
+        - 7-day operation (no fixed rest day)
+        - Max 5 consecutive working days per employee
+        - Minimum coverage per shift
         """
         if start_date is None:
             start_date = datetime.now() - timedelta(days=datetime.now().weekday())
@@ -55,6 +57,10 @@ class ShiftScheduler:
 
         self.schedule = {}
         emp_shift_count = defaultdict(int)
+        emp_consecutive = defaultdict(int)  # current consecutive work days
+        emp_last_worked = {}               # last worked date
+
+        MAX_CONSECUTIVE = 5
 
         for day_offset in range(7):
             date = (start_date + timedelta(days=day_offset)).strftime("%Y-%m-%d")
@@ -63,18 +69,29 @@ class ShiftScheduler:
             for shift_type, shift_info in SHIFT_TYPES.items():
                 assigned = []
                 for role, min_count in MIN_STAFF.get(shift_type, {}).items():
-                    # Find available employees for this role
                     candidates = [
                         eid for eid, einfo in self.employees.items()
                         if einfo["role"] == role
                         and emp_shift_count[eid] < einfo["max_shifts"]
                         and date not in self.day_off.get(eid, [])
+                        and emp_consecutive[eid] < MAX_CONSECUTIVE
                     ]
-                    # Sort by current shift count (balance workload)
                     candidates.sort(key=lambda eid: emp_shift_count[eid])
                     for eid in candidates[:min_count]:
                         assigned.append(eid)
                         emp_shift_count[eid] += 1
+                        # Track consecutive days
+                        last = emp_last_worked.get(eid)
+                        if last:
+                            last_dt = datetime.strptime(last, "%Y-%m-%d")
+                            cur_dt = datetime.strptime(date, "%Y-%m-%d")
+                            if (cur_dt - last_dt).days == 1:
+                                emp_consecutive[eid] += 1
+                            else:
+                                emp_consecutive[eid] = 1
+                        else:
+                            emp_consecutive[eid] = 1
+                        emp_last_worked[eid] = date
 
                 if assigned:
                     self.schedule[date][shift_type] = assigned

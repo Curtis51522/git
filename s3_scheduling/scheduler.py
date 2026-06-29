@@ -91,7 +91,7 @@ def load_s2_predictions(date_str=None):
         date_str = datetime.now().strftime("%Y-%m-%d")
 
     # Try real S2 models first
-    preds = _predict_from_models(date_str)
+    preds = _predict_from_api(date_str)
     if preds:
         return preds
 
@@ -101,13 +101,13 @@ def load_s2_predictions(date_str=None):
 
 def generate_7day_s2_forecast(start_date):
     """
-    Generate 7 days of S2 quantile predictions using real models.
+    Generate 7 days of S2 predictions via forecast API.
 
     Args:
         start_date: str "YYYY-MM-DD" (Monday)
 
     Returns:
-        dict {date: {product_name: {"q10": int, "q50": int, "q90": int}}}
+        dict {date: {product_name: {"q50": int, "lower": int, "upper": int}}}
     """
     d0 = datetime.strptime(start_date, "%Y-%m-%d")
     forecast = {}
@@ -215,6 +215,29 @@ def _predict_from_models(date_str):
 
     return predictions
 
+
+def _predict_from_api(date_str):
+    """Get S2 predictions by importing the forecast module directly."""
+    try:
+        import sys as _sys
+        _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        if _base not in _sys.path:
+            _sys.path.insert(0, _base)
+        from api.module2_forecast import _do_forecast
+        from datetime import datetime as _dt
+        data = _do_forecast(None, 1, False, date_str)
+        if data.get("status") != "ok":
+            return None
+        result = {}
+        for f in data.get("forecasts", []):
+            result[f["product_name"]] = {
+                "q50": f["predicted_demand"],
+                "q10": f["lower_bound"],
+                "q90": f["upper_bound"],
+            }
+        return result if result else None
+    except Exception:
+        return None
 
 def _predict_from_training(date_str):
     """Fallback: sample predictions from historical training data."""
@@ -620,7 +643,7 @@ class Scheduler:
                 "revenue": plan.get("revenue", 0),
                 "waste_units": sum(plan.get("waste", {}).values()),
                 "shortage_units": sum(plan.get("shortage", {}).values()),
-                "top_5_bakes": sorted(plan.get("bake_plan", {}).items(), key=lambda x: -x[1])[:5],
+                "bake_plan": plan.get("bake_plan", {}), "top_5_bakes": sorted(plan.get("bake_plan", {}).items(), key=lambda x: -x[1])[:5],
                 "materials": plan.get("materials", {}),
             })
         return {
@@ -630,23 +653,65 @@ class Scheduler:
 
     def dashboard_format_materials(self, weekly_summary):
         """Format for Forecasting Dashboard Panel 3: Raw Material Procurement."""
-        _STOCK_PATH = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "data", "raw_materials_stock.json")
-        current_stock = {}
-        if _os.path.exists(_STOCK_PATH):
-            with open(_STOCK_PATH) as f:
-                current_stock = json.load(f)
+        # Material key to DB mapping
+        _MATERIAL_DB_MAP = {
+            "flour_g": ("Bread Flour", 1000),
+            "butter_g": ("Butter", 1000),
+            "sugar_g": ("Sugar", 1000),
+            "egg_whole_g": ("Eggs", 1000),
+            "egg_yolk_g": ("Eggs", 1000),
+            "egg_white_g": ("Eggs", 1000),
+            "milk_ml": ("Milk", 1000),
+            "chocolate_g": ("Chocolate", 1000),
+        }
+        # Fetch real stock from database
+        db_stock = {}
+        try:
+            from db.mysql_client import get_db, q
+            db = get_db()
+            rows = q(db, "raw_materials").select("material_name, stock_quantity, unit").execute()
+            if rows.data:
+                for r in rows.data:
+                    db_stock[r["material_name"]] = {
+                        "qty": float(r["stock_quantity"] or 0),
+                        "unit": r.get("unit", "kg"),
+                    }
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning("dashboard_format_materials: DB query failed: %s", e)
+
         DEFAULT_WASTE = 0.05
+        # Aggregate by DB material name (multiple scheduler keys may map to same DB row)
+        agg = {}
+        for mat_key, weekly_need_g in weekly_summary.get("materials", {}).items():
+            db_name, divisor = _MATERIAL_DB_MAP.get(mat_key, (mat_key, 1000))
+            if db_name not in agg:
+                agg[db_name] = {"weekly_need": 0, "unit": "kg"}
+            agg[db_name]["weekly_need"] += weekly_need_g / divisor
+
         procurement = {}
-        for mat, weekly_need in weekly_summary.get("materials", {}).items():
-            stock = current_stock.get(mat, 0)
-            adjusted = weekly_need * (1 + DEFAULT_WASTE)
-            to_order = max(0, adjusted - stock)
-            procurement[mat] = {
-                "weekly_need": weekly_need,
-                "adjusted_need": round(adjusted, 1),
-                "current_stock": stock,
-                "to_order": round(to_order, 1),
-                "alert": "urgent" if stock < weekly_need * 0.5 else ("order" if stock < weekly_need else "ok"),
+        for db_name, a in agg.items():
+            weekly_need_db = round(a["weekly_need"], 2)
+            info = db_stock.get(db_name, {"qty": 0, "unit": "kg"})
+            stock_db_units = info["qty"]
+            unit = info.get("unit", "kg")
+            adjusted = round(weekly_need_db * (1 + DEFAULT_WASTE), 2)
+            to_order = round(max(0, adjusted - stock_db_units), 2)
+
+            if stock_db_units < weekly_need_db * 0.5:
+                alert = "urgent"
+            elif stock_db_units < weekly_need_db:
+                alert = "order"
+            else:
+                alert = "ok"
+
+            procurement[db_name] = {
+                "weekly_need": weekly_need_db,
+                "adjusted_need": adjusted,
+                "current_stock": stock_db_units,
+                "to_order": to_order,
+                "unit": unit,
+                "alert": alert,
             }
         return {
             "week": f"{weekly_summary.get('week_start', '-')} ~ {weekly_summary.get('week_end', '-')}",

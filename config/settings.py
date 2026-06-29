@@ -9,22 +9,26 @@ JWT_EXPIRE_MINUTES = 480
 YOLO_MODEL_PATH = "models/yolo/best.pt"
 YOLO_CONFIDENCE_THRESHOLD = 0.5
 PRODUCT_TYPES = [
-    "bread_coconut", "bread_roll", "chiffon", "croissant", "croissant_chocolate", "donut",
-    "eggtart", "cream_horn", "melon_bread", "pizza_bread",
-    "soboru_bread", "chocopie", "stickbread", "baguette", "pandesal", "sourdough",
+    # 30 Breads
+    "apple_pie", "bagel", "baguette", "bread_coconut", "bread_roll", "brioche",
+    "brownie", "chiffon", "chocolate_cake", "chocopie", "cookie", "cornbread",
+    "cream_horn", "croissant", "croissant_chocolate", "donut", "eggtart",
+    "flatbread", "macaron", "mantequilla", "melon_bread", "muffin", "pancake",
+    "pandesal", "pizza_bread", "pullman", "soboru_bread", "sourdough",
+    "stickbread", "tostada",
+    # 15 Beverages
+    "americano", "cappuccino", "caramel_macchiato", "chai_latte", "cold_brew",
+    "earl_grey", "english_breakfast", "espresso", "flat_white", "hot_chocolate",
+    "latte", "lemonade", "matcha_latte", "milk_tea", "mocha",
 ]
 
-COFFEE_TYPES = [
-    "Latte", "Americano", "Cappuccino", "Cold Brew",
-    "Espresso", "Flat White", "Mocha",
-]
-FRESHNESS_STATES = ["Fresh", "Day-1"]
 FORECAST_FEATURE_COLS = [
-    "day_of_week", "is_weekend", "day_of_month", "month",
-    "is_public_holiday", "is_ramadan",
-    "temperature", "rainfall", "humidity", "is_rainy",
-    "weather_sunny", "weather_cloudy", "weather_rainy", "weather_storm",
-    "lag_1", "lag_7", "rolling_7d_mean",
+    "product_id", "category", "daily_tickets", "day_of_week", "month",
+    "is_weekend", "is_holiday",
+    "lag_1", "lag_7_avg", "lag_30_avg",
+    "roll_std_7", "roll_std_14", "trend_7",
+    "is_day1", "is_top3", "discount_pct",
+    "is_member_day", "is_new_product", "is_competitor", "is_rainy",
 ]
 
 INTENT_CONFIDENCE_THRESHOLD = 0.75

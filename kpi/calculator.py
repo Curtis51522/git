@@ -54,8 +54,10 @@ class KPICalculator:
 
                 median = np.median(values)
                 mad = np.median(np.abs(np.array(values) - median))
-                if mad == 0:
-                    mad = 1.0
+                if mad < 1e-10:
+                    # Fallback to std when all/most values identical (small sample edge case)
+                    std_val = np.std(values)
+                    mad = max(std_val, abs(median) * 0.01, 1e-6)
 
                 for emp in emps:
                     raw = emp.get("kpis", {}).get(kpi_name)

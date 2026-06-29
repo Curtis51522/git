@@ -102,9 +102,10 @@ OUT_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "outputs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 FEATURES = [
-    "product_id", "temp_mean", "temp_max", "temp_min",
-    "humidity", "precipitation", "day_of_week", "month",
-    "is_weekend", "is_holiday", "lag_1", "lag_7_avg", "lag_30_avg",
+    "product_id", "daily_tickets", "day_of_week", "month",
+    "is_weekend", "is_holiday", "days_to_next_holiday",
+    "lag_1", "lag_7_avg", "lag_30_avg",
+    "roll_std_7", "roll_std_14", "trend_7", "category",
 ]
 TARGET = "quantity"
 
@@ -115,9 +116,13 @@ N_JOBS = -1
 # LOAD DATA
 # ============================================================
 def load_data():
-    """Run full preprocessing pipeline; return train/val/test DataFrames."""
-    from preprocess import run_preprocessing
-    train, val, test = run_preprocessing(verbose=True)
+    """Load pre-split CSV files from data/ directory."""
+    import pandas as pd
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    train = pd.read_csv(os.path.join(data_dir, "xgboost_train.csv"))
+    val = pd.read_csv(os.path.join(data_dir, "xgboost_val.csv"))
+    test = pd.read_csv(os.path.join(data_dir, "xgboost_test.csv"))
+    print(f"Loaded from CSVs: Train={len(train)}  Val={len(val)}  Test={len(test)}")
     return train, val, test
 
 

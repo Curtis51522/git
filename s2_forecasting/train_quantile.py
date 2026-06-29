@@ -1,141 +1,56 @@
-﻿#!/usr/bin/env python
-"""
-XGBoost Quantile Regression -- Experiment 3: Probabilistic Demand Forecasting
-================================================================================
-Trains three independent XGBoost quantile regressors (alpha = 0.10, 0.50, 0.90)
-to output prediction intervals for inventory decisions.
-
-Motivation: Point predictions ("5.3 units") are unreliable at daily SKU level.
-Quantile regression produces calibrated intervals ("2--12 units, 80% confidence"),
-enabling practical stock-level recommendations.
-
-Problem Formulation
--------------------
-Given feature vector x_t (same 13 features as regression baseline):
-  x_t = [product_id, temp_mean, temp_max, temp_min, humidity, precipitation,
-         day_of_week, month, is_weekend, is_holiday, lag_1, lag_7_avg, lag_30_avg]
-
-For each quantile level alpha in {0.10, 0.50, 0.90}, train:
-  q_t_pred^(alpha) = f_alpha(x_t)
-
-such that:
-  P( y_t <= q_t_pred^(alpha) ) approx alpha
-
-Model: XGBoost Regressor with objective = reg:quantileerror
-  Pinball (Quantile) Loss:
-    rho_alpha(u) = alpha * max(u, 0)  +  (1 - alpha) * max(-u, 0)
-    L_alpha = (1/n) * sum_{t=1}^{n} rho_alpha( y_t - q_t_pred^(alpha) )
-
-  For alpha = 0.5, pinball loss reduces to MAE/2 (median regression).
-  For alpha = 0.9, the loss penalises under-prediction 9x more than over-prediction,
-    producing conservative (upper-bound) forecasts suitable for stock decisions.
-
-Hyperparameter Tuning (5-fold CV on Q50, shared with Q10/Q90)
-------------------------------------------------------------------
-  Tune on median (Q50) model only; reuse best params for Q10 and Q90.
-  Rationale: tree-structure hyperparams (max_depth, subsample, etc.) are
-  quantile-agnostic. Only the quantile_alpha differs.
-
-  Parameter         | Range              | Rationale
-  ------------------|--------------------|-------------------------
-  n_estimators      | [100, 200, 300]    | Prevent overfit
-  max_depth         | [3, 5, 7]          | Shallow for noisy daily data
-  learning_rate     | [0.01, 0.05, 0.1]  | Standard range
-  subsample         | [0.8, 1.0]         | Row sampling
-  colsample_bytree  | [0.8, 1.0]         | Column sampling
-  reg_alpha         | [0, 0.1]           | L1 regularisation
-  reg_lambda        | [1, 1.5]           | L2 regularisation
-
-Data Split (identical to regression baseline)
-----------------------------------------------
-  Train: 2021-01-01 to 2022-12-31  (2 years)
-  Val:   2023-01-01 to 2023-06-30  (6 months, combined with train for fitting)
-  Test:  2023-07-01 to 2023-12-31  (6 months, final evaluation)
-
-Evaluation Metrics
-------------------
-  Coverage (alpha_low, alpha_high):
-    fraction of test samples where y_t in [q_pred^(alpha_low), q_pred^(alpha_high)]
-    - Q10-Q90 target: 0.80 (80% prediction interval)
-    - Q10-Q50 target: 0.40
-    - Q50-Q90 target: 0.40
-
-  Interval Width = mean( q_pred^(alpha_high) - q_pred^(alpha_low) )
-    Narrower intervals with correct coverage indicate better calibration.
-
-POS Application
----------------
-  Customer-facing output for product i on day t:
-    "Low (Q10):    2 units"
-    "Expected (Q50):  5 units"
-    "Recommend (Q90): 12 units (90% confidence)"
-
-References
-----------
-  [1] Lim et al. (2021). Temporal Fusion Transformer for Multi-horizon Time
-      Series Forecasting. International Journal of Forecasting, 37(4), 1748-1764.
-  [2] Salinas et al. (2020). DeepAR: Probabilistic forecasting with autoregressive
-      recurrent networks. International Journal of Forecasting, 36(3), 1181-1191.
-  [3] Koenker & Hallock (2001). Quantile Regression. Journal of Economic
-      Perspectives, 15(4), 143-156.
-  [4] Chen & Guestrin (2016). XGBoost: A scalable tree boosting system.
-      Proceedings of the 22nd ACM SIGKDD, 785-794.
-
-Reproducibility
----------------
-  random_state = 42
-  numpy random seed = 42
-  sklearn version >= 1.0
-  xgboost version >= 1.7
-
-Outputs
--------
-  outputs/quantile_model_q10.pkl    : XGBoost quantile regressor (alpha=0.10)
-  outputs/quantile_model_q50.pkl    : XGBoost quantile regressor (alpha=0.50)
-  outputs/quantile_model_q90.pkl    : XGBoost quantile regressor (alpha=0.90)
-  outputs/quantile_best_params.json  : GridSearchCV best hyperparameters
-  outputs/quantile_metrics.json      : coverage rates + interval widths
-  outputs/quantile_per_product.csv   : per-SKU coverage analysis
-
-Author: Bakery AI System
-"""
-
-import os, warnings, json, joblib
+import os, json, joblib, warnings
 import numpy as np
 import pandas as pd
-
-from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
-
+from sklearn.model_selection import GridSearchCV
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
-# ============================================================
-# CONFIG
-# ============================================================
-import os as _os
-BASE_DIR = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-DATA_DIR = _os.path.join(BASE_DIR, "data")
-OUT_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "outputs")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 FEATURES = [
-    "product_id", "temp_mean", "temp_max", "temp_min",
-    "humidity", "precipitation", "day_of_week", "month",
-    "is_weekend", "is_holiday", "lag_1", "lag_7_avg", "lag_30_avg",
+    "product_id", "category", "daily_tickets", "day_of_week", "month",
+    "is_weekend", "is_holiday",
+    "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7",
+    "is_day1", "is_top3", "discount_pct",
+    "is_member_day", "is_rainy",
+    "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
 ]
 TARGET = "quantity"
 QUANTILES = [0.10, 0.50, 0.90]
-N_JOBS = -1
+
+PARAM_GRID_Q50 = {
+    "n_estimators": [200, 500],
+    "max_depth": [3, 4],
+    "learning_rate": [0.03, 0.05],
+    "subsample": [0.7, 0.8],
+    "colsample_bytree": [0.7, 0.8],
+    "reg_alpha": [0, 0.1],
+    "reg_lambda": [1, 1.5],
+    "min_child_weight": [10, 20],
+    "tweedie_variance_power": [1.2, 1.5, 1.8],
+}
+
+PARAM_GRID_QUANTILE = {
+    "n_estimators": [200, 500],
+    "max_depth": [3, 4],
+    "learning_rate": [0.03, 0.05],
+    "subsample": [0.7, 0.8],
+    "colsample_bytree": [0.7, 0.8],
+    "reg_alpha": [0, 0.1],
+    "reg_lambda": [1, 1.5],
+    "min_child_weight": [10, 20],
+}
 
 
-# ============================================================
-# LOAD
-# ============================================================
 def load_data():
-    """Run full preprocessing pipeline; return train/val/test DataFrames."""
-    from preprocess import run_preprocessing
-    train, val, test = run_preprocessing(verbose=True)
+    train = pd.read_csv(os.path.join(DATA_DIR, "xgboost_train.csv"))
+    val = pd.read_csv(os.path.join(DATA_DIR, "xgboost_val.csv"))
+    test = pd.read_csv(os.path.join(DATA_DIR, "xgboost_test.csv"))
+    print(f"Loaded from CSVs: Train={len(train)}  Val={len(val)}  Test={len(test)}")
     return train, val, test
 
 
@@ -143,179 +58,212 @@ def get_xy(df):
     return df[FEATURES].copy(), df[TARGET].copy()
 
 
-# ============================================================
-# HYPERPARAMETER TUNING (on Q50 only, shared with Q10/Q90)
-# ============================================================
-PARAM_GRID_QUANTILE = {
-    "n_estimators": [100, 200, 300],
-    "max_depth": [3, 5, 7],
-    "learning_rate": [0.01, 0.05, 0.1],
-    "subsample": [0.8, 1.0],
-    "colsample_bytree": [0.8, 1.0],
-    "reg_alpha": [0, 0.1],
-    "reg_lambda": [1, 1.5],
-}
-
-
-def tune_quantile(train_df, val_df):
-    """GridSearchCV on Q50 model; best params shared with Q10/Q90."""
-    print("\n--- Tuning Q50 (5-fold CV) ---")
+def tune_q50(train_df, val_df):
+    print("\n--- Tuning Q50 (Tweedie, 3-fold CV) ---")
     combined = pd.concat([train_df, val_df], ignore_index=True)
     X, y = get_xy(combined)
-
-    base = xgb.XGBRegressor(
-        objective="reg:quantileerror",
-        quantile_alpha=0.50,
-        random_state=42,
-        n_jobs=N_JOBS,
-        verbosity=0,
-    )
-
     grid = GridSearchCV(
-        base, PARAM_GRID_QUANTILE,
-        cv=5,
-        scoring="neg_mean_absolute_error",  # pinball(0.5) = MAE/2
-        n_jobs=N_JOBS,
-        verbose=1,
+        xgb.XGBRegressor(objective="reg:tweedie",
+                         enable_categorical=True, tree_method="hist",
+                         random_state=42, n_jobs=-1, verbosity=0),
+        PARAM_GRID_Q50, cv=3, scoring="neg_mean_absolute_error",
+        n_jobs=-1, verbose=1,
     )
     grid.fit(X, y)
-
     print(f"\n  Best params: {grid.best_params_}")
-    print(f"  Best CV pinball loss: {-grid.best_score_:.4f}")
-
+    print(f"  Best CV MAE: {-grid.best_score_:.4f}")
     return grid.best_params_
 
 
-# ============================================================
-# TRAIN ONE QUANTILE MODEL
-# ============================================================
-def train_quantile(train_df, val_df, quantile_alpha, best_params):
-    print(f"\n--- Training Q{int(quantile_alpha*100)} ---")
+def train_quantile(train_df, val_df, quantile_alpha, best_params, is_tweedie=False):
+    qname = int(quantile_alpha * 100)
+    label = "Tweedie" if is_tweedie else "Quantile"
+    print(f"\n--- Training Q{qname} ({label}) ---")
     combined = pd.concat([train_df, val_df], ignore_index=True)
     X, y = get_xy(combined)
+    X_val, y_val = get_xy(val_df)
 
-    model = xgb.XGBRegressor(
-        objective="reg:quantileerror",
-        quantile_alpha=quantile_alpha,
-        **best_params,
-        random_state=42,
-        n_jobs=N_JOBS,
-        verbosity=0,
-    )
-    model.fit(X, y)
-
-    fname = os.path.join(OUT_DIR, f"quantile_model_q{int(quantile_alpha*100)}.pkl")
+    if is_tweedie:
+        tw_power = best_params.get("tweedie_variance_power", 1.5)
+        params = {k: v for k, v in best_params.items() if k != "tweedie_variance_power"}
+        model = xgb.XGBRegressor(
+            objective="reg:tweedie",
+            tweedie_variance_power=tw_power,
+            enable_categorical=True,
+            tree_method="hist",
+            early_stopping_rounds=50,
+            **params,
+            random_state=42,
+            n_jobs=-1,
+            verbosity=0,
+        )
+    else:
+        params = best_params
+        model = xgb.XGBRegressor(
+            objective="reg:quantileerror",
+            quantile_alpha=quantile_alpha,
+            enable_categorical=True,
+            tree_method="hist",
+            early_stopping_rounds=50,
+            **params,
+            random_state=42,
+            n_jobs=-1,
+            verbosity=0,
+        )
+    model.fit(X, y, eval_set=[(X_val, y_val)], verbose=False)
+    fname = os.path.join(OUT_DIR, f"quantile_model_q{qname}.pkl")
     joblib.dump(model, fname)
     print(f"  Saved -> {fname}")
     return model
 
 
-# ============================================================
-# EVALUATE
-# ============================================================
-def coverage_metrics(y_true, y_lower, y_upper):
-    """Fraction of true values falling within [y_lower, y_upper]."""
-    in_interval = (y_true >= y_lower) & (y_true <= y_upper)
-    return in_interval.mean()
+def conformal_calibrate(val_df, models):
+    print("\n--- Conformal Calibration on Val Set (target 80% coverage) ---")
+    X_val, y_val = get_xy(val_df)
+    q50_preds = np.maximum(models[0.50].predict(X_val), 0)
+
+    per_product = {}
+    for pid in sorted(val_df["product_id"].unique()):
+        mask = val_df["product_id"].values == pid
+        residuals = np.abs(y_val.values[mask] - q50_preds[mask])
+        half_w = float(np.quantile(residuals, 0.80))
+        half_w = max(half_w, 0.5)
+        per_product[str(pid)] = round(half_w, 1)
+
+    all_residuals = np.abs(y_val.values - q50_preds)
+    global_half = round(max(float(np.quantile(all_residuals, 0.80)), 0.5), 1)
+
+    calibration = {"per_product": per_product, "global": global_half}
+
+    out_path = os.path.join(OUT_DIR, "conformal_calibration.json")
+    with open(out_path, "w") as f:
+        json.dump(calibration, f, indent=2)
+    print(f"  Saved -> {out_path}")
+    print(f"  Global half_width: {global_half}")
+    vals = list(per_product.values())
+    print(f"  Per-product range: {min(vals)} to {max(vals)}")
+
+    covered = 0
+    total = 0
+    for pid in sorted(val_df["product_id"].unique()):
+        mask = val_df["product_id"].values == pid
+        hw = per_product.get(str(pid), global_half)
+        covered += ((y_val.values[mask] >= q50_preds[mask] - hw) & (y_val.values[mask] <= q50_preds[mask] + hw)).sum()
+        total += mask.sum()
+    print(f"  Val coverage (calibrated): {covered / total * 100:.1f}%")
+    return calibration
 
 
-def interval_width(y_lower, y_upper):
-    return np.mean(y_upper - y_lower)
-
-
-def evaluate(test_df, models):
+def evaluate(test_df, models, calibration):
     X_test, y_test = get_xy(test_df)
 
-    preds = {}
-    for q, model in models.items():
-        raw = model.predict(X_test)
-        preds[q] = np.maximum(raw, 0)
+    q50_preds = np.maximum(models[0.50].predict(X_test), 0)
+    q10_preds = np.maximum(models[0.10].predict(X_test), 0)
+    q90_preds = np.maximum(models[0.90].predict(X_test), 0)
 
-    # Q10-Q90 coverage (should be ~80%)
-    cov_80 = coverage_metrics(y_test, preds[0.10], preds[0.90])
-    # Q10-Q50 coverage (should be ~40%)
-    cov_40_low = coverage_metrics(y_test, preds[0.10], preds[0.50])
-    # Q50-Q90 coverage (should be ~40%)
-    cov_40_high = coverage_metrics(y_test, preds[0.50], preds[0.90])
+    print("\n--- Evaluation on Test Set (Conformal 80% intervals) ---")
+    covered = 0
+    total = len(y_test)
+    per_prod_cov = {}
+    for pid in sorted(test_df["product_id"].unique()):
+        mask = test_df["product_id"].values == pid
+        hw = calibration["per_product"].get(str(pid), calibration["global"])
+        yt = y_test.values[mask]
+        qp = q50_preds[mask]
+        lower = qp - hw
+        upper = qp + hw
+        c = ((yt >= lower) & (yt <= upper)).sum()
+        covered += c
+        per_prod_cov[str(pid)] = round(c / mask.sum() * 100, 1)
 
-    width_80 = interval_width(preds[0.10], preds[0.90])
-    width_50 = interval_width(preds[0.10], preds[0.50])
+    cov_80 = covered / total
+    avg_width = np.mean([calibration["per_product"].get(str(pid), calibration["global"]) * 2 for pid in test_df["product_id"].unique()])
+    cov_raw = ((y_test.values >= q10_preds) & (y_test.values <= q90_preds)).mean()
+    w_raw = np.mean(q90_preds - q10_preds)
+
+    mae = np.mean(np.abs(y_test.values - q50_preds))
+    wape = np.sum(np.abs(y_test.values - q50_preds)) / np.sum(y_test.values) * 100
+    rmse = float(np.sqrt(np.mean((y_test.values - q50_preds) ** 2)))
 
     metrics = {
-        "coverage_Q10_Q90": round(float(cov_80), 4),
-        "coverage_Q10_Q50": round(float(cov_40_low), 4),
-        "coverage_Q50_Q90": round(float(cov_40_high), 4),
-        "interval_width_Q10_Q90": round(float(width_80), 2),
-        "interval_width_Q10_Q50": round(float(width_50), 2),
+        "model": "XGBoost Tweedie Q50 + Quantile Q10/Q90",
+        "features": len(FEATURES),
+        "test_period": f"{test_df['date'].min()} to {test_df['date'].max()}",
+        "interval_method": "Conformal 80%",
+        "overall": {
+            "WAPE": round(wape, 1),
+            "MAE": round(mae, 1),
+            "RMSE": round(rmse, 1),
+            "conformal_coverage_80": round(cov_80 * 100, 1),
+            "conformal_avg_width": round(avg_width, 1),
+            "raw_Q10Q90_coverage": round(cov_raw * 100, 1),
+            "raw_Q10Q90_width": round(w_raw, 1),
+        },
+        "per_product_coverage": per_prod_cov,
+        "best_params": str(models[0.50].get_params()),
     }
 
-    print(f"\n  Coverage Q10-Q90:  {cov_80:.4f}  (target 0.80)")
-    print(f"  Coverage Q10-Q50:  {cov_40_low:.4f}  (target 0.40)")
-    print(f"  Coverage Q50-Q90:  {cov_40_high:.4f}  (target 0.40)")
-    print(f"  80% interval width: {width_80:.2f}")
-    print(f"  50% interval width: {width_50:.2f}")
+    print(f"  Conformal Coverage: {cov_80*100:.1f}%  (raw Q10-Q90: {cov_raw*100:.1f}%)")
+    print(f"  Conformal Width:    {avg_width:.1f}  (raw Q10-Q90: {w_raw:.1f})")
+    print(f"  WAPE: {wape:.1f}%  MAE: {mae:.1f}  RMSE: {rmse:.1f}")
 
-    return metrics, preds, y_test
-
-
-# ============================================================
-# PER-PRODUCT COVERAGE
-# ============================================================
-def per_product_coverage(test_df, preds, y_test):
-    print("\n--- Per-Product Coverage (Q10-Q90) ---")
-    test_df = test_df.copy()
-    test_df["y_true"] = y_test
-    test_df["q10"] = preds[0.10]
-    test_df["q90"] = preds[0.90]
-
-    results = []
+    per_product = {}
     for pid in sorted(test_df["product_id"].unique()):
-        sub = test_df[test_df["product_id"] == pid]
-        yt = sub["y_true"].values
-        ql = sub["q10"].values
-        qu = sub["q90"].values
-        if len(yt) < 5:
-            continue
-        cov = coverage_metrics(yt, ql, qu)
-        w = interval_width(ql, qu)
-        results.append({
-            "product_id": pid, "samples": len(yt),
-            "coverage_80": round(cov, 4),
-            "avg_width": round(w, 2),
-        })
+        mask = test_df["product_id"].values == pid
+        yt = y_test.values[mask]
+        qp = q50_preds[mask]
+        hw = calibration["per_product"].get(str(pid), calibration["global"])
+        per_product[str(pid)] = {
+            "MAE": round(float(np.mean(np.abs(yt - qp))), 1),
+            "RMSE": round(float(np.sqrt(np.mean((yt - qp)**2))), 1),
+            "WAPE": round(float(np.sum(np.abs(yt - qp)) / np.sum(yt) * 100), 1),
+            "conformal_half": hw,
+            "conformal_coverage": per_prod_cov.get(str(pid), 0),
+            "samples": int(mask.sum()),
+            "mean_daily": round(float(np.mean(yt)), 1),
+        }
 
-    df_p = pd.DataFrame(results).sort_values("coverage_80", ascending=False)
-    print(df_p.to_string(index=False))
-    df_p.to_csv(os.path.join(OUT_DIR, "quantile_per_product.csv"), index=False)
-    return df_p
+    metrics["per_product"] = per_product
+    out_path = os.path.join(OUT_DIR, "test_metrics.json")
+    with open(out_path, "w") as f:
+        json.dump(metrics, f, indent=2, default=str)
+
+    return metrics, {"q50": q50_preds, "q10": q10_preds, "q90": q90_preds}, y_test
 
 
-# ============================================================
-# MAIN
-# ============================================================
 def main():
     print("=" * 60)
-    print("  XGBoost Quantile Regression -- Q10 / Q50 / Q90")
+    print("  XGBoost Tweedie Q50 + Conformal Calibration")
     print("=" * 60)
-
     train, val, test = load_data()
-    print(f"Train={len(train)}  Val={len(val)}  Test={len(test)}")
 
-    best_params = tune_quantile(train, val)
-    with open(os.path.join(OUT_DIR, "quantile_best_params.json"), "w") as f:
-        json.dump(best_params, f, indent=2, default=str)
+    # Tune Q50 with Tweedie
+    best_q50 = tune_q50(train, val)
+    with open(os.path.join(OUT_DIR, "tweedie_best_params.json"), "w") as f:
+        json.dump(best_q50, f, indent=2, default=str)
+
+    # Q10/Q90 use quantile params from simpler grid
+    print("\n--- Tuning Q10 (Quantile, 3-fold CV) ---")
+    combined = pd.concat([train, val], ignore_index=True)
+    X_all, y_all = get_xy(combined)
+    qt_grid = GridSearchCV(
+        xgb.XGBRegressor(objective="reg:quantileerror", quantile_alpha=0.10,
+                         enable_categorical=True, tree_method="hist",
+                         random_state=42, n_jobs=-1, verbosity=0),
+        PARAM_GRID_QUANTILE, cv=3, scoring="neg_mean_absolute_error",
+        n_jobs=-1, verbose=1,
+    )
+    qt_grid.fit(X_all, y_all)
+    best_qt = qt_grid.best_params_
+    print(f"  Best Q10 params: {best_qt}")
 
     models = {}
-    for q in QUANTILES:
-        models[q] = train_quantile(train, val, q, best_params)
+    models[0.50] = train_quantile(train, val, 0.50, best_q50, is_tweedie=True)
+    models[0.10] = train_quantile(train, val, 0.10, best_qt, is_tweedie=False)
+    models[0.90] = train_quantile(train, val, 0.90, best_qt, is_tweedie=False)
 
-    print("\n--- Evaluation on Test Set ---")
-    metrics, preds, y_test = evaluate(test, models)
-    per_product_coverage(test, preds, y_test)
-
-    metrics["best_params"] = str(best_params)
-    with open(os.path.join(OUT_DIR, "quantile_metrics.json"), "w") as f:
-        json.dump(metrics, f, indent=2, default=str)
+    calibration = conformal_calibrate(val, models)
+    metrics, preds, y_test = evaluate(test, models, calibration)
 
     print(f"\n{'='*60}")
     print("  Done. Outputs -> s2_forecasting/outputs/")

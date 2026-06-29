@@ -223,6 +223,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button class="active" data-panel="pos" onclick="showPanel('pos')">POS</button>
 <button data-panel="forecast" class="manager-only" onclick="showPanel('forecast')">Forecast</button>
 <button data-panel="schedule" class="manager-only" onclick="showPanel('schedule')">Schedule</button>
+<button data-panel="kpi" onclick="showPanel('kpi')">KPI</button>
 <button data-panel="inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
 <button data-panel="wastage" class="manager-only" onclick="showPanel('wastage')">Wastage</button>
 <button data-panel="revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
@@ -352,7 +353,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <label style="font-size:14px;font-weight:600;display:block;margin-bottom:8px">Swap with:</label>
 <div id="swap-employee-list" style="display:flex;flex-direction:column;gap:6px;max-height:250px;overflow-y:auto"></div>
 <div style="display:flex;gap:10px;margin-top:16px">
-<button onclick="document.getElementById('swap-modal').classList.remove('show')" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd;background:#f5f0e8;cursor:pointer;font-size:14px;font-weight:600">'+t('Close')+'</button>
+<button onclick="document.getElementById('swap-modal').classList.remove('show')" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd;background:#f5f0e8;cursor:pointer;font-size:14px;font-weight:600">Close</button>
 </div>
 </div>
 </div>
@@ -361,6 +362,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 
 
 <script>
+
+function formatMoney(v){return (v||0).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0});}
 
 
 var LANG='en';
@@ -523,10 +526,10 @@ var btns=document.querySelectorAll('.topnav nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue')};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue'),kpi:'KPI'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
-var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue};
-if(panel==='pos'||panel==='revenue')loadS5DiscountCache();
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue,kpi:renderKPI};
+if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}
 var container=getPanelContainer(panel);
 container.style.display='block';
 if(container.innerHTML.trim()===''){
@@ -762,10 +765,10 @@ var btns=document.querySelectorAll('.topnav nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue')};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue'),kpi:'KPI'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
-var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue};
-if(panel==='pos'||panel==='revenue')loadS5DiscountCache();
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue,kpi:renderKPI};
+if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}
 var container=getPanelContainer(panel);
 container.style.display='block';
 if(container.innerHTML.trim()===''){
@@ -1322,12 +1325,20 @@ document.getElementById('script-area').innerHTML=scriptsHtml;
 }
 
 function renderForecast(c){
-c.innerHTML='<div class="panel" style="flex:1"><h4>'+t('Sales Forecast')+' <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadForecast(true)">'+t('Refresh')+'</button></h4>'
-+'<div id="forecast-result" class="result-box"><span class="spinner"></span>Loading forecast...</div></div>';
-loadForecast(false);
+  var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  c.innerHTML='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr)">'
+    +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-demand">-</div><div class="kpi-label">Products Forecast</div></div>'
+    +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-plan">-</div><div class="kpi-label">Bake Plan Items</div></div>'
+    +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-matl">-</div><div class="kpi-label">Materials to Order</div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel chart-full"><div id="fc-accuracy-bar" style="font-size:12px;margin-bottom:8px"></div><h4>Demand Forecast</h4><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><input type="date" id="fc-date" value="'+today+'" onchange="loadForecast(false)" style="padding:6px 10px;border:1px solid #d4c5a9;border-radius:6px;font-size:13px"><button class="btn btn-sm" style="font-size:11px" onclick="loadForecast(true)">Refresh</button></div><div id="forecast-result" style="overflow-x:auto;max-width:100%"><span class="spinner"></span>Loading forecast...</div></div></div>'
+    +'<div class="chart-row" style="margin-top:12px"><div class="chart-panel" style="flex:1"><h4>Production Plan <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadProdPlan()">Refresh</button></h4><div id="prod-plan-result"><span class="spinner"></span>Loading...</div></div><div class="chart-panel" style="flex:1"><h4>Material Procurement <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadMaterials()">Refresh</button></h4><div id="materials-result"><span class="spinner"></span>Loading...</div></div></div>';
+  loadForecast(false);
+  loadProdPlan();
+  loadMaterials();
 }
 async function loadForecast(force){
-var url=force?'/s2/forecast/refresh?days=7':'/s2/forecast?days=7';
+var dateEl=document.getElementById('fc-date');var dateParam=dateEl&&dateEl.value?'&date='+dateEl.value:'';
+var url=(force?'/s2/forecast/refresh?days=7':'/s2/forecast?days=7')+dateParam;
 var el=document.getElementById('forecast-result');
 if(!force) el.innerHTML='<span class="spinner"></span>'+t('Loading forecast...');
 try{
@@ -1337,7 +1348,7 @@ var t1=Date.now();
 var f=r.forecasts||[], byDay={};
 for(var i=0;i<f.length;i++){var fd=f[i].forecast_date;if(!byDay[fd])byDay[fd]={};byDay[fd][f[i].product_name]={predicted:f[i].predicted_demand,low:f[i].lower_bound,high:f[i].upper_bound};}
 var dates=Object.keys(byDay).sort();
-var prods=Object.keys(PRODUCT_PRICES).slice(0,12);
+var prods=Object.keys(Object.assign({},PRODUCT_PRICES,COFFEE_PRICES));
 var tbl='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f5f0e8">';
 tbl+='<th style="padding:8px;text-align:left">Date</th>';
 for(var p=0;p<prods.length;p++) tbl+='<th style="padding:8px;text-align:right">'+prods[p].replace(/_/g,' ').replace(/\b\w/g,function(x){return x.toUpperCase()})+'</th>';
@@ -1352,21 +1363,34 @@ var txt='-';if(v&&typeof v==='object'){var lo=v.low,hi=v.high;if(typeof lo==='nu
 tbl+='</tr>';
 }
 tbl+='</tbody></table>';
-tbl+='<div style="margin-top:8px;font-size:11px;color:#888">'+(r.cached===false?'Generated in '+((t1-t0)/1000).toFixed(1)+'s':'Loaded from cache in '+((t1-t0)/1000).toFixed(0)+'ms')+' | Auto-refreshes hourly</div>';
+tbl+='<div style="margin-top:8px;font-size:11px;color:#888">'+(r.cached===false?'Generated in '+((t1-t0)/1000).toFixed(1)+'s':'Loaded from cache in '+((t1-t0)/1000).toFixed(0)+'ms')+' | Auto-refreshes hourly</div>';var demandEl=document.getElementById('fc-kpi-demand');if(demandEl)demandEl.textContent=prods.length;
 el.innerHTML=tbl;
+  fetch(API+'/s2/accuracy').then(function(r){return r.json()}).then(function(ad){
+    if(ad.status==='ok'&&ad.metrics){
+      var o=ad.metrics.overall;
+      var bar=document.getElementById('fc-accuracy-bar');
+      if(bar)bar.innerHTML='<span style="margin-right:16px;color:#5d4037">Model Accuracy</span>'+
+        '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:4px;font-weight:600;margin-right:8px">Accuracy '+(100-o.WAPE).toFixed(1)+'%</span>'+
+        '<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:4px;font-weight:600;margin-right:8px">Avg Dev &plusmn;'+o.MAE+' units</span>'+
+        '<span style="background:#fce4ec;color:#c62828;padding:3px 10px;border-radius:4px;font-weight:600">Interval Hit '+o.conformal_coverage_80+'%</span>';
+    }
+  }).catch(function(){});
 }catch(e){el.innerHTML='<span class="status-dot dot-err"></span> Error: '+e.message;}
 }
 
 function renderSchedule(c){
-c.innerHTML='<div class="panel" style="flex:1"><h4>Shift Schedule</h4>'
-+'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
-+'<button class="btn btn-primary btn-sm" onclick="generateSchedule()">'+t('Generate')+'</button>'
-+'<button class="btn btn-secondary btn-sm" onclick="resyncSchedule()" title="Full regeneration">'+t('Resync')+'</button>'
-+'<button class="btn btn-secondary btn-sm" onclick="loadKPI()">'+t('KPI')+'</button>'
-+'<input id="sched-date" type="date" style="padding:6px;border-radius:6px;border:1px solid #e0d5c7;width:140px" value="'+new Date().toISOString().slice(0,10)+'" onchange="cachedSchedule=null;cachedDate=null;loadSchedule();loadKPI()">'
-+'</div><div id="schedule-result" class="result-box" style="overflow-x:auto;max-height:60vh"><span class="spinner"></span>Loading schedule...</div>'
-+'<div id="swap-msg" style="margin-top:8px;font-size:13px"></div>'
-+'<div id="kpi-result" style="margin-top:8px"></div></div>';
+var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
++'<div style="display:flex;align-items:center;gap:8px"><input id="sched-date" type="date" value="'+today+'" onchange="cachedSchedule=null;cachedDate=null;loadSchedule();loadKPI()" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b">'
++'<button class="btn btn-primary btn-sm" onclick="generateSchedule()" style="font-size:12px">'+t('Generate')+'</button>'
++'<button class="btn btn-outline btn-sm" onclick="resyncSchedule()" title="Full regeneration" style="font-size:11px">'+t('Resync')+'</button></div>'
+
++'</div></div>'
++'<div id="schedule-kpis" class="dash-grid" style="margin-bottom:10px"><div class="kpi-card" style="grid-column:1/-1"><span class="spinner"></span>Loading schedule...</div></div>'
++'<div class="chart-row"><div class="chart-panel chart-full" style="overflow-x:auto"><h4>Shift Schedule Grid</h4><div id="schedule-result"><span class="spinner"></span>Loading...</div></div></div>'
++'<div id="swap-msg" style="margin-top:8px;font-size:12px;color:#6b5b4f"></div>'
+
++'<div id="kpi-result" style="margin-top:12px"></div>';
 loadSchedule();
 }
 
@@ -1392,6 +1416,279 @@ var solveRes=await api('/s3/solve',{method:'POST',body:{start_date:sd,days:genDa
 }
 
 function daysToSunday(d){var dow=d.getDay();if(dow===0)return 7;return 7-dow+1;}
+
+
+
+
+
+async function punchEmployee(empId, empName){
+  var pin=prompt('Enter PIN for '+empName+':');
+  if(!pin)return;
+  try{
+    var r=await api('/s3/attendance/punch?emp_id='+empId+'&pin='+pin,{method:'POST'});
+    if(r.status==='ok'){alert(empName+': '+r.message);loadAttendance();}
+    else{alert('Error: '+r.message);}
+  }catch(e){alert('Punch error: '+e.message);}
+}
+
+async function loadKPIRanking(month){
+  var el=document.getElementById('kpi-ranking-result');
+  if(!el)return;
+  el.innerHTML='<span class="spinner"></span> Loading ranking...';
+  try{
+    var r=await api('/s3/kpi/ranking?month='+(month||''));
+    if(r.status!=='ok'){el.innerHTML='<span class="status-dot dot-err"></span>'+(r.message||'Failed');return;}
+    var d=r.data;var s=d.kpi_summary;var rb=d.role_breakdown;
+    var h='';
+    // Top performer card
+    if(s.top_performer){
+      h+='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr)">';
+      h+='<div class="kpi-card" style="border-left:3px solid #f39c12"><div class="kpi-value" style="color:#f39c12;font-size:14px">'+s.top_performer.name+'</div><div class="kpi-label">Top Performer</div></div>';
+      h+='<div class="kpi-card" style="border-left:3px solid #27ae60"><div class="kpi-value" style="color:#27ae60">'+s.top_performer.score.toFixed(1)+'</div><div class="kpi-label">Best Score</div></div>';
+      h+='<div class="kpi-card" style="border-left:3px solid #8b6914"><div class="kpi-value" style="color:#8b6914">'+s.total_employees+'</div><div class="kpi-label">Total Employees</div></div></div>';
+    }
+    // Role breakdown
+    if(rb&&Object.keys(rb).length){
+      h+='<div class="dash-grid" style="margin-top:10px;grid-template-columns:repeat('+Object.keys(rb).length+',1fr)">';
+      var roles=Object.keys(rb);
+      for(var j=0;j<roles.length;j++){
+        var rd=rb[roles[j]];
+        h+='<div class="kpi-card" style="border-left:3px solid #8b6914"><div style="font-size:11px;color:#6b5b4f;text-transform:capitalize">'+roles[j]+'</div><div class="kpi-value" style="font-size:14px">'+rd.top+'</div><div class="kpi-label">Top | Avg: '+rd.avg_score.toFixed(1)+'</div></div>';
+      }
+      h+='</div>';
+    }
+    
+    // Ranking table
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">';
+    h+='<th style="padding:6px 8px;text-align:center;width:40px">#</th><th style="padding:6px 8px;text-align:left">Employee</th><th style="padding:6px 8px;text-align:left">Role</th><th style="padding:6px 8px;text-align:center">Score</th><th style="padding:6px 8px;text-align:center">Pctl</th></tr></thead><tbody>';
+    var ranking=s.ranking||[];
+    for(var i=0;i<ranking.length;i++){
+      var e=ranking[i];
+      var bg=i===0?'#fff8e1':(i%2===0?'#fdfaf5':'#fff');
+      h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
+      h+='<td style="padding:5px 8px;text-align:center;font-weight:700;color:#4a3728">'+e.rank+'</td>';
+      h+='<td style="padding:5px 8px;font-weight:600;color:#4a3728">'+e.name+'</td>';
+      var roleStr=e.evaluated_as?e.role+' ('+e.evaluated_as+')':e.role;
+      h+='<td style="padding:5px 8px;color:#6b5b4f;font-size:11px;text-transform:capitalize">'+roleStr+'</td>';
+      var sc=e.score!=null?e.score.toFixed(1):'-';
+      h+='<td style="padding:5px 8px;text-align:center;font-weight:700;color:#8b6914">'+sc+'</td>';
+      var pct=e.percentile!=null?e.percentile.toFixed(0)+'%':'-';
+      h+='<td style="padding:5px 8px;text-align:center;color:#6b5b4f;font-size:11px">'+pct+'</td></tr>';
+    }
+    h+='</tbody></table>';el.innerHTML=h;
+  setTimeout(function(){
+  if(typeof cachedSummary!=='undefined'&&cachedSummary&&cachedSummary.employee_summary){
+    renderWeeklyHoursChart(cachedSummary.employee_summary);
+  }else{
+    // Fallback: fetch schedule data directly
+    var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-29';
+    api('/s3/schedule?date='+sd+'&days=7').then(function(r){
+      if(r&&r.employee_summary)renderWeeklyHoursChart(r.employee_summary);
+    }).catch(function(){});
+  }
+},500);
+  }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>Error: '+e.message;}
+}
+
+async function loadAttendance(){
+  var el=document.getElementById('attendance-result');
+  var dateEl=document.getElementById('kpi-att-date');
+  el.innerHTML='<span class="spinner"></span> Loading attendance...';
+  try{
+    var r=await api('/s3/attendance');
+    if(r.status!=='ok'){el.innerHTML='<span class="status-dot dot-err"></span>'+ (r.message||'Failed');return;}
+    var ta=r.today_attendance;var emps=ta.employees||[];
+    var statusIcon={on_time:'O',late:'L',absent:'X',present:'P'};
+    var statusColor={on_time:'#27ae60',late:'#f39c12',absent:'#e74c3c',present:'#27ae60'};
+    var statusLabel={on_time:'On Time',late:'Late',absent:'Absent',present:'Present'};
+    if(dateEl)dateEl.textContent='('+ta.date+')';
+
+    var present=ta.present;var absent=ta.absent||0;var late=ta.late||0;
+    var h='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr)">';
+    h+='<div class="kpi-card" style="border-left:3px solid #27ae60"><div class="kpi-value" style="color:#27ae60">'+present+'</div><div class="kpi-label">Present</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #f39c12"><div class="kpi-value" style="color:#f39c12">'+late+'</div><div class="kpi-label">Late</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #e74c3c"><div class="kpi-value" style="color:#e74c3c">'+absent+'</div><div class="kpi-label">Absent</div></div></div>';
+
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">';
+    h+='<th style="padding:6px 10px;text-align:left">Employee</th><th style="padding:6px 10px;text-align:left">Role</th><th style="padding:6px 10px;text-align:center">Shift</th><th style="padding:6px 10px;text-align:center">Status</th><th style="padding:6px 10px;text-align:center">In</th><th style="padding:6px 10px;text-align:center">Out</th><th style="padding:6px 10px;text-align:center">Att%</th><th style="padding:6px 10px;text-align:center">Action</th></tr></thead><tbody>';
+    var monthly=r.monthly_summary||{};
+    for(var i=0;i<emps.length;i++){
+      var e=emps[i];var st=e.status||'absent';
+      var bg=statusColor[st]+'10';
+      h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
+      h+='<td style="padding:5px 10px;font-weight:600;color:#4a3728">'+e.name+'</td>';
+      h+='<td style="padding:5px 10px;color:#6b5b4f;text-transform:capitalize">'+e.role+'</td>';
+      var shiftStr=(e.time_slot||e.shift_start)?(e.time_slot||(e.shift_start+'-'+e.shift_end)):'-';
+      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+shiftStr+'</td>';
+      h+='<td style="padding:5px 10px;text-align:center"><span style="color:'+statusColor[st]+';font-weight:700;font-size:11px">'+statusLabel[st]+'</span></td>';
+      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_in||'-') +'</td>';
+      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_out||'-') +'</td>';
+      var attRate=monthly[e.id]?monthly[e.id].attendance_rate:null;
+      var attStr=attRate!=null?attRate.toFixed(1)+'%':'-';
+      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+attStr+'</td>';
+      var punchLabel=e.punch_in&&!e.punch_out?'Out':'In';
+      h+='<td style="padding:3px 6px;text-align:center"><button onclick="punchEmployee(\x27'+e.id+'\x27,\x27'+e.name+'\x27)" style="background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px">Punch '+punchLabel+'</button></td></tr>';
+    }
+    h+='</tbody></table>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>Error: '+e.message;}
+}
+
+async function loadAttendanceHistory(date){
+  var el=document.getElementById('attendance-result');
+  var dateEl=document.getElementById('kpi-att-date');
+  if(dateEl)dateEl.textContent='('+date+')';
+  el.innerHTML='<span class="spinner"></span> Loading attendance for '+date+'...';
+  try{
+    var r=await api('/s3/attendance/history?date='+date);
+    if(r.status!=='ok'){el.innerHTML='<span class="status-dot dot-err"></span>'+ (r.message||'Failed');return;}
+    var emps=r.employees||[];
+    var statusColor={on_time:'#27ae60',late:'#f39c12',absent:'#e74c3c',present:'#27ae60',off_day:'#999'};
+    var statusLabel={on_time:'On Time',late:'Late',absent:'Absent',present:'Present',off_day:'Off Day'};
+
+    var h='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr)">';
+    h+='<div class="kpi-card" style="border-left:3px solid #27ae60"><div class="kpi-value" style="color:#27ae60">'+r.present+'</div><div class="kpi-label">Present</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #f39c12"><div class="kpi-value" style="color:#f39c12">'+r.late+'</div><div class="kpi-label">Late</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #e74c3c"><div class="kpi-value" style="color:#e74c3c">'+r.absent+'</div><div class="kpi-label">Absent</div></div></div>';
+
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">';
+    h+='<th style="padding:6px 10px;text-align:left">Employee</th><th style="padding:6px 10px;text-align:left">Role</th><th style="padding:6px 10px;text-align:center">Shift</th><th style="padding:6px 10px;text-align:center">Status</th><th style="padding:6px 10px;text-align:center">In</th><th style="padding:6px 10px;text-align:center">Out</th><th style="padding:6px 10px;text-align:center">Att%</th></tr></thead><tbody>';
+    for(var i=0;i<emps.length;i++){
+      var e=emps[i];var st=e.status||'absent';
+      var bg=statusColor[st]+'10';
+      h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
+      h+='<td style="padding:5px 10px;font-weight:600;color:#4a3728">'+e.name+'</td>';
+      h+='<td style="padding:5px 10px;color:#6b5b4f;text-transform:capitalize">'+e.role+'</td>';
+      var shiftStr=(e.time_slot||e.shift_start)?(e.time_slot||(e.shift_start+'-'+e.shift_end)):'-';
+      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+shiftStr+'</td>';
+      h+='<td style="padding:5px 10px;text-align:center"><span style="color:'+statusColor[st]+';font-weight:700;font-size:11px">'+statusLabel[st]+'</span></td>';
+      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_in||'-') +'</td>';
+      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_out||'-') +'</td>'; var attRate=e.attendance_rate; var attStr=attRate!=null?attRate.toFixed(1)+'%':'-'; h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+attStr+'</td></tr>';
+    }
+    h+='</tbody></table>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>Error: '+e.message;}
+}
+
+
+
+async function loadMaterials(){
+  var el=document.getElementById('materials-result');
+  el.innerHTML='<span class="spinner"></span> Loading procurement...';
+  try{
+    var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:new Date().toISOString().slice(0,10);
+    var r=await api('/s3/materials?date='+sd);
+    if(r.status!=='ok'){el.innerHTML='<span class="status-dot dot-err"></span>'+ (r.message||'Failed');return;}
+    var dm=r.dashboard_materials;var items=dm.items||{};
+    var keys=Object.keys(items);
+    if(!keys.length){el.innerHTML='<span class="status-dot dot-warn"></span>No materials data';return;}
+
+    var totalOrder=0;
+    var h='<div style="margin-top:4px"><strong style="font-size:13px;color:#4a3728">Material Procurement</strong></div>';
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px"><thead><tr style="background:#f5f0e8">';
+    h+='<th style="padding:6px 8px;text-align:left">Material</th><th style="padding:6px 8px;text-align:right">Weekly Need</th><th style="padding:6px 8px;text-align:right">Stock</th><th style="padding:6px 8px;text-align:right">To Order</th><th style="padding:6px 8px;text-align:center">Status</th></tr></thead><tbody>';
+    for(var i=0;i<keys.length;i++){
+      var it=items[keys[i]];
+      var alertColors={urgent:'#fce4e4',order:'#fff8e1',ok:'#e8f5e9'};
+      var alertText={urgent:'Urgent',order:'Order',ok:'OK'};
+      var alertCol={urgent:'#e74c3c',order:'#f39c12',ok:'#27ae60'};
+      var bg=alertColors[it.alert]||'#fff';
+      var needStr=it.weekly_need.toFixed(1)+' '+it.unit;
+      var stockStr=it.current_stock.toFixed(2)+' '+it.unit;
+      var orderStr=it.to_order>0?'<strong style="color:#e74c3c">'+it.to_order.toFixed(1)+' '+it.unit+'</strong>':'-';
+      if(it.to_order>0)totalOrder++;
+      h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
+      h+='<td style="padding:6px 8px;font-weight:600;color:#4a3728">'+keys[i]+'</td>';
+      h+='<td style="padding:6px 8px;text-align:right;color:#6b5b4f">'+needStr+'</td>';
+      h+='<td style="padding:6px 8px;text-align:right;color:#6b5b4f">'+stockStr+'</td>';
+      h+='<td style="padding:6px 8px;text-align:right">'+orderStr+'</td>';
+      h+='<td style="padding:6px 8px;text-align:center"><span style="color:'+alertCol[it.alert]+';font-weight:700;font-size:11px">'+alertText[it.alert]+'</span></td></tr>';
+    }
+    h+='</tbody></table>';
+    if(totalOrder>0){h+='<div style="margin-top:4px;font-size:11px;color:#e74c3c">'+totalOrder+' materials need reorder</div>';}
+    h+='<div style="margin-top:2px;font-size:10px;color:#999">Waste rate: '+(dm.waste_rate_default*100).toFixed(0)+'% | Week: '+dm.week+'</div>';
+    el.innerHTML=h;var matlEl=document.getElementById('fc-kpi-matl');if(matlEl)matlEl.textContent=totalOrder;
+  }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>Error: '+e.message;}
+}
+
+
+async function loadProdPlan(){
+  var el=document.getElementById('prod-plan-result');
+  el.innerHTML='<span class="spinner"></span> Loading production plan...';
+  try{
+    var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:new Date().toISOString().slice(0,10);
+    var r=await api('/s3/plan/7day?date='+sd);
+    if(r.status!=='ok'){el.innerHTML='<span class="status-dot dot-err"></span>'+ (r.message||'Failed to load plan');return;}
+    var d7=r.dashboard_7day;var ws=r.weekly_summary;var buff=d7.buffer_applied||1;
+    var grid=d7.grid||[];var dates=d7.dates||[];
+    if(!grid.length){el.innerHTML='<span class="status-dot dot-warn"></span>No production plan data';return;}
+
+    var totalBake=ws.total_bake||0;
+    var totalRev=0,totalProfit=0,totalWaste=0,sumCap=0;
+    for(var i=0;i<grid.length;i++){
+      totalRev+=grid[i].revenue||0;
+      totalProfit+=grid[i].profit||0;
+      totalWaste+=grid[i].waste_units||0;
+      sumCap+=grid[i].capacity_pct||0;
+    }
+    var avgCap=grid.length>0?(sumCap/grid.length).toFixed(1):'0.0';
+
+    // === BI KPI Cards Row ===
+    var h='<div class="dash-grid" style="margin-bottom:16px">';
+    h+='<div class="kpi-card" style="border-left:3px solid #8b6914"><div class="kpi-value" style="color:#8b6914;font-size:20px">'+totalBake+'</div><div class="kpi-label">Weekly Bake Total</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #27ae60"><div class="kpi-value" style="color:#27ae60;font-size:20px">'+formatMoney(totalRev)+'</div><div class="kpi-label">Weekly Revenue</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #2d6a4f"><div class="kpi-value" style="color:#2d6a4f;font-size:20px">'+formatMoney(totalProfit)+'</div><div class="kpi-label">Weekly Profit</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #d35400"><div class="kpi-value" style="color:#d35400;font-size:20px">'+totalWaste+'</div><div class="kpi-label">Weekly Waste (units)</div></div>';
+    h+='<div class="kpi-card" style="border-left:3px solid #2980b9"><div class="kpi-value" style="color:#2980b9;font-size:20px">'+avgCap+'%</div><div class="kpi-label">Avg Capacity</div></div>';
+    h+='</div>';
+
+    // === ECharts: Daily Production Bar Chart ===
+    // Collect top 8 products across the week
+    var prodTotals={};
+    for(var i=0;i<grid.length;i++){
+      var bp=grid[i].bake_plan||{};
+      var keys=Object.keys(bp);
+      for(var k=0;k<keys.length;k++){prodTotals[keys[k]]=(prodTotals[keys[k]]||0)+bp[keys[k]];}
+    }
+    var topProds=Object.entries(prodTotals).sort(function(a,b){return b[1]-a[1];}).slice(0,8).map(function(x){return x[0];});
+
+    // Build series per product
+    var seriesData=[];
+    for(var p=0;p<topProds.length;p++){
+      var pn=topProds[p];
+      var vals=[];
+      for(var d=0;d<grid.length;d++){vals.push((grid[d].bake_plan||{})[pn]||0);}
+      var label=pn.replace(/_/g,' ').replace(/\b\w/g,function(x){return x.toUpperCase();});
+      seriesData.push({name:label,type:'bar',stack:'total',data:vals,emphasis:{focus:'series'},itemStyle:{borderRadius:0}});
+    }
+
+    h+='<div class="chart-row"><div class="chart-panel chart-full">';
+    h+='<h4>Daily Production Breakdown <span style="font-size:11px;color:#8b6914;font-weight:400">(top 8 products)</span></h4>';
+    h+='<div id="prod-chart" style="height:300px"></div></div></div>';
+
+    el.innerHTML=h;var planEl=document.getElementById('fc-kpi-plan');if(planEl)planEl.textContent=totalBake;
+
+    // Render chart
+    setTimeout(function(){
+      var chartDom=document.getElementById('prod-chart');
+      if(!chartDom)return;
+      var myChart=echarts.init(chartDom);
+      var shortDates=dates.map(function(d){return d.slice(5);});
+      myChart.setOption({
+        tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(ps){var s=ps[0].axisValue+'<br/>';for(var i=0;i<ps.length;i++){if(ps[i].value>0)s+=ps[i].marker+' '+ps[i].seriesName+': '+ps[i].value+'<br/>';}return s;}},
+        legend:{type:'scroll',bottom:0,textStyle:{fontSize:10,color:'#666'}},
+        grid:{left:45,right:15,top:15,bottom:40},
+        xAxis:{type:'category',data:shortDates,axisLabel:{fontSize:11,color:'#666'}},
+        yAxis:{type:'value',name:'Units',nameTextStyle:{fontSize:10,color:'#888'},axisLabel:{fontSize:10,color:'#888'}},
+        series:seriesData,
+        color:['#8b6914','#a67c1e','#c49529','#d4a535','#c19b3d','#ae8c35','#9b7d2d','#886e24']
+      });
+      window.addEventListener('resize',function(){myChart.resize();});
+    },100);
+
+  }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>Error: '+e.message;}
+}
+
 
 async function loadSchedule(){
 var el=document.getElementById('schedule-result');
@@ -1652,6 +1949,24 @@ async function fetchInventoryDashboard(){
         else{alert('Restock failed');}
       }catch(e){alert('Restock error: '+e.message);}
     }
+
+
+
+function renderKPI(c){
+  var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var thisMonth=today.substring(0,7);
+  c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="loadAttendance()" style="font-size:12px">Today</button>'
+    +'<input type="date" id="att-hist-date" value="'+today+'" onchange="loadAttendanceHistory(this.value)" style="padding:5px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b">'
+    +'</div></div>'
+    +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Attendance <span id="kpi-att-date"></span></h4><div id="attendance-result"><span class="spinner"></span>Loading...</div></div></div>'
+    +'<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0;color:#4a3728">Monthly KPI Ranking</h4><div style="display:flex;align-items:center;gap:6px"><input type="month" id="kpi-ranking-month" value="'+thisMonth+'" onchange="loadKPIRanking(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b"></div></div>'
+    +'<div id="kpi-ranking-result"><span class="spinner"></span>Loading ranking...</div></div>'
+    +'';
+  loadAttendance();
+  loadKPIRanking(thisMonth);
+}
+
 function renderWastage(c){
 var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 c.innerHTML='<div class="panel" style="flex:1"><h4>Raw Material Inventory Check</h4>'
@@ -2242,18 +2557,52 @@ document.getElementById('edit-qty').value=d.quantity;
 document.querySelector('#edit-modal h3').textContent='Edit Inflow Item';
 document.getElementById('edit-modal').classList.add('show');
 }
+function renderWeeklyHoursChart(es,optEl){
+var el=optEl||document.getElementById('weekly-hours-chart')||document.getElementById('weekly-hours-chart-fallback');
+if(!el||!es)return;
+var names=[],hours=[],roles=[];
+var ids=Object.keys(es);ids.sort(function(a,b){return (es[b].hours||0)-(es[a].hours||0);});
+for(var i=0;i<ids.length;i++){
+  var e=es[ids[i]];names.push(e.name);hours.push(e.hours||0);roles.push(e.role);
+}
+var roleColors={baker:'#c8956c',cashier:'#5b8c5a',barista:'#6c5ce7',manager:'#e74c3c'};
+var chart=echarts.init(el);
+chart.setOption({
+  tooltip:{trigger:'axis',formatter:function(p){var d=p[0];return d.name+': <b>'+d.value+'h</b> ('+roles[d.dataIndex]+')';}},
+  grid:{left:'12%',right:'8%',top:12,bottom:24},
+  xAxis:{type:'value',name:'Hours',nameLocation:'end',axisLabel:{fontSize:11}},
+  yAxis:{type:'category',data:names.reverse(),axisLabel:{fontSize:11,fontWeight:'bold',color:'#4a3728'}},
+  series:[{type:'bar',data:hours.reverse().map(function(v,i){return {value:v,itemStyle:{color:roleColors[roles[roles.length-1-i]]||'#c8956c'}};}),barWidth:'60%',label:{show:true,position:'right',fontSize:11,fontWeight:'bold',formatter:'{c}h'}}]
+});
+setTimeout(function(){chart.resize();},200);
+}
+
 function renderScheduleTable(s,r){
 if(!s||!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No feasible schedule. Too many sick or skill gaps. Try different date.';return}
+// KPI cards
+var kpiEl=document.getElementById('schedule-kpis');
+if(kpiEl){
+var es=r&&r.employee_summary?r.employee_summary:{};
+var totalShifts=s.length;
+var empCount=Object.keys(es).length;
+var totalHrs=0;var empIds=Object.keys(es);for(var h=0;h<empIds.length;h++)totalHrs+=es[empIds[h]].hours||0;
+var avgHrs=empCount>0?(totalHrs/empCount).toFixed(1):'0';
+var cards='<div class="kpi-card"><div class="kpi-value">'+totalShifts+'</div><div class="kpi-label">Total Shifts</div></div>'
++'<div class="kpi-card"><div class="kpi-value">'+empCount+'</div><div class="kpi-label">Employees</div></div>'
++'<div class="kpi-card"><div class="kpi-value">'+totalHrs+'</div><div class="kpi-label">Total Hours</div></div>'
++'<div class="kpi-card"><div class="kpi-value">'+avgHrs+'</div><div class="kpi-label">Avg Hrs/Emp</div></div>';
+kpiEl.innerHTML=cards;
+}
 var slots=['06:00-13:00','12:00-19:00'];
 var dates=[],seen={};for(var i=0;i<s.length;i++){if(!seen[s[i].date]){dates.push(s[i].date);seen[s[i].date]=true;}}dates.sort();
-var tbl='<table class="sched-table" style="font-size:14px"><thead><tr><th>Time</th>';
-for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');tbl+='<th>'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
+var tbl='<table class="sched-table" style="font-size:13px"><thead><tr><th style="padding:6px 10px">Time</th>';
+for(var i=0;i<dates.length;i++){var dd=new Date(dates[i]+'T00:00:00');tbl+='<th style="padding:6px 8px">'+dates[i].slice(5)+'<br><small>'+dd.toLocaleDateString('en-US',{weekday:'short'})+'</small></th>';}
 tbl+='</tr></thead><tbody>';
-for(var si=0;si<slots.length;si++){var slot=slots[si];tbl+='<tr><td><strong>'+slot+'</strong></td>';
-for(var di=0;di<dates.length;di++){var d=dates[di];tbl+='<td>';
+for(var si=0;si<slots.length;si++){var slot=slots[si];tbl+='<tr><td style="padding:8px 10px"><strong>'+slot+'</strong></td>';
+for(var di=0;di<dates.length;di++){var d=dates[di];tbl+='<td style="padding:6px">';
 var found=false;
 for(var i=0;i<s.length;i++){if(s[i].date===d&&s[i].time_slot===slot){
-var dl=s[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';var empInfo=(r&&r.employee_summary)?r.employee_summary[s[i].employee_id]:null;var secRoles=empInfo&&empInfo.secondary_roles?empInfo.secondary_roles:[];var dualBadge=secRoles.length?' <span style="font-size:9px;background:#6c5ce7;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px" title="Also: '+secRoles.join(', ')+'">+'+secRoles.join('+')+'</span>':'';tbl+='<div class="shift-cell" style="font-size:13px"><strong>'+s[i].employee_name+'</strong>'+ (s[i].is_deputy?' <span style="font-size:9px;background:#8b6914;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px">DEPUTY</span>':'') +dualBadge+'<br>'+s[i].role+' <span style="font-size:10px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span><br>';
+var dl=s[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';var empInfo=(r&&r.employee_summary)?r.employee_summary[s[i].employee_id]:null;var secRoles=empInfo&&empInfo.secondary_roles?empInfo.secondary_roles:[];var dualBadge=secRoles.length?' <span style="font-size:9px;background:#6c5ce7;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px" title="Also: '+secRoles.join(', ')+'">+'+secRoles.join('+')+'</span>':'';tbl+='<div class="shift-cell" style="font-size:12px;padding:6px"><strong>'+s[i].employee_name+'</strong>'+ (s[i].is_deputy?' <span style="font-size:9px;background:#8b6914;color:#fff;padding:1px 3px;border-radius:3px;margin-left:2px">DEPUTY</span>':'') +dualBadge+'<br>'+s[i].role+' <span style="font-size:9px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+dl+'</span><br>';
 tbl+=' <button class="sick-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" data-slot="'+s[i].time_slot+'" style="color:#e74c3c;background:none;border:none;cursor:pointer;font-size:11px">Sick</button>';
 tbl+=' <button class="swap-btn" data-eid="'+s[i].employee_id+'" data-ename="'+s[i].employee_name+'" data-date="'+d+'" data-slot="'+slot+'" data-role="'+s[i].role+'" style="color:#8b6914;background:none;border:none;cursor:pointer;font-size:11px">Swap</button>';
 tbl+='</div>';found=true;}}
@@ -2272,64 +2621,64 @@ async function loadKPI(){
     var sd=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-01';
     var kpiDays=daysToSunday(new Date(sd+'T00:00:00'));var r=await api('/s3/kpi?days='+kpiDays+'&start_date='+sd);
     if(r.status!=='ok'){el.innerHTML=t('KPI error')+': '+ (r.message||'unknown error');return}
-    var s=r.summary||{};var comp=r.compliance||{};var fair=r.fairness||{};var cov=r.coverage||[];
-    var h='<div style="margin-top:12px">';
-    h+='<strong>'+t('KPI')+'</strong> <span style="font-size:11px;color:#8b7355">('+r.period.start+' to '+r.period.end+', '+r.period.working_days+' working days)</span>';
-    // Summary cards
-    h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">';
-    var cards=[{l:'Total Hours',v:s.total_hours},{l:'Avg Hrs/Emp',v:s.avg_hours_per_emp},{l:'Employees',v:s.employees_scheduled}];
-    for(var i=0;i<cards.length;i++){
-      h+='<div style="flex:1;min-width:80px;background:#f0e8d8;border-radius:8px;padding:10px;text-align:center;border:1px solid #e0d5c7">';
-      h+='<div style="font-size:11px;color:#8b7355">'+cards[i].l+'</div>';
-      h+='<div style="font-size:20px;font-weight:700;color:#4a3728;margin-top:2px">'+cards[i].v+'</div></div>';
-    }
-    var viols=comp.violations||[];
-    if(viols.length){
-    h+='<div style="flex:1;min-width:100px;background:#fce4e4;border-radius:8px;padding:10px;text-align:center;border:1px solid #f5c6cb">';
-    h+='<div style="font-size:11px;color:#8b7355">Compliance</div>';
-    h+='<div style="font-size:14px;font-weight:700;margin-top:2px"><span style="color:#e74c3c">'+viols.length+' violations</span></div></div>';
-    }
-    h+='</div>';
-    // Employee coverage table
+    var s=r.summary||{};var comp=r.compliance||{};var fair=r.fairness||{};var cov=r.coverage||[];var viols=comp.violations||[];
+
+    // Period header
+    var h='<div style="margin-bottom:4px"><span style="font-size:13px;font-weight:600;color:#4a3728">Schedule KPIs</span><span style="font-size:11px;color:#8b6914;margin-left:8px">'+r.period.start+' - '+r.period.end+' ('+r.period.working_days+' working days)</span></div>';
+
+    // // Coverage Table (BI styled)
     if(cov.length){
-      h+='<div style="margin-top:10px"><strong style="font-size:13px">Employee Coverage</strong></div>';
-      h+='<table style="width:100%;margin-top:6px;border-collapse:collapse;font-size:12px">';
-      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">'+t('Employee')+'</th><th style="padding:4px 8px;text-align:left">'+t('Role')+'</th><th style="padding:4px 8px;text-align:right">'+t('Actual')+'</th> (shifts)</th><th style="padding:4px 8px;text-align:right">'+t('Expected (shifts)')+'</th><th style="padding:4px 8px;text-align:right">'+t('Extra')+'</th><th style="padding:4px 8px;text-align:right">'+t('Rate')+'</th></tr></thead><tbody>';
+      h+='<div class="chart-row"><div class="chart-panel" style="flex:3"><h4>Employee Coverage</h4>';
+      h+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+      h+='<thead><tr style="background:#f5f0e8"><th style="padding:6px 10px;text-align:left">Employee</th><th style="padding:6px 10px;text-align:left">Role</th><th style="padding:6px 10px;text-align:right">Filled</th><th style="padding:6px 10px;text-align:right">Expected</th><th style="padding:6px 10px;text-align:right">Extra</th><th style="padding:6px 10px;text-align:right">Rate</th></tr></thead><tbody>';
       for(var i=0;i<cov.length;i++){
         var e=cov[i];var rate=e.rate_pct||0;
-        var rc=rate>=90?'#d4edda':rate>=70?'#fff3cd':'#fce4e4';
-        var rtc=rate>=90?'#27ae60':rate>=70?'#e67e22':'#e74c3c';
+        var bg=i%2===0?'#fdfaf5':'#fff';
+        var rc=rate>=95?'#27ae60':rate>=80?'#e67e22':'#e74c3c';
         var extra=e.extra_shifts||0;var extraStr=extra>0?'<span style="color:#27ae60;font-weight:700">+'+extra+'</span>':'-';
-        h+='<tr style="background:'+rc+'"><td style="padding:4px 8px;font-weight:600">'+e.employee+'</td><td style="padding:4px 8px;color:#8b7355">'+e.role+'</td><td style="padding:4px 8px;text-align:right">'+e.filled+'</td><td style="padding:4px 8px;text-align:right">'+e.expected+'</td><td style="padding:4px 8px;text-align:right">'+extraStr+'</td><td style="padding:4px 8px;text-align:right;font-weight:700;color:'+rtc+'">'+rate+'%</td></tr>';
+        var rateStr=rate+'<span style="font-size:9px">%</span>';
+        h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'"><td style="padding:5px 10px;font-weight:600;color:#4a3728">'+e.employee+'</td><td style="padding:5px 10px;color:#8b7355">'+e.role+'</td><td style="padding:5px 10px;text-align:right;font-weight:600">'+e.filled+'</td><td style="padding:5px 10px;text-align:right;color:#888">'+e.expected+'</td><td style="padding:5px 10px;text-align:right">'+extraStr+'</td><td style="padding:5px 10px;text-align:right;font-weight:700;color:'+rc+'">'+rateStr+'</td></tr>';
       }
-      h+='</tbody></table>';
-    }
-    // Fairness table (same-role only, excludes dual-role)
-    var fairRoles=Object.keys(fair);
-    if(fairRoles.length){
-      h+='<table style="width:100%;margin-top:10px;border-collapse:collapse;font-size:12px">';
-      h+='<thead><tr style="background:#f0e8d8"><th style="padding:4px 8px;text-align:left">'+t('Role')+'</th><th style="padding:4px 8px;text-align:left">'+t('Employees')+'</th><th style="padding:4px 8px">'+t('Gap (hrs)')+'</th><th style="padding:4px 8px">'+t('Fair')+'</th></tr></thead><tbody>';
-      for(var i=0;i<fairRoles.length;i++){
-        var f=fair[fairRoles[i]];var ok=f.fair?'<span style="color:#27ae60">Yes</span>':'<span style="color:#e74c3c">No</span>';
-        var emps=f.employees||{};var empStr=Object.entries(emps).map(function(e){return e[0]+' '+e[1]+'h'}).join(', ');
-        h+='<tr><td style="padding:4px 8px;font-weight:600">'+fairRoles[i]+'</td><td style="padding:4px 8px;text-align:left">'+empStr+'</td><td style="padding:4px 8px;text-align:center">'+f.gap_hours+'</td><td style="padding:4px 8px;text-align:center">'+ok+'</td></tr>';
-      }
-      h+='</tbody></table>';
-    }
-    // Violations
-    if(viols.length){
-      h+='<div style="margin-top:8px;padding:8px;background:#fef5f5;border-radius:6px;border:1px solid #f5c6cb">';
-      h+='<strong style="font-size:12px;color:#e74c3c">Violations</strong>';
-      h+='<table style="width:100%;margin-top:4px;border-collapse:collapse;font-size:11px">';
-      for(var i=0;i<viols.length;i++){h+='<tr><td style="padding:3px 8px">'+viols[i].employee+'</td><td style="padding:3px 8px">'+viols[i].type+'</td></tr>';}
-      h+='</table></div>';
-    }
+      h+='</tbody></table></div>';
+
+      // Weekly Hours Chart side by side
+      h+='<div class="chart-panel" style="flex:7"><h4>Weekly Hours per Employee</h4><div id="weekly-hours-chart" style="height:300px"></div></div>';
     h+='</div>';
+    }
+
+    // Weekly Hours Chart fallback (only shown when coverage is empty)
+    if(!cov.length){
+    h+='<div class="chart-row" style="margin-top:12px"><div class="chart-panel chart-full"><h4>Weekly Hours per Employee</h4><div id="weekly-hours-chart-fallback" style="height:300px"></div></div></div>';
+    }
+
+    // === Violations ===
+    if(viols.length){
+      h+='<div class="chart-row" style="margin-top:8px"><div class="chart-panel chart-full"><h4>Compliance Violations</h4>';
+      h+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+      h+='<thead><tr style="background:#fce4e4"><th style="padding:5px 10px;text-align:left">Employee</th><th style="padding:5px 10px;text-align:left">Violation</th></tr></thead><tbody>';
+      for(var i=0;i<viols.length;i++){
+        h+='<tr style="border-bottom:1px solid #f5c6cb"><td style="padding:4px 10px;font-weight:600">'+viols[i].employee+'</td><td style="padding:4px 10px;color:#e74c3c">'+viols[i].type+'</td></tr>';
+      }
+      h+='</tbody></table></div></div>';
+    }
+
     el.innerHTML=h;
+  setTimeout(function(){
+    var sd2=document.getElementById('sched-date')?document.getElementById('sched-date').value:'2026-06-29';
+    api('/s3/schedule?date='+sd2+'&days=7').then(function(resp){
+      if(resp&&resp.employee_summary){
+        // Try primary div first (inside coverage row), fallback to standalone
+        var chartEl=document.getElementById('weekly-hours-chart')||document.getElementById('weekly-hours-chart-fallback');
+        if(chartEl)renderWeeklyHoursChart(resp.employee_summary,chartEl);
+      }
+    }).catch(function(){});
+  },400);
   }catch(e){el.innerHTML='KPI error: '+e.message;}
 }
-var EMPLOYEES=[{id:'E001',name:'Ali',role:'baker'},{id:'E002',name:'Mei',role:'cashier'},{id:'E003',name:'Raj',role:'barista',sec:['cashier']},{id:'E004',name:'Siti',role:'baker'},{id:'E005',name:'Ahmad',role:'baker',deputy:true},{id:'E006',name:'Priya',role:'baker'},{id:'E007',name:'Kumar',role:'baker'},{id:'E008',name:'David',role:'baker'},{id:'E009',name:'Chen',role:'barista',sec:['cashier']},{id:'E010',name:'Fatima',role:'manager'}];
-// Event delegation for sick/swap buttons (on document since schedule-result is recreated)
+
+
+
+var EMPLOYEES=[{id:'E001',name:'Zhang Wei',role:'baker'},{id:'E002',name:'Li Na',role:'cashier'},{id:'E003',name:'Wang Lei',role:'barista',sec:['cashier']},{id:'E004',name:'Liu Yang',role:'baker'},{id:'E005',name:'Chen Hao',role:'baker',deputy:true},{id:'E006',name:'Zhao Min',role:'baker'},{id:'E007',name:'Huang Jian',role:'baker'},{id:'E008',name:'Wu Tao',role:'baker'},{id:'E009',name:'Lin Yue',role:'barista',sec:['cashier']},{id:'E010',name:'Sun Jie',role:'manager'}];
 document.addEventListener('click',function(e){
 var btn=e.target.closest('button');
 if(!btn)return;
@@ -2351,9 +2700,8 @@ startSwap(eid,ename,d,slot,role);
 }
 });
 
-
-// === B1 Alert functions ===
 var alertPollTimer=null;
+
 function startAlertPoll(){
   if(alertPollTimer)clearInterval(alertPollTimer);
   pollAlertCount();

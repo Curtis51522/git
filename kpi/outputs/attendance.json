@@ -1,0 +1,146 @@
+{
+  "records": [
+    {
+      "id": "E001",
+      "name": "Ali",
+      "role": "baker",
+      "date": "2026-06-28",
+      "punch_in": "21:44",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E002",
+      "name": "Mei",
+      "role": "cashier",
+      "date": "2026-06-28",
+      "punch_in": "21:44",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E003",
+      "name": "Raj",
+      "role": "barista",
+      "date": "2026-06-28",
+      "punch_in": "21:44",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E004",
+      "name": "Siti",
+      "role": "baker",
+      "date": "2026-06-28",
+      "punch_in": "21:45",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E005",
+      "name": "Ahmad",
+      "role": "baker",
+      "date": "2026-06-28",
+      "punch_in": "21:45",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E006",
+      "name": "Priya",
+      "role": "baker",
+      "date": "2026-06-28",
+      "punch_in": "21:45",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E007",
+      "name": "Kumar",
+      "role": "baker",
+      "date": "2026-06-28",
+      "punch_in": "21:45",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E008",
+      "name": "David",
+      "role": "baker",
+      "date": "2026-06-28",
+      "punch_in": "21:45",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E009",
+      "name": "Chen",
+      "role": "barista",
+      "date": "2026-06-28",
+      "punch_in": "21:45",
+      "punch_out": null,
+      "status": "present"
+    },
+    {
+      "id": "E010",
+      "name": "Fatima",
+      "role": "manager",
+      "date": "2026-06-28",
+      "punch_in": "21:45",
+      "punch_out": null,
+      "status": "present"
+    }
+  ],
+  "employees": {
+    "E001": {
+      "name": "Ali",
+      "role": "baker",
+      "pin": "1001"
+    },
+    "E002": {
+      "name": "Mei",
+      "role": "cashier",
+      "pin": "1002"
+    },
+    "E003": {
+      "name": "Raj",
+      "role": "barista",
+      "pin": "1003"
+    },
+    "E004": {
+      "name": "Siti",
+      "role": "baker",
+      "pin": "1004"
+    },
+    "E005": {
+      "name": "Ahmad",
+      "role": "baker",
+      "pin": "1005"
+    },
+    "E006": {
+      "name": "Priya",
+      "role": "baker",
+      "pin": "1006"
+    },
+    "E007": {
+      "name": "Kumar",
+      "role": "baker",
+      "pin": "1007"
+    },
+    "E008": {
+      "name": "David",
+      "role": "baker",
+      "pin": "1008"
+    },
+    "E009": {
+      "name": "Chen",
+      "role": "barista",
+      "pin": "1009"
+    },
+    "E010": {
+      "name": "Fatima",
+      "role": "manager",
+      "pin": "1010"
+    }
+  }
+}

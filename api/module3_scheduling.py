@@ -163,9 +163,9 @@ def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
             total = item["total_units"]
             if total == 0:
                 daily[d]["demand_level"] = "low"  # closed day
-            elif total >= 250:
+            elif total >= 400:
                 daily[d]["demand_level"] = "high"
-            elif total >= 130:
+            elif total >= 200:
                 daily[d]["demand_level"] = "normal"
             else:
                 daily[d]["demand_level"] = "low"
@@ -242,11 +242,11 @@ def solve_shift_schedule(
         fc = demand_forecast.get(date_str, {})
         level = fc.get("demand_level", "normal")
         if level == "high":
-            req = {"baker": 5, "cashier": 2, "barista": 1, "manager": 1, "_level": "high"}
+            req = {"baker": 5, "cashier": 2, "barista": 1, "manager": 0, "_level": "high"}
         elif level == "low":
             req = {"baker": 2, "cashier": 1, "barista": 1, "manager": 0, "_level": "low"}
         else:  # normal
-            req = {"baker": 3, "cashier": 1, "barista": 1, "manager": 1, "_level": "normal"}  # dual-role allowed
+            req = {"baker": 3, "cashier": 1, "barista": 1, "manager": 0, "_level": "normal"}  # dual-role allowed
         
         # Clamp to available employees per role (skip manager: 1 person can do both slots)
         for role in ROLES:
@@ -323,16 +323,7 @@ def solve_shift_schedule(
                 elif role_name == "barista":
                     model.Add(sum(slot_shifts) == 1)  # always 1 barista per slot
 
-    # --- High days: NO dual-role (everyone sticks to primary role) ---
-    for d in range(num_days):
-        if daily_demand[d].get("_level") == "high":
-            for e_idx in range(num_employees):
-                emp = emp_idx_map[e_idx]
-                sec = getattr(emp, "secondary_roles", []) or []
-                for s in range(num_slots):
-                    for sec_role in sec:
-                        r_idx = ROLES.index(sec_role)
-                        model.Add(shift[(e_idx, d, s, r_idx)] == 0)
+    # --- High days: dual-role allowed (baristas can cashier) ---
 
     # --- Manager + Deputy coverage ---
     mgr_r_idx = ROLES.index("manager")
@@ -383,15 +374,15 @@ def solve_shift_schedule(
         actual = min(bakers_per_slot, baker_count)
         morning_shifts = [shift[(e_idx, d, MORNING_SLOT, r_idx)]
                           for e_idx in range(num_employees)]
-        model.Add(sum(morning_shifts) == actual)
+        model.Add(sum(morning_shifts) >= actual)
         afternoon_shifts = [shift[(e_idx, d, AFTERNOON_SLOT, r_idx)]
                             for e_idx in range(num_employees)]
-        model.Add(sum(afternoon_shifts) == actual)
+        model.Add(sum(afternoon_shifts) >= actual)
         # Daily total: bakers_per_slot * 2
         day_total = [shift[(e_idx, d, s, r_idx)]
                      for s in range(num_slots)
                      for e_idx in range(num_employees)]
-        model.Add(sum(day_total) == actual * 2)
+        model.Add(sum(day_total) >= actual * 2)
     # --- Constraint 4: At most 2 shifts per employee per day ---
     for e_idx in range(num_employees):
         for d in range(num_days):
@@ -448,31 +439,14 @@ def solve_shift_schedule(
                     for r in range(num_roles):
                         model.Add(shift[(e_idx, d, s, r)] == 0)
 
-    # --- Objective: balance hours ---
-    hour_vars = []
-    for e_idx in range(num_employees):
-        h = sum(
-            shift[(e_idx, d, s, r)] * SLOT_HOURS[TIME_SLOTS[s]]
-            for d in range(num_days) for s in range(num_slots) for r in range(num_roles)
-        )
-        hour_vars.append(h)
-
-    avg_hours = model.NewIntVar(0, 56, "avg_hours")
-    # Floor division: avg_hours = floor(sum / num_employees)
-    model.Add(avg_hours * num_employees <= sum(hour_vars))
-    model.Add(sum(hour_vars) < (avg_hours + 1) * num_employees)
-
-    max_dev = model.NewIntVar(0, 56, "max_dev")
-    for h in hour_vars:
-        model.Add(h - avg_hours <= max_dev)
-        model.Add(avg_hours - h <= max_dev)
-    model.Minimize(max_dev)
+    # --- Objective: balance hours (DISABLED for solver speed) ---
+    # Objective removed to improve solver performance on mixed N/H weeks
 
     # --- Solve ---
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 30  # increased for larger model
+    solver.parameters.max_time_in_seconds = 300  # increased for larger model
     solver.parameters.random_seed = 42
-    solver.parameters.num_search_workers = 1
+    solver.parameters.num_search_workers = 4
     status = solver.Solve(model)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         logger = logging.getLogger("s3.solver")

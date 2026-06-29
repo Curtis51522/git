@@ -1,6 +1,7 @@
-import os, sys, asyncio, time
+import os, sys, asyncio, time, math
 import json
 import logging
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import threading
 from collections import OrderedDict
@@ -12,28 +13,84 @@ from typing import Optional, Dict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import PRODUCT_TYPES, FORECAST_FEATURE_COLS
-from api.weather import get_weather
-import holidays
-from hijri_converter import convert
 from db.mysql_client import get_db, q
 from models.schemas import SalesForecast
 
 logger = logging.getLogger("s2.forecast")
 
-_my_holidays = holidays.MY()
-
-def _is_ramadan_date(dt):
-    """Check if a Gregorian date falls within Ramadan (Hijri month 9)."""
-    try:
-        h = convert.Gregorian(dt.year, dt.month, dt.day).to_hijri()
-        return h.month == 9
-    except Exception:
-        return False
-
 router = APIRouter(prefix="/s2", tags=["Module 2 - Sales Forecast"])
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_DIR = os.path.join(ROOT, "models", "xgboost")
+MODEL_DIR = os.path.join(ROOT, "s2_forecasting", "outputs")
+
+# Frozen training data metadata (lag features + weather monthly averages)
+# Used when live DB has insufficient recent sales data.
+_frozen_meta = None
+
+def _init_frozen_meta():
+    global _frozen_meta
+    if _frozen_meta is not None:
+        return
+    train_path = os.path.join(ROOT, "data", "xgboost_train.csv")
+    if not os.path.exists(train_path):
+        logger.warning("xgboost_train.csv not found at %s", train_path)
+        _frozen_meta = {}
+        return
+    train = pd.read_csv(train_path)
+    train["date"] = pd.to_datetime(train["date"])
+    last_day = train[train["date"] == train["date"].max()]
+    _frozen_meta = {
+        "last_lag": dict(zip(last_day["product_id"],
+            zip(last_day["lag_1"], last_day["lag_7_avg"], last_day["lag_30_avg"],
+                last_day["roll_std_7"], last_day["roll_std_14"], last_day["trend_7"]))),
+        "last_daily_tickets": float(last_day["daily_tickets"].iloc[0]) if len(last_day) > 0 else 0.0,
+        "holiday_dates": sorted(train[train["is_holiday"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
+        "top3_products": train.groupby("product_id")["quantity"].mean().nlargest(3).index.tolist(),
+        "rainy_dates": set(train[train["is_rainy"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
+    }
+    logger.info("Frozen meta loaded: %d products, top3=%s", len(_frozen_meta["last_lag"]), _frozen_meta["top3_products"])
+
+_weather_data = None
+
+def _init_weather():
+    global _weather_data
+    if _weather_data is not None:
+        return
+    weather_path = os.path.join(ROOT, "data", "guangzhou_weather.csv")
+    if os.path.exists(weather_path):
+        w = pd.read_csv(weather_path)
+        w["date"] = pd.to_datetime(w["date"])
+        _weather_data = w.set_index("date")
+        logger.info("Weather data loaded: %d days", len(_weather_data))
+    else:
+        logger.warning("guangzhou_weather.csv not found, weather features will be default")
+
+def _get_weather(dt_date):
+    _init_weather()
+    if _weather_data is None:
+        return 20.0, 6.0, 0, 0  # defaults: mean=20, range=6, cold=0, hot=0
+    ds = dt_date.strftime("%Y-%m-%d")
+    try:
+        d = pd.Timestamp(ds)
+        if d in _weather_data.index:
+            row = _weather_data.loc[d]
+            temp_mean = float(row["temp_mean"])
+            temp_range = float(row["temp_max"] - row["temp_min"])
+            is_cold = 1 if temp_mean < 15 else 0
+            is_hot = 1 if temp_mean > 25 else 0
+            return temp_mean, temp_range, is_cold, is_hot
+    except Exception:
+        pass
+    # Fallback: use monthly average from historical data
+    m = dt_date.month
+    month_data = _weather_data[_weather_data.index.month == m]
+    if len(month_data) > 0:
+        temp_mean = float(month_data["temp_mean"].mean())
+        temp_range = float((month_data["temp_max"] - month_data["temp_min"]).mean())
+        is_cold = 1 if temp_mean < 15 else 0
+        is_hot = 1 if temp_mean > 25 else 0
+        return temp_mean, temp_range, is_cold, is_hot
+    return 20.0, 6.0, 0, 0
 
 _model_cache: Dict[str, xgb.XGBRegressor] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -59,23 +116,81 @@ def _cache_set(key: str, data: dict):
         if len(_forecast_cache) > _MAX_CACHE_SIZE:
             _forecast_cache.popitem(last=False)
 
-def _model_path(product_name: str) -> str:
-    safe = product_name.replace(" ", "_").lower()
-    return os.path.join(MODEL_DIR, f"{safe}_model.json")
+# Unified model (single XGBoost model for all 45 products with product_id feature)
+_unified_model = None
+_unified_quantile = {}
+_product_id_map = None
+_product_bounds = None
 
-def load_product_model(product_name: str) -> xgb.XGBRegressor:
-    if product_name in _model_cache:
-        return _model_cache[product_name]
-    path = _model_path(product_name)
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"No model for '{product_name}' at {path}.")
-    model = xgb.XGBRegressor()
-    model.load_model(path)
-    _model_cache[product_name] = model
-    logger.info("Loaded model for %s from %s", product_name, path)
-    return model
+def _get_unified_model():
+    global _unified_model
+    if _unified_model is None:
+        path = os.path.join(MODEL_DIR, "xgboost_model.pkl")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Unified model not found at {path}")
+        import joblib
+        _unified_model = joblib.load(path)
+        logger.info("Loaded unified model from %s", path)
+    return _unified_model
+
+def _get_unified_quantile(q: str):
+    global _unified_quantile
+    if q not in _unified_quantile:
+        path = os.path.join(MODEL_DIR, f"quantile_model_{q}.pkl")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Quantile model {q} not found at {path}")
+        import joblib as _jl
+        model = _jl.load(path)
+        _unified_quantile[q] = model
+        logger.info("Loaded quantile %s from %s", q, path)
+    return _unified_quantile[q]
+
+def _get_product_id_map():
+    global _product_id_map
+    if _product_id_map is None:
+        path = os.path.join(MODEL_DIR, "product_id_map.json")
+        if os.path.exists(path):
+            with open(path) as f:
+                _product_id_map = json.load(f)
+        else:
+            _product_id_map = {p: i for i, p in enumerate(sorted(PRODUCT_TYPES))}
+    return _product_id_map
+
+_conformal_calibration = None
+
+def _get_conformal_half(product_name: str) -> float:
+    global _conformal_calibration
+    if _conformal_calibration is None:
+        cal_path = os.path.join(MODEL_DIR, "conformal_calibration.json")
+        if os.path.exists(cal_path):
+            with open(cal_path) as f:
+                _conformal_calibration = json.load(f)
+            logger.info("Conformal calibration loaded")
+        else:
+            _conformal_calibration = {"per_product": {}, "global": 1.0}
+    pid_map = _get_product_id_map()
+    pid = pid_map.get(product_name, -1)
+    return _conformal_calibration.get("per_product", {}).get(str(pid), _conformal_calibration.get("global", 1.0))
+
+def _get_product_bounds():
+    global _product_bounds
+    if _product_bounds is None:
+        bounds_path = os.path.join(MODEL_DIR, "product_bounds.json")
+        if os.path.exists(bounds_path):
+            with open(bounds_path) as f:
+                _product_bounds = json.load(f)
+            logger.info("Loaded product bounds from %s", bounds_path)
+        else:
+            _product_bounds = {}
+            logger.warning("product_bounds.json not found")
+    return _product_bounds
 
 def get_available_products() -> list:
+    path = os.path.join(MODEL_DIR, "xgboost_model.pkl")
+    if os.path.exists(path):
+        return list(_get_product_id_map().keys())
+    return []
+
     return [p for p in PRODUCT_TYPES if os.path.exists(_model_path(p))]
 
 
@@ -147,37 +262,156 @@ def _get_rolling_7d_mean(product_name: str, forecast_date) -> float:
         return 0.0
     return float(sum(values) / len(values))
 
-def build_forecast_features(forecast_date: datetime, freshness: str = "", product: str = "") -> dict:
-    weather = get_weather(forecast_date)
+def _get_rolling_avg(product_name: str, forecast_date, window: int) -> float:
+    if not product_name or window < 1:
+        return 0.0
+    sales = _get_product_daily_sales(product_name)
+    if not sales:
+        return 0.0
+    fd = forecast_date if hasattr(forecast_date, "date") else forecast_date
+    vals = []
+    for d in range(1, window + 1):
+        target = fd - timedelta(days=d)
+        for _ in range(4):
+            key = target.strftime("%Y-%m-%d")
+            if key in sales:
+                vals.append(float(sales[key]))
+                break
+            target -= timedelta(days=1)
+    return float(np.mean(vals)) if vals else 0.0
+
+def _get_daily_tickets(forecast_date) -> float:
+    try:
+        db = get_db()
+        c = db.cursor(dictionary=True)
+        fd = forecast_date if hasattr(forecast_date, "date") else forecast_date
+        c.execute(
+            "SELECT COUNT(DISTINCT receipt_id) as cnt "
+            "FROM inventory_transactions "
+            "WHERE transaction_type='outflow' AND DATE(transaction_time) < DATE(%s) "
+            "ORDER BY transaction_time DESC LIMIT 1",
+            (fd.strftime("%Y-%m-%d"),)
+        )
+        row = c.fetchone()
+        if row and row["cnt"]:
+            return float(row["cnt"])
+    except Exception:
+        pass
+    return 0.0
+
+def _get_is_holiday(dt_date) -> int:
+    try:
+        from chinese_calendar import is_holiday as chinese_holiday
+        # Pure public holiday on weekday only (not weekend)
+        is_hol = chinese_holiday(dt_date)
+        is_weekend = dt_date.weekday() >= 5
+        return int(is_hol and not is_weekend)
+    except Exception:
+        ds = dt_date.strftime("%Y-%m-%d")
+        return 1 if ds in _frozen_meta.get("holiday_dates", []) else 0
+
+def _get_is_day1(product_name: str) -> int:
+    try:
+        db = get_db()
+        c = db.cursor()
+        c.execute(
+            "SELECT stock_day1 FROM products WHERE product_name=%s",
+            (product_name,)
+        )
+        row = c.fetchone()
+        if row and row[0] and row[0] > 0:
+            return 1
+    except Exception:
+        pass
+    return 0
+
+
+
+# Feature order matching train_quantile.py (17 features)
+FORECAST_FEATURE_ORDER = [
+    "product_id", "category", "daily_tickets", "day_of_week", "month",
+    "is_weekend", "is_holiday",
+    "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7",
+    "is_day1", "is_top3", "discount_pct",
+    "is_member_day", "is_rainy",
+    "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
+]
+
+def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
+    _init_frozen_meta()
     dow = forecast_date.weekday()
-    wt = weather.get("weather_type", "cloudy")
-    dt_date = forecast_date.date() if hasattr(forecast_date, 'date') else datetime(forecast_date.year, forecast_date.month, forecast_date.day).date()
+    dt_date = forecast_date.date() if hasattr(forecast_date, "date") else datetime(forecast_date.year, forecast_date.month, forecast_date.day).date()
+    m = forecast_date.month
 
-    features_dict = {
+    # Product ID and category (0=bread, 1=beverage)
+    pid_map = _get_product_id_map()
+    pid = pid_map.get(product, -1)
+    category = 1 if pid >= 30 else 0
+
+    # Frozen fallback values: (lag_1, lag_7_avg, lag_30_avg, roll_std_7, roll_std_14, trend_7)
+    frozen = _frozen_meta.get("last_lag", {}).get(pid, (0, 0, 0, 0, 0, 0))
+
+    # Lag features: live DB first, fall back to frozen
+    lag_1 = _get_lag(product, forecast_date, 1)
+    if lag_1 == 0 and len(frozen) >= 1:
+        lag_1 = frozen[0]
+    lag_7 = _get_rolling_avg(product, forecast_date, 7)
+    if lag_7 == 0 and len(frozen) >= 2:
+        lag_7 = frozen[1]
+    lag_30 = _get_rolling_avg(product, forecast_date, 30)
+    if lag_30 == 0 and len(frozen) >= 3:
+        lag_30 = frozen[2]
+
+    # roll_std_7/14 and trend_7: frozen fallback only (no live compute needed)
+    roll_std_7 = frozen[3] if len(frozen) >= 4 else 0.0
+    roll_std_14 = frozen[4] if len(frozen) >= 5 else 0.0
+    trend_7 = lag_1 - lag_7 if (lag_1 > 0 or lag_7 > 0) else (frozen[5] if len(frozen) >= 6 else 0.0)
+
+    # daily_tickets: live DB estimate, fallback to frozen
+    daily_tickets = _get_daily_tickets(forecast_date)
+    if daily_tickets == 0:
+        daily_tickets = _frozen_meta.get("last_daily_tickets", 0)
+
+    # Promo / event features (mostly 0 for forecast)
+    is_day1 = _get_is_day1(product)
+    is_top3 = 1 if pid in _frozen_meta.get("top3_products", []) else 0
+    discount_pct = 0.0
+    is_member_day = 0
+    is_new_product = 0
+    is_competitor = 0
+
+    # is_rainy: check weather data from frozen training mapping
+    ds = dt_date.strftime("%Y-%m-%d")
+    is_rainy = 1 if ds in _frozen_meta.get("rainy_dates", set()) else 0
+
+    # Weather features (always available from historical data)
+    temp_mean, temp_range, is_cold_day, is_hot_day = _get_weather(dt_date)
+
+    return {
+        "product_id": pid,
+        "category": category,
+        "daily_tickets": daily_tickets,
         "day_of_week": dow,
+        "month": m,
         "is_weekend": 1 if dow >= 5 else 0,
-        "day_of_month": forecast_date.day,
-        "month": forecast_date.month,
-
-        "is_public_holiday": 1 if dt_date in _my_holidays else 0,
-        "is_ramadan": 1 if _is_ramadan_date(dt_date) else 0,
-        "temperature": weather.get("temperature", 28.0),
-        "rainfall": weather.get("rainfall", 0.0),
-        "humidity": weather.get("humidity", 80.0),
-        "is_rainy": 1 if weather.get("is_rainy") else 0,
-        "weather_sunny": 1 if wt == "sunny" else 0,
-        "weather_cloudy": 1 if wt == "cloudy" else 0,
-        "weather_rainy": 1 if wt == "rainy" else 0,
-        "weather_storm": 1 if wt in ("storm", "thunderstorm") else 0,
-        "lag_1": _get_lag(product, forecast_date, 1),
-        "lag_7": _get_lag(product, forecast_date, 7),
-        "rolling_7d_mean": _get_rolling_7d_mean(product, forecast_date),
+        "is_holiday": _get_is_holiday(dt_date),
+        "lag_1": lag_1,
+        "lag_7_avg": lag_7,
+        "lag_30_avg": lag_30,
+        "roll_std_7": roll_std_7,
+        "roll_std_14": roll_std_14,
+        "trend_7": trend_7,
+        "is_day1": is_day1,
+        "is_top3": is_top3,
+        "discount_pct": discount_pct,
+        "is_member_day": is_member_day,
+        "is_rainy": is_rainy,
+        "temp_mean": temp_mean,
+        "temp_range": temp_range,
+        "is_cold_day": is_cold_day,
+        "is_hot_day": is_hot_day,
     }
-    # Ensure all expected columns present
-    for col in FORECAST_FEATURE_COLS:
-        if col not in features_dict:
-            features_dict[col] = 0
-    return features_dict
+
 
 def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, start_date: Optional[str] = None) -> dict:
     logger.info("Forecast request: product=%s, days=%d, start=%s", product or "all", days, start_date or "today")
@@ -189,20 +423,6 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
             cached["cached"] = True
             return cached
     # --- end cache check ---
-
-    # Load per-product MAE for prediction intervals
-    mae_map = {}
-    metrics_path = os.path.join(MODEL_DIR, "test_metrics.json")
-    if os.path.exists(metrics_path):
-        try:
-            with open(metrics_path) as f:
-                metrics = json.load(f)
-            for prod_name, vals in metrics.items():
-                test_metrics = vals.get("test", vals)
-                if isinstance(test_metrics, dict):
-                    mae_map[prod_name] = test_metrics.get("MAE", 0)
-        except Exception:
-            pass
 
     products_to_forecast = [product] if product else get_available_products()
     if not products_to_forecast:
@@ -218,44 +438,41 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
     forecasts = []
     model_errors = []
 
+    q50_model = _get_unified_quantile("q50")
+    pid_map = _get_product_id_map()
+
     for prod in products_to_forecast:
-        try:
-            model = load_product_model(prod)
-        except FileNotFoundError as e:
-            model_errors.append(str(e))
+        if prod not in pid_map:
+            model_errors.append(f"Product {prod} not in product_id_map")
             continue
+        half_width = _get_conformal_half(prod)
+        pid = pid_map[prod]
         for d in range(0, days):
             forecast_date = today + timedelta(days=d)
-            # Monday = shop closed, output zero-demand entry
-            if forecast_date.weekday() == 0:
-                forecasts.append(SalesForecast(
-                    forecast_date=forecast_date.strftime("%Y-%m-%d"),
-                    product_name=prod,
-                    freshness_status="Total",
-                    predicted_demand=0,
-                    confidence="closed",
-                ))
-                continue
-            features = build_forecast_features(forecast_date, "", prod)
-            X = pd.DataFrame([features]).fillna(0)
+            features = build_forecast_features(forecast_date, prod)
+            X = pd.DataFrame([features])[FORECAST_FEATURE_ORDER].fillna(0).values
             try:
-                pred = float(model.predict(X)[0])
-                pred = max(0.0, pred)
+                q50_pred = float(q50_model.predict(X)[0])
+                pred = max(0.0, q50_pred)
+                lower_bound = max(0, round(pred - half_width))
+                upper_bound = max(lower_bound, round(pred + half_width))
             except Exception as e:
-                logger.warning("Prediction failed for %s on %s: %s", prod, forecast_date.strftime("%%Y-%%m-%%d"), e)
+                err_msg = f"Prediction failed for {prod} on {forecast_date.strftime('%Y-%m-%d')}: {e}"
+                logger.warning(err_msg)
+                model_errors.append(err_msg)
                 pred = 0.0
+                lower_bound = 0
+                upper_bound = 0
 
-            mae = mae_map.get(prod, 0)
             forecasts.append(SalesForecast(
                 forecast_date=forecast_date.strftime("%Y-%m-%d"),
                 product_name=prod,
                 freshness_status="Total",
                 predicted_demand=round(pred),
-                lower_bound=max(0, round(pred - mae)),
-                upper_bound=round(pred + mae),
-                confidence="today" if d == 0 else ("high" if d <= 2 else ("medium" if d <= 5 else "low")),
+                lower_bound=lower_bound,
+                upper_bound=upper_bound,
+                confidence="Conformal 80%",
             ))
-
     response = {
         "status": "ok",
         "products_forecasted": len(products_to_forecast) - len(model_errors),
