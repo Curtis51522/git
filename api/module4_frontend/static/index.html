@@ -462,7 +462,11 @@ zh:{
 'Product:':'产品：','Qty:':'数量：','Add Batch':'添加批次',
 'Batches':'批次','Details':'详情','Close':'关闭',
 'Production Time':'生产时间','Status':'状态',
-'Shift':'班次','Role':'角色','Employee':'员工','Re-sync complete (fresh schedule)':'重新同步完成（新排班）','Day-1 stock:':'首日库存：','Fresh stock:':'新鲜库存：','e.g. How many croissants tomorrow?':'例如：明天需要多少牛角包？','Enter username and password':'输入用户名和密码','Signing in...':'登录中...','Manager':'经理','Staff':'员工','Camera - Visual Recognition':'摄像头 - 视觉识别','Click to scan / upload image':'点击扫描/上传图片','Scanning tray...':'正在扫描托盘...','Fresh Batch Inflow':'新鲜批次入库','Scan fresh-baked goods to add to inventory':'扫描新鲜烘焙品以添加至库存','Scan Fresh Batch':'扫描新鲜批次','Confirm Inflow':'确认入库','HITL Correction Log':'人工复核修正日志','AI Store Manager':'AI门店经理','Loading...':'加载中...','Loading shifts...':'加载排班中...','Loading inventory...':'加载库存中...','Top-3 Bundle':'前三捆绑','batches | Click Refresh to update':'批次 | 点击刷新更新','KPI error':'KPI错误','Loading KPI...':'加载KPI中...','Batch ID':'批次ID','Area':'区域','Freshness':'新鲜度','Qty':'数量','Batch Inventory':'批次库存','KPI':'KPI','Fair':'一般','Gap (hrs)':'差距（小时）','Employees':'员工','Get Sales Script':'获取销售脚本','Generate':'生成','Actual':'实际','Expected (shifts)':'预期（班次）','Extra':'额外','Rate':'比率','Ask':'询问','Restock':'补货','Waste':'损耗','Schedule':'排班','Audit':'审计','Type a question':'输入问题','Enter a question':'输入问题','Processing...':'处理中...','restock_q':'明天应该烤多少牛角包？','waste_q':'本周损耗为何偏高？','schedule_q':'检查排班异常','audit_q':'运行全店健康检查','Stock:':'库存：',
+'Shift':'班次','Role':'角色','Employee':'员工','Re-sync complete (fresh schedule)':'重新同步完成（新排班）','Day-1 stock:':'首日库存：','Fresh stock:':'新鲜库存：','e.g. How many croissants tomorrow?':'例如：明天需要多少牛角包？','Enter username and password':'输入用户名和密码','Signing in...':'登录中...','Manager':'经理','Staff':'员工','Camera - Visual Recognition':'摄像头 - 视觉识别','Click to scan / upload image':'点击扫描/上传图片','Scanning tray...':'正在扫描托盘...','Fresh Batch Inflow':'新鲜批次入库','Scan fresh-baked goods to add to inventory':'扫描新鲜烘焙品以添加至库存','Scan Fresh Batch':'扫描新鲜批次','Confirm Inflow':'确认入库','HITL Correction Log':'人工复核修正日志','AI Store Manager':'AI门店经理','Loading...':'加载中...','Loading shifts...':'加载排班中...','Loading inventory...':'加载库存中...','Top-3 Bundle':'前三捆绑','batches | Click Refresh to update':'批次 | 点击刷新更新','KPI error':'KPI错误','Loading KPI...':'加载KPI中...','Batch ID':'批次ID','Area':'区域','Freshness':'新鲜度','Qty':'数量','Batch Inventory':'批次库存','KPI':'KPI','Fair':'一般','Gap (hrs)':'差距（小时）','Employees':'员工','Get Sales Script':'获取销售脚本','Generate':'生成','Actual':'实际','Expected (shifts)':'预期（班次）','Extra':'额外','Rate':'比率','Ask':'询问','Restock':'补货','Waste':'损耗','Schedule':'排班','Audit':'审计','Type a question':'输入问题','Enter a question':'输入问题','Processing...':'处理中...','restock_q':'明天应该烤多少牛角包？','waste_q':'本周损耗为何偏高？','schedule_q':'检查排班异常','audit_q':'运行全店健康检查','Stock:':'库存：',,
+'Attendance':'考勤',
+'Wastage Log':'损耗日志',
+'Bakery AI System':'烘焙AI系统',
+'Bakery-Cafe Intelligent Operations':'烘焙咖啡智能运营'
 }};
 function t(k){var m=T[LANG];if(m&&m[k])return m[k];if(LANG!=='en'&&T.en&&T.en[k])return T.en[k];return k;}
 function setLang(l){
@@ -1447,11 +1451,7 @@ async function loadKPIRanking(month){
     api('/s3/schedule?date='+sd+'&days=7').then(function(r){
       if(r&&r.employee_summary)renderWeeklyHoursChart(r.employee_summary);
     }).catch(function(){});
-  ,
-'Attendance':'考勤',
-'Wastage Log':'损耗日志',
-'Bakery AI System':'烘焙AI系统',
-'Bakery-Cafe Intelligent Operations':'烘焙咖啡智能运营'}
+  }
 },500);
   }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>Error: '+e.message;}
 }
