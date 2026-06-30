@@ -486,7 +486,7 @@ if(txt==='Delete'||txt==='Padam')btns[j].textContent=t('Delete');
 if(txt==='Edit'||txt==='Sunting')btns[j].textContent=t('Edit');
 // Re-render current panel
 // Reload page to apply language change
-sessionStorage.setItem('bakery_token',token);sessionStorage.setItem('bakery_role',role);sessionStorage.setItem('bakery_username',username);sessionStorage.setItem('bakery_panel',currentPanel);setTimeout(function(){location.reload();},100);
+if(typeof currentPanel!=='undefined'&&currentPanel){showPanel(currentPanel);}
 }}
 // Update freshness dropdown
 var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
