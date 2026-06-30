@@ -1,0 +1,7954 @@
+[
+  {
+    "text": "为啥利润少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今天流水怎么这么低",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚的钱不对劲",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润率掉得厉害",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入比昨天少一半",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "这个月盈利怎么少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润降了怎么回事",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额不行啊",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "毛利怎么这么差",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚头不对",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润哪里出问题了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "钱没赚够",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今天赚的比预期少",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低得离谱",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入跳水了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "为什么盈利变差",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润下滑原因",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "这个月没赚到钱",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "流水怎么上不去",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润率太低了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "盈利不对劲",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今天收入少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润为啥这么少",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚得不如以前",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润降了查一下",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入少了很多",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "为什么利润这么低",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "盈利下降厉害",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今天利润不正常",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "钱赚少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润怎么这么低呢",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "毛利降了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入下滑",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "盈利少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润不对劲啊",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今天流水差",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润为啥降",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚头少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "盈利怎么这么差",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低找原因",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入没达标",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润少了太多",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额上不去",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "毛利低了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "盈利不正常",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今天利润低了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "流水少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润怎么少了这么多",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚的钱不对",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入怎么少了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润下降找找原因",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "盈利不行",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润太低了吧",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今天赚头少",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "流水怎么这么差",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润暴跌",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入不行了",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "盈利怎么少了这么多",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润少了查原因",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why our bakery's profit dropped this month?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than expected for pastries.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings fell despite high foot traffic?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin shrinking on bread sales.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is revenue down for mooncakes?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings from egg tarts than forecast.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit abnormal for Chinese bakery chain.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall on pork floss buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit dipped for steamed buns?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than last quarter for cakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin abnormal on pineapple buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue down for sesame balls?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings from wife cakes?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit dropped for red bean buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than expected for almond cookies.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit fell for lotus seed paste pastries?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings abnormal for green bean cakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin shrinking on cocktail buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue down for turnip cakes?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings from durian pastries?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit dropped for taro buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall on scallion pancakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit abnormal for egg rolls?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than forecast for sponge cakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin down on cream buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue fell for fortune cookies?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings from walnut cookies?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit dropped for chestnut cakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than expected for mango mochi.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit margin abnormal for char siu bao?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings fell for milk tea bread.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit down on matcha rolls.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall for black sesame buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why earnings dropped for coconut tarts?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower profit from red bean pancakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin abnormal on mochi donuts.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue down for egg waffles?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than expected for chive cakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit dropped for sweet potato buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall on baozi.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit fell for sesame paste buns?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings from bean curd donuts?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin shrinking on scallion buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue down for lotus root cakes?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings abnormal for osmanthus cakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit dropped for peanut cookies.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than expected for salt egg buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit margin abnormal for taro cakes?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings from fried dough sticks?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit fell for almond biscuits.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall on custard buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why earnings dropped for red date cakes?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower profit from walnut buns?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin down on egg custard tarts.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue fell for sesame seed balls?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than forecast for five kernel cakes.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit abnormal for macarons.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall on dragon fruit buns.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit dropped for lychee pastries?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings from kaya buns?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解利润咁低？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额跌咗好多，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "毛利率点解差咗咁多？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今个月赚咁少，咩原因？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低过预期，边度出问题？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解赚唔到钱？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入少咗成半，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "面包卖咁多，点解利润仲系低？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润率点解跌？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额高但利润低，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解盈利唔达标？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "呢个月利润少咗好多，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "成本高咗，利润低咗，点算？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解毛利率咁低？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入跌，原因系咩？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚嘅钱少过预期，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润唔掂，边度出咗问题？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解今个月蚀钱？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "卖咁多包，点解仲系赚咁少？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润率比上个月差，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解利润低过预算？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额跌，利润跟住跌，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚咁少，系咪成本太高？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解盈利咁差？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入少咗，利润跌得更劲，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润唔达标，原因系？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解毛利率跌咗？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今个月利润低，边个环节出问题？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解赚唔到预期咁多？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低过目标，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额升但利润跌，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解盈利咁低？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润少咗，系原材料贵咗？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解收入跌咁多？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "毛利率低，原因系咩？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解利润咁差？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚少咗，边度出事？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解今个月盈利唔掂？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低，系人工贵咗？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解收入低过预期？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚嘅钱少过上年，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解利润跌？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润率低，边度可以改善？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解盈利唔够？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "营业额唔差，但利润低，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解利润咁少？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "收入跌，利润跌到贴地，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解赚唔到钱，系咪租金贵？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低过预期，原因系成本高？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解毛利率咁差？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "今个月利润少咗，系咪卖少咗？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解盈利唔理想？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低，系咪定价太低？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润率跌咗，点解？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解利润唔达标？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "赚咁少，系咪浪费太多？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解今个月利润咁低？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "利润低过预算，边度可以悭钱？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "点解盈利咁差，系咪竞争大咗？",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit low?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue drop cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin lower than expected?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What hurt our earnings?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is income down?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings miss reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Bakery profit falling?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What cut our margin?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower profit why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why margin shrunk?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit down cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than forecast?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What drove profit down?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue less than last year?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin erosion reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are we losing money?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit drop root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings gap why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What impacted revenue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit miss reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit decreased?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue dip cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin decline root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What caused low profit?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings short why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit not meeting target?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue low?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Root cause of profit drop?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin lower than budget?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What hurt revenue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why earnings fell?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit lower than expected?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue underperforming why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin problem cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What cut into profit?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings miss root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit bad?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue short reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit decline why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower margin cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What caused revenue dip?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit not hitting target?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why earnings down?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin drop reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue miss root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What made profit fall?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit lower than forecast?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue decreased?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin shortfall why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit root analysis?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What hurt margin?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings drop cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit not good?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue fall reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit gap root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why did profit decline this quarter?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What caused the revenue shortfall this month?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Explain the abnormal margin decrease.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are earnings lower than forecasted?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Identify root cause of profit drop.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What factors reduced our bakery’s revenue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is our profit margin below expectations?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Analyze the decline in earnings for past week.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What drove the unexpected revenue loss?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is net income lower than projected?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Determine cause of abnormal profit variance.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Explain the revenue underperformance in Q3.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What led to the margin contraction?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are profits not meeting targets?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Investigate root cause of earnings dip.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What triggered the revenue shortfall?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profitability lower than anticipated?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Identify reason for abnormal profit trend.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What caused the earnings miss?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Explain the decline in gross margin.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why did revenue fall short of budget?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What is the root cause of profit erosion?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Analyze the unexpected drop in net earnings.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is our profit ratio abnormal?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What factors contributed to revenue decline?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why did profit margin shrink this period?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Determine reason for earnings shortfall.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What caused the negative profit variance?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Explain why revenue is below forecast.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are earnings lower than last year?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Identify source of profit reduction.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What drove the margin underperformance?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is net profit abnormal this month?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Analyze the root cause of revenue loss.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What led to the earnings gap?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why did profitability decrease unexpectedly?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Explain the revenue shortfall reason.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What factors caused profit decline?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is gross profit lower than expected?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Identify cause of abnormal earnings trend.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What triggered the margin drop?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why did revenue miss the target?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Determine root cause of profit variance.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What explains the earnings downturn?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit margin abnormal?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Analyze the revenue underperformance cause.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What led to net income decline?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are earnings below projections?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Identify reason for profit dip.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are our sales so low this month?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's killing our profit margins?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue is down, what gives?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why aren't we making money on the sourdough?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Our profits tanked, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's the deal with the lower earnings?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is the profit margin so thin?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Sales are flat, what's the root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are we bleeding cash on pastries?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's eating into our revenue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Our numbers are off, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is the bottom line so weak?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's causing the profit dip?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue is way lower than expected, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why aren't we hitting our earnings targets?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's wrong with our profit margins?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Sales dropped, what's the reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is the money not coming in?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Our profit is abnormal, what's up?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's behind the lower-than-expected earnings?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are we losing money on the bread line?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's the profit killer here?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue is slumping, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is our income so low?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's driving the profit loss?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are earnings so disappointing?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Our profit took a hit, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's making our margins shrink?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is revenue so far off target?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's the issue with our cash flow?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are we not profiting enough?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Sales are down, what's the problem?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's the root of our profit problem?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is our profit so bad?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue is not what we expected, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are our earnings so low?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's causing the profit drop?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is the profit margin so bad?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Sales are not great, what's wrong?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's hurting our revenue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is our profit so abnormal?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's the reason for the low profit?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are we not making money?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Our earnings are lower, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's behind the weak revenue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit tanking?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's the profit root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are we not hitting margins?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue is off, what's the cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is our income down?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit so low?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue dropped, what's the reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings than projected, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are margins shrinking?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit unexpected low, cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's behind the revenue shortfall?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings below forecast, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit not meeting expectations?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue fell, what's the root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margins are thin, explain.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit lower than last quarter?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Unexpected drop in revenue, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What caused the profit decline?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings than expected, reasons?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are profits abnormal this month?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than planned, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margins are off, what's wrong?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why the revenue drop?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings shortfall, root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit so abnormal?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue below target, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What explains the lower profit?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margins decreased, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are earnings down?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit unexpectedly low, explain.",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than forecast, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's causing the profit dip?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings, what's the issue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit not as expected?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue shortfall, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margins are lower, root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why the profit abnormality?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings below projection, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What's behind the revenue miss?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit drop, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than budget, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why are margins off target?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower profit, what's the reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is revenue abnormal?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than predicted, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What caused the profit shortfall?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue unexpected low, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin issue, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why the revenue decline?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Lower earnings than budget, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why is profit lower than expected?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue miss, root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What explains the margin drop?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit abnormal, why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings down, what's the cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit so low?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue drop why ah?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin less than last month why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Sales high but profit low how come?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Our bakery profit not enough what happened?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than expected why like that?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin abnormal what is the cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue not hitting target?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Cost increase but price same profit down is it?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Bakery profit why suddenly drop?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Less earnings this quarter why ah?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "We sell many but profit small why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit root cause where?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue lower than budget why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin shrinking reason what?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit so little compare to last year?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings not good what is the problem?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit abnormal how to fix?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Sales volume up but profit down why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Bakery revenue drop due to what?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin too thin cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why our earnings so low?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit lower than expected reason?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue not enough to cover cost why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margins squeeze what happened?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit so small despite busy?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Bakery profit drop root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings shortfall why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Sales good but profit no good why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit margin abnormal where is the issue?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue target miss why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Less profit this month what cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why earnings so low ah?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit drop because of what?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Bakery margin not right why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue down but cost same profit hurt why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit root cause analysis needed why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why profit not as forecast?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings lower than plan why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin problem where to look?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit why so bad?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Revenue low despite high footfall why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Bakery earnings abnormal cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit shrink due to waste is it?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Why revenue not enough?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Margin drop what is root cause?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit so little cannot cover rent why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Earnings not meeting expectation why?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Bakery profit why cannot sustain?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "Profit abnormal reason what ah?",
+    "label": "profit_root_cause"
+  },
+  {
+    "text": "What causes high wastage in bakery production?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are raw materials being wasted excessively?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of spoilage in bakery operations?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "How to reduce material wastage in bakeries?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is flour wastage so high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What leads to ingredient spoilage in bakeries?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Identifying reasons for bakery material loss.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why do baked goods spoil before sale?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Causes of excessive dough waste.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What drives high wastage rates in bakery?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is there so much waste in pastry production?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of ingredient spoilage.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "How to minimize material wastage in baking?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are raw materials wasted during mixing?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Factors contributing to bakery wastage.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does bread waste occur frequently?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What causes high spoilage in bakery inventory?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Understanding wastage root causes in bakeries.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is there excessive loss of dairy products?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of filling and topping waste.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are packaging materials wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What leads to high waste in cake production?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Causes of spoilage in baked goods storage.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is there wastage of specialty ingredients?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "How to identify wastage sources in bakery?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does dough get discarded often?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of high waste in croissant making.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What causes loss of perishable bakery items?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are eggs and butter wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Factors behind bakery material spoilage.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is there high waste in muffin production?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of wastage in bread baking.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What leads to excessive crumb waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why do pastries spoil prematurely?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Causes of high waste in cookie dough.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "How to pinpoint wastage root causes in bakery?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is chocolate wasted in production?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of fruit spoilage in bakery.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What causes loss of cream and custard?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are nuts and seeds wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Factors increasing bakery material wastage.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does waste spike during high volume days?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of wastage in laminated dough.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What leads to icing and glaze waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is there wastage of dry ingredients?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Causes of spoilage in pre-baked items.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "How to trace wastage back to root causes?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are stabilizers and preservatives wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of waste in artisan bread baking.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What causes excess waste of yeast and leavening?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is there high waste in danish production?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Factors behind spoilage of filled pastries.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does waste occur during proofing?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Root causes of material loss in donut making.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What leads to waste of edible decorations?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are glazes and syrups wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Causes of high waste in pie crust production.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "How to identify root causes of bakery wastage?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is there waste of gluten-free ingredients?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "为啥浪费这么多面粉？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "面包卖不完咋处理？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "蛋挞皮总剩一堆",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "奶油老是过期浪费",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "芋泥馅料损耗太大",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "为什么每天倒掉那么多蛋糕边？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "菠萝包卖不动就扔了？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "肉松面包剩太多咋整",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "酥皮点心碎了算损耗吗？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "红豆沙总做多",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "蛋液浪费得心疼",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "黄油切剩的边角料咋用？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "吐司切片掉渣算浪费不？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "灌浆蛋糕总漏浆",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "为什么糖霜总是调多？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "老面团发酸只能扔？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "泡芙壳开裂报废率太高",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "麻薯球烤塌了算损耗吗？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "抹茶粉受潮就废了",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "肉脯边角料没人要",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "为什么糯米皮总是剩？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "蛋黄酥破皮只能扔？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "奶油霜调色废掉一堆",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "可颂折叠漏油浪费油",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "蛋糕卷开裂全报废",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "为什么豆沙馅总发霉？",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "面包糠用不完过期",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "糖渍橙皮总做多",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "焦糖熬糊了只能倒掉",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "面团发酵过头全扔了",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does inventory spoil so fast?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Raw materials vanishing for no reason?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's wasting all the flour?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bakery waste is skyrocketing—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Eggs cracking before use—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is spoilage due to overordering?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are my ingredient costs so high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Where's the cream cheese going?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Expired butter again—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does dough get thrown out daily?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Fruit going bad before baking—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is overproduction causing waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's tossing half-used bags of sugar?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are pastry fillings spoiled?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Mold on buns—root cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why do we trash so many cookies?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread staling before sale—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is wastage up 20%?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoiled milk in the fridge—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's wasting the chocolate chips?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does pie crust get discarded?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Ingredients expiring on the shelf—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is poor storage causing losses?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are my margins shrinking from waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's leaving flour open to pests?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why do we dump batter every night?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Frozen dough going bad—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are we throwing away cakes?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is overmixing ruining ingredients?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's wasting the yeast?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does cream curdle before use?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoiled nuts in the bin—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is dough waste so high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's responsible for the waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is spoilage from bad suppliers?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are my baking costs ballooning?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Egg whites discarded daily—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does frosting get thrown out?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Pastry scraps in the trash—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's overordering cocoa powder?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why do we waste so much butter?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is poor rotation causing spoilage?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are fruit glazes wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's not using ingredients in time?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does custard spoil quickly?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread crumbs everywhere—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's wasting the sprinkles?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are we trashing edible goods?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is excess inventory the problem?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why do we toss half the muffins?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's leaving dough to dry out?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does filling go bad before use?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoiled cheese on the shelf—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is waste eating profit?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's overmixing the batter?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why do we discard so many croissants?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Is poor planning causing waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are ingredients left to rot?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Who's wasting the almond paste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why so much bread spoil ah?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "my danish pastry always leftover, why huh?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "ingredients expired before use, how to fix?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "baking too much, then throw away, sian",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why got so many unsold egg tarts?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "wastage high because of poor planning?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "materials like butter always go bad quickly",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to reduce spoilage in bakery?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "leftover dough every day, what to do?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why my cream puffs always turn bad?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "inventory mismanagement causing waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "buns not selling, end up in trash",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "flour got bugs, whole batch wasted",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why so much wastage in baking process?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "overproduction leads to spoilage, correct?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "customers don't buy, then throw away, waste",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to minimize ingredient spoilage?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "filling always leftover, cannot store",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why cake crumbs always wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "too much stock, then expired, sad",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "pastry dough spoil before baking, why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "milk always sour before use, how to prevent?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "wastage from overbaking, how to stop?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why so many cookies break and wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "materials like nuts go rancid quickly",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "spoilage due to wrong storage method?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to track wastage root cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "daily leftover bread, what to do?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "butter too much, cannot finish, waste",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why my bakery waste so high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "ingredients spoil because of humidity, right?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "overordering supplies leads to wastage",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to reduce food loss in bakery?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "egg whites leftover, always throw away",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why so many failed batches?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "pastry cream spoil overnight, why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "wastage from trimming danish dough",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "too many varieties, some never sell",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to match production with demand?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "spoilage due to poor rotation of stock",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why flour always wasted in mixing?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "baker overmixes, dough unusable, waste",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "leftover cake slices, cannot sell next day",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "materials like chocolate bloom, still usable?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why wastage high during holiday season?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to forecast demand to reduce waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "bread stale before sold, why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "ingredients like yeast lose potency, wasted",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "too much decoration leftover, throw",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why so much wastage in croissant making?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "spoilage from improper sealing of bags",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to reuse leftover dough?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "wastage due to inaccurate scaling?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why so many buns returned unsold?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "materials like fruit puree spoil fast",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "overbaking leads to burnt goods, waste",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "why wastage in puff pastry high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "how to audit wastage in bakery?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "leftover fillings cannot keep, waste",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "spoilage because of temperature issues?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is my bread waste so high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Pastry spoilage root causes?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What's wasting the most dough?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Milk turning sour too fast?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Eggs expiring before use?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are cakes crumbling?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Flour waste from over-mixing?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Butter spoilage in storage?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cream going bad quickly?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread staling overnight?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why so much waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Fruit rotting in fridge?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Sugar clumping waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Yeast dying before use?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Chocolate bloom waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Nuts going rancid?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Coconut shreds moldy?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why waste jam?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Fillings spoiling early?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Whipped cream collapsing waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cookie dough scraps too much?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Pie crust waste from cracking?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Danishes wasted from proofing?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Biscotti too hard, wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Mochi waste from stickiness?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Meringue weeping waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Croissant waste from lamination?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Donut waste from oil absorption?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Buns wasted from burning?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Matcha powder fading waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is wastage rising?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage keeps increasing—what's the cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Loss in bakery materials—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Dough being thrown out daily—root cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What makes our waste so high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bakery spoilage reasons needed urgently.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Flour waste climbing—explain.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does our spoilage rate spike?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Materials lost daily—why the waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Baked goods spoiling fast—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Wastage root cause for croissants?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread crusts discarded—reason?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "High loss in pastry production—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Ingredients spoiling before use—cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Filling waste increasing—what's wrong?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is our yeast spoiling?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Butter waste in mixing—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Excess dough scrap—root cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoiled cakes piling up—reason?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why so much flour loss?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bakery waste unexplained—need cause.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Loss from overproofing—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage in cream fillings—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Wasted sugar in batches—reason?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why does our dough spoil quickly?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Packaged bread mold—root cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Fruit waste in tarts—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Chocolate temper loss—explain.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are eggs being wasted?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Milk spoilage in bakery—cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "High discard of danishes—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Waste in muffin batter—reason?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why the croissant butter loss?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cake trimmings thrown out—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Loss from overbaking—root cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoiled custards daily—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why is our pastry waste high?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread staling fast—cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Dough left overnight wasted—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Ingredient waste in brioche—reason?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why so much bagel waste?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cookie dough scrap—root cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage from poor storage—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Loss in pie filling—explain.",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why the high waste in donuts?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bakery loss from underbaking—cause?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cream puff spoilage—why?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Excess crumb waste—reason?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why are our cakes moldy so fast?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Wastage root cause for rolls?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why so much bread waste ah?",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Flour wastage high what to do",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage rate why like that one",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Milk always expire before use",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Butter got smell already throw",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why waste so many eggs",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Materials spoiling fast leh",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What cause wastage in bakery",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cream always turn sour",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Wastage root cause where",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why dough always get wasted",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Fresh ingredients spoil too quick",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Loss high because of what",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Chocolate chip wasted a lot",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why bakery got so much spoilage",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Flour got bugs throw away",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why wastage so much one",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage problem how to solve",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Milk waste why so high",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Butter always melt cannot use",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Eggs break many waste",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What make materials waste",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Wastage root cause can check",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why cake got mold fast",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread stale throw many",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cream waste after open",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why spoil so fast one",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Flour waste cause what",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage rate increase why",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Butter got bad smell",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Dough waste every day",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Milk waste percentage high",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Why wastage like this",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Eggs waste too many",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Chocolate waste why",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Fresh fruit spoil fast",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cream waste why so much",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread waste cause what",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage issue root cause",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Materials loss why high",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Flour waste how to reduce",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Milk always spoil before date",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Butter waste too much",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Egg waste problem",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Dough waste root cause",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Cream waste spoilage reason",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Bread waste high why",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Spoilage what cause one",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "Wastage root where",
+    "label": "wastage_root_cause"
+  },
+  {
+    "text": "What quantity of egg tarts should we prepare for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Recommend tomorrow's production volume for pineapple buns.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many loaves of white bread to bake tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we increase the batch size for coconut buns tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate the required output of char siu bao for the next day.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the optimal production count for wife cakes tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Advise on the production amount for cocktail buns tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much red bean paste bun dough should we mix tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Determine tomorrow's baking quantity for sponge cakes.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What volume of butter croissants should we produce tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Plan the production of sausage rolls for the coming day.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many units of egg waffles to schedule for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the recommended yield for sesame balls tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Advise on tomorrow's output for pineapple tarts.",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we bake more or fewer cheese tarts tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Calculate the batch size for mochi bread tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What quantity of curry puffs to prepare for tomorrow's shift?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many boxes of almond cookies to produce tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Determine the production number for green tea cakes tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the ideal amount of taro buns to bake tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Plan tomorrow's run for custard buns.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much dough for scallion pancakes to proof tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate the required number of coconut tarts for tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What volume of black sesame rolls should we make tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Advise on tomorrow's production level for pork floss buns.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many units of egg rolls to bake for the next day?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we adjust the output of durian cakes tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the forecasted demand for red bean rolls tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Recommend the production quantity for lotus seed paste buns tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many batches of mung bean cakes to schedule for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Determine tomorrow's baking target for pineapple buns.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What amount of char siu pastry should we produce tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Advise on the required stock of almond biscuits for tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many egg tarts to bake for the morning rush tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Calculate the production volume for coconut buns tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the suggested output for wife cakes tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Plan the dough quantity for cocktail buns tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much filling for red bean buns to prepare tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate tomorrow's production for sponge rolls.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What batch size for butter croissants is recommended tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many sausage rolls to produce for tomorrow's lunch?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Determine the output for egg waffles tomorrow afternoon.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What quantity of sesame balls to fry tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we scale up pineapple tart production tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Advise on tomorrow's mochi bread count.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many curry puffs to bake for tomorrow's evening shift?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the target for almond cookies tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Plan tomorrow's green tea cake output.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many taro buns to steam tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Recommend the custard bun production volume for tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What amount of scallion pancakes to grill tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate tomorrow's coconut tart requirement.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many black sesame rolls to proof tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the production goal for pork floss buns tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Advise on egg roll quantity for tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many durian cakes to bake tomorrow morning?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Determine tomorrow's red bean roll batch size.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What output level for lotus seed paste buns tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many batches of mung bean cakes to produce tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Recommend the volume for tomorrow's egg tart production.",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日の焼き上がり時間は？",
+    "label": "production_advice"
+  },
+  {
+    "text": "何キロのパンを仕込めばいい？",
+    "label": "production_advice"
+  },
+  {
+    "text": "午前中のピーク時間に合わせて、どれくらい焼く？",
+    "label": "production_advice"
+  },
+  {
+    "text": "売り切れを防ぐには、あと何個必要？",
+    "label": "production_advice"
+  },
+  {
+    "text": "昨日の売上データ、見た？",
+    "label": "production_advice"
+  },
+  {
+    "text": "残り生地、何グラムある？",
+    "label": "production_advice"
+  },
+  {
+    "text": "予約数を考慮した生産量は？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日の天気、どう？影響しそう？",
+    "label": "production_advice"
+  },
+  {
+    "text": "週末のパターン、参考にする？",
+    "label": "production_advice"
+  },
+  {
+    "text": "冷凍ストックはまだある？",
+    "label": "production_advice"
+  },
+  {
+    "text": "あの新商品の試作、明日も続ける？",
+    "label": "production_advice"
+  },
+  {
+    "text": "店長、明日の仕込み量どうします？",
+    "label": "production_advice"
+  },
+  {
+    "text": "在庫切れのリスク、どれくらい？",
+    "label": "production_advice"
+  },
+  {
+    "text": "夕方の需要予測、出てる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "スタッフのシフト、何人？",
+    "label": "production_advice"
+  },
+  {
+    "text": "ドーナツの揚げ時間、調整いる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "今週のトレンド、何が売れてる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日のイベント、影響あり？",
+    "label": "production_advice"
+  },
+  {
+    "text": "廃棄ロス、減らしたいんだけど",
+    "label": "production_advice"
+  },
+  {
+    "text": "ピークタイムの客数、予想できる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "何時から焼き始める？",
+    "label": "production_advice"
+  },
+  {
+    "text": "パン生地の発酵時間、十分？",
+    "label": "production_advice"
+  },
+  {
+    "text": "前回の失敗、繰り返さないために",
+    "label": "production_advice"
+  },
+  {
+    "text": "午後の補充、必要？",
+    "label": "production_advice"
+  },
+  {
+    "text": "冷蔵ケースの在庫、確認した？",
+    "label": "production_advice"
+  },
+  {
+    "text": "売れ筋商品の割合、どう？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日の仕込み、早めに始める？",
+    "label": "production_advice"
+  },
+  {
+    "text": "余ったら困るし、足りなくても困る",
+    "label": "production_advice"
+  },
+  {
+    "text": "不良品の発生率、考慮する？",
+    "label": "production_advice"
+  },
+  {
+    "text": "カスタマーからの事前注文、何件？",
+    "label": "production_advice"
+  },
+  {
+    "text": "ランチタイム向けの量、どう調整？",
+    "label": "production_advice"
+  },
+  {
+    "text": "過去の同時期データ、役立つ？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日は祝日、需要変わる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "焼き菓子の賞味期限、短いよね",
+    "label": "production_advice"
+  },
+  {
+    "text": "あとどれだけ焼けば十分？",
+    "label": "production_advice"
+  },
+  {
+    "text": "スタッフの人数、足りてる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "発注した材料、届いてる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日の朝、何時から営業？",
+    "label": "production_advice"
+  },
+  {
+    "text": "前日の売れ残り、どう処理？",
+    "label": "production_advice"
+  },
+  {
+    "text": "天気予報、雨だと客数減る？",
+    "label": "production_advice"
+  },
+  {
+    "text": "新メニューのテスト、明日やる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "生産ラインの効率、上げたい",
+    "label": "production_advice"
+  },
+  {
+    "text": "売上目標、明日達成できる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "冷凍生地の在庫、どれだけ？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日の仕込みリスト、見せて",
+    "label": "production_advice"
+  },
+  {
+    "text": "トレイの数、足りる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "焼き時間の短縮、可能？",
+    "label": "production_advice"
+  },
+  {
+    "text": "余剰品の活用方法、考えてる？",
+    "label": "production_advice"
+  },
+  {
+    "text": "市場の動向、チェックした？",
+    "label": "production_advice"
+  },
+  {
+    "text": "人気商品の欠品、避けたい",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日のバリエーション、減らす？",
+    "label": "production_advice"
+  },
+  {
+    "text": "廃棄コスト、今月やばい",
+    "label": "production_advice"
+  },
+  {
+    "text": "朝の混雑、どう対処？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日の生産計画、変更あり？",
+    "label": "production_advice"
+  },
+  {
+    "text": "パン職人、何人シフト？",
+    "label": "production_advice"
+  },
+  {
+    "text": "前週の同じ曜日、どうだった？",
+    "label": "production_advice"
+  },
+  {
+    "text": "工場のキャパ、限界？",
+    "label": "production_advice"
+  },
+  {
+    "text": "明日の配送量、調整必要？",
+    "label": "production_advice"
+  },
+  {
+    "text": "消費期限、短い商品から優先？",
+    "label": "production_advice"
+  },
+  {
+    "text": "焼き立てのタイミング、どうする？",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow's batch size for egg tarts?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many pineapple buns to bake today?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we double the char siu sou recipe?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate for weekend cookie production?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Bake 50 or 100 coconut buns tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What's the forecast for cocktail buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production plan for mooncakes next week?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Quantity of wife cakes needed by 6 AM?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much dough for the morning rush?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Scale up the sausage bun batch?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Pre-order volume for red bean buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Do we need extra pandan cake tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Batch count for cream horns today?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many curry puffs for the lunch crowd?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Adjust the egg custard tart output?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Ramp up or hold steady on BBQ pork buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Next day's yield for sesame balls?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production quantity for almond cookies?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we halve the sponge cake recipe?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Forecast for buttercream buns tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many loaves of milk bread tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Double or single batch for scallion buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate the dan tat demand for Saturday?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What's the target for cocktail buns by noon?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Bake more or less spring onion pancakes?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Plan for 200 or 300 mantou tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Volume check for taro buns this evening?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much filling for the pork buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Rush order: extra 50 cocktail buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Produce 80 or 120 egg tarts for breakfast?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Batch size for cocktail buns next shift?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we prep more char siu pastry?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow's target for pineapple cakes?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Scale down the red bean paste batch?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Quantity of sponge cake slices for tea time?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many steamed buns for the buffet?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production run for sesame seed cookies?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Do we bake extra coconut tarts tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Plan for 500 or 600 mooncakes this week?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Forecast for salted egg yolk buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much milk bread dough to mix?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Batch count for sausage rolls tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Ramp up production on egg waffles?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we reduce the cream puff batch?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate for green bean cakes on Friday?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Next day's volume for pork floss buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many lotus seed buns to bake?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Produce 30 or 60 pineapple buns for morning?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Target for cocktail buns after 3 PM?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Scale the recipe for 200 curry puffs?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Do we need extra taro buns for the event?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production plan for almond biscuits tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many egg tarts for the wedding order?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Batch size adjustment for veggie buns?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Forecast for red bean buns next shift?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we double the sponge cake output?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Quantity of coconut buns for Sunday?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Bake 40 or 70 char siu buns tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Estimate for buttercream rolls at breakfast?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Volume check for pandan buns tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the recommended production volume for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many loaves should we bake in the morning shift?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Could you advise on the optimal quantity of croissants for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What quantity of bagels should be produced for the next day?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Please provide production estimates for tomorrow's batch.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much sourdough should we prepare for tomorrow's sales?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the forecasted demand for danishes tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Should we increase the batch size for cinnamon rolls tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the target output for tomorrow's pastry line?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many units of brioche are needed for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Please specify the production count for tomorrow's muffins.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What volume of bread dough should we mix tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many baguettes should we schedule for the morning?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What production level is recommended for tomorrow's cookies?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much focaccia should we bake for the afternoon rush?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the advised quantity for tomorrow's scones?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many loaves of rye should be produced for the weekend?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the ideal batch size for tomorrow's croissant run?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many donuts should we prepare for the morning demand?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Please advise on the quantity of ciabatta for tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "What production quota is set for tomorrow's baking schedule?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much challah should we produce for the holiday orders?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What is the recommended output for tomorrow's artisan breads?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many puff pastry items should we bake tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "What volume of gluten-free bread should we produce for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's batch size what's the call?",
+    "label": "production_advice"
+  },
+  {
+    "text": "how many loaves should we proof tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production numbers for the morning shift?",
+    "label": "production_advice"
+  },
+  {
+    "text": "what quantity of croissants to schedule?",
+    "label": "production_advice"
+  },
+  {
+    "text": "deciding tomorrow's bake load, any thoughts?",
+    "label": "production_advice"
+  },
+  {
+    "text": "need a production count for the next day",
+    "label": "production_advice"
+  },
+  {
+    "text": "how much dough to mix before dawn?",
+    "label": "production_advice"
+  },
+  {
+    "text": "baking volume for tomorrow, suggestions?",
+    "label": "production_advice"
+  },
+  {
+    "text": "what's the recommended output for Tuesday?",
+    "label": "production_advice"
+  },
+  {
+    "text": "should we double the scone batch?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production plan for the early hours?",
+    "label": "production_advice"
+  },
+  {
+    "text": "how many baguettes to shape tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's yield, what's the target?",
+    "label": "production_advice"
+  },
+  {
+    "text": "what quantity of brioche to prepare?",
+    "label": "production_advice"
+  },
+  {
+    "text": "bake list for tomorrow, input needed",
+    "label": "production_advice"
+  },
+  {
+    "text": "how much to produce for the lunch rush?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production forecast for the following day",
+    "label": "production_advice"
+  },
+  {
+    "text": "what's the ideal batch size for muffins?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's pastry count, any advice?",
+    "label": "production_advice"
+  },
+  {
+    "text": "how many cakes to ice before opening?",
+    "label": "production_advice"
+  },
+  {
+    "text": "scheduling the bake, what's the number?",
+    "label": "production_advice"
+  },
+  {
+    "text": "what amount of bread to proof overnight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production advice for the next shift",
+    "label": "production_advice"
+  },
+  {
+    "text": "how many rolls to bake for the crowd?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's batch, what's the consensus?",
+    "label": "production_advice"
+  },
+  {
+    "text": "what's the production plan for the evening?",
+    "label": "production_advice"
+  },
+  {
+    "text": "how much challah to braid tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "baking schedule for the morning, thoughts?",
+    "label": "production_advice"
+  },
+  {
+    "text": "what quantity of danish to fill tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production numbers for the weekend prep",
+    "label": "production_advice"
+  },
+  {
+    "text": "how many loaves to pull from the oven?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's output, what's the estimate?",
+    "label": "production_advice"
+  },
+  {
+    "text": "batch size for the early morning run",
+    "label": "production_advice"
+  },
+  {
+    "text": "what's the recommended bake volume today?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production count for the holiday rush",
+    "label": "production_advice"
+  },
+  {
+    "text": "how much dough to scale for the day?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's bake load, need a figure",
+    "label": "production_advice"
+  },
+  {
+    "text": "what quantity of cookies to mix ahead?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production plan for the afternoon batch",
+    "label": "production_advice"
+  },
+  {
+    "text": "how many pies to roll out tonight?",
+    "label": "production_advice"
+  },
+  {
+    "text": "baking targets for the next 24 hours",
+    "label": "production_advice"
+  },
+  {
+    "text": "what's the call on croissant production?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's yield, how many units?",
+    "label": "production_advice"
+  },
+  {
+    "text": "how much to bake for the event order?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production advice for the night crew",
+    "label": "production_advice"
+  },
+  {
+    "text": "what's the batch size for gluten-free items?",
+    "label": "production_advice"
+  },
+  {
+    "text": "tomorrow's schedule, how many batches?",
+    "label": "production_advice"
+  },
+  {
+    "text": "how many loaves to schedule for pickup?",
+    "label": "production_advice"
+  },
+  {
+    "text": "production numbers for the bulk order",
+    "label": "production_advice"
+  },
+  {
+    "text": "what quantity of focaccia to proof today?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many loaves we need bake tomorrow ah?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow production, how much should we do?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Bake quantity for tomorrow, can advise?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many cakes to prepare for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow's bread, how many we need produce?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production plan for tomorrow, what is the number?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much we should bake for tomorrow morning?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many croissants to make?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Boss, how many buns to bake tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow production quantity, any idea?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many pastries we need prepare for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, what is the baking target?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much dough we need mix for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow's bake, how many units?",
+    "label": "production_advice"
+  },
+  {
+    "text": "We need to know how many to produce tomorrow.",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many loaves of sourdough?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production for tomorrow, can tell me number?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many muffins to bake for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, what quantity of bread we need?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much to bake tomorrow, any suggestion?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow's production, how many pieces?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many baguettes we need bake tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many rolls to make?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production advice for tomorrow, please.",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many donuts to prepare for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many cakes we need to produce?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Bake quantity tomorrow, what is the plan?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much we should bake for tomorrow's crowd?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many buns we need to bake?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Can advise how many to produce tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow's baking, how many loaves?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many pastries to bake for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, production quantity for bread?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much to prepare for tomorrow's batch?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many croissants we need?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production plan tomorrow, how many units?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many muffins should we bake tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many baguettes to produce?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Bake quantity for tomorrow, can share?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many rolls we need for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, what is the production target?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many donuts to make for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow's production, how many pieces needed?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many loaves to bake for tomorrow morning?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many cakes to prepare?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Production advice for tomorrow, what number?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How much dough we need for tomorrow's bake?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many buns to produce?",
+    "label": "production_advice"
+  },
+  {
+    "text": "How many pastries we need for tomorrow?",
+    "label": "production_advice"
+  },
+  {
+    "text": "Tomorrow, how many breads to bake?",
+    "label": "production_advice"
+  },
+  {
+    "text": "蛋挞皮还有多少库存",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "菠萝包的面粉够不够",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "奶黄馅材料还剩多少",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "check一下牛油曲奇的存货",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "today的蛋糕胚原料够用吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "酥皮要补货了没",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "我们还有多少盒蛋卷",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "do we have enough 红豆沙",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "椰丝面包的椰丝库存如何",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "肉松卷的肉松还够吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "inventory level of 叉烧包皮",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "蛋挞水材料短缺吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "抹茶粉还有几包",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "黄油库存够做明天的曲奇吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "check 香肠包的面团储备",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "班兰叶还有没有",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "我们缺不缺面粉",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "do we have sufficient 奶油",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "绿豆糕的绿豆馅库存",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "芝麻包的黑芝麻粉够吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "存货里还有多少巧克力酱",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "check一下custard cream的存量",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "老婆饼的冬瓜蓉还有吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "材料够不够做菠萝油",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "today的牛角包面团还有剩余吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "蛋挞的鸡蛋库存",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "do we have enough 高筋面粉",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "红豆馅还有几罐",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "牛油蛋糕的牛油存量",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "check 椰挞的椰丝够不够",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "奶黄包的内馅库存如何",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "我们还有多少盒蛋挞",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "面粉库存需要补货吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "do we have sufficient 砂糖",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "抹茶蛋卷的抹茶粉够吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "叉烧馅还有多少",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "菠萝包皮的材料够不够",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "inventory of 咸蛋黄",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "蛋挞皮还有几打",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "check if we have enough 低筋面粉",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "红豆沙库存不足吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "牛油曲奇的牛油存量",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "today的蛋糕材料都齐吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "酥皮蛋挞的酥皮还有多少",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "do we have enough 椰丝",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "奶黄馅的鸡蛋库存",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "班兰蛋糕的班兰叶够吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "肉松面包的肉松还有吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "check 香肠卷的香肠库存",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "芝麻糊的芝麻粉存量",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "我们缺少任何配料吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "inventory level of 蛋液",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "菠萝包皮还剩多少",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "do we have sufficient 牛油",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "蛋挞水的牛奶库存",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "叉烧包的面团还有吗",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "check 曲奇饼干的黄油",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "椰丝塔的椰丝够不够",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "老婆饼的馅料库存",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "我们还有多少奶油芝士",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we low on flour?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How much butter do we have left?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough eggs for tomorrow?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Running out of sugar?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the chocolate chips stock.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the yeast supply okay?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We need more vanilla extract?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "What's our cinnamon inventory look like?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Got enough baking soda?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we short on cream cheese?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How's the pastry dough holding up?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have any almond flour left?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is there enough milk for the brioche?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check if we need to order more cocoa powder.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we good on sprinkles?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "What about the nutmeg supply?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We running low on salt?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the honey jar almost empty?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough pecans for the batch?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How much powdered sugar do we have?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we out of bread flour?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the inventory of chocolate chips.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we need more butter?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the cream supply sufficient?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We're low on eggs, right?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "What's the stock of active dry yeast?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Got enough cornstarch?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we okay on shortening?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How's the supply of food coloring?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough blueberries for the muffins?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check if we need more granulated sugar.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the almond extract running low?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We need more all-purpose flour?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "What's the count of eggs left?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we short on heavy cream?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough baking powder?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How's the chocolate bar inventory?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is there enough coconut for the macaroons?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We running out of sesame seeds?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the stock of sunflower oil.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we need more molasses?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "What about the pumpkin puree supply?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we low on marshmallows?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Got enough cream of tartar?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the fridge stocked with yeast?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How many bags of flour are left?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We need to order more salt?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough brown sugar?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "What's the inventory of dried fruits?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we good on regular milk?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Enough flour for tomorrow's batch?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we running low on butter?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Sourdough starter quantity sufficient?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the chocolate chip inventory.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough eggs for the cake order?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Yeast levels—are they adequate?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Inventory of pastry fillings needed.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the sugar supply holding up?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Butter stock check required immediately.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Enough baking powder for the scones?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Vanilla extract—how much left?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we short on milk for the brioche?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Stock of almonds for the croissants?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have sufficient cocoa powder?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check if we need more cinnamon.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the cream cheese inventory okay?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Enough blueberries for the muffins?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How's our bag of bread flour?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we out of baking soda?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Inventory of pie crust dough?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough pecans for the tarts?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the honey supply level.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the yeast packet quantity enough?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Enough eggs for the quiche?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we low on confectioners' sugar?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the inventory of fruit purees.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have sufficient chocolate chunks?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Butter—do we need to order more?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How much all-purpose flour left?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the milk supply adequate for the custard?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Enough poppy seeds for the bagels?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the cream supply for the eclairs.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we short on baking chocolate?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Inventory of edible flowers for decoration?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough bread crumbs for the stuffing?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the almond flour stock sufficient?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check if we need more raisins.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Enough shortening for the pie crust?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we running out of cornstarch?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How's our inventory of liquid glucose?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough gelatin sheets?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the supply of matcha powder.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the buttermilk quantity enough?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Enough walnuts for the banana bread?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Are we low on coconut flakes?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check the stock of marzipan.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have sufficient food coloring?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Inventory of sprinkles for the cupcakes?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Is the espresso powder supply adequate?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Got enough flour ah?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check stock for butter, got or not?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "How much sugar left in store?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough eggs for tomorrow?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Inventory for chocolate chips enough?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Got enough baking powder or not?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check if we low on milk.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Vanilla extract stock level how ah?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We have enough cream cheese for cheesecake?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Cocoa powder need to top up?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Salt stock confirm enough?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check inventory for yeast, got plenty?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough almond flour?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Butter supply okay or not?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Eggs quantity enough for weekend?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Sugar level low or high?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check if we got enough baking soda.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Flour stock how many bags left?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Got enough sprinkles for donuts?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Inventory for nuts, enough or not?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "We low on cinnamon, need order?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check stock for food coloring.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Do we have enough coconut flakes?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Butter shortage or not?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Milk supply enough for today's batch?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Check if we running out of vanilla.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Cream cheese stock enough for orders?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Cocoa powder got how many packets?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Salt inventory need check.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Yeast stock level okay?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Almond flour enough for next week?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Eggs count, got enough for 50 cakes?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Sugar stock for big batch?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Baking powder supply low?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Chocolate chips stock, enough for cookies?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Flour got enough for bread?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Butter stock count now.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Milk quantity enough for cream?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Vanilla extract need restock?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Cream cheese shortage ah?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Cocoa powder stock level report.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Salt got enough for savory items?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Yeast supply for pizza dough?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Almond flour inventory check.",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Eggs stock for quiche?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Sugar level for caramel?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Baking soda got or not?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Chocolate chips need order?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Flour stock for pastries?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "Butter enough for croissant batch?",
+    "label": "inventory_diagnosis"
+  },
+  {
+    "text": "今天人手够吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么感觉人多了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "后厨是不是少人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "明天排班谁做的",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "晚班出餐慢是因为人少吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁请假了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "这个点应该加人吧",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "前台看起来闲得很",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "烤房忙得过来吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "下午茶高峰缺人吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁休息",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "哪个岗位空了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "早班是不是超编了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "明天谁上班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "周末人手够不够",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天怎么这么多人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "少人怎么不补",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "晚班出餐慢是缺人吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁值夜班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "前台怎么站了三个",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "后厨忙不过来了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁早班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "排班谁做的",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么多了好多人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "缺人也不说",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁中班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "这个点人手够吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么感觉少了人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁晚班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "周末排班出来了吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁顶班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么一堆人闲着",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "明天谁休息",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁加班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "忙不过来加人了吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁请假了没",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么这么多人站着",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁调休",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "排班表谁排的",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁替班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "缺人怎么办",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁轮休",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么少了好多人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "明天谁值班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁出勤",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "人手够不够用",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么多了一堆人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁换班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁迟到了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "忙不过来没人管",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁早退",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么没人了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁带班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "排班合理吗",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁缺勤",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么多了那么多人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁连班",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "怎么少了一个人",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "今天谁加班了",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we understaffed tomorrow?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "What is the current staffing level for the morning shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Kindly confirm if the schedule is balanced for the weekend.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is there an overstaffing issue on Friday evening?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Please check the staffing count for the pastry section.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Do we have enough bakers scheduled for the holiday?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Assess whether the shift roster requires adjustments.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "How many employees are assigned to the afternoon shift today?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the bakery adequately staffed for the lunch rush?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Review the staffing allocation for the closing shift.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we overstaffed on Monday morning?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Determine if the team is understaffed for the cake decorating station.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "What is the staff-to-customer ratio projected for Saturday?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Should we call in additional personnel for the bread line?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Check the shift coverage for the overnight batch.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the schedule compliant with labor regulations?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Identify any gaps in the staffing plan for next week.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are there too many employees scheduled for the slow hours?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Verify the staffing levels for the drive-through window.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "How does the current shift compare to the forecasted demand?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Please audit the roster for potential overstaffing.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we short-handed for the early morning prep shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Evaluate if the staffing is optimal for the event order.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "What is the headcount for the cleanup shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the schedule aligned with the sales projections?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Kindly examine the staffing data for the weekend.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Do we need to adjust the shift assignments for Tuesday?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we adequately staffed for the wholesale order fulfillment?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Check if the evening shift has coverage gaps.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is there a surplus of staff on the afternoon shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Assess the staffing for the gluten-free production line.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "How many part-time employees are on the schedule today?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Please verify the staff count for the retail counter.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we overstaffed for the early morning shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Determine if we can reduce labor costs by adjusting the roster.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "What is the current staffing status for the cake decorating team?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the shift schedule for Thursday balanced?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Should we reallocate staff from the front to the back?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Check if any shift has excessive staffing.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we understaffed for the custom order preparation?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Review the headcount for the bread baking section.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the staffing aligned with the holiday demand forecast?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Please confirm the number of bakers on duty for Friday.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Assess whether the team is overstaffed for the closing hours.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "What is the staff availability for the weekend rush?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are there any shifts with too few employees?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Kindly evaluate the staffing efficiency for the morning.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Do we need to reduce staff for the Tuesday lull?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the schedule properly staffed for the cake delivery window?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Verify the staffing for the pastry display replenishment.",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Understaffed tomorrow, are we?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Overstaffed today, the bakery is?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's working the late shift tonight?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Short on bakers this morning, I see?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Too many people on the register right now?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the schedule looking thin for Saturday?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Staffing gaps in the afternoon, any?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we overstaffed for the holiday rush?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Missing a pastry chef this week, aren't we?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "The morning crew is full, yes?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Understaffed on the bread station, are we?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who called in sick today?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is there anyone to cover the closing shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Too few hands for the cake orders?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "The weekend roster is light, isn't it?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we short a decorator for the wedding cake?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Overstaffed in the back, are we?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "No one scheduled for clean-up duty?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the afternoon shift understaffed?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's covering the freezer section?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "The dough mixer position is empty?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we running with a skeleton crew?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Too many employees on break now?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the lunch rush understaffed?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's working the front counter tomorrow?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Understaffed for the pre-order pickup window?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "The schedule has too many on prep, no?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we overstaffed on the bread line?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Missing a shift lead tonight?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the evening crew fully staffed?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's pulling the early morning shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Understaffed on the cookie station, right?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Too few bakers for the sourdough batch?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we overstaffed for the slow Tuesday?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "The cake decorating station is empty?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's handling the gluten-free orders?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the afternoon crew understaffed?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Short on the packaging team today?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we overstaffed on the register line?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's scheduled for the early closing shift?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Understaffed for the farmer's market booth?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "The shift coverage looks thin, does it?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we short a hand for the croissant batch?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Too many staff on the morning rush?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's covering the drive-thru window?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Is the evening shift overstaffed?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Understaffed on the danish station, no?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "The schedule is missing a dishwasher, yes?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Are we overstaffed for the catering order?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Who's working the oven station tonight?",
+    "label": "staffing_diagnosis"
+  },
+  {
+    "text": "Please run a full system diagnostic for the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a complete health check on all equipment.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate the comprehensive bakery operation report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a thorough diagnosis of all baking processes.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the overall status of the entire bakery?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a full diagnostic check and provide a detailed report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me a complete assessment of everything in the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a full system scan for faults and performance.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I request a comprehensive evaluation of the bakery's condition.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show the full diagnostic report for all machinery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Conduct a total system check for the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide a complete status overview of all departments.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a full audit and diagnostic on the bakery systems.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a complete operational health report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a comprehensive check on every component.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Deliver the full diagnostic analysis for the facility.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the complete diagnostic result for the bakery?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a total system diagnostic report now.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a full breakdown of all bakery systems.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a thorough diagnostic on every piece of equipment.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the comprehensive status update for the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a complete system evaluation and report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a holistic check on all bakery operations.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I require a full diagnostic on the entire setup.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show the complete health check results for the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a comprehensive system diagnosis and list all issues.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide the full diagnostic overview for today.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Conduct an exhaustive operational check on all systems.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a total system assessment with detailed findings.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a complete bakery diagnostic report immediately.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a full diagnostic scan on all baking stations.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the overall system condition of the bakery?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Please provide a comprehensive equipment health check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a thorough evaluation of all bakery functions.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a complete system audit and diagnostic.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the full operational diagnostic for the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a total system check and deliver results.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show the comprehensive diagnostic report for all areas.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a full check on the bakery's entire infrastructure.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I request a complete system analysis and report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Conduct a thorough diagnostic on every process.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide the full diagnostic summary for the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a comprehensive health check on all assets.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a total system diagnosis with recommendations.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform an exhaustive evaluation of the bakery systems.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the complete system status and diagnostic report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a full operational assessment of the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show the comprehensive diagnostic findings for today.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a thorough check on all bakery equipment and software.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a complete diagnostic overview of the facility.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a full bakery system health report now.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a total diagnostic on every operational area.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the full diagnostic status of the bakery?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Please run a comprehensive system check for all modules.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a complete evaluation report on the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Conduct a full system diagnostic and provide details.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the comprehensive operational health assessment.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a total system analysis for the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show the full diagnostic results for all bakery systems.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a thorough and complete diagnostic on everything.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Not broken, everything fine?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All systems nominal? No errors?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Skip the specifics, give me the whole picture.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Is there anything NOT working?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full rundown, but only if nothing's wrong.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No issues to report, correct?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Check everything and tell me it's perfect.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "The machine didn't break today, right?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything operational? No failures?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me a clean bill of health.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Assume zero problems—verify that.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All good? Confirm with a full scan.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No alerts? Then show me the all-clear.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a complete check, expecting zero faults.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "If it's all working, give me the full report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Nothing to fix? Prove it with a full diagnosis.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All perfect? Run the whole system check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Only tell me if there's nothing wrong.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full diagnostic, but only report if clean.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No breakdowns? Then list every function.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything running smoothly? Spare me the details unless not.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Complete overview, assuming no glitches.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All components operational? Show me the proof.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No malfunctions? Then give me the everything test.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a total check, but I want zero flags.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "If nothing's broken, give me the full picture.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All clear? Then I want every metric.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No problems found? Comprehensive report, please.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything fine? Then I need the full system status.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No errors? Then show me the whole log.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full assessment, but only if there are no issues.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All working? Provide complete diagnostics.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No hiccups? Then run the complete suite.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything okay? I want the entire breakdown.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No faults? Then give me the full rundown.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All systems go? Confirm with total check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No issues? Then I need the full output.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything nominal? Produce the full report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No glitches? Then show me the whole thing.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All perfect? Execute full system analysis.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No problems? Then give me everything.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything functional? Then do a complete scan.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No breakdowns? Then I want the full picture.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All good? Run the entire diagnostic.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No errors? Then show me the complete status.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything running? Give me the full overview.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No faults? Then provide the total check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All working? Then I need the comprehensive report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No issues? Execute full system review.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything fine? Then output the complete log.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No malfunctions? Then show me everything.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All operational? Do a full sweep.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No problems? Then give me the whole story.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything perfect? Run complete diagnostics.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No glitches? Then I want the full data.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "All clear? Provide the entire assessment.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No errors? Then show me the full breakdown.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Everything okay? Then give me the total picture.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "No issues? Execute comprehensive check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "full system check on my bakery operation please",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "can you run a complete diagnosis of my shop",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a full report on everything—oven, display, stock, everything",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "do a comprehensive check on all bakery systems",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "run full diagnosis on my bakeshop",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "give me the full rundown on my bakery's health",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "complete system scan for my pastry kitchen",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a total checkup on everything in my bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "full diagnostic report for my Chinese bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "can you do a full audit of my bakery operations",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "run a thorough check on all equipment and inventory",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "comprehensive diagnosis of my bakery please",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "full system check—ovens, mixers, proofers, all",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a complete health report for my shop",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "do a full scan on my bakery's performance",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "total system diagnosis for my bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "run a complete check on everything from dough to display",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "full assessment of my bakery's current state",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "comprehensive review of all my bakery systems",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want the full diagnostic report—no shortcuts",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "full checkup on my bakery, including stock and sales",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "do a complete system analysis for my bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "run a full diagnosis on my pastry shop operations",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a total system scan for my bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "comprehensive check on all bakery functions",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "full report on my bakery's equipment and inventory",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "run a complete diagnostic on my whole bakery setup",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "give me a full system evaluation for my shop",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "total diagnosis of my bakery, from mixer to cash register",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "full bakery health check—everything included",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a full diagnostic on the bakery system.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Please execute a comprehensive system check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide a complete status report of all operations.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a thorough diagnosis of the bakery equipment.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a full report on system health.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the overall condition of the bakery?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a complete system audit now.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show me the full diagnostic report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Initiate a comprehensive assessment of all bakery functions.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Conduct a full system evaluation.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the complete rundown on everything.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I request a detailed overview of system performance.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Can you run a full diagnostic?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a total system check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide an exhaustive report on bakery status.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Check the entire system thoroughly.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the full diagnosis of the bakery?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a complete health check on all modules.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a comprehensive system diagnosis.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a full inspection of bakery operations.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a complete system analysis.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Do a thorough diagnostic of everything.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show the complete status of the bakery system.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a full system report immediately.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a wide-ranging diagnostic check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Produce a detailed full-system report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the overall system diagnosis?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a complete system scan.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide a comprehensive breakdown of all bakery components.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I require a full diagnostic overview.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the full system health report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a total system audit.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show the complete bakery system diagnosis.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a thorough system evaluation.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a complete diagnostic on all systems.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a detailed full-status report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the comprehensive status of the bakery?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a full system diagnostic now.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide an exhaustive system analysis.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a complete rundown of system health.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a full diagnostic check on everything.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show me the complete system report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a comprehensive system health check.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the full bakery system diagnosis.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a complete system assessment.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a thorough diagnostic of the bakery.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a full system status report.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What is the complete system diagnosis?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a total system evaluation.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide a comprehensive diagnostic report on all operations.",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run a complete bakery system scan",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What’s the full health report on my bakehouse?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a thorough assessment of all bakery operations",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the entire diagnosis for the pastry shop",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a total system check on the oven and mixer",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need a comprehensive overview of the bakery’s status",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Can you do a deep dive into every bakery component?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full report on all bakery equipment and workflows",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Check everything in the bakery from start to finish",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Is there a way to get a complete integrity check?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Do a 360-degree review of the bread production line",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What’s the master diagnosis for the confectionery section?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run an exhaustive audit of the entire baking system",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Show me the full diagnostic for the dough room",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Complete system evaluation for the artisan bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want a total status report on all bakery machinery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Generate a thorough breakdown of every bakery function",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Perform a holistic assessment of the bake shop",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the comprehensive review of the pastry kitchen",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "What does the full system health check reveal?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Execute a complete operational scan for the bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Need a full diagnostic on the proofing and baking units",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run an all-encompassing check on the bakery’s subsystems",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Provide a detailed report on every bakery asset",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Can you diagnose the entire bakery infrastructure?",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Whole system check for bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me full diagnosis of all bakery machines",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Complete report on everything in bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery full system scan please",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want comprehensive diagnosis of bakery equipment",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Check every part of bakery system",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full bakery health report now",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run full diagnosis on bakery operations",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery system complete checkup",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Tell me everything about bakery condition",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Do a thorough bakery system analysis",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full diagnostic report for entire bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery all-in-one system check",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Comprehensive bakery equipment diagnosis needed",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Scan all bakery machines for issues",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery full report from top to bottom",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me the complete bakery diagnosis",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery system wide health check",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need full diagnosis of everything in bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery complete operational check",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run full system test on bakery",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery all systems diagnosis now",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Comprehensive bakery check including all parts",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery full diagnostic scan please",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Entire bakery system health report",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Check bakery from start to finish",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full bakery diagnosis report needed",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery complete machine checkup",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I want total bakery system analysis",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery thorough diagnosis all equipment",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run full bakery system diagnostic",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery overall health check report",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Comprehensive bakery machine diagnosis",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery full system evaluation",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Give me complete bakery status report",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery all-in-one diagnostic check",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full bakery equipment diagnosis now",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery system wide scan and report",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Check every bakery machine thoroughly",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery complete health assessment",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "I need full bakery diagnostic report",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery comprehensive system analysis",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Run total bakery diagnosis please",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery full operational checkup",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery all systems go? Do diagnosis",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery complete machine health check",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Full bakery system overview and diagnosis",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery everything check now",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "Bakery total system diagnostic required",
+    "label": "full_diagnosis"
+  },
+  {
+    "text": "这次促销到底赚了没",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "满减活动吸引的新客多吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "折扣券用的人少得可怜吧",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的买一送一效果怎么样",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "推广费花得值不值啊",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动期间销量涨了还是跌了",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "优惠券核销率是不是很低",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个campaign转化率能看吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "新客占比比上次活动高吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销后复购率有变化吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "打折力度够不够吸引人",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "广告投放的ROI算过吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动带来的利润是正的吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "顾客对折扣满意吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销期间客单价怎么还降了",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "老客户被优惠券激活了吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个折扣活动算成功吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "销售额增长和投入成正比吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "满减门槛设得合理吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动后客户留存率呢",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "优惠券使用高峰在几点",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这次促销的曝光量够大吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "转化率比行业平均高吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "折扣活动有没有拉低品牌形象",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销成本回收了吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "参与活动的客户质量高吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动带来的流量是精准的吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销对净利润贡献了多少",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "下次还有必要搞这种活动吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "折扣券的浪费率有多高",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动期间客流量增加了吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "优惠券分享率怎么样",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这次campaign的ROI达标吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "顾客对促销活动的评价好吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销追加订单的比例高吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动期间投诉增多了吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "折扣力度和销量增长匹配吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "新客获取成本是不是太高了",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销后多久客户会回头",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "满减活动让客单价提升了吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "广告点击率低得离谱吧",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动返场是否值得做",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销对非活动期销量有影响吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "折扣券用在了哪些产品上",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这次营销预算花得值吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动期间会员增长了多少",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销带来的长期价值高吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "优惠券过期未用率太高了吧",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动设计有没有让客户困惑",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销对品牌忠诚度有损害吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这次campaign的净推荐值如何",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "折扣吸引的是价格敏感客户吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动期间退货率上升了吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销和竞品比有优势吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动后的自然流量有提升吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "优惠券使用门槛应该调整吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这次促销的边际效益是多少",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "客户对折扣的感知价值高吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "活动期间库存周转加快了吗",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销对整体毛利率的影响",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个买一送一效果how ah?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的折扣campaign，ROI算了吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "促销期sales uplift多少percent？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那批蛋挞的promo，customer feedback如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "买五送一这个offer，conversion rate有提高吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "网红合作推广后的traffic spike明显吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "会员日折扣，repeat purchase rate怎样？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "新客coupon redemption rate高不高？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个bundling strategy，average basket size有增加吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "限时闪购的click-through rate怎么样？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那个买月饼送茶的campaign, net profit margin多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "父亲节promotion，incremental revenue算了吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "小红书种草后的store visit uplift多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个折扣码的使用率，是expected的吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "试吃活动的conversion lag多久？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的loyalty points promo，customer acquisition cost如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "双十一的promo, ROI比去年好吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "买三送一的campaign，库存turnover rate提高了？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "学生证优惠的redemption volume大不大？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个满减活动的incremental sales是多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "直播带货的coupon code usage rate怎么样？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "会员生日promo，response rate高吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那个限时折扣的sell-through rate多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "新品试吃的sampling conversion rate如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "国庆promotion，overall campaign performance report有吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个bundle的discount depth够吗？还是margin killed？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的flash sale，customer retention如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个优惠券的breakage rate是多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "节日礼盒promo，average order value提升了吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那个买蛋挞送奶茶的campaign，cross-sell rate怎样？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个买二送一的promo，trial rate高吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "会员积分兑换活动，engagement rate如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那批菠萝包的discount，profit erosion严重吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "早鸟优惠的conversion funnel哪里drop off？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个新客专享offer，first purchase conversion多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "中秋promo的brand lift measured了吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "买咖啡送面包的bundling，incremental margin怎样？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个折扣券的distribution渠道哪个最effective？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的social media contest，user-generated content多吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个买一送一的promo，net revenue uplift vs cost？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "学生优惠的redemption trend是上升还是下降？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个节日campaign，customer sentiment positive吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那个满50减10的offer，basket size提升多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "试吃活动的immediate purchase rate多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个会员专属折扣，churn rate有降低吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的bundling promo，product mix shift如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个限时折扣的urgency effect明显吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "买三盒送一盒的campaign，volume uplift vs discount cost？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那个网红推广的attribution model怎么算的？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个优惠券的expiry date设置，redemption spike了吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "早鸟优惠的lead generation quality如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "母亲节promo的customer lifetime value impact？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个买蛋糕送蜡烛的add-on，upsell rate多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的flash sale，inventory clearance速度怎样？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个新客coupon的breakage rate正常吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "买一送一promo的repeat purchase lag多久？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "那个节日礼盒的gift-with-purchase，average basket提升？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个折扣campaign的breakeven point到了吗？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "上次的social media promo，viral coefficient多少？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "这个买五送一的offer，customer satisfaction score如何？",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the conversion rate for the last bakery promotion?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the discount campaign on croissants?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the weekend sale increase revenue?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the performance of the buy-one-get-one offer.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the ROI of the recent marketing campaign?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How many new customers did the promotion attract?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the 20% off coupon successful?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Assess the impact of the loyalty discount.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the promotion on artisan bread meet targets?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What is the redemption rate for the bakery coupon?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the holiday campaign affect sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Measure the effectiveness of the email discount offer.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the promotional spend justified by sales uplift?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the customer acquisition cost from the campaign?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the discount on pastries perform?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Analyze the success of the referral program promotion.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the free sample campaign drive purchases?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the incremental revenue from the promo?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the marketing performance of the seasonal offer.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the social media discount code?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the promotion on cakes profitable?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What is the lift in sales from the campaign?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the promotional banner impact store traffic?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Assess the cost per acquisition for the bakery promo.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the clearance sale improve overall margins?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the engagement rate for the promotional email?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How many vouchers were redeemed during the campaign?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the multi-buy discount effective for muffins?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the campaign's contribution to quarterly goals.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the click-through rate for the promo ad?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the limited-time offer increase average order value?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the promotion compare to previous campaigns?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What is the net promoter score from the promo event?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Assess the profitability of the seasonal discount.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the discount strategy aligned with brand objectives?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the in-store promotion on bagels?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the repeat purchase rate from the campaign?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the promotion on gluten-free items perform well?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the marketing ROI for the bakery launch.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the customer lifetime value from the promo cohort?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the promotion influence customer retention?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the discount on custom cakes worth the margin loss?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Assess the campaign's impact on brand awareness.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the share of wallet from the promotion?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the cross-sell promotion on coffee?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the holiday bundle deal meet revenue expectations?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What is the conversion uplift from the targeted offer?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the success of the flash sale on doughnuts.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the promotional period optimal for maximizing sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did that coupon boost sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How well did our 2-for-1 perform?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the weekend discount a hit?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Marketing campaign's effectiveness, what was it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the free pastry offer increase foot traffic?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How many used the loyalty promo?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The new customer deal, any good?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promotion results, how to measure?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the holiday bundle sell better?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the ROI on that ad?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the 20% off code overused?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign impact on revenue, what?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the buy-one-get-one drive profit?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the Instagram offer convert?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "That flash sale, was it worth it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Effectiveness of our last email blast?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the student discount attract new faces?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promotional performance, any lift in sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How much did the coupon code generate?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the early-bird special popular?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the taste-test promo increase purchases?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Marketing spend, what did we get back?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the referral deal perform?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the free coffee coupon redeemed often?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "That social media campaign, what was the outcome?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the combo deal exceed targets?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Discount impact on average order size?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the birthday treat promo?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign's conversion rate, what was it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the seasonal special drive repeat visits?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the loyalty points bonus worth it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promo's effect on store traffic, how measured?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How many new sign-ups from the ad?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the gluten-free discount sell out?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "What was the profit margin on that promotion?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the bundle deal a customer favorite?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Marketing campaign's reach, how far?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the senior discount perform as expected?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the online code affect in-store sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promo feedback from customers, any patterns?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the holiday cookie promotion successful?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the loyalty card offer increase retention?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign cost per acquisition, what was it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the employee discount event?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the seasonal pie promo boost morning sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was that small batch discount well received?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promotion's net promoter score, how high?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the free sample offer convert to purchases?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How did the pop-up shop promotion fare?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "This promo for croissant, how was it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Discount on cakes last week, effective or not?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign for bread, got good response?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How the 50% off on muffins performed?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the buy-one-get-one free for cookies worth it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promotion for cinnamon rolls, any sales bump?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Our bakery campaign, did it increase footfall?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The weekend discount, how was the conversion?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the promo for sourdough, okay?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Marketing performance for the pie offer, good?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "That 20% off on donuts, effective?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How was the response to the cake promo?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign for pastries, got many takers?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The BOGO offer, how effective ah?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promotion evaluation for the new bread line?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the discount for bagels work?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The marketing campaign, any ROI?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How the promo for tarts performed?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the 30% off on biscuits successful?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the bakery campaign from last month.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The coupon for croissants, any increase?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the flash sale on cakes?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promo for brownies, got good feedback?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The discount on artisan bread, worth it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign performance for the holiday offer?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the promo for eclairs drive sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How was the response to the free sample promo?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The 2-for-1 on scones, effective or not?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the marketing for the new cookie flavor.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promotion for danishes, how was it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The 15% off on whole wheat bread, any impact?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How the campaign for pastries performed?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the promo for fruit tarts successful?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The discount on gluten-free items, good results?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign for the birthday cake special, how?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the promo for macarons increase traffic?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective was the loyalty discount?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The buy-one-get-one on muffins, evaluate.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Promo for the seasonal pie, got sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Marketing performance for the cupcake campaign?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The 25% off on all bread, how was it?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Evaluate the flash promo for donuts.",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How the discount on premium cakes performed?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Was the campaign for cookies effective?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The promo for baguettes, any takers?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "How effective the 10% off on everything?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Campaign for the new pastry line, evaluation?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The BOGO free on croissants, good or not?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "Did the promo for cheesecakes bring sales?",
+    "label": "promo_evaluation"
+  },
+  {
+    "text": "The marketing for the festive hamper, how?",
+    "label": "promo_evaluation"
+  }
+]
