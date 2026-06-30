@@ -490,6 +490,8 @@ pt.textContent=titles[currentPanel]||currentPanel;
 }
 // Update alert badge title
 var ab=document.getElementById('alert-badge');if(ab)ab.title=t('System Alerts');
+// Re-render current panel for dynamic content
+if(typeof currentPanel!=='undefined'&&currentPanel){showPanel(currentPanel);}
 }
 setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
 
