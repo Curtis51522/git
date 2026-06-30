@@ -1,4 +1,4 @@
-﻿# s5_agent/core/synthesizer.py
+# s5_agent/core/synthesizer.py
 import logging, os, json, httpx
 from typing import Dict, Any, List
 
@@ -10,16 +10,16 @@ class Synthesizer:
         self.llm_key = os.getenv("DEEPSEEK_API_KEY", "")
 
     async def synthesize(self, dag_result: Dict, deliberation: Dict = None,
-                          memory = None) -> Dict[str, Any]:
+                          memory = None, lang: str = "en") -> Dict[str, Any]:
         results = dag_result.get("results", {})
         query = dag_result.get("query", "")
         intent = dag_result.get("intent", "")
 
-        summary = await self._generate_summary(results, intent)
+        summary = await self._generate_summary(results, intent, lang=lang)
         baseline = self._build_baseline(results)
         trend = self._build_trend(results, memory)
         attribution = self._build_attribution_table(results, deliberation)
-        significance = self._check_significance(results)
+        significance = self._check_significance(results, lang=lang)
         recommendations = self._build_recommendations(results)
         evidence = self._build_evidence(results)
 
@@ -36,7 +36,7 @@ class Synthesizer:
             "intent": intent,
         }
 
-    async def _generate_summary(self, results: Dict, intent: str) -> str:
+    async def _generate_summary(self, results: Dict, intent: str, lang: str = "en") -> str:
         agent_summaries = []
         for name, r in results.items():
             r = r if isinstance(r, dict) else r.__dict__
@@ -47,7 +47,10 @@ class Synthesizer:
         if not self.llm_key:
             return " | ".join(agent_summaries)[:200]
 
-        prompt = f"""You are a bakery operations analyst. Summarize the following agent findings into ONE sentence (<30 words in English) that captures the root cause chain.
+        lang_instr = "in Chinese (Simplified Chinese)" if lang == "zh" else "in English"
+        if lang == "bm":
+            lang_instr = "in Bahasa Malaysia"
+        prompt = f"""You are a bakery operations analyst. Summarize the following agent findings into ONE sentence (<30 words) {lang_instr} that captures the root cause chain.
 Intent: {intent}
 Agent findings:
 {chr(10).join(agent_summaries)}
@@ -125,7 +128,7 @@ Return JSON: {{"summary": "one sentence here"}}"""
                 })
         return table
 
-    def _check_significance(self, results: Dict) -> Dict:
+    def _check_significance(self, results: Dict, lang: str = "en") -> Dict:
         significant = False
         factors = []
         for name, r in results.items():
@@ -134,8 +137,14 @@ Return JSON: {{"summary": "one sentence here"}}"""
             if deviation and abs(deviation) > 15:
                 significant = True
                 factors.append(name)
+        msgs = {
+            "en": {"sig": "Action recommended", "norm": "Normal fluctuation, no action needed"},
+            "zh": {"sig": "??????", "norm": "?????????"},
+            "bm": {"sig": "Tindakan disyorkan", "norm": "Turun naik normal, tiada tindakan diperlukan"},
+        }
+        lm = msgs.get(lang, msgs["en"])
         return {"significant": significant, "flagged_agents": factors,
-                "message": "Action recommended" if significant else "Normal fluctuation, no action needed"}
+                "message": lm["sig"] if significant else lm["norm"]}
 
     def _build_recommendations(self, results: Dict) -> List[Dict]:
         recs = []

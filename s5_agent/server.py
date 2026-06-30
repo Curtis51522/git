@@ -1,4 +1,4 @@
-﻿# s5_agent/server.py — S5 AI Brain server (port 8001)
+# s5_agent/server.py — S5 AI Brain server (port 8001)
 import asyncio, logging, time, sys, os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -63,11 +63,13 @@ class AnalyzeRequest(BaseModel):
     intent: str = ""
     params: dict = {}
     session_id: str = "default"
+    lang: str = "en"
 
 class ModuleAnalyzeRequest(BaseModel):
     module: str
     date: str = ""
     params: dict = {}
+    lang: str = "en"
 
 @app.get("/health")
 async def health():
@@ -91,7 +93,7 @@ async def analyze(req: AnalyzeRequest):
             if classification == "conflict":
                 conflict_type = f"{op_a.get('attribution',{}).get('metric','')}"
                 deliberation = await deliberator.deliberate(a, b, op_a, op_b, conflict_type)
-    output = await synthesizer.synthesize(dag_result, deliberation, memory)
+    output = await synthesizer.synthesize(dag_result, deliberation, memory, lang=req.lang)
     memory.add_query(req.query or intent, intent, output.get("summary", ""),
                      {"significant": output.get("significance", {}).get("significant", False)})
     return {

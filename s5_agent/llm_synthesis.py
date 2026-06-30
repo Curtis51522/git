@@ -37,7 +37,7 @@ Forecast Drivers (what influences demand): {memory_context}
 Rules:
 - Write as a helpful colleague would speak: natural, flowing, and connected. Use transition words (since, because, while, however, therefore) to link ideas smoothly rather than listing facts. The DECISION field is your source of truth.
 - You MUST mention what drives the forecast (the top 1-2 Forecast Drivers) in your summary.
-- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- LANGUAGE: Detect the query language. If the query is in Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English. Match the user's language.
 - Be direct and honest. If there is a shortage, state the gap explicitly: "You are short by X units."
 - If there are conflicts or risks, address them plainly without hiding behind vague terms.
 - Do not use words like "healthy" or "balanced" unless the data genuinely supports it.
@@ -54,7 +54,7 @@ Associations: {associations}
 
 Rules:
 - Write in natural, flowing English. Compare products side-by-side in a conversational tone.
-- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- LANGUAGE: Detect the query language. If the query is in Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English. Match the user's language.
 - Use ONLY per-product numbers from the DECISION text. Never aggregate totals - keep each product separate.
 - End by identifying which product needs attention first and why.
 - The DECISION field is authoritative - never contradict it.
@@ -73,7 +73,7 @@ Causal narrative: {causal_narrative}
 
 Rules:
 - Write in natural, flowing English. The DECISION field is authoritative.
-- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- LANGUAGE: Detect the query language. If the query is in Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English. Match the user's language.
 - If the Decision says UNDERSTOCK, explain that waste is not the real concern - the priority is restocking.
 - If the Decision says WASTE RISK, describe which products are overstocked and how many units are at risk.
 - Do not use "healthy balance" when the numbers show a clear imbalance.
@@ -89,7 +89,7 @@ Conflicts: {conflicts}
 
 Rules:
 - Write in natural, flowing English. The DECISION field is authoritative.
-- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- LANGUAGE: Detect the query language. If the query is in Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English. Match the user's language.
 - State the recommended discount and explain what is driving it (surplus, stock levels, urgency).
 - Reference urgency level and briefly note which factors (freshness, stock, market, trend, promo sensitivity) are most influential.
 - If the user suggested a different discount, explain why the recommendation differs.
@@ -105,7 +105,7 @@ Conflicts: {conflicts}
 
 Rules:
 - Write in natural, flowing English. State the exact staffing levels with numbers.
-- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- LANGUAGE: Detect the query language. If the query is in Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English. Match the user's language.
 - If any role is unfilled, explain the consequence clearly.
 - Only say things are fine when every required role is actually filled.
 - Keep it under 50 words.""",
@@ -119,7 +119,7 @@ Agents:
 
 Rules:
 - Write in natural, flowing English. State the profit margin and revenue/cost breakdown clearly.
-- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- LANGUAGE: Detect the query language. If the query is in Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English. Match the user's language.
 - Compare inventory against demand using specific numbers.
 - Do not inflate or downplay the margin - report it as it is.
 - Keep it under 80 words.""",
@@ -135,7 +135,7 @@ Causal calibration: {causal_calibration}
 Causal narrative: {causal_narrative}
 
 Rules:
-- LANGUAGE: Detect the query language. If Malay or mixed, respond in natural Malay. If English, respond in English.
+- LANGUAGE: Detect the query language. If Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English.
 - Write naturally and connect sentences smoothly. Avoid robotic bullet-point style.
 - The DECISION field is authoritative. Translate its format into plain language: "bake 54 (stock 10+54=64/64, 100%)" means "bake 54 croissants, bringing total stock to 64 to fully meet the forecast of 64."
 - OPEN with the most critical finding in a natural lead sentence, then explain the context.
@@ -167,7 +167,7 @@ Conflicts: {conflicts}
 
 Rules:
 - Write in natural, flowing English. The DECISION field is authoritative - never contradict it.
-- LANGUAGE: Detect the query language. If the query is in Malay or mixed Malay-English, respond in natural Malay (Bahasa Malaysia). If English, respond in English. Match the user's language.
+- LANGUAGE: Detect the query language. If the query is in Chinese, respond in natural Chinese (Simplified Chinese). If English, respond in English. Match the user's language.
 - Report the actual numbers clearly. Avoid vague terms unless the data genuinely supports them.
 - If there are conflicts, address them directly and honestly.
 - Keep it under 80 words."""
