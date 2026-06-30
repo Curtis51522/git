@@ -1,90 +1,40 @@
-# Production Agent - capacity constraints + baking recommendation
-# Phase 4: oven-physics-based capacity with baker-per-oven constraint.
-import httpx, logging, sys, os
-from typing import Dict, Any
-from .base import BaseAgent
-
+﻿import os, sys, httpx, logging
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path:
-    sys.path.insert(0, _PARENT)
-
+if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
+from s5_agent.core.base import BaseAgent, AgentOpinion
+from s5_agent.core.tool import Tool
 logger = logging.getLogger("s5.agent.production")
-
+BAKER_PER_OVEN = 60
 
 class ProductionAgent(BaseAgent):
-    def __init__(self):
-        super().__init__("production")
-        self._cfg = None
+    def _setup_tools(self):
+        self.tools.register(Tool(name="get_oven_capacity", description="Get oven capacity and baker count",
+            parameters={}, primary=True, _handler=self._get_capacity))
+        self.tools.register(Tool(name="get_s3_plan", description="Get S3 production plan",
+            parameters={"date": "string"}, primary=False, _handler=self._get_s3_plan))
 
-    def _get_config(self):
-        if self._cfg is not None:
-            return self._cfg
+    async def _get_capacity(self):
+        return {"ovens": 2, "bakers": 5, "capacity_per_hour": BAKER_PER_OVEN, "hours": 8}
+
+    async def _get_s3_plan(self, date: str = ""):
         try:
-            from optimizer import BakeryConfig
-            self._cfg = BakeryConfig()
-        except Exception:
-            self._cfg = type("Cfg", (), {
-                "oven_layers": 2, "oven_count": 2, "capacity_per_layer": 12,
-                "baking_time_min": 18, "baking_window_hours": 4.5,
-                "max_units_per_hour": 160, "batch_size": 1,
-            })()
-        return self._cfg
+            async with httpx.AsyncClient(timeout=10) as c:
+                r = await c.get("http://127.0.0.1:8002/s4/inventory/dashboard")
+                if r.status_code == 200: return r.json()
+        except: pass
+        return {"plan": []}
 
-    def _oven_rate_per_oven(self):
-        cfg = self._get_config()
-        return cfg.max_units_per_hour / max(cfg.oven_count, 1)
-
-    async def fetch(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return {}
-
-    def analyze(self, raw: Dict[str, Any], params: Dict[str, Any],
-                history: str = "", key_metrics: Dict[str, Any] = None) -> Dict[str, Any]:
-        demand_data = params.get("_demand", {})
-        staffing_data = params.get("_staffing", {})
-        inventory_data = params.get("_inventory", {})
-
-        forecast = demand_data.get("forecast", 0)
-        stock_in_hand = inventory_data.get("inventory", 0)
-        baker_count = staffing_data.get("bakers", 1)
-        baker_hours = staffing_data.get("baker_hours", 7)
-        cfg = self._get_config()
-
-        # 1 baker operates 1 oven; capacity is per-oven rate
-        ovens_used = min(baker_count, cfg.oven_count)
-        per_oven_rate = self._oven_rate_per_oven()
-        effective_hours = min(baker_hours, cfg.baking_window_hours)
-        max_capacity = int(ovens_used * effective_hours * per_oven_rate)
-        capped = forecast > max_capacity
-
-        has_demand = "forecast" in demand_data and forecast >= 0
-        has_staffing = "bakers" in staffing_data
-        if has_demand and has_staffing and baker_count > 0:
-            confidence = 0.85
-        elif has_demand and has_staffing:
-            confidence = 0.60
-        elif has_demand:
-            confidence = 0.50
-        else:
-            confidence = 0.20
-
-        constraints = []
-        if capped:
-            constraints.append(f"demand {forecast} exceeds capacity {max_capacity} - capped")
-        if baker_count == 0:
-            constraints.append("no bakers available")
-
-        # Net demand: forecast minus existing stock (cannot bake negative)
-        net_demand = max(0, forecast - stock_in_hand)
-        recommended = min(net_demand, max_capacity) if forecast > 0 else 0
-
-        return {
-            "opinion": f"Capacity {max_capacity} ({baker_count} bakers x {ovens_used} ovens, {effective_hours:.1f}h eff, {per_oven_rate:.0f}/hr/oven, window={cfg.baking_window_hours:.1f}h), bake {recommended}",
-            "confidence": round(confidence, 2),
-            "constraints": constraints,
-            "data": {
-                "max_capacity": max_capacity, "recommended": recommended,
-                "bakers": baker_count, "baker_hours": baker_hours,
-                "ovens_used": ovens_used, "oven_rate": per_oven_rate,
-                "is_capped": capped, "effective_hours": effective_hours,
-            },
-        }
+    def analyze(self, raw, params, context="", history="", key_metrics=None):
+        data = raw.get("data", {})
+        ovens = data.get("ovens", 2)
+        bakers = data.get("bakers", 5)
+        max_cap = ovens * BAKER_PER_OVEN * 8
+        demand_context = context or ""
+        opinion = f"Capacity: {max_cap} units/day ({bakers} bakers x {ovens} ovens)"
+        recs = []
+        if "low" in demand_context.lower():
+            recs.append({"action": "Reduce bake plan by 15%", "urgency": "medium", "projected_gain": 60, "ease": "high"})
+        return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.75,
+            attribution={"metric": "production", "root_cause": "adequate_capacity", "deviation": 0},
+            evidence={"max_capacity": max_cap, "bakers": bakers, "ovens": ovens},
+            recommendations=recs)
