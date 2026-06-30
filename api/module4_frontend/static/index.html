@@ -486,7 +486,7 @@ if(txt==='Delete'||txt==='Padam')btns[j].textContent=t('Delete');
 if(txt==='Edit'||txt==='Sunting')btns[j].textContent=t('Edit');
 // Re-render current panel
 // Reload page to apply language change
-sessionStorage.setItem('bakery_token',token);sessionStorage.setItem('bakery_role',role);sessionStorage.setItem('bakery_username',username);setTimeout(function(){location.reload();},100);
+sessionStorage.setItem('bakery_token',token);sessionStorage.setItem('bakery_role',role);sessionStorage.setItem('bakery_username',username);sessionStorage.setItem('bakery_panel',currentPanel);setTimeout(function(){location.reload();},100);
 }}
 // Update freshness dropdown
 var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
@@ -518,10 +518,13 @@ var token=sessionStorage.getItem('bakery_token')||'', role=sessionStorage.getIte
 var API='';
 if(token&&role){
 API=window.location.origin.replace('localhost','127.0.0.1');
+S5_API=API+'/s5';
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
 document.getElementById('user-display').textContent=username;
-setTimeout(function(){document.getElementById('lang-'+LANG).classList.add('active');showPanel('pos');},50);
+var savedPanel=sessionStorage.getItem('bakery_panel')||'pos';
+document.getElementById('lang-'+LANG).classList.add('active');
+setTimeout(function(){showPanel(savedPanel);},50);
 }
 var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false, dineType='dine_in';
 var PRODUCT_PRICES={apple_pie:14.00,bagel:12.00,baguette:10.00,bread_coconut:10.00,bread_roll:8.00,brioche:18.00,brownie:18.00,chiffon:18.00,chocolate_cake:20.00,chocopie:10.00,cookie:9.00,cornbread:8.00,cream_horn:14.00,croissant:10.00,croissant_chocolate:12.00,donut:7.00,eggtart:7.00,flatbread:9.00,macaron:10.00,mantequilla:9.00,melon_bread:10.00,muffin:12.00,pancake:14.00,pandesal:6.00,pizza_bread:16.00,pullman:10.00,soboru_bread:13.00,sourdough:22.00,stickbread:7.00,tostada:10.00};
@@ -615,7 +618,7 @@ async function showPanel(panel){
 // Hide ALL panel containers first
 var allPanels=document.querySelectorAll('#content-area > .panel-container');
 for(var pi=0;pi<allPanels.length;pi++)allPanels[pi].style.display='none';
-currentPanel=panel;
+currentPanel=panel;sessionStorage.setItem('bakery_panel',panel);
 var btns=document.querySelectorAll('.topnav nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
