@@ -208,11 +208,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <body>
 <div id="login-page">
 <div class="card">
-<h1>Bakery AI System</h1>
-<div class="sub">Bakery-Cafe Intelligent Operations</div>
+<h1 data-i18n="Bakery AI System">Bakery AI System</h1>
+<div class="sub" data-i18n="Bakery-Cafe Intelligent Operations">Bakery-Cafe Intelligent Operations</div>
 <input id="username" placeholder="Username" autocomplete="username" value="manager">
 <input id="password" type="password" placeholder="Password" autocomplete="current-password" value="hash123">
-<button onclick="doLogin()" id="signin-btn">Sign In</button>
+<button onclick="doLogin()" id="signin-btn" data-i18n="Sign In">Sign In</button>
 <div id="error-msg"></div>
 </div>
 </div>
@@ -221,12 +221,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <h2>Bakery AI</h2>
 <nav>
 <button class="active" data-panel="pos" onclick="showPanel('pos')">POS</button>
-<button data-panel="forecast" class="manager-only" onclick="showPanel('forecast')">Forecast</button>
-<button data-panel="schedule" class="manager-only" onclick="showPanel('schedule')">Schedule</button>
-<button data-panel="attendance" onclick="showPanel('attendance')">Attendance</button>
-<button data-panel="inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
-<button data-panel="wastage" class="manager-only" onclick="showPanel('wastage')">Wastage</button>
-<button data-panel="revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
+<button data-panel="forecast" data-i18n="Sales Forecast" class="manager-only" onclick="showPanel('forecast')">Forecast</button>
+<button data-panel="schedule" data-i18n="Shift Schedule" class="manager-only" onclick="showPanel('schedule')">Schedule</button>
+<button data-panel="attendance" data-i18n="Attendance" onclick="showPanel('attendance')">Attendance</button>
+<button data-panel="inventory" data-i18n="Inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
+<button data-panel="wastage" data-i18n="Wastage Log" class="manager-only" onclick="showPanel('wastage')">Wastage</button>
+<button data-panel="revenue" data-i18n="Revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
 </nav>
 <span id="role-badge" class="role-badge"></span>
 <span style="color:#6b5b4f;font-size:12px;white-space:nowrap" id="user-display"></span>
@@ -237,7 +237,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <div class="alert-badge manager-only" id="alert-badge" onclick="showAlertPanel()" title="System Alerts">
   <span>&#x26A0;</span> <span class="count" id="alert-count">0</span>
 </div>
-<button class="logout-btn" onclick="doLogout()">Sign Out</button>
+<button class="logout-btn" onclick="doLogout()" data-i18n="Sign Out">Sign Out</button>
 </div>
 <div class="main">
 <div class="topbar" style="padding:6px 16px"><span id="panel-title" style="font-size:13px;color:#6b5b4f">POS Checkout</span></div>
@@ -416,6 +416,10 @@ en:{
 'Batches':'Batches','Details':'Details','Close':'Close',
 'Production Time':'Production Time','Status':'Status',
 'Shift':'Shift','Role':'Role','Employee':'Employee','Re-sync complete (fresh schedule)':'Re-sync complete (fresh schedule)','Day-1 stock:':'Day-1 stock:','Fresh stock:':'Fresh stock:','e.g. How many croissants tomorrow?':'e.g. How many croissants tomorrow?','Enter username and password':'Enter username and password','Signing in...':'Signing in...','Manager':'Manager','Staff':'Staff','Camera - Visual Recognition':'Camera - Visual Recognition','Click to scan / upload image':'Click to scan / upload image','Scanning tray...':'Scanning tray...','Fresh Batch Inflow':'Fresh Batch Inflow','Scan fresh-baked goods to add to inventory':'Scan fresh-baked goods to add to inventory','Scan Fresh Batch':'Scan Fresh Batch','Confirm Inflow':'Confirm Inflow','HITL Correction Log':'HITL Correction Log','AI Store Manager':'AI Store Manager','Loading...':'Loading...','Loading shifts...':'Loading shifts...','Loading inventory...':'Loading inventory...','Top-3 Bundle':'Top-3 Bundle','batches | Click Refresh to update':'batches | Click Refresh to update','KPI error':'KPI error','Loading KPI...':'Loading KPI...','Batch ID':'Batch ID','Area':'Area','Freshness':'Freshness','Qty':'Qty','Batch Inventory':'Batch Inventory','KPI':'KPI','Fair':'Fair','Gap (hrs)':'Gap (hrs)','Employees':'Employees','Get Sales Script':'Get Sales Script','Generate':'Generate','Actual':'Actual','Expected (shifts)':'Expected (shifts)','Extra':'Extra','Rate':'Rate','Ask':'Ask','Restock':'Restock','Waste':'Waste','Schedule':'Schedule','Audit':'Audit','Type a question':'Type a question','Enter a question':'Enter a question','Processing...':'Processing...','restock_q':'How many croissants should I bake tomorrow?','waste_q':'Why is waste high this week?','schedule_q':'Check schedule for anomalies','audit_q':'Run full store health check','Stock:':'Stock:',
+'Attendance':'Attendance',
+'Wastage Log':'Wastage Log',
+'Bakery AI System':'Bakery AI System',
+'Bakery-Cafe Intelligent Operations':'Bakery-Cafe Intelligent Operations',
 },
 zh:{
 'POS Checkout':'POS结账','Sales Forecast':'销售预测','Shift Schedule':'排班表',
@@ -465,28 +469,23 @@ function setLang(l){
 LANG=l;localStorage.setItem('bakery_lang',l);
 document.getElementById('lang-en').classList.toggle('active',l==='en');
 document.getElementById('lang-zh').classList.toggle('active',l==='zh');
-// Update static DOM elements
-var btns=document.querySelectorAll('.topnav nav button');
-if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('Revenue');}
-var lo=document.querySelector('.logout-btn');if(lo)lo.textContent=t('Sign Out');
-var ab=document.getElementById('alert-badge');if(ab){ab.title=t('System Alerts');ab.childNodes[1].textContent=' '+t('Alerts')+' ';}
-var un=document.getElementById('username');if(un)un.placeholder=t('Username');
-var pw=document.getElementById('password');if(pw)pw.placeholder=t('Password');
-var si=document.getElementById('signin-btn');if(si)si.textContent=t('Sign In');
-// Update modal buttons
-var modals=document.querySelectorAll('[id$="-modal"]');
-for(var i=0;i<modals.length;i++){
-var btns=modals[i].querySelectorAll('button');
-for(var j=0;j<btns.length;j++){
-var txt=btns[j].textContent.trim();
-if(txt==='Cancel'||txt==='Batal')btns[j].textContent=t('Cancel');
-if(txt==='Confirm'||txt==='Sahkan')btns[j].textContent=t('Confirm');
-if(txt==='Close'||txt==='Tutup')btns[j].textContent=t('Close');
-if(txt==='Delete'||txt==='Padam')btns[j].textContent=t('Delete');
-if(txt==='Edit'||txt==='Sunting')btns[j].textContent=t('Edit');
-// Re-render current panel
-// Reload page to apply language change
-if(typeof currentPanel!=='undefined'&&currentPanel){showPanel(currentPanel);}
+// data-i18n DOM traversal - translates all static text
+var els=document.querySelectorAll('[data-i18n]');
+for(var i=0;i<els.length;i++){
+var key=els[i].getAttribute('data-i18n');
+if(key)els[i].textContent=t(key);
+}
+// Update input placeholders
+var u=document.getElementById('username');if(u)u.placeholder=t('Username');
+var p=document.getElementById('password');if(p)p.placeholder=t('Password');
+// Update panel title
+var pt=document.getElementById('panel-title');
+if(pt&&currentPanel){
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),attendance:t('Attendance'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue')};
+pt.textContent=titles[currentPanel]||currentPanel;
+}
+// Update alert badge title
+var ab=document.getElementById('alert-badge');if(ab)ab.title=t('System Alerts');
 }}
 // Update freshness dropdown
 var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
@@ -1452,7 +1451,11 @@ async function loadKPIRanking(month){
     api('/s3/schedule?date='+sd+'&days=7').then(function(r){
       if(r&&r.employee_summary)renderWeeklyHoursChart(r.employee_summary);
     }).catch(function(){});
-  }
+  ,
+'Attendance':'考勤',
+'Wastage Log':'损耗日志',
+'Bakery AI System':'烘焙AI系统',
+'Bakery-Cafe Intelligent Operations':'烘焙咖啡智能运营'}
 },500);
   }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>Error: '+e.message;}
 }
