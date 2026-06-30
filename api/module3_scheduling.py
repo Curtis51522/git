@@ -1401,24 +1401,36 @@ def _get_attendance():
 
 
 @router.get("/attendance")
-async def get_attendance_dashboard():
-    """Shift+KPI Dashboard Panel 1: Today attendance + weekly grid + monthly summary."""
+async def get_attendance_dashboard(date: str = ""):
+    """Shift+KPI Dashboard Panel 1: Today attendance + weekly grid + monthly summary.
+    If date is provided and not today, returns historical attendance for that date."""
     att = _get_attendance()
-    # Try to get today's schedule for shift-aware attendance
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    target_date = date if date else today_str
+
+    # Try to get schedule for the target date
     schedule = []
     try:
-        from datetime import datetime as _dt2
-        today_str = _dt2.now().strftime("%Y-%m-%d")
-        sched_resp = await get_schedule(date=today_str, days=7)
+        sched_resp = await get_schedule(date=target_date, days=7)
         schedule = sched_resp.get("schedule", [])
     except Exception:
         pass
+
     result = att.dashboard_format()
-    # Override today_attendance with schedule-aware version
-    result["today_attendance"] = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "employees": att.get_today_attendance(schedule),
-    }
+
+    # If requesting a historical date, use get_date_attendance
+    if date and date != today_str:
+        employees = att.get_date_attendance(date, schedule)
+        result["today_attendance"] = {
+            "date": date,
+            "employees": employees,
+        }
+    else:
+        result["today_attendance"] = {
+            "date": today_str,
+            "employees": att.get_today_attendance(schedule),
+        }
+
     result["today_attendance"]["total"] = len(result["today_attendance"]["employees"])
     result["today_attendance"]["present"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] in ("on_time", "late", "present"))
     result["today_attendance"]["absent"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] == "absent")

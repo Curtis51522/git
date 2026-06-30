@@ -15,57 +15,116 @@ class Synthesizer:
         query = dag_result.get("query", "")
         intent = dag_result.get("intent", "")
 
-        summary = await self._generate_summary(results, intent, lang=lang)
+        analysis = await self._llm_analyze(results, intent, deliberation, lang=lang)
         baseline = self._build_baseline(results)
         trend = self._build_trend(results, memory)
-        attribution = self._build_attribution_table(results, deliberation)
         significance = self._check_significance(results, lang=lang)
-        recommendations = self._build_recommendations(results)
         evidence = self._build_evidence(results)
 
         return {
-            "summary": summary,
+            "summary": analysis.get("summary", ""),
             "baseline": baseline,
             "trend": trend,
-            "attribution": attribution,
+            "attribution": analysis.get("attribution", []),
             "significance": significance,
-            "recommendations": recommendations,
+            "recommendations": analysis.get("recommendations", []),
             "evidence": evidence,
             "deliberation": deliberation,
             "query": query,
             "intent": intent,
         }
 
-    async def _generate_summary(self, results: Dict, intent: str, lang: str = "en") -> str:
+    async def _llm_analyze(self, results: Dict, intent: str, deliberation: Dict = None, lang: str = "en") -> Dict[str, Any]:
         agent_summaries = []
+        agent_recs = []
         for name, r in results.items():
             r = r if isinstance(r, dict) else r.__dict__
             opinion = r.get("opinion", "")
             if opinion:
                 agent_summaries.append(f"[{name}]: {opinion}")
+            for rec in r.get("recommendations", []):
+                agent_recs.append(f"[{name}] {rec.get('action', '')} (urgency={rec.get('urgency', 'medium')}, rationale={rec.get('rationale', '')})")
 
         if not self.llm_key:
-            return " | ".join(agent_summaries)[:200]
+            return {"summary": " | ".join(agent_summaries)[:200], "attribution": [], "recommendations": []}
 
         lang_instr = "in Chinese (Simplified Chinese)" if lang == "zh" else "in English"
         if lang == "bm":
             lang_instr = "in Bahasa Malaysia"
-        prompt = f"""You are a bakery operations analyst. Summarize the following agent findings into ONE sentence (<30 words) {lang_instr} that captures the root cause chain.
-Intent: {intent}
+
+        # Theme definitions for the prompt
+        theme_prompt = """You are a sharp bakery analyst. Agents below have analyzed individual business cards, then cross-referenced each other. Your output is a structured briefing """ + lang_instr + """$.
+
+STRUCTURE YOUR SUMMARY BY BUSINESS THEMES (not by agent). Group findings into these thematic sections, each a flowing paragraph that synthesizes multiple agents:
+
+Revenue & Demand -- Revenue, orders, average ticket, profit margin, and 7-day trend direction. Combine TrendAgent, DemandAgent, and ProfitAgent.
+
+Product Mix & Risk -- Product concentration, category split (bread vs beverages), top-seller performance, and model sensitivity. Combine ProductMixAgent and FeatureSensitivityAgent.
+
+Operations -- Staffing, attendance, wastage, and production. Combine StaffingAgent, AttendanceAgent, WastageAgent, and YieldAgent.
+
+External Factors -- Weather, holidays, promotions, discounts, competitor activity. Combine ExternalFactorsAgent and PricingAgent.
+
+Cross-Card Insights -- This is the most important section. MetricConflictAgent, CausalChainAgent, and CrossRiskAgent have already computed cross-references. Summarize their findings: conflicts, root cause chain, and cross-card risks.
+
+RULES:
+- Numbers only from agents. Currency: RMB yuan.
+- Let the L2 agents do the heavy analytical lifting.
+- Write as a sharp colleague briefing the store owner.
+- Each section 2-4 sentences, flowing naturally.
+- If a section has insufficient data, say so honestly in one sentence.
+- Recommendations go in the separate JSON array, NOT in the summary text.
+
+OUTPUT valid JSON:
+{"summary": "Revenue & Demand\n...\n\nProduct Mix & Risk\n...\n\nOperations\n...\n\nExternal Factors\n...\n\nCross-Card Insights\n...",
+ "attribution": [{"factor": "...", "evidence": "agent + number"}],
+ "recommendations": [{"action": "...", "urgency": "high|medium|low", "rationale": "agent + number"}]}
+
+Intent: """ + intent + """
 Agent findings:
-{chr(10).join(agent_summaries)}
-Return JSON: {{"summary": "one sentence here"}}"""
+""" + chr(10).join(agent_summaries)
+
         try:
-            async with httpx.AsyncClient(timeout=20) as client:
+            async with httpx.AsyncClient(timeout=90) as client:
                 r = await client.post(self.llm_url, json={
-                    "model": "deepseek-chat", "temperature": 0.3,
-                    "messages": [{"role": "user", "content": prompt}]
+                    "model": os.getenv("DEEPSEEK_MODEL", "deepseek-chat"), "temperature": 0.2,
+                    "messages": [{"role": "user", "content": theme_prompt}]
                 }, headers={"Authorization": f"Bearer {self.llm_key}"})
                 if r.status_code == 200:
-                    return json.loads(r.json()["choices"][0]["message"]["content"]).get("summary", agent_summaries[0] if agent_summaries else "No findings")
+                    raw = r.json()["choices"][0]["message"]["content"].strip()
+                    if raw.startswith("```"):
+                        first_nl = raw.find("\n")
+                        if first_nl != -1:
+                            raw = raw[first_nl + 1:]
+                        else:
+                            raw = raw[3:]
+                    raw = raw.strip()
+                    if raw.endswith("```"):
+                        raw = raw[:-3].strip()
+                    parsed = json.loads(raw)
+                    return {
+                        "summary": parsed.get("summary", ""),
+                        "attribution": parsed.get("attribution", []),
+                        "recommendations": parsed.get("recommendations", []),
+                    }
         except Exception as e:
-            logger.warning("LLM summary failed: %s", e)
-        return agent_summaries[0] if agent_summaries else "Analysis complete"
+            logger.warning("LLM analysis failed: %s", e)
+        # Fallback
+        fallback_summary = "; ".join(agent_summaries) if agent_summaries else "Analysis complete"
+        fallback_attribution = []
+        for name, r in results.items():
+            r = r if isinstance(r, dict) else r.__dict__
+            opinion = r.get("opinion", "")
+            if opinion:
+                fallback_attribution.append({"factor": name, "evidence": opinion[:200]})
+        fallback_recs = []
+        for rec_item in agent_recs:
+            fallback_recs.append({"action": rec_item, "urgency": "medium", "rationale": ""})
+        return {
+            "summary": fallback_summary,
+            "attribution": fallback_attribution,
+            "recommendations": fallback_recs[:6],
+        }
 
     def _build_baseline(self, results: Dict) -> Dict:
         baseline = {"actual": {}, "expected": {}, "anomaly": {}}
@@ -99,35 +158,6 @@ Return JSON: {{"summary": "one sentence here"}}"""
             direction = "insufficient_data"
         return {"direction": direction, "recent_anomalies": anomaly_count, "periods": len(recent)}
 
-    def _build_attribution_table(self, results: Dict, deliberation: Dict) -> List[Dict]:
-        table = []
-        profit_agent = results.get("ProfitAgent", {})
-        profit_agent = profit_agent if isinstance(profit_agent, dict) else profit_agent.__dict__
-        contributions = profit_agent.get("attribution", {}).get("contributions", {})
-
-        for name, r in results.items():
-            r = r if isinstance(r, dict) else r.__dict__
-            attr = r.get("attribution", {})
-            root_cause = attr.get("root_cause", "")
-            if root_cause:
-                table.append({
-                    "factor": root_cause,
-                    "contribution_pct": contributions.get(name, 0) or attr.get("contribution_pct", 0),
-                    "confidence": r.get("confidence", 0),
-                    "source_agent": name,
-                })
-
-        table.sort(key=lambda x: -x["contribution_pct"])
-        if deliberation and deliberation.get("resolved") is False:
-            minority = deliberation.get("minority_opinion", {})
-            if minority:
-                table.append({
-                    "factor": f"[Alternative] {minority.get('attribution',{}).get('root_cause','')}",
-                    "contribution_pct": 0, "confidence": deliberation.get("confidence", 0),
-                    "source_agent": "deliberation_minority",
-                })
-        return table
-
     def _check_significance(self, results: Dict, lang: str = "en") -> Dict:
         significant = False
         factors = []
@@ -145,15 +175,6 @@ Return JSON: {{"summary": "one sentence here"}}"""
         lm = msgs.get(lang, msgs["en"])
         return {"significant": significant, "flagged_agents": factors,
                 "message": lm["sig"] if significant else lm["norm"]}
-
-    def _build_recommendations(self, results: Dict) -> List[Dict]:
-        recs = []
-        for name, r in results.items():
-            r = r if isinstance(r, dict) else r.__dict__
-            for rec in r.get("recommendations", []):
-                recs.append({**rec, "source_agent": name})
-        recs.sort(key=lambda x: -(x.get("projected_gain", 0) * {"high": 3, "medium": 2, "low": 1}.get(x.get("ease","medium"), 2)))
-        return recs[:5]
 
     def _build_evidence(self, results: Dict) -> Dict:
         evidence = {}

@@ -3,6 +3,7 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.s5_config.settings import THRESHOLDS
 logger = logging.getLogger("s5.agent.wastage")
 
 class WastageAgent(BaseAgent):
@@ -26,7 +27,7 @@ class WastageAgent(BaseAgent):
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         data = raw.get("data", {})
         rates = data.get("rates", [])
-        anomalies = [r for r in rates if abs(r.get("rate", 0)) > 15]
+        anomalies = [r for r in rates if abs(r.get("rate", 0)) > THRESHOLDS["wastage_abnormal_rate"]]
         if anomalies:
             names = [a.get("material_name", "?") for a in anomalies[:5]]
             return AgentOpinion(agent=self.name, opinion=f"Abnormal wastage: {', '.join(names)}",

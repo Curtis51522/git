@@ -3,7 +3,7 @@
 import asyncio, logging, time, httpx
 from typing import Dict
 from alert_store import add_alert, clear_expired
-from s5_config.settings import PRODUCT_NAMES
+from s5_agent.s5_config.settings import API_BASE
 from collections import defaultdict
 
 logger = logging.getLogger("s5.monitor")

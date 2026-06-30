@@ -39,7 +39,7 @@ class Deliberator:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 r = await client.post(self.llm_url, json={
-                    "model": "deepseek-chat",
+                    "model": os.getenv("DEEPSEEK_REASONER_MODEL", "deepseek-chat"),
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1
                 }, headers={"Authorization": f"Bearer {self.llm_key}"})

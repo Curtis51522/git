@@ -10,3 +10,11 @@ from s5_agent.agents.pricing import PricingAgent
 from s5_agent.agents.profit import ProfitAgent
 from s5_agent.agents.promo import PromoAgent
 from s5_agent.agents.attendance import AttendanceAgent
+
+from s5_agent.agents.hourly_pattern import HourlyPatternAgent
+
+from s5_agent.agents.trend import TrendAgent
+from s5_agent.agents.product_mix import ProductMixAgent
+
+from s5_agent.agents.feature_sensitivity import FeatureSensitivityAgent
+from s5_agent.agents.cross_card import MetricConflictAgent, CausalChainAgent, CrossRiskAgent

@@ -3,6 +3,7 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.s5_config.settings import THRESHOLDS
 logger = logging.getLogger("s5.agent.product_stock")
 
 class ProductStockAgent(BaseAgent):
@@ -27,7 +28,7 @@ class ProductStockAgent(BaseAgent):
         data = raw.get("data", {})
         prods = data.get("products", [])
         day1_count = sum(1 for p in prods if p.get("freshness") == "day-1")
-        if day1_count > len(prods) * 0.3:
+        if day1_count > len(prods) * THRESHOLDS["product_day1_ratio"]:
             return AgentOpinion(agent=self.name, opinion=f"High Day-1 stock: {day1_count}/{len(prods)} products aging",
                 confidence=0.8, attribution={"metric": "product_stock", "root_cause": "high_day1_ratio", "deviation": day1_count},
                 recommendations=[{"action": "Consider Day-1 discount or reprioritize baking", "urgency": "medium", "projected_gain": 80, "ease": "high"}])

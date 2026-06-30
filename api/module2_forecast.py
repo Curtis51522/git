@@ -567,3 +567,100 @@ async def get_accuracy():
             return obj
         return {"status": "ok", "metrics": _sanitize(metrics)}
     return {"status": "no_data", "message": "test_metrics.json not found"}
+
+
+
+# Training feature list matching train_xgboost.py (16 features)
+_TRAINING_FEATURES = [
+    "product_id", "daily_tickets", "day_of_week", "month",
+    "is_weekend", "is_holiday",
+    "lag_1", "lag_7_avg", "lag_30_avg",
+    "is_day1", "is_top3", "discount_pct",
+    "is_member_day", "is_new_product", "is_competitor", "is_rainy",
+]
+
+@router.get("/features/importance")
+async def get_feature_importance():
+    """Return XGBoost feature importance scores for S2-S5 cross-analysis."""
+    try:
+        model = _get_unified_model()
+        importances = model.feature_importances_
+        features = _TRAINING_FEATURES
+        if len(importances) != len(features):
+            return {"status": "mismatch", "message": f"Model has {len(importances)} features, expected {len(features)}"}
+
+        # Pair feature name with importance, sorted by importance desc
+        pairs = sorted(
+            [{"feature": f, "importance": round(float(v), 5)} for f, v in zip(features, importances)],
+            key=lambda x: x["importance"], reverse=True
+        )
+        # Group by category for easier consumption
+        categories = {
+            "temporal": ["day_of_week", "month", "is_weekend", "is_holiday"],
+            "lag": ["lag_1", "lag_7_avg", "lag_30_avg"],
+            "product": ["product_id", "is_day1", "is_top3", "discount_pct"],
+            "event": ["is_member_day", "is_new_product", "is_competitor", "is_rainy"],
+            "demand": ["daily_tickets"],
+        }
+        grouped = {}
+        for cat, cols in categories.items():
+            grouped[cat] = [p for p in pairs if p["feature"] in cols]
+
+        return {
+            "status": "ok",
+            "total_features": len(pairs),
+            "ranked": pairs,
+            "grouped": grouped,
+        }
+    except Exception as e:
+        logger.warning("Feature importance failed: %s", e)
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/features/today")
+async def get_today_features(date: str = ""):
+    """Return today's actual feature values for S5 cross-referencing."""
+    import datetime as _dt
+    try:
+        if date:
+            forecast_date = _dt.datetime.strptime(date, "%Y-%m-%d")
+        else:
+            forecast_date = _dt.datetime.now()
+
+        # Build full features then extract training subset + weather context
+        feats = build_forecast_features(forecast_date, "")
+        readable = {k: feats.get(k, 0) for k in _TRAINING_FEATURES}
+        # Weather features not in training model but provide context
+        weather_context = {
+            "temp_mean": feats.get("temp_mean", 0),
+            "temp_range": feats.get("temp_range", 0),
+            "is_cold_day": feats.get("is_cold_day", 0),
+            "is_hot_day": feats.get("is_hot_day", 0),
+        }
+        # Add human-readable interpretations (training features + weather)
+        interpretations = {
+            "is_weekend": "weekend" if readable.get("is_weekend") else "weekday",
+            "is_holiday": "holiday" if readable.get("is_holiday") else "non-holiday",
+            "is_rainy": "rainy" if readable.get("is_rainy") else "dry",
+            "is_member_day": "member_day" if readable.get("is_member_day") else "non_member_day",
+            "is_day1": "day1_promo" if readable.get("is_day1") else "non_promo",
+            "is_top3": "top3_product" if readable.get("is_top3") else "non_top3",
+            "is_new_product": "new_product" if readable.get("is_new_product") else "existing_product",
+            "is_competitor": "competitor_active" if readable.get("is_competitor") else "no_competitor_event",
+        }
+        if weather_context.get("is_cold_day"):
+            interpretations["weather"] = "cold_day"
+        elif weather_context.get("is_hot_day"):
+            interpretations["weather"] = "hot_day"
+        else:
+            interpretations["weather"] = "mild"
+        return {
+            "status": "ok",
+            "date": forecast_date.strftime("%Y-%m-%d"),
+            "features": readable,
+            "weather_context": weather_context,
+            "interpretations": {k: v for k, v in interpretations.items()},
+        }
+    except Exception as e:
+        logger.warning("Today features failed: %s", e)
+        return {"status": "error", "message": str(e)}

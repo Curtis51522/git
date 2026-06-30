@@ -25,6 +25,8 @@ from s5_agent.agents import (
     ExternalFactorsAgent, DemandAgent, MaterialStockAgent, ProductStockAgent,
     WastageAgent, ProductionAgent, YieldAgent, StaffingAgent,
     PricingAgent, ProfitAgent, PromoAgent, AttendanceAgent,
+    TrendAgent, HourlyPatternAgent, ProductMixAgent,
+    FeatureSensitivityAgent, MetricConflictAgent, CausalChainAgent, CrossRiskAgent,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -32,7 +34,7 @@ logger = logging.getLogger("s5.server")
 
 @asynccontextmanager
 async def lifespan(app):
-    logger.info("S5 AI Brain starting with 12 agents, 7 templates...")
+    logger.info("S5 AI Brain starting with 19 agents, 7 templates...")
     yield
 
 app = FastAPI(title="S5 AI Brain - Multi-Agent Bakery Intelligence", lifespan=lifespan)
@@ -55,6 +57,13 @@ AGENTS = {
     "ProfitAgent": ProfitAgent("ProfitAgent"),
     "PromoAgent": PromoAgent("PromoAgent"),
     "AttendanceAgent": AttendanceAgent("AttendanceAgent"),
+    "TrendAgent": TrendAgent("TrendAgent"),
+    "HourlyPatternAgent": HourlyPatternAgent("HourlyPatternAgent"),
+    "ProductMixAgent": ProductMixAgent("ProductMixAgent"),
+    "FeatureSensitivityAgent": FeatureSensitivityAgent("FeatureSensitivityAgent"),
+    "MetricConflictAgent": MetricConflictAgent("MetricConflictAgent"),
+    "CausalChainAgent": CausalChainAgent("CausalChainAgent"),
+    "CrossRiskAgent": CrossRiskAgent("CrossRiskAgent"),
 }
 dag_executor = DAGExecutor(AGENTS, memory=memory)
 

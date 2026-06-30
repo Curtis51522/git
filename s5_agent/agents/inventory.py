@@ -3,7 +3,7 @@
 import httpx, logging
 from typing import Dict, Any
 from .base import BaseAgent
-from s5_config.settings import S1_INVENTORY_URL, PRODUCT_NAMES
+from s5_agent.s5_config.settings import S1_INVENTORY_URL, THRESHOLDS
 
 logger = logging.getLogger("s5.agent.inventory")
 
@@ -70,7 +70,7 @@ class InventoryAgent(BaseAgent):
             prices = {r[0]: r[1] for r in cur.fetchall()}
             cur.close()
             for pname in result:
-                result[pname]["selling_price"] = prices.get(pname, 5.90)
+                result[pname]["selling_price"] = prices.get(pname, THRESHOLDS["inventory_default_price"])
             return result
         except Exception as e:
             logger.warning("DB freshness query failed: %s", e)
@@ -102,7 +102,7 @@ class InventoryAgent(BaseAgent):
                     "qty": pdata["qty"],
                     "fresh": pdata.get("Fresh", 0),
                     "day1": pdata.get("Day-1", 0),
-                    "selling_price": pdata.get("selling_price", 5.90),
+                    "selling_price": pdata.get("selling_price", THRESHOLDS["inventory_default_price"]),
                 }
         else:
             # Fallback: S1 API + heuristic guess (legacy)
@@ -115,7 +115,7 @@ class InventoryAgent(BaseAgent):
                     total_qty += pqty
                     p_fresh = pqty if pbatches <= 1 else max(0, pqty // 2)
                     p_day1 = 0 if pbatches <= 1 else pqty - p_fresh
-                    pselling = item.get("selling_price", 5.90)
+                    pselling = item.get("selling_price", THRESHOLDS["inventory_default_price"])
                     per_product[pname] = {"qty": pqty, "batches": pbatches, "fresh": p_fresh, "day1": p_day1, "selling_price": pselling}
                     if pbatches <= 1:
                         freshness_counts["Fresh"] += pqty
@@ -125,7 +125,7 @@ class InventoryAgent(BaseAgent):
 
         fresh = freshness_counts.get("Fresh", 0)
         day1 = freshness_counts.get("Day-1", 0)
-        waste_risk = "high" if (total_qty > 60 and fresh < 10) else "low" if day1 == 0 else "medium"
+        waste_risk = "high" if (total_qty > THRESHOLDS["inventory_total_high"] and fresh < THRESHOLDS["inventory_fresh_low"]) else "low" if day1 == 0 else "medium"
 
         # Confidence: DB direct query is authoritative (0.95)
         matched = len(per_product) > 0
@@ -150,6 +150,6 @@ class InventoryAgent(BaseAgent):
                 "inventory": total_qty, "fresh": fresh, "day1_available": day1,
                 "waste_risk": waste_risk, "freshness_breakdown": freshness_counts,
                 "per_product": per_product,
-                "unit_price": per_product.get(product, {}).get("selling_price", 5.90) if target_products and len(target_products) == 1 else 5.90,
+                "unit_price": per_product.get(product, {}).get("selling_price", THRESHOLDS["inventory_default_price"]) if target_products and len(target_products) == 1 else 5.90,
             },
         }

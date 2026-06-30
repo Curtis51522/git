@@ -3,8 +3,9 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.s5_config.settings import THRESHOLDS
 logger = logging.getLogger("s5.agent.production")
-BAKER_PER_OVEN = 60
+BAKER_PER_OVEN = THRESHOLDS["production"]["units_per_baker_per_oven_per_hour"]
 
 class ProductionAgent(BaseAgent):
     def _setup_tools(self):
@@ -14,7 +15,7 @@ class ProductionAgent(BaseAgent):
             parameters={"date": "string"}, primary=False, _handler=self._get_s3_plan))
 
     async def _get_capacity(self):
-        return {"ovens": 2, "bakers": 5, "capacity_per_hour": BAKER_PER_OVEN, "hours": 8}
+        return {"ovens": THRESHOLDS["production"]["ovens"], "bakers": THRESHOLDS["production"]["bakers"], "capacity_per_hour": BAKER_PER_OVEN, "hours": THRESHOLDS["production"]["hours_per_shift"]}
 
     async def _get_s3_plan(self, date: str = ""):
         try:
@@ -26,8 +27,8 @@ class ProductionAgent(BaseAgent):
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         data = raw.get("data", {})
-        ovens = data.get("ovens", 2)
-        bakers = data.get("bakers", 5)
+        ovens = data.get("ovens", THRESHOLDS["production"]["ovens"])
+        bakers = data.get("bakers", THRESHOLDS["production"]["bakers"])
         max_cap = ovens * BAKER_PER_OVEN * 8
         demand_context = context or ""
         opinion = f"Capacity: {max_cap} units/day ({bakers} bakers x {ovens} ovens)"

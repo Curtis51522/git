@@ -55,7 +55,7 @@ class BaseAgent:
                   history: str = "", key_metrics: Dict = None) -> AgentOpinion:
         t0 = time.perf_counter()
         try:
-            raw = await asyncio.wait_for(self.fetch(params), timeout=15)
+            raw = await asyncio.wait_for(self.fetch(params), timeout=30)
         except asyncio.TimeoutError:
             logger.warning("%s fetch timed out", self.name)
             raw = {"success": False, "data": {}, "error": "timeout"}
