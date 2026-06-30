@@ -630,9 +630,8 @@ var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,invent
 if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 var container=getPanelContainer(panel);
 container.style.display='block';
-if(container.innerHTML.trim()===''){
-  if(panels[panel])panels[panel](container);
-}
+container.innerHTML='';
+if(panels[panel])panels[panel](container);
 }
 
 async function api(url,opts){
