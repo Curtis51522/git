@@ -420,6 +420,14 @@ en:{
 'Wastage Log':'Wastage Log',
 'Bakery AI System':'Bakery AI System',
 'Bakery-Cafe Intelligent Operations':'Bakery-Cafe Intelligent Operations',
+'Bakery Products':'Bakery Products',
+'Coffee - Quick Drink Order':'Coffee - Quick Drink Order',
+'Cart - Current Order':'Cart - Current Order',
+'AI Bundle Recommendation':'AI Bundle Recommendation',
+'Dine-in':'Dine-in',
+'Takeaway':'Takeaway',
+'Orders':'Orders',
+'Order History':'Order History'
 },
 zh:{
 'POS Checkout':'POS结账','Sales Forecast':'销售预测','Shift Schedule':'排班表',
@@ -467,7 +475,15 @@ zh:{
 'Wastage Log':'损耗日志',
 'Bakery AI System':'烘焙AI系统',
 'Bakery-Cafe Intelligent Operations':'烘焙咖啡智能运营'
-}};
+,
+'Bakery Products':'面包产品',
+'Coffee - Quick Drink Order':'咖啡 - 快速点单',
+'Cart - Current Order':'购物车 - 当前订单',
+'AI Bundle Recommendation':'AI套餐推荐',
+'Dine-in':'堂食',
+'Takeaway':'打包',
+'Orders':'订单',
+'Order History':'订单历史'}};
 function t(k){var m=T[LANG];if(m&&m[k])return m[k];if(LANG!=='en'&&T.en&&T.en[k])return T.en[k];return k;}
 function setLang(l){
 LANG=l;localStorage.setItem('bakery_lang',l);
@@ -852,16 +868,16 @@ h+='</div>';
 // CENTER
 h+='<div style="flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overflow-x:hidden;min-width:0">';
 
-h+='<div class="panel"><h4>Bakery Products</h4>';
+h+='<div class="panel"><h4>'+t('Bakery Products')+'</h4>';
 h+='<div class="drink-grid">'+bakeryBtns+'</div></div>';
-h+='<div class="panel"><h4>Coffee - Quick Drink Order</h4>';
+h+='<div class="panel"><h4>'+t('Coffee - Quick Drink Order')+'</h4>';
 h+='<div class="drink-grid">'+coffeeBtns+'</div></div>';
 
 h+='<div style="display:flex;gap:6px;margin-bottom:6px">';
-h+='<button class="dine-type-btn" id="dine-in-btn" onclick="setDineType(\'dine_in\')" style="flex:1;padding:8px;border:2px solid '+(dineType==='dine_in'?'#27ae60':'#e0d5c7')+';border-radius:8px;background:'+(dineType==='dine_in'?'#eafaf1':'#fff')+';color:'+(dineType==='dine_in'?'#27ae60':'#8b6914')+';font-weight:600;cursor:pointer;font-size:13px">Dine-in</button>';
-h+='<button class="dine-type-btn" id="takeaway-btn" onclick="setDineType(\'takeaway\')" style="flex:1;padding:8px;border:2px solid '+(dineType==='takeaway'?'#e67e22':'#e0d5c7')+';border-radius:8px;background:'+(dineType==='takeaway'?'#fef5e7':'#fff')+';color:'+(dineType==='takeaway'?'#e67e22':'#8b6914')+';font-weight:600;cursor:pointer;font-size:13px">Takeaway</button>';
+h+='<button class="dine-type-btn" id="dine-in-btn" onclick="setDineType(\'dine_in\')" style="flex:1;padding:8px;border:2px solid '+(dineType==='dine_in'?'#27ae60':'#e0d5c7')+';border-radius:8px;background:'+(dineType==='dine_in'?'#eafaf1':'#fff')+';color:'+(dineType==='dine_in'?'#27ae60':'#8b6914')+';font-weight:600;cursor:pointer;font-size:13px">'+t('Dine-in')+'</button>';
+h+='<button class="dine-type-btn" id="takeaway-btn" onclick="setDineType(\'takeaway\')" style="flex:1;padding:8px;border:2px solid '+(dineType==='takeaway'?'#e67e22':'#e0d5c7')+';border-radius:8px;background:'+(dineType==='takeaway'?'#fef5e7':'#fff')+';color:'+(dineType==='takeaway'?'#e67e22':'#8b6914')+';font-weight:600;cursor:pointer;font-size:13px">'+t('Takeaway')+'</button>';
 h+='</div>';
-h+='<div class="panel"><h4>Cart - Current Order</h4>';
+h+='<div class="panel"><h4>'+t('Cart - Current Order')+'</h4>';
 h+='<div class="cart-summary">';
 if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>Total</span><span>¥'+total.toFixed(2)+'</span></div>';}
 else{h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px">No items in cart</p>';}
@@ -871,7 +887,7 @@ h+='</div></div>';
 
 // RIGHT
 h+='<div style="width:360px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto">';
-h+='<div class="panel"><h4>AI Bundle Recommendation</h4>';
+h+='<div class="panel"><h4>'+t('AI Bundle Recommendation')+'</h4>';
 h+='<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px" onclick="generateBundle()">'+t('Generate Top-3')+'</button>';
 h+='<div class="bundle-grid">'+bundleHTML+'</div></div>';
 h+='<div class="panel"><h4>'+t('Sales Script')+'</h4>';

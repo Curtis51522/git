@@ -1,8 +1,8 @@
 {
   "week_start": "2026-06-30",
   "employees": {
-    "E005": {
-      "name": "Chen Hao",
+    "E001": {
+      "name": "Zhang Wei",
       "role": "baker",
       "shifts": 7
     },
@@ -26,19 +26,19 @@
       "role": "cashier",
       "shifts": 7
     },
-    "E001": {
-      "name": "Zhang Wei",
-      "role": "baker",
-      "shifts": 7
-    },
-    "E004": {
-      "name": "Liu Yang",
+    "E005": {
+      "name": "Chen Hao",
       "role": "baker",
       "shifts": 7
     },
     "E009": {
       "name": "Lin Yue",
       "role": "barista",
+      "shifts": 7
+    },
+    "E004": {
+      "name": "Liu Yang",
+      "role": "baker",
       "shifts": 7
     },
     "E007": {
