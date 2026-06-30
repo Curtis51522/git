@@ -223,7 +223,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button class="active" data-panel="pos" onclick="showPanel('pos')">POS</button>
 <button data-panel="forecast" class="manager-only" onclick="showPanel('forecast')">Forecast</button>
 <button data-panel="schedule" class="manager-only" onclick="showPanel('schedule')">Schedule</button>
-<button data-panel="kpi" onclick="showPanel('kpi')">KPI</button>
+<button data-panel="attendance" onclick="showPanel('attendance')">Attendance</button>
 <button data-panel="inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
 <button data-panel="wastage" class="manager-only" onclick="showPanel('wastage')">Wastage</button>
 <button data-panel="revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
@@ -513,7 +513,7 @@ console.log("JS loaded v1779702768");
 
 var token='', role='', username='', currentPanel='pos';
 var API='';
-var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false;
+var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false, dineType='dine_in';
 var PRODUCT_PRICES={apple_pie:14.00,bagel:12.00,baguette:10.00,bread_coconut:10.00,bread_roll:8.00,brioche:18.00,brownie:18.00,chiffon:18.00,chocolate_cake:20.00,chocopie:10.00,cookie:9.00,cornbread:8.00,cream_horn:14.00,croissant:10.00,croissant_chocolate:12.00,donut:7.00,eggtart:7.00,flatbread:9.00,macaron:10.00,mantequilla:9.00,melon_bread:10.00,muffin:12.00,pancake:14.00,pandesal:6.00,pizza_bread:16.00,pullman:10.00,soboru_bread:13.00,sourdough:22.00,stickbread:7.00,tostada:10.00};
 var PRODUCT_COSTS={apple_pie:1.90,bagel:0.66,baguette:0.48,bread_coconut:1.42,bread_roll:1.18,brioche:1.97,brownie:7.56,chiffon:1.32,chocolate_cake:4.10,chocopie:3.05,cookie:1.26,cornbread:1.45,cream_horn:2.03,croissant:2.07,croissant_chocolate:3.15,donut:1.31,eggtart:1.87,flatbread:0.62,macaron:0.33,mantequilla:1.77,melon_bread:1.52,muffin:1.77,pancake:1.41,pandesal:1.07,pizza_bread:1.02,pullman:0.89,soboru_bread:1.59,sourdough:0.52,stickbread:0.87,tostada:0.96};
 var COFFEE_PRICES={latte:18.00,americano:14.00,cappuccino:18.00,mocha:22.00,espresso:12.00,flat_white:20.00,caramel_macchiato:22.00,cold_brew:18.00,hot_chocolate:16.00,matcha_latte:18.00,milk_tea:14.00,chai_latte:16.00,earl_grey:12.00,english_breakfast:12.00,lemonade:12.00};
@@ -724,10 +724,10 @@ var btns=document.querySelectorAll('.topnav nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue'),kpi:'KPI'};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue'),attendance:'Attendance'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
-var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue,kpi:renderKPI};
-if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue,attendance:renderAttendance};
+if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 var container=getPanelContainer(panel);
 container.style.display='block';
 if(container.innerHTML.trim()===''){
@@ -958,6 +958,10 @@ h+='<div class="drink-grid">'+bakeryBtns+'</div></div>';
 h+='<div class="panel"><h4>Coffee - Quick Drink Order</h4>';
 h+='<div class="drink-grid">'+coffeeBtns+'</div></div>';
 
+h+='<div style="display:flex;gap:6px;margin-bottom:6px">';
+h+='<button class="dine-type-btn" id="dine-in-btn" onclick="setDineType(\'dine_in\')" style="flex:1;padding:8px;border:2px solid '+(dineType==='dine_in'?'#27ae60':'#e0d5c7')+';border-radius:8px;background:'+(dineType==='dine_in'?'#eafaf1':'#fff')+';color:'+(dineType==='dine_in'?'#27ae60':'#8b6914')+';font-weight:600;cursor:pointer;font-size:13px">Dine-in</button>';
+h+='<button class="dine-type-btn" id="takeaway-btn" onclick="setDineType(\'takeaway\')" style="flex:1;padding:8px;border:2px solid '+(dineType==='takeaway'?'#e67e22':'#e0d5c7')+';border-radius:8px;background:'+(dineType==='takeaway'?'#fef5e7':'#fff')+';color:'+(dineType==='takeaway'?'#e67e22':'#8b6914')+';font-weight:600;cursor:pointer;font-size:13px">Takeaway</button>';
+h+='</div>';
 h+='<div class="panel"><h4>Cart - Current Order</h4>';
 h+='<div class="cart-summary">';
 if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>Total</span><span>¥'+total.toFixed(2)+'</span></div>';}
@@ -977,10 +981,99 @@ h+='<div id="script-area" style="margin-top:8px;font-size:13px;color:#8b6914"></
 h+='</div>';
 
 h+='</div>';
+// Recent Orders for refund
+h+='<div class="panel" style="margin-top:10px"><h4>Orders <input type="date" id="refund-date" value="'+new Date().toISOString().slice(0,10)+'" onchange="loadRecentOrders()" style="float:right;font-size:10px;padding:2px 4px;border:1px solid #e0d5c7;border-radius:4px;margin-left:6px;width:120px"><button class="btn btn-sm" onclick="loadRecentOrders()" style="float:right;font-size:10px;padding:3px 8px">Refresh</button></h4>';
+h+='<div id="recent-orders-list" style="max-height:200px;overflow-y:auto;font-size:11px">';
+h+='<p style="color:#8b6914;text-align:center;padding:8px;font-size:11px">Loading...</p>';
+h+='</div></div>';
 c.innerHTML=h;
 }
 
 // POS Actions
+// Recent Orders & Refund
+function loadRecentOrders(){
+  var el=document.getElementById('recent-orders-list');
+  if(!el)return;
+  var dateEl=document.getElementById('refund-date');
+  var date=dateEl?dateEl.value:new Date().toISOString().slice(0,10);
+  fetch(API+'/s4/orders/today?date='+encodeURIComponent(date),{headers:{'Authorization':'Bearer '+token}})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(!d.orders||!d.orders.length){el.innerHTML='<p style="color:#8b6914;text-align:center;padding:8px;font-size:11px">No orders today</p>';return;}
+    var h='<table style="width:100%;border-collapse:collapse;font-size:11px">';
+    h+='<tr style="background:#fdfaf5;font-weight:600;color:#8b6914"><th style="padding:4px 6px;text-align:left">Time</th><th style="padding:4px 6px;text-align:left">ID</th><th style="padding:4px 6px;text-align:left">Type</th><th style="padding:4px 6px;text-align:right">Amt</th><th style="padding:4px 6px;text-align:center">Act</th></tr>';
+    for(var i=0;i<d.orders.length;i++){
+      var o=d.orders[i];
+      var timeStr=o.order_time?o.order_time.substring(0,5):'';
+      var shortId=o.ticket_id.slice(-6);
+      var typeLabel=o.dine_type==='takeaway'?'TA':'DI';
+      var typeColor=o.dine_type==='takeaway'?'#e67e22':'#27ae60';
+      var refunded=o.state==='refunded';
+      h+='<tr style="border-bottom:1px solid #f0e8d8;'+(refunded?'opacity:0.5;text-decoration:line-through;':'')+'">';
+      h+='<td style="padding:4px 6px">'+timeStr+'</td>';
+      h+='<td style="padding:4px 6px;font-family:monospace">'+shortId+'</td>';
+      h+='<td style="padding:4px 6px"><span style="color:'+typeColor+';font-weight:600">'+typeLabel+'</span></td>';
+      h+='<td style="padding:4px 6px;text-align:right;font-weight:600">'+o.total_amount.toFixed(2)+'</td>';
+      h+='<td style="padding:4px 6px;text-align:center">'+(refunded?'<span style="color:#e74c3c;font-size:10px">REFUNDED</span>':'<button onclick="refundOrder(\''+o.ticket_id+'\')" style="background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">Refund</button>')+' <button onclick="viewReceipt(\''+o.ticket_id+'\')" style="background:#3498db;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">Receipt</button></td>';
+      h+='</tr>';
+    }
+    h+='</table>';
+    el.innerHTML=h;
+  })
+  .catch(function(e){el.innerHTML='<p style="color:#e74c3c;text-align:center;padding:8px;font-size:11px">Failed to load</p>';});
+}
+function refundOrder(ticketId){
+  if(!confirm('Refund order '+ticketId+'? This will restock all items.'))return;
+  fetch(API+'/s4/orders/refund',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ticket_id:ticketId})})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.status==='ok'){alert('Order refunded. Items restocked.');loadRecentOrders();clearPanelCache('revenue');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
+    else{alert('Refund failed: '+(d.message||d.detail||'Unknown error'));}
+  })
+  .catch(function(e){alert('Refund error: '+e.message);});
+}
+function viewReceipt(ticketId){
+  fetch(API+'/s4/orders/receipt?ticket_id='+encodeURIComponent(ticketId),{headers:{'Authorization':'Bearer '+token}})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    var h='<div id="receipt-modal" class="modal-box" style="max-width:380px;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:20px;max-height:80vh;overflow-y:auto">';
+    h+='<div style="text-align:center;border-bottom:2px dashed #e0d5c7;padding-bottom:12px;margin-bottom:12px">';
+    h+='<h3 style="color:#8b6914;margin:0 0 4px">Bakery AI Receipt</h3>';
+    h+='<p style="color:#999;font-size:11px;margin:0">'+d.ticket_id+'</p>';
+    h+='<p style="color:#666;font-size:11px;margin:2px 0">'+d.date+' '+d.time+' | '+(d.dine_type==='takeaway'?'Takeaway':'Dine-in')+'</p>';
+    if(d.state==='refunded')h+='<p style="color:#e74c3c;font-size:12px;font-weight:700;margin:4px 0 0">REFUNDED</p>';
+    h+='</div>';
+    h+='<table style="width:100%;font-size:13px;border-collapse:collapse">';
+    for(var i=0;i<d.items.length;i++){
+      var it=d.items[i];
+      var desc=it.product_name;
+      if(it.size)desc=it.size+' '+desc;
+      var exts=[];
+      if(it.temp)exts.push(it.temp);
+      if(it.sugar)exts.push(it.sugar);
+      if(it.ice&&it.ice!=='normal')exts.push('ice:'+it.ice);
+      if(exts.length)desc+=' ('+exts.join(', ')+')';
+      h+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:4px 0">'+desc+'</td><td style="padding:4px 0;text-align:center">x'+it.quantity+'</td><td style="padding:4px 0;text-align:right">'+it.line_total.toFixed(2)+'</td></tr>';
+    }
+    h+='</table>';
+    h+='<div style="border-top:2px dashed #e0d5c7;margin-top:12px;padding-top:8px">';
+    h+='<div style="display:flex;justify-content:space-between;font-size:12px;color:#666"><span>Subtotal</span><span>'+d.subtotal.toFixed(2)+'</span></div>';
+    if(d.discount>0)h+='<div style="display:flex;justify-content:space-between;font-size:12px;color:#e74c3c"><span>Discount</span><span>-'+d.discount.toFixed(2)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#8b6914;margin-top:4px"><span>Total</span><span>'+d.total.toFixed(2)+'</span></div>';
+    h+='</div>';
+    h+='<button onclick="var m=document.getElementById(\'receipt-modal\');if(m)m.remove();" style="width:100%;margin-top:12px;padding:8px;background:#8b6914;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">Close</button>';
+    h+='</div>';
+    document.body.insertAdjacentHTML('beforeend',h);
+  })
+  .catch(function(e){alert('Receipt error: '+e.message);});
+}
+
+function setDineType(type){
+  dineType=type;
+  renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
+}
+
+
 function confirmDetect(idx){
 var d=detections[idx];if(!d)return;d.status='confirmed';
 var found=false;
@@ -1118,6 +1211,8 @@ function completePayment(){
 if(cartItems.length===0){alert(t("No items in cart"));return;}
 var total=0;_payTotal=0;
 for(var i=0;i<cartItems.length;i++){var it=cartItems[i];var pr=getItemPrice(it);total+=pr*it.quantity;}
+var packagingFee=dineType==='takeaway'?0.30:0;
+total+=packagingFee;
 _payTotal=Math.round(total*100)/100;
 cartItemsRaw=cartItems.map(function(ci){return Object.assign({},ci);});
 document.getElementById("pay-total").textContent="¥"+_payTotal.toFixed(2);
@@ -1146,14 +1241,14 @@ async function confirmPayment(){
 try{
 var hdrs={"Content-Type":"application/json","Authorization":"Bearer "+token};
 var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantity:ci.quantity,freshness:ci.freshness};if(ci.size)o.size=ci.size;if(ci.temperature)o.temperature=ci.temperature;if(ci.sugar)o.sugar=ci.sugar;if(ci.ice_level)o.ice_level=ci.ice_level;return o;});
-var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod})});
+var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod,dine_type:dineType})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
 clearPanelCache('revenue');clearPanelCache('wastage');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
 else if(d.errors&&d.errors.length>0){alert("Checkout errors: "+d.errors.join(", "));renderPOS(document.getElementById("panel-pos")||document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
 hitlLog.push({action:"Checkout: "+(_payReceipt?(_payReceipt.total||_payTotal).toFixed(2):_payTotal.toFixed(2))+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
-cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();
+cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();
 }catch(e){alert("Payment Failed: "+e.message);}
 }
 function showReceipt(r){
@@ -1171,7 +1266,7 @@ document.getElementById("receipt-overlay").classList.remove("hidden");document.g
 function closePaymentModal(){document.getElementById("payment-modal").classList.remove("show");document.getElementById("payment-modal").classList.add("hidden");}
 function clearCart(){
 if(!confirm('Clear cart?'))return;
-cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();
+cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }
 function printReceipt(){window.print();}
@@ -1187,7 +1282,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];loadStock();loadStock();clearPanelCache('revenue');clearPanelCache('wastage');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
+if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');clearPanelCache('wastage');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -1359,8 +1454,12 @@ c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:
 +'<div class="chart-row"><div class="chart-panel chart-full" style="overflow-x:auto"><h4>Shift Schedule Grid</h4><div id="schedule-result"><span class="spinner"></span>Loading...</div></div></div>'
 +'<div id="swap-msg" style="margin-top:8px;font-size:12px;color:#6b5b4f"></div>'
 
-+'<div id="kpi-result" style="margin-top:12px"></div>';
++'<div id="kpi-result" style="margin-top:12px"></div>'
++'<div style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0;color:#4a3728">Monthly KPI Ranking</h4><div style="display:flex;align-items:center;gap:6px"><input type="month" id="kpi-ranking-month" value="'+today.substring(0,7)+'" onchange="loadKPIRanking(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b"></div></div>'
++'<div id="kpi-ranking-result"><span class="spinner"></span>Loading ranking...</div></div>';
 loadSchedule();
+  var km2=document.getElementById('kpi-ranking-month');
+  loadKPIRanking(km2?km2.value:today.substring(0,7));
 }
 
 async function generateSchedule(){
@@ -1921,19 +2020,15 @@ async function fetchInventoryDashboard(){
 
 
 
-function renderKPI(c){
+function renderAttendance(c){
   var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  var thisMonth=today.substring(0,7);
   c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="loadAttendance()" style="font-size:12px">Today</button>'
     +'<input type="date" id="att-hist-date" value="'+today+'" onchange="loadAttendanceHistory(this.value)" style="padding:5px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b">'
     +'</div></div>'
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Attendance <span id="kpi-att-date"></span></h4><div id="attendance-result"><span class="spinner"></span>Loading...</div></div></div>'
-    +'<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0;color:#4a3728">Monthly KPI Ranking</h4><div style="display:flex;align-items:center;gap:6px"><input type="month" id="kpi-ranking-month" value="'+thisMonth+'" onchange="loadKPIRanking(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b"></div></div>'
-    +'<div id="kpi-ranking-result"><span class="spinner"></span>Loading ranking...</div></div>'
     +'';
   loadAttendance();
-  loadKPIRanking(thisMonth);
 }
 
 function renderWastage(c){
@@ -2647,7 +2742,7 @@ async function loadKPI(){
 
 
 
-var EMPLOYEES=[{id:'E001',name:'Zhang Wei',role:'baker'},{id:'E002',name:'Li Na',role:'cashier'},{id:'E003',name:'Wang Lei',role:'barista',sec:['cashier']},{id:'E004',name:'Liu Yang',role:'baker'},{id:'E005',name:'Chen Hao',role:'baker',deputy:true},{id:'E006',name:'Zhao Min',role:'baker'},{id:'E007',name:'Huang Jian',role:'baker'},{id:'E008',name:'Wu Tao',role:'baker'},{id:'E009',name:'Lin Yue',role:'barista',sec:['cashier']},{id:'E010',name:'Sun Jie',role:'manager'}];
+var EMPLOYEES=[{id:'E001',name:'Zhang Wei',role:'baker'},{id:'E002',name:'Li Na',role:'cashier'},{id:'E003',name:'Wang Lei',role:'barista',sec:['cashier']},{id:'E004',name:'Liu Yang',role:'baker'},{id:'E005',name:'Chen Hao',role:'baker',deputy:true},{id:'E006',name:'Zhao Min',role:'baker'},{id:'E007',name:'Huang Jian',role:'cashier'},{id:'E008',name:'Wu Tao',role:'baker'},{id:'E009',name:'Lin Yue',role:'barista',sec:['cashier']},{id:'E010',name:'Sun Jie',role:'manager'}];
 document.addEventListener('click',function(e){
 var btn=e.target.closest('button');
 if(!btn)return;

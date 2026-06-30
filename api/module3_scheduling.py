@@ -185,290 +185,230 @@ def solve_shift_schedule(
     demand_forecast: Optional[Dict[str, dict]] = None,
     shop_closed_weekdays: Optional[set] = None,
 ) -> List[ShiftResult]:
-    """Assign employees to shifts based on demand forecast.
+    """CP-SAT shift scheduling with hard constraints and hour-balancing objective.
 
-    Per-role requirements per shift come from S2 forecast:
-    - High day: 2 bakers/slot (4 total), 2 cashiers, 2 baristas, 1 manager
-    - Normal day: 2 bakers/slot, 2 cashiers, 1 barista
-    - Low day: 2 bakers/slot, 1 cashier, 1 barista
+    Hard constraints:
+      1. Employee only works primary or secondary roles
+      2. At most 1 role per time slot
+      3. At most 2 shifts per day
+      4. No same-role double-shift unless demand forces it (low/normal days)
+      5. Maximum 5 consecutive working days
+      6. Weekly hours: 7h min, 56h max
+      7. Unavailable dates honoured
+      8. Per-slot coverage minimums met
+
+    Soft objective: minimize (max_weekly_hours - min_weekly_hours) spread.
     """
     if shop_closed_weekdays is None:
-        shop_closed_weekdays = set()  # No fixed rest day
-
+        shop_closed_weekdays = set()
     if demand_forecast is None:
         demand_forecast = {}
 
     base = datetime.strptime(start_date, "%Y-%m-%d")
 
-    # Heuristic fallback: if forecast is empty, use day-of-week pattern
+    # Fallback forecast
     if not demand_forecast:
         for d in range(num_days):
             dt = base + timedelta(days=d)
             dow = dt.weekday()
             date_str = dt.strftime("%Y-%m-%d")
-            if dow == 0:  # Monday closed
-                demand_forecast[date_str] = {"total_units": 0, "demand_level": "low"}
-            elif dow in (5, 6):  # Sat/Sun = high
+            if dow in (5, 6):
                 demand_forecast[date_str] = {"total_units": 300, "demand_level": "high"}
-            elif dow in (3, 4):  # Thu/Fri = normal
+            elif dow in (3, 4):
                 demand_forecast[date_str] = {"total_units": 220, "demand_level": "normal"}
-            else:  # Tue/Wed = low
+            else:
                 demand_forecast[date_str] = {"total_units": 100, "demand_level": "low"}
-    emp_list = [e for e in employees if e.available]
+
+    emp_list = [e for e in employees if e.available and e.role != "manager"]
     if not emp_list:
         return []
 
-    num_employees = len(emp_list)
-    num_slots = len(TIME_SLOTS)
-    num_roles = len(ROLES)
+    N = len(emp_list)
+    S = len(TIME_SLOTS)
+    R = len(ROLES)
+    emp_of = {i: emp_list[i] for i in range(N)}
 
-    # Group employees by role
-    role_to_emps = {role: [] for role in ROLES}
-    emp_idx_map = {}
-    for idx, e in enumerate(emp_list):
-        role_to_emps[e.role].append(idx)
-        emp_idx_map[idx] = e
+    # Allowed roles per employee
+    allowed_roles = {}
+    for i in range(N):
+        emp = emp_list[i]
+        roles = {emp.role}
+        sec = getattr(emp, "secondary_roles", []) or []
+        roles.update(sec)
+        allowed_roles[i] = {ROLES.index(r) for r in roles if r in ROLES}
 
-    # Build daily demand requirements
+    baker_r = ROLES.index("baker")
+    cashier_r = ROLES.index("cashier")
+    barista_r = ROLES.index("barista")
+    baker_count = sum(1 for i in range(N) if emp_of[i].role == "baker")
+    dual_baristas = [i for i in range(N) if "cashier" in (getattr(emp_of[i], "secondary_roles", []) or [])]
+
+    # ---------- Build daily demand ----------
+    high_day_count = 0
     daily_demand = {}
     for d in range(num_days):
         dt = base + timedelta(days=d)
         date_str = dt.strftime("%Y-%m-%d")
-        
+
         if dt.weekday() in shop_closed_weekdays:
-            daily_demand[d] = {"baker": 0, "cashier": 0, "barista": 0, "manager": 0}
+            daily_demand[d] = {"_level": "closed", "baker": 0, "cashier": 0, "barista": 0}
             continue
-        
+
         fc = demand_forecast.get(date_str, {})
         level = fc.get("demand_level", "normal")
-        if level == "high":
-            req = {"baker": 5, "cashier": 2, "barista": 1, "manager": 0, "_level": "high"}
-        elif level == "low":
-            req = {"baker": 2, "cashier": 1, "barista": 1, "manager": 0, "_level": "low"}
-        else:  # normal
-            req = {"baker": 3, "cashier": 1, "barista": 1, "manager": 0, "_level": "normal"}  # dual-role allowed
-        
-        # Clamp to available employees per role (skip manager: 1 person can do both slots)
-        for role in ROLES:
-            if role == "manager":
-                continue  # 1 manager can cover both slots on high days
-            # Count primary + secondary role holders
-            available = len(role_to_emps[role])
-            for e_idx in range(num_employees):
-                sec = getattr(emp_idx_map[e_idx], "secondary_roles", []) or []
-                if role in sec:
-                    available += 1
-            req[role] = min(req[role], available)
-        
-        daily_demand[d] = req
-        daily_demand[d]["_level"] = level
 
+        if level == "high":
+            req = {"baker": 4, "cashier": 2, "barista": 1, "_level": "high"}
+            high_day_count += 1
+        elif level == "low":
+            req = {"baker": 2, "cashier": 1, "barista": 1, "_level": "low"}
+        else:
+            req = {"baker": 3, "cashier": 1, "barista": 1, "_level": "normal"}
+
+        daily_demand[d] = req
+
+    # ---------- CP-SAT model ----------
     model = cp_model.CpModel()
 
-    # Decision variables
     shift = {}
-    for e_idx in range(num_employees):
+    for e in range(N):
         for d in range(num_days):
-            for s in range(num_slots):
-                for r in range(num_roles):
-                    shift[(e_idx, d, s, r)] = model.NewBoolVar(
-                        f"shift_e{e_idx}_d{d}_s{s}_r{r}"
-                    )
+            for s in range(S):
+                for r in range(R):
+                    shift[(e, d, s, r)] = model.NewBoolVar(f"x_e{e}_d{d}_s{s}_r{r}")
 
-    # --- Constraint 1: Employee works primary or secondary roles ---
-    for e_idx in range(num_employees):
-        emp = emp_idx_map[e_idx]
-        allowed = {emp.role}
-        sec = getattr(emp, "secondary_roles", []) or []
-        allowed.update(sec)
+    # ---- C1: Only allowed roles, at most 1 role per slot ----
+    for e in range(N):
         for d in range(num_days):
-            for s in range(num_slots):
-                # Block disallowed roles
-                for r_idx, role_name in enumerate(ROLES):
-                    if role_name not in allowed:
-                        model.Add(shift[(e_idx, d, s, r_idx)] == 0)
-                # At most 1 role per slot (cannot be barista AND cashier simultaneously)
-                slot_roles = [shift[(e_idx, d, s, r)] for r in range(num_roles)]
-                model.Add(sum(slot_roles) <= 1)
+            for s in range(S):
+                for r in range(R):
+                    if r not in allowed_roles[e]:
+                        model.Add(shift[(e, d, s, r)] == 0)
+                model.Add(sum(shift[(e, d, s, r)] for r in range(R)) <= 1)
 
-    # --- Count high-demand days for hour relaxation ---
-    high_day_count = sum(1 for d in range(num_days) if daily_demand[d].get("_level") == "high")
-
-    # --- Constraint 2: Frontline coverage per slot ---
-    # Raj (dual-role barista+cashier): his barista shift counts as +1 cashier
-    # Find Raj index for dual-role cashier bonus
-    raj_indices = [e_idx for e_idx in range(num_employees)
-                   if "cashier" in (getattr(emp_idx_map[e_idx], "secondary_roles", []) or [])]
-    barista_r_idx = ROLES.index("barista")
-    cashier_r_idx = ROLES.index("cashier")
+    # ---- C2: Per-slot coverage ----
     for d in range(num_days):
         req = daily_demand[d]
-        is_high = req.get("_level") == "high"
-        for s in range(num_slots):
-            for role_name in ["cashier", "barista"]:
-                if req.get(role_name, 0) == 0:
-                    continue
-                slot_shifts = [shift[(e_idx, d, s, ROLES.index(role_name))]
-                               for e_idx in range(num_employees)]
-                if role_name == "cashier":
-                    # Raj's barista shift = +1 cashier (disabled on high days)
-                    is_high_day = req.get("_level") == "high"
-                    raj_barista = sum(shift[(ridx, d, s, barista_r_idx)] for ridx in raj_indices)
-                    model.Add(sum(slot_shifts) + raj_barista >= req["cashier"])
-                    # At least 1 person assigned cashier role per slot (main counter)
-                    dedicated_cashier = [shift[(e_idx, d, s, cashier_r_idx)]
-                                        for e_idx in range(num_employees)]
-                    model.Add(sum(dedicated_cashier) >= 1)
-
-                elif role_name == "barista":
-                    model.Add(sum(slot_shifts) == 1)  # always 1 barista per slot
-
-    # --- High days: dual-role allowed (baristas can cashier) ---
-
-    # --- Manager + Deputy coverage ---
-    mgr_r_idx = ROLES.index("manager")
-    baker_r_idx = ROLES.index("baker")
-    # Find deputy baker
-    deputy_indices = [e_idx for e_idx in range(num_employees)
-                      if getattr(emp_idx_map[e_idx], "is_deputy", False)]
-    for d in range(num_days):
-        req = daily_demand[d]
-        if req.get("manager", 0) == 0:
+        if req.get("_level") == "closed":
+            for e in range(N):
+                for s in range(S):
+                    for r in range(R):
+                        model.Add(shift[(e, d, s, r)] == 0)
             continue
-        is_high_day = req.get("_level") == "high"
-        # Manager present per daily_demand (1 slot normal, 2 slots high)
-        day_mgr = [shift[(e_idx, d, s, mgr_r_idx)]
-                   for s in range(num_slots)
-                   for e_idx in range(num_employees)]
-        mgr_needed = min(req.get("manager", 1), num_slots)  # 1 or 2 slots
-        model.Add(sum(day_mgr) >= mgr_needed)
-        # Deputy baker must also work >= 1 slot/day
-        for didx in deputy_indices:
-            day_dep = [shift[(didx, d, s, baker_r_idx)]
-                       for s in range(num_slots)]
-            model.Add(sum(day_dep) >= 1)
-            # Each slot: manager OR deputy present
-            for s in range(num_slots):
-                slot_mgr = [shift[(e_idx, d, s, mgr_r_idx)]
-                            for e_idx in range(num_employees)]
-                model.Add(sum(slot_mgr) + shift[(didx, d, s, baker_r_idx)] >= 1)
-            # Non-high days: manager and deputy in DIFFERENT slots
-            # High days: they CAN overlap (deputy is a baker, all-hands)
-            if not is_high_day:
-                for s in range(num_slots):
-                    slot_mgr = [shift[(e_idx, d, s, mgr_r_idx)]
-                                for e_idx in range(num_employees)]
-                    model.Add(sum(slot_mgr) + shift[(didx, d, s, baker_r_idx)] <= 1)
 
-        # --- Constraint 2b: Max 5 consecutive working days ---
-    # Per employee: any 6-day window has at most 5 working days
-    worked_today = {}
-    for e_idx in range(num_employees):
+        bn = req.get("baker", 0)
+        cn = req.get("cashier", 0)
+        barn = req.get("barista", 0)
+
+        for s in range(S):
+            # Baker coverage
+            if bn > 0:
+                model.Add(sum(shift[(e, d, s, baker_r)] for e in range(N)) >= bn)
+            # Cashier coverage (dedicated + dual-role)
+            if cn > 0:
+                dedicated = sum(shift[(e, d, s, cashier_r)] for e in range(N))
+                dual = sum(shift[(e, d, s, barista_r)] for e in dual_baristas)
+                model.Add(dedicated + dual >= cn)
+                model.Add(dedicated >= 1)
+            # Barista coverage
+            if barn > 0:
+                model.Add(sum(shift[(e, d, s, barista_r)] for e in range(N)) == barn)
+
+    # ---- C3: At most 2 shifts per day ----
+    for e in range(N):
         for d in range(num_days):
-            w = model.NewBoolVar(f'worked_e{e_idx}_d{d}')
-            day_shifts = [shift[(e_idx, d, s, r)] for s in range(num_slots) for r in range(num_roles)]
-            # If any shift worked, worked_today must be 1
-            model.Add(sum(day_shifts) >= 1).OnlyEnforceIf(w)
-            model.Add(sum(day_shifts) == 0).OnlyEnforceIf(w.Not())
-            worked_today[(e_idx, d)] = w
+            model.Add(sum(shift[(e, d, s, r)] for s in range(S) for r in range(R)) <= 2)
 
-    for e_idx in range(num_employees):
+    # ---- C4: No same-role double-shift unless demand forces it ----
+    for e in range(N):
+        for d in range(num_days):
+            bn = daily_demand[d].get("baker", 0)
+            for r in range(R):
+                rname = ROLES[r]
+                # Forbid same-role double when both slots can be covered single-shift
+                if rname == "baker" and bn * 2 <= baker_count:
+                    model.Add(shift[(e, d, 0, r)] + shift[(e, d, 1, r)] <= 1)
+
+    # ---- C5: Max 5 consecutive working days ----
+    works = {}
+    for e in range(N):
+        for d in range(num_days):
+            works[(e, d)] = model.NewBoolVar(f"w_e{e}_d{d}")
+            day_total = sum(shift[(e, d, s, r)] for s in range(S) for r in range(R))
+            model.Add(day_total >= 1).OnlyEnforceIf(works[(e, d)])
+            model.Add(day_total == 0).OnlyEnforceIf(works[(e, d)].Not())
+    for e in range(N):
         for d in range(num_days - 5):
-            model.Add(sum(worked_today[(e_idx, d + w)] for w in range(6)) <= 5)
+            model.Add(sum(works[(e, d + k)] for k in range(6)) <= 5)
 
-# --- Constraint 3: Baker -- demand-driven per slot ---
-    # Low/normal: 2 bakers/slot. High: all 4 bakers/slot.
-    MORNING_SLOT = 0  # 06:00-13:00
-    AFTERNOON_SLOT = 1  # 12:00-19:00
-    for d in range(num_days):
-        req = daily_demand[d]
-        bakers_per_slot = req.get("baker", 0)
-        if bakers_per_slot == 0:
-            continue
-        r_idx = ROLES.index("baker")
-        baker_count = len(role_to_emps.get("baker", []))
-        actual = min(bakers_per_slot, baker_count)
-        morning_shifts = [shift[(e_idx, d, MORNING_SLOT, r_idx)]
-                          for e_idx in range(num_employees)]
-        model.Add(sum(morning_shifts) >= actual)
-        afternoon_shifts = [shift[(e_idx, d, AFTERNOON_SLOT, r_idx)]
-                            for e_idx in range(num_employees)]
-        model.Add(sum(afternoon_shifts) >= actual)
-        # Daily total: bakers_per_slot * 2
-        day_total = [shift[(e_idx, d, s, r_idx)]
-                     for s in range(num_slots)
-                     for e_idx in range(num_employees)]
-        model.Add(sum(day_total) >= actual * 2)
-    # --- Constraint 4: At most 2 shifts per employee per day ---
-    for e_idx in range(num_employees):
-        for d in range(num_days):
-            daily_shifts = [shift[(e_idx, d, s, r)]
-                            for s in range(num_slots)
-                            for r in range(num_roles)]
-            model.Add(sum(daily_shifts) <= 2)
-
-    # --- Constraint 4b: On non-high days, same employee cannot work both slots of the same role ---
-    for d in range(num_days):
-        if daily_demand[d].get("baker", 0) < 2:
-            for r_idx in range(num_roles):
-                for e_idx in range(num_employees):
-                    model.Add(shift[(e_idx, d, 0, r_idx)] + shift[(e_idx, d, 1, r_idx)] <= 1)
-
-    # --- Constraint 5: Weekly hours bounds (relaxed when colleagues sick) ---
-    # Count unavailable employees per role
-    sick_count_by_role = {}
-    for e_idx in range(num_employees):
-        emp = emp_idx_map[e_idx]
+    # ---- C6: Weekly hours 7-56h ----
+    slot_hours = [SLOT_HOURS.get(TIME_SLOTS[s], 7) for s in range(S)]
+    sick_by_role = {}
+    for e in range(N):
+        emp = emp_of[e]
         if emp.unavailable_dates:
-            sick_count_by_role[emp.role] = sick_count_by_role.get(emp.role, 0) + 1
-    for e_idx in range(num_employees):
-        emp = emp_idx_map[e_idx]
-        weekly_hours = sum(
-            shift[(e_idx, d, s, r)] * SLOT_HOURS[TIME_SLOTS[s]]
-            for d in range(num_days) for s in range(num_slots) for r in range(num_roles)
-        )
-        # REMOVED: no lower limit
-        # model.Add(weekly_hours >= int(emp.min_hours_per_week))
-        # Relax max when colleagues are sick or during high-demand weeks
-        max_h = int(emp.max_hours_per_week)
-        sick_in_role = sick_count_by_role.get(emp.role, 0)
-        if sick_in_role > 0:
-            total_in_role = len(role_to_emps.get(emp.role, []))
-            available = max(1, total_in_role - sick_in_role)
-            max_h = int(max_h * total_in_role / available)
-        # High-demand days: relax max for all roles
-        if high_day_count > 1:
-            if emp.role == "cashier":
-                max_h = min(max_h + high_day_count * 7, 56)
-            elif emp.role in ("barista", "baker", "manager"):
-                max_h = min(max_h + high_day_count * 7, 56)
-        # REMOVED: no upper limit
-        # model.Add(weekly_hours <= max_h)
+            sick_by_role[emp.role] = sick_by_role.get(emp.role, 0) + 1
+    role_members = {}
+    for role in ROLES:
+        role_members[role] = sum(1 for e in range(N) if emp_of[e].role == role)
 
-    # --- Constraint 6: Unavailable dates ---
-    for e_idx in range(num_employees):
-        emp = emp_idx_map[e_idx]
+    for e in range(N):
+        emp = emp_of[e]
+        weekly_hours = sum(
+            shift[(e, d, s, r)] * slot_hours[s]
+            for d in range(num_days) for s in range(S) for r in range(R)
+        )
+        model.Add(weekly_hours >= 7)
+        max_h = 56
+        sick_in_role = sick_by_role.get(emp.role, 0)
+        if sick_in_role > 0:
+            total = role_members.get(emp.role, 1)
+            available = max(1, total - sick_in_role)
+            max_h = min(63, max_h * total // available)
+        if high_day_count >= 2:
+            max_h = min(63, max_h + high_day_count * 7)
+        model.Add(weekly_hours <= max_h)
+
+    # ---- C7: Unavailable dates ----
+    for e in range(N):
+        emp = emp_of[e]
         for d in range(num_days):
             dt = base + timedelta(days=d)
             if dt.strftime("%Y-%m-%d") in emp.unavailable_dates:
-                for s in range(num_slots):
-                    for r in range(num_roles):
-                        model.Add(shift[(e_idx, d, s, r)] == 0)
+                for s in range(S):
+                    for r in range(R):
+                        model.Add(shift[(e, d, s, r)] == 0)
 
-    # --- Objective: balance hours (DISABLED for solver speed) ---
-    # Objective removed to improve solver performance on mixed N/H weeks
+    # ---- Objective: Minimize hour spread (max - min) ----
+    max_hours = model.NewIntVar(0, 63, "max_hours")
+    min_hours = model.NewIntVar(0, 63, "min_hours")
+    for e in range(N):
+        emp_hours = sum(
+            shift[(e, d, s, r)] * slot_hours[s]
+            for d in range(num_days) for s in range(S) for r in range(R)
+        )
+        model.Add(emp_hours <= max_hours)
+        model.Add(emp_hours >= min_hours)
+    spread = model.NewIntVar(0, 56, "spread")
+    model.Add(spread == max_hours - min_hours)
+    model.Minimize(spread)
 
-    # --- Solve ---
+    # ---- Solve ----
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 300  # increased for larger model
-    solver.parameters.random_seed = 42
-    solver.parameters.num_search_workers = 4
+    solver.parameters.max_time_in_seconds = 60
+    # Deterministic: seed = hash of start_date so same week always produces same schedule
+    solver.parameters.random_seed = hash(start_date) % (2**31)
+    solver.parameters.num_search_workers = 1
+    solver.parameters.log_search_progress = False
+
     status = solver.Solve(model)
+
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         logger = logging.getLogger("s3.solver")
-        logger.error("Solver status: %s (OPTIMAL=%s FEASIBLE=%s INFEASIBLE=%s)",
-                     solver.StatusName(status), cp_model.OPTIMAL, cp_model.FEASIBLE, cp_model.INFEASIBLE)
-        return []  # INFEASIBLE: no valid schedule
+        logger.error("Solver status: %s", solver.StatusName(status))
+        return []
+
+    # ---- Build results ----
     results = []
     for d in range(num_days):
         dt = base + timedelta(days=d)
@@ -476,22 +416,19 @@ def solve_shift_schedule(
             continue
         date_str = dt.strftime("%Y-%m-%d")
         fc = demand_forecast.get(date_str, {})
-        level = fc.get("demand_level", "normal")
-        
-        baker_target = None
-        for s in range(num_slots):
+        level = daily_demand[d].get("_level", "normal")
+
+        for s in range(S):
             for r_idx, role_name in enumerate(ROLES):
-                for e_idx in range(num_employees):
-                    if solver.Value(shift[(e_idx, d, s, r_idx)]) == 1:
-                        emp = emp_idx_map[e_idx]
+                for e in range(N):
+                    if solver.Value(shift[(e, d, s, r_idx)]) == 1:
+                        emp = emp_of[e]
                         prod_target = None
                         if role_name == "baker" and s == 0:
-                            # Morning baker gets production target
                             baker_units = fc.get("baker_units", 0)
                             baker_count = daily_demand.get(d, {}).get("baker", 1)
                             if baker_count > 0:
                                 prod_target = baker_units // baker_count
-                        
                         results.append(ShiftResult(
                             date=date_str,
                             time_slot=TIME_SLOTS[s],
@@ -505,6 +442,7 @@ def solve_shift_schedule(
 
     results.sort(key=lambda x: (x.date, x.time_slot, x.role))
     return results
+
 
 
 # ======================================================================
@@ -1343,7 +1281,19 @@ async def get_7day_production_plan(date: str = None):
     start_date = start_dt.strftime("%Y-%m-%d")
 
     s = Scheduler()
-    day1_stock = {p: np.random.randint(0, 5) for p in s.breads}
+    # Fetch real day-1 stock from products table
+    try:
+        stock_rows = q(get_db(), "products").select("product_name,stock_day1").eq("category", "bakery").execute()
+        day1_stock = {}
+        if stock_rows.data:
+            for row in stock_rows.data:
+                day1_stock[row["product_name"]] = int(row.get("stock_day1") or 0)
+        # Fill any missing breads with 0
+        for p in s.breads:
+            if p not in day1_stock:
+                day1_stock[p] = 0
+    except Exception:
+        day1_stock = {p: 0 for p in s.breads}
     forecast = generate_7day_s2_forecast(start_date)
     result = s.generate_7day_plan(start_date, day1_stock, forecast)
 
@@ -1384,7 +1334,19 @@ async def get_materials_procurement(date: str = None):
     start_date = start_dt.strftime("%Y-%m-%d")
 
     s = Scheduler()
-    day1_stock = {p: np.random.randint(0, 5) for p in s.breads}
+    # Fetch real day-1 stock from products table
+    try:
+        stock_rows = q(get_db(), "products").select("product_name,stock_day1").eq("category", "bakery").execute()
+        day1_stock = {}
+        if stock_rows.data:
+            for row in stock_rows.data:
+                day1_stock[row["product_name"]] = int(row.get("stock_day1") or 0)
+        # Fill any missing breads with 0
+        for p in s.breads:
+            if p not in day1_stock:
+                day1_stock[p] = 0
+    except Exception:
+        day1_stock = {p: 0 for p in s.breads}
     forecast = generate_7day_s2_forecast(start_date)
     result = s.generate_7day_plan(start_date, day1_stock, forecast)
 

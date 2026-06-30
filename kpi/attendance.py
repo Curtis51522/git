@@ -112,11 +112,20 @@ class AttendanceSystem:
                     parts = slot.split("-") if "-" in slot else ["06:00", "13:00"]
                     shift_start = parts[0]
                     shift_end = parts[1] if len(parts) > 1 else "13:00"
-                    sched_map[eid] = {
-                        "shift_start": shift_start,
-                        "shift_end": shift_end,
-                        "time_slot": slot,
-                    }
+                    if eid in sched_map:
+                        existing = sched_map[eid]
+                        parts2 = slot.split("-") if "-" in slot else [slot, slot]
+                        sched_map[eid] = {
+                            "shift_start": min(shift_start, existing["shift_start"]),
+                            "shift_end": max(shift_end, existing["shift_end"]),
+                            "time_slot": existing["time_slot"].split("-")[0] + "-" + (parts2[1] if len(parts2) > 1 else parts2[0]),
+                        }
+                    else:
+                        sched_map[eid] = {
+                            "shift_start": shift_start,
+                            "shift_end": shift_end,
+                            "time_slot": slot,
+                        }
         result = []
         for emp in employees:
             eid = emp["id"]
@@ -169,11 +178,22 @@ class AttendanceSystem:
                 if eid and sd == date_str:
                     slot = s.get('time_slot', '06:00-13:00')
                     parts = slot.split('-') if '-' in slot else ['06:00', '13:00']
-                    sched_map[eid] = {
-                        'shift_start': parts[0],
-                        'shift_end': parts[1] if len(parts) > 1 else '13:00',
-                        'time_slot': slot,
-                    }
+                    if eid in sched_map:
+                        existing = sched_map[eid]
+                        new_s = parts[0]
+                        new_e = parts[1] if len(parts) > 1 else '13:00'
+                        parts2 = slot.split('-') if '-' in slot else [slot, slot]
+                        sched_map[eid] = {
+                            'shift_start': min(new_s, existing['shift_start']),
+                            'shift_end': max(new_e, existing['shift_end']),
+                            'time_slot': existing['time_slot'].split('-')[0] + '-' + (parts2[1] if len(parts2) > 1 else parts2[0]),
+                        }
+                    else:
+                        sched_map[eid] = {
+                            'shift_start': parts[0],
+                            'shift_end': parts[1] if len(parts) > 1 else '13:00',
+                            'time_slot': slot,
+                        }
         result = []
         for emp in employees:
             eid = emp['id']

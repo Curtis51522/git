@@ -127,7 +127,17 @@ class KPIDataCollector:
             cur.close()
 
             year, mon = int(month_str[:4]), int(month_str[5:7])
-            working_days = calendar.monthrange(year, mon)[1]  # 7-day operation, rest by shift rotation
+            # Get scheduled working days per employee from shift_schedule table
+            cur2 = db.cursor(dictionary=True)
+            cur2.execute(
+                "SELECT employee_id, COUNT(DISTINCT schedule_date) as sched_days FROM shift_schedule WHERE schedule_date LIKE %s GROUP BY employee_id",
+                (month_str + "%",)
+            )
+            sched_rows = cur2.fetchall()
+            cur2.close()
+            sched_days_map = {r['employee_id']: r['sched_days'] for r in sched_rows}
+            # Fallback: use calendar days if schedule table is empty
+            calendar_days = calendar.monthrange(year, mon)[1]
 
             for emp in employees:
                 eid = emp["id"]
@@ -147,8 +157,9 @@ class KPIDataCollector:
                 # Work hours: 8h per present day
                 work_hours = len(date_strs) * 8.0
 
+                emp_working_days = sched_days_map.get(eid, calendar_days)
                 kpis[eid] = {
-                    "attendance_rate": round(days_present / max(working_days, 1) * 100, 1),
+                    "attendance_rate": round(days_present / max(emp_working_days, 1) * 100, 1),
                     "punctuality": punct,
                     "work_hours": work_hours,
                 }

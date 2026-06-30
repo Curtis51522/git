@@ -508,7 +508,13 @@ async def checkout_complete(payload: dict):
         payment_method = payload.get("payment_method", "cash")
         cash_received = payload.get("cash_received", None)
     
-        # Build product cost lookup
+        # Packaging fee for takeaway
+        dine_type = payload.get("dine_type", "dine_in")
+        packaging_fee = 0.30 if dine_type == "takeaway" else 0.0
+        if packaging_fee > 0:
+            total += packaging_fee
+    
+    # Build product cost lookup
         all_product_names = [it.get("product_name","") for it in items]
         placeholders = ",".join(["%s"] * len(all_product_names))
         cur = db.cursor()
@@ -551,8 +557,8 @@ async def checkout_complete(payload: dict):
 
         # INSERT orders
         cur.execute(
-            "INSERT INTO orders (ticket_id, order_date, order_time, subtotal, discount_total, total_amount, total_profit, item_count, state) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (receipt_id, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S"), round(order_subtotal,2), round(order_discount,2), round(order_total,2), round(order_profit,2), order_item_count, "paid")
+            "INSERT INTO orders (ticket_id, order_date, order_time, subtotal, discount_total, total_amount, total_profit, item_count, state, dine_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (receipt_id, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S"), round(order_subtotal,2), round(order_discount,2), round(order_total,2), round(order_profit,2), order_item_count, "paid", dine_type)
         )
         order_id = cur.lastrowid
     
@@ -598,6 +604,40 @@ async def checkout_complete(payload: dict):
                     (mat_name, 'outflow', actual_used_qty, 'kg', receipt_id)
                 )
 
+        # Deduct packaging materials for takeaway
+        if packaging_fee > 0:
+            cur.execute(
+                "UPDATE raw_materials SET stock_quantity = stock_quantity - 1 WHERE material_name = %s",
+                ("Packaging Box",)
+            )
+            cur.execute(
+                "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
+                ("Packaging Box", "outflow", 1, "pcs", receipt_id)
+            )
+            cur.execute(
+                "UPDATE raw_materials SET stock_quantity = stock_quantity - 1 WHERE material_name = %s",
+                ("Packaging Bag",)
+            )
+            cur.execute(
+                "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
+                ("Packaging Bag", "outflow", 1, "pcs", receipt_id)
+            )
+        # Deduct cup per drink based on size
+        for item in items:
+            pn = item.get("product_name", "")
+            if pn in COFFEE_KEYS:
+                qty = item.get("quantity", 1)
+                drink_size = item.get("size", "regular")
+                cup_name = "Cup Large" if drink_size == "large" else "Cup Regular"
+                cur.execute(
+                    "UPDATE raw_materials SET stock_quantity = stock_quantity - %s WHERE material_name = %s",
+                    (qty, cup_name)
+                )
+                cur.execute(
+                    "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
+                    (cup_name, "outflow", qty, "pcs", receipt_id)
+                )
+    
         # INSERT payments
         cur.execute(
             "INSERT INTO payments (order_id, amount, payment_method, payment_date) VALUES (%s,%s,%s,%s)",
@@ -606,6 +646,17 @@ async def checkout_complete(payload: dict):
         db.commit()
         
 
+        # Add packaging fee to receipt if applicable
+        if packaging_fee > 0:
+            receipt_items.append({
+                "product_name": "Packaging (Takeaway)",
+                "quantity": 1,
+                "unit_price": round(packaging_fee, 2),
+                "discount_pct": 0,
+                "discount_amount": 0,
+                "line_total": round(packaging_fee, 2),
+            })
+        
         receipt = {
             "receipt_id": receipt_id,
             "date": now.strftime("%Y-%m-%d %H:%M"),
@@ -637,6 +688,136 @@ async def checkout_complete(payload: dict):
             "message": f"Checkout failed: {str(e)}",
         }
 # GET /s4/revenue/daily -- Revenue dashboard data from MySQL
+# ======================================================================
+# ======================================================================
+# GET /s4/orders/today -- List today's paid orders for refund
+# ======================================================================
+@router.get("/orders/today")
+async def orders_today(date: str = None):
+    db = get_db()
+    cur = db.cursor()
+    if date is None:
+        date = datetime.now().strftime('%Y-%m-%d')
+    cur.execute(
+        "SELECT ticket_id, order_time, total_amount, dine_type, state, item_count FROM orders WHERE order_date = %s AND state IN ('paid','refunded') ORDER BY order_time DESC LIMIT 50",
+        (date,)
+    )
+    rows = cur.fetchall()
+    orders = []
+    for r in rows:
+        orders.append({
+            "ticket_id": r[0],
+            "order_time": str(r[1]),
+            "total_amount": float(r[2]),
+            "dine_type": r[3],
+            "state": r[4],
+            "item_count": r[5],
+        })
+    cur.close()
+    return {"orders": orders, "date": date}
+
+# POST /s4/orders/refund -- Void/refund an order
+# ======================================================================
+# ======================================================================
+# GET /s4/orders/receipt -- Get receipt for an order
+# ======================================================================
+@router.get("/orders/receipt")
+async def order_receipt(ticket_id: str):
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, order_date, order_time, subtotal, discount_total, total_amount, state, dine_type FROM orders WHERE ticket_id = %s", (ticket_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(404, f"Order {ticket_id} not found")
+    order_id, order_date, order_time, subtotal, discount_total, total_amount, state, dine_type = row
+
+    cur.execute("SELECT product_name, quantity, unit_price, line_total, freshness, coffee_size, coffee_temp, coffee_sugar, coffee_ice FROM order_items WHERE order_id = %s", (order_id,))
+    items = []
+    for r in cur.fetchall():
+        items.append({
+            "product_name": r[0], "quantity": r[1], "unit_price": float(r[2]),
+            "line_total": float(r[3]), "freshness": r[4], "size": r[5],
+            "temp": r[6], "sugar": r[7], "ice": r[8],
+        })
+    cur.close()
+    return {
+        "ticket_id": ticket_id,
+        "date": str(order_date),
+        "time": str(order_time),
+        "subtotal": float(subtotal),
+        "discount": float(discount_total),
+        "total": float(total_amount),
+        "state": state,
+        "dine_type": dine_type,
+        "items": items,
+    }
+
+@router.post("/orders/refund")
+async def refund_order(payload: dict):
+    """Refund an order: reverse inventory deductions, restock materials, mark refunded."""
+    ticket_id = payload.get("ticket_id", "")
+    if not ticket_id:
+        raise HTTPException(400, "ticket_id required")
+
+    db = get_db()
+    cur = db.cursor()
+
+    # Find the order
+    cur.execute("SELECT id, state, dine_type FROM orders WHERE ticket_id = %s", (ticket_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(404, f"Order {ticket_id} not found")
+    order_id, state, dine_type = row
+    if state == "refunded":
+        raise HTTPException(400, "Order already refunded")
+    if state != "paid":
+        raise HTTPException(400, f"Cannot refund order in state: {state}")
+
+    # Get order items
+    cur.execute("SELECT product_name, quantity, freshness, coffee_size FROM order_items WHERE order_id = %s", (order_id,))
+    items = cur.fetchall()
+
+    COFFEE_KEYS = {"latte","americano","cappuccino","mocha","espresso","flat_white","caramel_macchiato","cold_brew","hot_chocolate","matcha_latte","milk_tea","chai_latte","earl_grey","english_breakfast","lemonade"}
+
+    for item in items:
+        pn, qty, freshness, coffee_size = item
+        if pn in COFFEE_KEYS:
+            # Restock cup
+            cup_name = "Cup Large" if (coffee_size or "").lower() == "large" else "Cup Regular"
+            cur.execute(
+                "UPDATE raw_materials SET stock_quantity = stock_quantity + %s WHERE material_name = %s",
+                (qty, cup_name)
+            )
+            cur.execute(
+                "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
+                (cup_name, "refund", qty, "pcs", ticket_id)
+            )
+        else:
+            # Bakery item: add back via inventory_transactions inflow
+            cur.execute(
+                "INSERT INTO inventory_transactions (transaction_type, product_name, quantity, freshness_status, receipt_id) VALUES (%s,%s,%s,%s,%s)",
+                ("inflow", pn, qty, freshness or "Fresh", ticket_id)
+            )
+
+    # Restock packaging if takeaway
+    if dine_type == "takeaway":
+        for pkg_name in ["Packaging Box", "Packaging Bag"]:
+            cur.execute(
+                "UPDATE raw_materials SET stock_quantity = stock_quantity + 1 WHERE material_name = %s",
+                (pkg_name,)
+            )
+            cur.execute(
+                "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
+                (pkg_name, "refund", 1, "pcs", ticket_id)
+            )
+
+    # Mark order refunded
+    cur.execute("UPDATE orders SET state = 'refunded' WHERE id = %s", (order_id,))
+    db.commit()
+    cur.close()
+
+    return {"status": "ok", "message": f"Order {ticket_id} refunded", "items_restored": len(items)}
+
 # ======================================================================
 @router.get("/revenue/daily")
 async def revenue_daily(date: str = None):
