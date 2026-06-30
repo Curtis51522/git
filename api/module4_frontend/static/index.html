@@ -484,6 +484,9 @@ if(txt==='Confirm'||txt==='Sahkan')btns[j].textContent=t('Confirm');
 if(txt==='Close'||txt==='Tutup')btns[j].textContent=t('Close');
 if(txt==='Delete'||txt==='Padam')btns[j].textContent=t('Delete');
 if(txt==='Edit'||txt==='Sunting')btns[j].textContent=t('Edit');
+// Re-render current panel
+// Reload page to apply language change
+setTimeout(function(){location.reload();},100);
 }}
 // Update freshness dropdown
 var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
