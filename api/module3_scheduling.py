@@ -193,7 +193,7 @@ def solve_shift_schedule(
     - Low day: 2 bakers/slot, 1 cashier, 1 barista
     """
     if shop_closed_weekdays is None:
-        shop_closed_weekdays = {0}  # Monday
+        shop_closed_weekdays = set()  # No fixed rest day
 
     if demand_forecast is None:
         demand_forecast = {}
@@ -360,7 +360,23 @@ def solve_shift_schedule(
                                 for e_idx in range(num_employees)]
                     model.Add(sum(slot_mgr) + shift[(didx, d, s, baker_r_idx)] <= 1)
 
-    # --- Constraint 3: Baker -- demand-driven per slot ---
+        # --- Constraint 2b: Max 5 consecutive working days ---
+    # Per employee: any 6-day window has at most 5 working days
+    worked_today = {}
+    for e_idx in range(num_employees):
+        for d in range(num_days):
+            w = model.NewBoolVar(f'worked_e{e_idx}_d{d}')
+            day_shifts = [shift[(e_idx, d, s, r)] for s in range(num_slots) for r in range(num_roles)]
+            # If any shift worked, worked_today must be 1
+            model.Add(sum(day_shifts) >= 1).OnlyEnforceIf(w)
+            model.Add(sum(day_shifts) == 0).OnlyEnforceIf(w.Not())
+            worked_today[(e_idx, d)] = w
+
+    for e_idx in range(num_employees):
+        for d in range(num_days - 5):
+            model.Add(sum(worked_today[(e_idx, d + w)] for w in range(6)) <= 5)
+
+# --- Constraint 3: Baker -- demand-driven per slot ---
     # Low/normal: 2 bakers/slot. High: all 4 bakers/slot.
     MORNING_SLOT = 0  # 06:00-13:00
     AFTERNOON_SLOT = 1  # 12:00-19:00
@@ -625,7 +641,7 @@ def _rebuild_from_employees(start_date, num_days, employees):
     results = solve_shift_schedule(
         employees, start_date, num_days,
         demand_forecast=demand_forecast,
-        shop_closed_weekdays={0},
+        shop_closed_weekdays=set(),
     )
     requested_end = base + timedelta(days=num_days)
     results = [r for r in results if r.date >= start_date and r.date < requested_end.strftime("%Y-%m-%d")]

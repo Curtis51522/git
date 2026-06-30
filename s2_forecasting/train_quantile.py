@@ -18,6 +18,7 @@ FEATURES = [
     "is_day1", "is_top3", "discount_pct",
     "is_member_day", "is_rainy",
     "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
+    "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio",
 ]
 TARGET = "quantity"
 QUANTILES = [0.10, 0.50, 0.90]

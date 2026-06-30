@@ -38,12 +38,23 @@ def _init_frozen_meta():
         return
     train = pd.read_csv(train_path)
     train["date"] = pd.to_datetime(train["date"])
-    last_day = train[train["date"] == train["date"].max()]
+    # Use June monthly averages for frozen meta (seasonal match)
+    jun_train = train[train["date"].dt.month == 6]
+    if len(jun_train) == 0:
+        jun_train = train  # fallback
+    jun_avg = jun_train.groupby("product_id").agg(
+        lag_1=("lag_1", "mean"),
+        lag_7_avg=("lag_7_avg", "mean"),
+        lag_30_avg=("lag_30_avg", "mean"),
+        roll_std_7=("roll_std_7", "mean"),
+        roll_std_14=("roll_std_14", "mean"),
+        trend_7=("trend_7", "mean"),
+    )
     _frozen_meta = {
-        "last_lag": dict(zip(last_day["product_id"],
-            zip(last_day["lag_1"], last_day["lag_7_avg"], last_day["lag_30_avg"],
-                last_day["roll_std_7"], last_day["roll_std_14"], last_day["trend_7"]))),
-        "last_daily_tickets": float(last_day["daily_tickets"].iloc[0]) if len(last_day) > 0 else 0.0,
+        "last_lag": {pid: (float(row.lag_1), float(row.lag_7_avg), float(row.lag_30_avg),
+                        float(row.roll_std_7), float(row.roll_std_14), float(row.trend_7))
+                    for pid, row in jun_avg.iterrows()},
+        "last_daily_tickets": float(jun_train.groupby("date")["daily_tickets"].first().mean()),
         "holiday_dates": sorted(train[train["is_holiday"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
         "top3_products": train.groupby("product_id")["quantity"].mean().nlargest(3).index.tolist(),
         "rainy_dates": set(train[train["is_rainy"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
@@ -288,8 +299,11 @@ def _get_daily_tickets(forecast_date) -> float:
         c.execute(
             "SELECT COUNT(DISTINCT receipt_id) as cnt "
             "FROM inventory_transactions "
-            "WHERE transaction_type='outflow' AND DATE(transaction_time) < DATE(%s) "
-            "ORDER BY transaction_time DESC LIMIT 1",
+            "WHERE transaction_type='outflow' "
+            "AND DATE(transaction_time) = ("
+            "  SELECT MAX(DATE(transaction_time)) FROM inventory_transactions "
+            "  WHERE transaction_type='outflow' AND DATE(transaction_time) < DATE(%s)"
+            ")",
             (fd.strftime("%Y-%m-%d"),)
         )
         row = c.fetchone()
@@ -335,6 +349,7 @@ FORECAST_FEATURE_ORDER = [
     "is_day1", "is_top3", "discount_pct",
     "is_member_day", "is_rainy",
     "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
+    "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio",
 ]
 
 def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
@@ -387,6 +402,13 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     # Weather features (always available from historical data)
     temp_mean, temp_range, is_cold_day, is_hot_day = _get_weather(dt_date)
 
+    # Beverage aggregate features (frozen fallback from training data)
+    large_ratio = 0.25
+    cold_ratio = 0.27
+    sweetness_avg = 1.8
+    ice_avg = 1.6
+    temp_hot_ratio = 0.15 + 0.70 / (1 + np.exp((temp_mean - 22) / 4)) if temp_mean else 0.5
+
     return {
         "product_id": pid,
         "category": category,
@@ -410,6 +432,11 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
         "temp_range": temp_range,
         "is_cold_day": is_cold_day,
         "is_hot_day": is_hot_day,
+        "large_ratio": large_ratio,
+        "cold_ratio": cold_ratio,
+        "sweetness_avg": sweetness_avg,
+        "ice_avg": ice_avg,
+        "temp_hot_ratio": temp_hot_ratio,
     }
 
 

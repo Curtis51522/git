@@ -8,9 +8,9 @@ Feature set (17 features):
   is_member_day, is_new_product, is_competitor, is_rainy
 
 Data split (time-series, no shuffle):
-  Train: 2021-01-01 to 2025-06-30
-  Val:   2025-07-01 to 2025-12-31
-  Test:  2026-01-01 to 2026-06-29
+  Train: 2023-01-01 to 2024-12-31
+  Val:   2025-01-01 to 2025-06-30
+  Test:  2025-07-01 to 2026-06-29
 """
 
 import os, warnings
@@ -23,8 +23,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 RAW_CSV = os.path.join(DATA_DIR, "bakery_sales_raw.csv")
 
-SPLIT_DATE = "2023-01-01"
-SPLIT_DATE_2 = "2023-07-01"
+SPLIT_DATE = "2025-01-01"
+SPLIT_DATE_2 = "2025-07-01"
 
 FEATURE_COLS = [
     "product_id", "category", "daily_tickets", "day_of_week", "month",
@@ -33,6 +33,7 @@ FEATURE_COLS = [
     "is_day1", "is_top3", "discount_pct",
     "is_member_day", "is_new_product", "is_competitor", "is_rainy",
     "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
+    "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio",
 ]
 TARGET_COL = "quantity"
 
@@ -75,6 +76,13 @@ def run_preprocessing(verbose=True):
         is_new_product=("is_new_product", "max"),
         is_competitor=("is_competitor", "max"),
         is_rainy=("is_rainy", "max"),
+        large_cnt=("beverage_size", lambda x: (x == 'large').sum()),
+        bev_cnt=("beverage_size", lambda x: (x != '').sum()),
+        cold_cnt=("beverage_temp", lambda x: (x == 'cold').sum()),
+        sugar_sum=("beverage_sweetness", lambda x: x.map({'normal':3,'less':2,'slight':1,'none':0}).sum()),
+        sugar_cnt=("beverage_sweetness", lambda x: (x != '').sum()),
+        ice_sum=("beverage_ice", lambda x: x.map({'normal':2,'less':1,'none':0}).sum()),
+        ice_cnt=("beverage_ice", lambda x: (x != '').sum()),
     ).reset_index()
 
     all_dates = pd.date_range(daily["date"].min(), daily["date"].max(), freq="D")
@@ -84,6 +92,8 @@ def run_preprocessing(verbose=True):
     daily_full = daily_full.merge(daily, on=["date", "product_name"], how="left")
     daily_full["quantity"] = daily_full["quantity"].fillna(0).astype(int)
     for col in ["is_day1", "is_top3", "discount_pct", "is_member_day", "is_new_product", "is_competitor", "is_rainy"]:
+        daily_full[col] = daily_full[col].fillna(0)
+    for col in ["large_cnt", "bev_cnt", "cold_cnt", "sugar_sum", "sugar_cnt", "ice_sum", "ice_cnt"]:
         daily_full[col] = daily_full[col].fillna(0)
 
     pid_map = {p: i for i, p in enumerate(all_products)}
@@ -115,6 +125,16 @@ def run_preprocessing(verbose=True):
         daily_full["is_cold_day"] = (daily_full["temp_mean"] < 15).astype(int)
         daily_full["is_hot_day"] = (daily_full["temp_mean"] > 25).astype(int)
         p(f"  Weather merged: temp_mean {daily_full['temp_mean'].mean():.1f}C, cold days {(daily_full['is_cold_day']==1).mean()*100:.1f}%, hot days {(daily_full['is_hot_day']==1).mean()*100:.1f}%")
+    
+        # Derived beverage aggregate features
+        daily_full['large_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['large_cnt'] / daily_full['bev_cnt'], 0)
+        daily_full['cold_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['cold_cnt'] / daily_full['bev_cnt'], 0)
+        daily_full['sweetness_avg'] = np.where(daily_full['sugar_cnt'] > 0, daily_full['sugar_sum'] / daily_full['sugar_cnt'], 0)
+        daily_full['ice_avg'] = np.where(daily_full['ice_cnt'] > 0, daily_full['ice_sum'] / daily_full['ice_cnt'], 0)
+        # temp_hot_ratio: continuous sigmoid for hot-drink tendency
+        daily_full['temp_hot_ratio'] = 0.15 + 0.70 / (1 + np.exp((daily_full['temp_mean'] - 22) / 4))
+        p(f"  Beverage features: large_ratio mean={daily_full['large_ratio'].mean():.2f}, cold_ratio mean={daily_full['cold_ratio'].mean():.2f}")
+        p(f"  temp_hot_ratio: mean={daily_full['temp_hot_ratio'].mean():.2f}, range=[{daily_full['temp_hot_ratio'].min():.2f}, {daily_full['temp_hot_ratio'].max():.2f}]")
     else:
         p("  WARNING: guangzhou_weather.csv not found, using defaults")
         daily_full["temp_mean"] = 20

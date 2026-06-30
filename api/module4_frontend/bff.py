@@ -437,6 +437,10 @@ async def checkout_complete(payload: dict):
             "unit_price": price,
             "discount_applied": 0,
             "freshness_status": "Fresh",
+            "beverage_size": item.get("size", None),
+            "beverage_temp": item.get("temperature", None),
+            "beverage_sweetness": item.get("sugar", None),
+            "beverage_ice": item.get("ice_level", None),
         }).execute()
         coffee_deducted.append({
             "product_name": pn,
@@ -474,6 +478,9 @@ async def checkout_complete(payload: dict):
         qty = item.get("quantity", 1)
         freshness = item.get("freshness", "Fresh")
         unit_price = prices.get(pn, 5.0)
+        size = item.get("size", "Regular")
+        if size == "Large" and pn in COFFEE_KEYS:
+            unit_price += 3.0
         discount_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
         line_total = unit_price * qty
         line_discount = line_total * discount_rate
@@ -580,7 +587,7 @@ async def checkout_complete(payload: dict):
             )
             for mat_row in cur.fetchall():
                 mat_name = mat_row[0]
-                used_qty = round(float(mat_row[1]) * qty / 1000, 6)
+                used_qty = round(float(mat_row[1]) * qty, 6)
                 actual_used_qty = round(used_qty * (1 + wastage_pct), 6)
                 cur.execute(
                     "UPDATE raw_materials SET stock_quantity = stock_quantity - %s WHERE material_name = %s",
@@ -588,7 +595,7 @@ async def checkout_complete(payload: dict):
                 )
                 cur.execute(
                     "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                    (mat_name, 'outflow', actual_used_qty, 'g', receipt_id)
+                    (mat_name, 'outflow', actual_used_qty, 'kg', receipt_id)
                 )
 
         # INSERT payments
@@ -992,7 +999,7 @@ def _get_theoretical(material_name):
             "SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s",
             (material_name, today_start)
         )
-        consumed_today = float(cur.fetchone()[0]) / 1000
+        consumed_today = float(cur.fetchone()[0])
         ref_actual = stock + consumed_today
         cur.execute(
             "INSERT INTO material_wastage_log (material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate) VALUES (%s,%s,%s,%s,0,0,0,0)",
@@ -1008,7 +1015,7 @@ def _get_theoretical(material_name):
         JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s
         WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s
     """, (material_name, ref_ts))
-    consumed = float(cur.fetchone()[0]) / 1000
+    consumed = float(cur.fetchone()[0])
 
     cur.execute(
         "SELECT COALESCE(SUM(quantity), 0) FROM material_transactions WHERE material_name = %s AND transaction_type IN ('inflow','restock') AND created_at >= %s",
