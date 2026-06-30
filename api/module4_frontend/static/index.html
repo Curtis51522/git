@@ -486,10 +486,6 @@ pt.textContent=titles[currentPanel]||currentPanel;
 }
 // Update alert badge title
 var ab=document.getElementById('alert-badge');if(ab)ab.title=t('System Alerts');
-}}
-// Update freshness dropdown
-var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
-agentState=null;showPanel(currentPanel);
 }
 setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
 
