@@ -64,9 +64,58 @@ class ProductionPlanAgent(BaseAgent):
             f"Top baked: {top_str}.{scenario_note}"
         )
 
+        recommendations = []
+        if buffer and buffer > 1.3:
+            recommendations.append({
+                "action": f"Reduce production buffer from {buffer:.0%} to 120% across all products",
+                "urgency": "medium", "time_horizon": "this_week",
+                "rationale": f"Buffer at {buffer:.0%} inflates bake quantities beyond forecast confidence level",
+                "expected_impact": "Reduces over-production waste while maintaining sufficient stock for demand peaks"
+            })
+        if buffer and buffer < 1.0:
+            recommendations.append({
+                "action": f"Increase buffer to at least 110% to cover forecast uncertainty",
+                "urgency": "high", "time_horizon": "tomorrow",
+                "rationale": f"Buffer below 100% risks stockouts if actual demand exceeds forecast",
+                "expected_impact": "Prevents lost sales from under-baking on peak days"
+            })
+
+        # Scenario-based hedging
+        q50_s = scenarios.get("q50", {})
+        q10_s = scenarios.get("q10", {})
+        if q50_s and q10_s:
+            profit_gap = q50_s.get("profit", 0) - q10_s.get("profit", 0)
+            if profit_gap > 500:
+                recommendations.append({
+                    "action": f"Hedge production: bake {int(total_bake * 0.85)} base units, hold contingency capacity for +{int(profit_gap / 10)} units if early-day sales confirm Q50 trajectory",
+                    "urgency": "high", "time_horizon": "this_week",
+                    "rationale": f"Wide profit swing ({chr(165)}{profit_gap:.0f}) between Q10 and Q50 scenarios means demand is volatile",
+                    "expected_impact": f"Protects against {chr(165)}{abs(q10_s.get('profit', 0)):.0f} worst-case loss while capturing upside"
+                })
+
+        # Daily distribution check
+        daily_bakes = {}
+        for row in grid:
+            d = row.get("date", row.get("day", ""))
+            qty = row.get("bake_qty", 0) or row.get("qty", 0) or 0
+            daily_bakes[d] = daily_bakes.get(d, 0) + qty
+        if daily_bakes:
+            vals = list(daily_bakes.values())
+            avg_daily = sum(vals) / len(vals)
+            max_daily = max(vals)
+            if avg_daily > 0 and max_daily / avg_daily > 1.8:
+                peak_day = max(daily_bakes, key=daily_bakes.get)
+                recommendations.append({
+                    "action": f"Smooth production: shift 15% of {peak_day} bake volume to adjacent days to reduce peak-day strain",
+                    "urgency": "low", "time_horizon": "this_week",
+                    "rationale": f"{peak_day} bake is {max_daily/avg_daily:.0f}x the daily average, creating capacity bottleneck",
+                    "expected_impact": "Evens out staff and oven utilization, reduces peak-day overtime"
+                })
+
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.80,
             attribution={"metric": "production_plan", "root_cause": "plan_analysis",
-                         "total_bake": total_bake, "total_rev": total_rev, "total_profit": total_profit})
+                         "total_bake": total_bake, "total_rev": total_rev, "total_profit": total_profit},
+            recommendations=recommendations)
 
 
 def _query_plan(date_str=""):

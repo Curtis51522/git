@@ -80,8 +80,40 @@ class DemandRiskAgent(BaseAgent):
         else:
             opinion = "Demand risks: " + " | ".join(risks) + "."
 
+        recommendations = []
+        # Per-product buffer recommendations for risk-overlap products
+        if top_products and top_uncertain:
+            top_names = set(re.findall(r'(\w[\w\s]+?)\s*\(', top_products))
+            uncertain_names = set(re.findall(r'(\w[\w\s]+?)\s*\(', top_uncertain))
+            overlap = top_names & uncertain_names
+            for product in list(overlap)[:3]:
+                recommendations.append({
+                    "action": f"Apply 1.3x buffer to {product} and adjust daily by 10am sell-through",
+                    "urgency": "high", "time_horizon": "this_week",
+                    "rationale": f"{product} has both high demand and high forecast uncertainty — baking at exact forecast risks stockout on peak days",
+                    "expected_impact": f"Prevents lost sales on {product} while containing waste risk through daily adjustment"
+                })
+            # Low-uncertainty products can use tighter buffer
+            low_uncertain = top_names - uncertain_names
+            if low_uncertain:
+                recommendations.append({
+                    "action": f"Apply 1.0x buffer to low-uncertainty products: {', '.join(list(low_uncertain)[:3])}",
+                    "urgency": "low", "time_horizon": "this_week",
+                    "rationale": "These products have narrower prediction intervals — baking exactly to forecast is safe",
+                    "expected_impact": "Reduces waste without meaningful stockout risk"
+                })
+
+        if bread_pct and bread_pct > 80:
+            recommendations.append({
+                "action": "Diversify production: introduce 1-2 new bread or beverage SKUs to reduce concentration risk below 80%",
+                "urgency": "low", "time_horizon": "next_30_days",
+                "rationale": f"Bread at {bread_pct}% of revenue means any bread-demand shock hits total revenue directly",
+                "expected_impact": "Reduces revenue volatility from single-category demand swings"
+            })
+
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.75,
-            attribution={"metric": "demand_risk", "risk_count": len(risks)})
+            attribution={"metric": "demand_risk", "risk_count": len(risks)},
+            recommendations=recommendations)
 
     def _parse_num(self, text, pattern):
         m = re.search(pattern, text)
