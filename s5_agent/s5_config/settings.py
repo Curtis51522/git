@@ -1,5 +1,5 @@
-ï»¿# s5_agent config
-# Central configuration for all S5 agents â€” single source of truth
+# s5_agent config
+# Central configuration for all S5 agents ¡ª single source of truth
 # =============================================================================
 
 PORT = 8001
@@ -9,7 +9,7 @@ HOST = "127.0.0.1"
 API_BASE = "http://127.0.0.1:8002"
 
 # =============================================================================
-# THRESHOLDS â€” all agent alert/decision thresholds live here.
+# THRESHOLDS ¡ª all agent alert/decision thresholds live here.
 # Tune these in one place; every agent reads from this dict.
 # =============================================================================
 
@@ -27,7 +27,7 @@ THRESHOLDS = {
     "staffing_min_heads": 3,            # <3 staff on shift = understaffed
 
     # --- WastageAgent ---
-    "wastage_abnormal_rate": 15,        # >15% wastage on a material = alert
+    "wastage_abnormal_rate": 0.15,        # >15% wastage on a material = alert
 
     # --- ProductStockAgent ---
     "product_day1_ratio": 0.30,         # >30% of products are Day-1 = alert

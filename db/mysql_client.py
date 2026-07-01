@@ -13,12 +13,30 @@ DB_CONFIG = {
     "database": os.getenv("MYSQL_DATABASE", "bakery_ai"),
 }
 
-_local = threading.local()
+import asyncio as _asyncio
+_db_lock = _asyncio.Lock()
 
 def get_db():
-    if not hasattr(_local, "conn") or _local.conn is None:
-        _local.conn = mysql.connector.connect(**DB_CONFIG, autocommit=True)
-    return _local.conn
+    return mysql.connector.connect(**DB_CONFIG, autocommit=True)
+
+class _LockedDB:
+    def __init__(self, db):
+        self._db = db
+    def cursor(self, **kw):
+        return self._db.cursor(**kw)
+    def __getattr__(self, name):
+        return getattr(self._db, name)
+
+class _DBGate:
+    async def __aenter__(self):
+        await _db_lock.acquire()
+        return _LockedDB(mysql.connector.connect(**DB_CONFIG, autocommit=True))
+    async def __aexit__(self, *args):
+        _db_lock.release()
+
+def async_db():
+    """Async-safe DB access. Use: async with async_db() as db: ..."""
+    return _DBGate()
 
 def init_db():
     db = get_db()

@@ -1,4 +1,4 @@
-﻿function injectS5Button(parentId, moduleId, dateSelector, resultDivId, style) {
+function injectS5Button(parentId, moduleId, dateSelector, resultDivId, style) {
   var parent = document.getElementById(parentId);
   if (!parent) return;
   style = style || '';
@@ -22,6 +22,7 @@ function injectS5ResultDiv(targetId, resultDivId) {
 async function runModuleS5Analysis(moduleId, dateSelector, resultDivId) {
   var resDiv = document.getElementById(resultDivId);
   if (!resDiv) return;
+  var forceRefresh = arguments[3] || false;
   resDiv.style.display = 'block';
   resDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#8b6914"><span class="spinner"></span> ' + t('Analyzing...') + '</div>';
   try {
@@ -29,23 +30,23 @@ async function runModuleS5Analysis(moduleId, dateSelector, resultDivId) {
     var dateEl = document.getElementById(dateSelector);
     var date = dateEl ? dateEl.value : '';
     var lang = localStorage.getItem('bakery_lang') || 'en';
-    var r = await fetch(S5_API + '/analyze/module', {method: 'POST', headers: hdrs, body: JSON.stringify({module: moduleId, date: date, lang: lang})});
+    var r = await fetch(S5_API + '/analyze/module', {method: 'POST', headers: hdrs, body: JSON.stringify({module: moduleId, date: date, lang: lang, force_refresh: forceRefresh})});
     if (!r.ok) { var txt = await r.text(); throw new Error(txt); }
     var d = await r.json();
-    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e0d5c7"><h4 style="margin:0;color:#5d4037;font-size:15px">\uD83E\uDDE0 ' + t('AI Analysis') + '</h4><button onclick="document.getElementById(\'' + resultDivId + '\').style.display=\'none\'" style="background:none;border:none;color:#999;cursor:pointer;font-size:18px">&times;</button></div>';
+    var refreshBtn = forceRefresh ? '' : '<button onclick="runModuleS5Analysis(\'' + moduleId + '\', \'' + dateSelector + '\', \'' + resultDivId + '\', true)" title="' + t('Regenerate') + '" style="background:none;border:none;color:#8b6914;cursor:pointer;font-size:16px;margin-right:6px">&#x21bb;</button>';
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e0d5c7"><h4 style="margin:0;color:#5d4037;font-size:15px">\uD83E\uDDE0 ' + t('AI Analysis') + (forceRefresh ? ' <span style="font-size:11px;color:#e67e22">(refreshed)</span>' : '') + '</h4><div>' + refreshBtn + '<button onclick="document.getElementById(\'' + resultDivId + '\').style.display=\'none\'" style="background:none;border:none;color:#999;cursor:pointer;font-size:18px">&times;</button></div></div>';
     var summaryHtml = d.summary
       .replace(/\n\n/g, '</p><p style="font-size:14px;color:#3d322b;line-height:1.8;margin-bottom:6px">')
       .replace(/\n/g, '<br>')
       .replace(/^(BOTTOM LINE|WHY THIS HAPPENED|WHAT TO DO)/gm, '<strong style="color:#5d4037;font-size:15px"></strong>');
     html += '<div style="margin-bottom:12px"><p style="font-size:14px;color:#3d322b;line-height:1.8;margin-bottom:6px">' + summaryHtml + '</p></div>';
-    // Key Factors are now synthesized into the summary by LLM ? no separate display needed
     if (d.recommendations && d.recommendations.length > 0) {
       html += '<div><strong style="font-size:13px;color:#5d4037">' + t('Recommendations') + '</strong><div style="margin-top:6px">';
       for (var i = 0; i < Math.min(d.recommendations.length, 4); i++) {
         var rec = d.recommendations[i];
         var urgColor = rec.urgency === 'high' ? '#c0392b' : rec.urgency === 'medium' ? '#e67e22' : '#27ae60';
         var urgBg = rec.urgency === 'high' ? '#fdedec' : rec.urgency === 'medium' ? '#fef5e7' : '#eafaf1';
-        html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:#3d322b"><span style="background:' + urgBg + ';color:' + urgColor + ';border-radius:3px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0">' + (rec.urgency || 'medium').toUpperCase() + '</span><div><div>' + rec.action + '</div>' + (rec.rationale ? '<div style="color:#6b5b4f;font-size:11px;margin-top:2px">' + rec.rationale + '</div>' : '') + '</div></div>';
+        html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:#3d322b"><span style="background:' + urgBg + ';color:' + urgColor + ';border-radius:3px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0">' + (rec.time_horizon || rec.urgency || 'medium').toUpperCase() + '</span><div><div>' + rec.action + '</div>' + (rec.rationale ? '<div style="color:#6b5b4f;font-size:11px;margin-top:2px">' + rec.rationale + '</div>' : '') + (rec.expected_impact ? '<div style="color:#27ae60;font-size:11px;margin-top:1px">' + rec.expected_impact + '</div>' : '') + '</div></div>';
       }
       html += '</div></div>';
     }

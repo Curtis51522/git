@@ -30,11 +30,10 @@ class MetricConflictAgent(BaseAgent):
         if rev_change is not None and order_change is not None:
             atv_shift = abs(rev_change - order_change)
             if atv_shift > 2:  # >2% gap = meaningful ATV shift
-                direction = "higher" if order_change > rev_change else "lower"
                 conflicts.append(
-                    f"Revenue ({rev_change:+.1f}%) and orders ({order_change:+.1f}%) diverge by {atv_shift:.1f}% "
-                    f"-> ATV is {direction} than usual. ProductMixAgent reports top 3 breads at {mix_data.get('concentration_pct', '?')}% "
-                    f"concentration -> mix shift within top products may explain the ATV gap."
+                    f"Revenue ({rev_change:+.1f}%) and orders ({order_change:+.1f}%) diverge by {atv_shift:.1f}pp "
+                    f"-> per-order spending has shifted. ProductMixAgent reports top 3 breads at {mix_data.get('concentration_pct', '?')}% "
+                    f"concentration -> check if mix shift within top products explains the gap."
                 )
             else:
                 aligned.append(f"Revenue ({rev_change:+.1f}%) and orders ({order_change:+.1f}%) move together (gap {atv_shift:.1f}%) -> consistent demand pattern.")

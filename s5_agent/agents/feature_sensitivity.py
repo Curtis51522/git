@@ -121,7 +121,7 @@ class FeatureSensitivityAgent(BaseAgent):
             )
             top_activated = activated[0]
             opinion = (
-                f"XGBoost model sensitivity analysis: top-5 features by importance are "
+                f"Demand sensitivity: top-5 drivers are "
                 + ", ".join(f"{t['label']} ({t['importance']*100:.1f}%)" for t in top5)
                 + f". Today's activated high-impact features:{active_str}. "
                 + f"The strongest active driver is {top_activated['label']} "
@@ -132,7 +132,7 @@ class FeatureSensitivityAgent(BaseAgent):
             )
         else:
             opinion = (
-                f"XGBoost model top-5 features: "
+                f"Demand drivers (top-5): "
                 + ", ".join(f"{t['label']} ({t['importance']*100:.1f}%)" for t in top5)
                 + ". No high-impact external features are active today; "
                 + "demand is primarily driven by temporal and lag patterns."

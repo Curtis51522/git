@@ -1,8 +1,10 @@
-import os, sys, logging, httpx
+﻿import os, sys, logging
+from datetime import datetime as dt, timedelta
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.trend")
 
 class TrendAgent(BaseAgent):
@@ -12,24 +14,65 @@ class TrendAgent(BaseAgent):
 
     async def _get_trend(self, date: str = ""):
         try:
-            async with httpx.AsyncClient(timeout=10) as c:
-                url = "http://127.0.0.1:8002/s4/revenue/daily"
-                if date: url += f"?date={date}"
-                r = await c.get(url)
-                if r.status_code == 200:
-                    d = r.json().get("data", {})
-                    t = d.get("trend", {})
-                    return {
-                        "dates": t.get("dates", []),
-                        "bread": t.get("bread", []),
-                        "orders": t.get("orders", []),
-                        "avg_order": t.get("avg_order", []),
-                        "today_revenue": d.get("today_revenue", 0),
-                        "revenue_change": d.get("revenue_change", 0),
-                    }
+            db = get_db()
+            cur = db.cursor()
+            if not date:
+                cur.execute("SELECT MAX(order_date) FROM orders")
+                row = cur.fetchone()
+                date = str(row[0]) if row and row[0] else ""
+            d0 = dt.strptime(date, "%Y-%m-%d")
+            trend_dates = []
+            trend_bread = []
+            trend_orders = []
+            trend_avg = []
+            for i in range(6, -1, -1):
+                dd = (d0 - timedelta(days=i)).strftime("%Y-%m-%d")
+                trend_dates.append(dd[5:])
+                cur.execute(
+                    "SELECT p.category, COALESCE(SUM(oi.line_total), 0) "
+                    "FROM orders o JOIN order_items oi ON oi.order_id = o.id "
+                    "JOIN products p ON oi.product_name = p.product_name "
+                    "WHERE o.order_date = %s GROUP BY p.category",
+                    (dd,))
+                day_bread = 0
+                for crow in cur.fetchall():
+                    if crow[0] == "bakery":
+                        day_bread = round(float(crow[1]), 2)
+                trend_bread.append(day_bread)
+                cur.execute(
+                    "SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM orders WHERE order_date = %s",
+                    (dd,))
+                orow = cur.fetchone()
+                day_orders = int(orow[0] or 0)
+                day_rev = float(orow[1] or 0)
+                trend_orders.append(day_orders)
+                trend_avg.append(round(day_rev / day_orders, 2) if day_orders else 0)
+            cur.execute(
+                "SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE order_date = %s",
+                (date,))
+            today_rev = round(float(cur.fetchone()[0] or 0), 2)
+            yesterday = (d0 - timedelta(days=1)).strftime("%Y-%m-%d")
+            cur.execute(
+                "SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE order_date = %s",
+                (yesterday,))
+            y_rev = round(float(cur.fetchone()[0] or 0), 2)
+            rev_change = round((today_rev - y_rev) / y_rev * 100, 1) if y_rev else 0
+            return {
+                "dates": trend_dates,
+                "bread": trend_bread,
+                "orders": trend_orders,
+                "avg_order": trend_avg,
+                "today_revenue": today_rev,
+                "revenue_change": rev_change,
+            }
         except Exception as e:
-            logger.warning("Trend fetch failed: %s", e)
+            logger.warning("Trend DB fetch failed: %s", e)
         return {"dates": [], "bread": [], "orders": [], "avg_order": [], "today_revenue": 0, "revenue_change": 0}
+
+    async def fetch(self, params):
+        date_str = str(params.get("date", "")) if isinstance(params, dict) else ""
+        data = await self._get_trend(date=date_str)
+        return {"success": True, "data": data, "tool": "get_weekly_trend"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         data = raw.get("data", {}) if "data" in raw else raw
@@ -46,13 +89,11 @@ class TrendAgent(BaseAgent):
                 confidence=0.3,
                 attribution={"metric": "trend", "root_cause": "no_data", "deviation": 0})
 
-        # Compute 7-day avg (exclude today which is last element)
         historical = bread[:-1]
         today_val = bread[-1]
         avg7 = sum(historical) / len(historical) if historical else today_val
         pct_vs_avg = (today_val - avg7) / max(avg7, 1) * 100
 
-        # Direction: compare first half vs second half
         mid = len(historical) // 2
         first_half = sum(historical[:mid]) / max(mid, 1)
         second_half = sum(historical[mid:]) / max(len(historical) - mid, 1)
@@ -63,13 +104,11 @@ class TrendAgent(BaseAgent):
         else:
             direction = "stable"
 
-        # Orders trend
         hist_orders = orders[:-1] if len(orders) > 1 else []
         today_orders = orders[-1] if orders else 0
         avg_orders = sum(hist_orders) / len(hist_orders) if hist_orders else today_orders
         order_change_pct = (today_orders - avg_orders) / max(avg_orders, 1) * 100
 
-        # ATV comparison
         atv_note = ""
         if avg_order and len(avg_order) > 1:
             hist_atv = avg_order[:-1]

@@ -1,9 +1,10 @@
-﻿import os, sys, httpx, logging
+﻿import os, sys, httpx, logging, traceback
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
 from s5_agent.s5_config.settings import THRESHOLDS
+from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.profit")
 
 class ProfitAgent(BaseAgent):
@@ -25,9 +26,39 @@ class ProfitAgent(BaseAgent):
     async def _get_trend(self, days: int = 7):
         return await self._get_revenue()
 
+    async def fetch(self, params):
+        date_str = ""
+        if isinstance(params, dict):
+            date_str = str(params.get("date", ""))
+        try:
+            db = get_db()
+            cur = db.cursor(dictionary=True)
+            if date_str:
+                cur.execute("SELECT SUM(total_amount) as revenue, SUM(total_profit) as profit, COUNT(*) as orders, SUM(discount_total) as disc FROM orders WHERE order_date=%s AND state IN ('paid','completed')", (date_str,))
+            else:
+                cur.execute("SELECT SUM(total_amount) as revenue, SUM(total_profit) as profit, COUNT(*) as orders, SUM(discount_total) as disc FROM orders WHERE order_date=CURDATE() AND state IN ('paid','completed')")
+            row = cur.fetchone()
+            revenue = float(row.get("revenue") or 0)
+            profit_val = float(row.get("profit") or 0)
+            orders = int(row.get("orders") or 0)
+            discount = float(row.get("disc") or 0)
+            data = {
+                "today_revenue": revenue,
+                "today_profit": profit_val,
+                "today_orders": orders,
+                "discount_total": discount,
+            }
+            return {"success": True, "data": data, "tool": "profit_db"}
+        except Exception as e:
+            logger.warning("Profit DB fetch failed for date=%s: %s", date_str, e)
+            logger.warning("Profit traceback: %s", traceback.format_exc())
+        return {"success": True, "data": {"today_revenue": 0, "today_profit": 0, "today_orders": 0, "discount_total": 0}, "tool": "profit_db_fallback"}
+
     def analyze(self, raw, params, context="", history="", key_metrics=None):
-        api_data = raw.get("data", {})
-        data = api_data.get("data", api_data)
+        data = raw.get("data", {}) if isinstance(raw, dict) else {}
+        # Handle nested data.data from old pipeline vs flat from new fetch()
+        if "data" in data and isinstance(data["data"], dict) and "today_revenue" in data["data"]:
+            data = data["data"]
         revenue = float(data.get("today_revenue", 0))
         profit = float(data.get("today_profit", 0))
         orders = data.get("today_orders", 0)

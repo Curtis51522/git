@@ -92,7 +92,7 @@ async def proxy_s5(path: str, request: Request):
             content=body if body else None,
             headers={k: v for k, v in request.headers.items()
                       if k.lower() not in ("host", "content-length", "transfer-encoding")},
-            timeout=60,
+            timeout=120,
         )
         return Response(content=resp.content, status_code=resp.status_code,
                         headers={k: v for k, v in resp.headers.items()

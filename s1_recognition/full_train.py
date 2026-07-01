@@ -63,7 +63,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_DIR = os.path.dirname(_SCRIPT_DIR)
 
 DEFAULT_CONFIG_PATH = os.path.join(_SCRIPT_DIR, "best_config.json")
-DEFAULT_DATA_YAML = os.path.join(_PROJECT_DIR, "data", "merged_yolo", "data.yaml")
+DEFAULT_DATA_YAML = os.path.join(_PROJECT_DIR, "data", "merged_yolo_30cls", "data.yaml")
 FINAL_MODEL_DIR = os.path.join(_PROJECT_DIR, "models", "yolo")
 DEFAULT_EPOCHS = 200
 

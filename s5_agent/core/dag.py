@@ -1,4 +1,4 @@
-﻿# s5_agent/core/dag.py
+# s5_agent/core/dag.py
 import asyncio, logging, time
 from typing import Dict, Any, List, Set, Tuple
 from dataclasses import dataclass, field
@@ -55,8 +55,9 @@ class DAGExecutor:
                 history = ""
                 if self.memory:
                     history = self.memory.get_context_for_agent(node.agent_name, params)
+                clean_params = {k: v for k, v in params.items() if k != "force_refresh"}
                 task = self.agents[node.agent_name].run(
-                    params=params, context=upstream_context, history=history
+                    params=clean_params, context=upstream_context, history=history
                 )
                 phase_tasks[node.agent_name] = task
 

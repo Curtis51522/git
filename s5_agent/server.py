@@ -81,6 +81,7 @@ class ModuleAnalyzeRequest(BaseModel):
     date: str = ""
     params: dict = {}
     lang: str = "en"
+    force_refresh: bool = False
 
 @app.get("/health")
 async def health():
@@ -99,14 +100,17 @@ async def analyze(req: AnalyzeRequest):
     if not template:
         raise HTTPException(400, f"Unknown intent: {intent}")
     
-    # Check response cache
+    # Check response cache (skip if force_refresh)
+    force_refresh = req.params.get("force_refresh", False) if req.params else False
     cache_key = _response_cache_key(intent, req.params)
-    if cache_key in _response_cache:
+    if not force_refresh and cache_key in _response_cache:
         logger.info("Response cache HIT for %s", cache_key)
         cached = dict(_response_cache[cache_key])
         cached["cache_hit"] = True
         cached["total_elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
         return cached
+    if force_refresh:
+        logger.info("Force refresh requested, bypassing cache for %s", cache_key)
 
     logger.info("Analyze: intent=%s query=%s", intent, req.query)
     dag_result = await dag_executor.execute(template, req.params, req.query, intent)
@@ -146,7 +150,7 @@ async def analyze_module(req: ModuleAnalyzeRequest):
         "kpi": "full_diagnosis",
     }
     intent = module_intent_map.get(req.module, "full_diagnosis")
-    params = {"date": req.date, **(req.params or {})}
+    params = {"date": req.date, "force_refresh": req.force_refresh, **(req.params or {})}
     return await analyze(AnalyzeRequest(intent=intent, params=params, lang=req.lang))
 
 @app.get("/templates")
