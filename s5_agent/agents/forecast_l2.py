@@ -32,6 +32,32 @@ class PlanFeasibilityAgent(BaseAgent):
         if bottleneck:
             issues.append(f"bottleneck: {bottleneck.group(1)} (gap {bottleneck.group(2)})")
 
+        recommendations = []
+        if total_bake and capacity:
+            peak_util = total_bake / max(capacity, 1) * 100 / 7
+            if peak_util > 80:
+                peak_day = max(daily_bakes, key=daily_bakes.get) if daily_bakes else "peak"
+                recommendations.append({
+                    "action": f"Redistribute production: shift 15% of {peak_day} bake volume to adjacent days to keep utilization below 80%",
+                    "urgency": "medium", "time_horizon": "this_week",
+                    "rationale": f"Peak day utilization at {peak_util:.0f}% risks overtime and quality issues",
+                    "expected_impact": "Reduces peak-day strain, evens out staff and oven load"
+                })
+        if critical:
+            recommendations.append({
+                "action": f"Expedite procurement for critical materials: {critical}",
+                "urgency": "high", "time_horizon": "tomorrow",
+                "rationale": f"Critical stock levels on {critical} could halt production",
+                "expected_impact": "Prevents production stoppage from material shortages"
+            })
+        if bottleneck:
+            recommendations.append({
+                "action": f"Address bottleneck: {bottleneck.group(1)} is short by {bottleneck.group(2)} units",
+                "urgency": "high", "time_horizon": "this_week",
+                "rationale": f"Material gap of {bottleneck.group(2)} units will constrain bake quantities",
+                "expected_impact": "Unblocks full production capacity"
+            })
+
         if not issues:
             opinion = "Plan is feasible: materials adequate, capacity sufficient for projected bake quantities."
         else:
@@ -39,7 +65,8 @@ class PlanFeasibilityAgent(BaseAgent):
 
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.75,
             attribution={"metric": "plan_feasibility", "feasible": len(issues) == 0,
-                         "issues": issues})
+                         "issues": issues},
+            recommendations=recommendations)
 
     def _parse_num(self, text, pattern):
         m = re.search(pattern, text)
@@ -146,13 +173,37 @@ class EfficiencyAgent(BaseAgent):
         if top_baked:
             findings.append(f"Top-baked products: {top_baked}")
 
+        recommendations = []
+        if buffer and buffer > 1.3:
+            recommendations.append({
+                "action": f"Reduce global buffer from {buffer:.0%} to 120%, then apply per-product tiered buffers based on uncertainty",
+                "urgency": "medium", "time_horizon": "this_week",
+                "rationale": f"Buffer at {buffer:.0%} inflates all products equally, ignoring that low-uncertainty products need less buffer",
+                "expected_impact": "Cuts waste on stable products while maintaining protection on volatile ones"
+            })
+        if wape and wape > 35:
+            recommendations.append({
+                "action": "Switch to phased daily baking instead of full-week pre-bake until forecast accuracy improves",
+                "urgency": "high", "time_horizon": "this_week",
+                "rationale": f"WAPE at {wape:.0f}% means forecasts are unreliable beyond 1-2 days; committing a full week creates waste risk",
+                "expected_impact": "Reduces waste from inaccurate multi-day forecasts by 30-50%"
+            })
+        if not top_baked or top_baked == "(0u)":
+            recommendations.append({
+                "action": "Fix production plan data: top baked products show 0 units — the plan grid may have a data mapping error",
+                "urgency": "high", "time_horizon": "tomorrow",
+                "rationale": "Zero-unit top products make buffer and allocation analysis unreliable",
+                "expected_impact": "Restores accurate production visibility and enables data-driven buffer tuning"
+            })
+
         if not findings:
             opinion = "Production allocation appears aligned with forecast accuracy. No obvious efficiency gaps."
         else:
             opinion = "Efficiency assessment: " + " | ".join(findings) + "."
 
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.70,
-            attribution={"metric": "forecast_efficiency", "findings": findings})
+            attribution={"metric": "forecast_efficiency", "findings": findings},
+            recommendations=recommendations)
 
     def _parse_num(self, text, pattern):
         m = re.search(pattern, text)
@@ -184,13 +235,32 @@ class WastageRiskAgent(BaseAgent):
             if gap > 1000:
                 findings.append(f"wide profit swing ({chr(165)}{gap:.0f}) between Q10 and Q50 scenarios")
 
+        recommendations = []
+        if q10_profit is not None and q10_profit < 0:
+            recommendations.append({
+                "action": f"Bake in two daily tranches: 70% at opening, 30% at noon after checking morning sell-through",
+                "urgency": "high", "time_horizon": "this_week",
+                "rationale": f"Q10 worst-case projects {chr(165)}{abs(q10_profit):.0f} loss — committing all bake upfront risks catastrophic waste",
+                "expected_impact": f"Limits worst-case waste to 70% of Q10 projection, saving approximately {chr(165)}{abs(q10_profit) * 0.3:.0f}"
+            })
+        if q50_profit is not None and q10_profit is not None:
+            gap = q50_profit - q10_profit
+            if gap > 1000:
+                recommendations.append({
+                    "action": f"Set a daily go/no-go threshold: if 11am sales fall below 60% of daily forecast, cancel afternoon tranche",
+                    "urgency": "high", "time_horizon": "this_week",
+                    "rationale": f"Wide profit swing of {chr(165)}{gap:.0f} between Q10 and Q50 means daily conditions can flip from profit to loss",
+                    "expected_impact": "Prevents baking into a confirmed low-demand day, saving up to full afternoon tranche cost"
+                })
+
         if not findings:
             opinion = "Wastage risk is moderate. Production plan has acceptable downside protection."
         else:
             opinion = "Wastage risk: " + " | ".join(findings) + "."
 
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.70,
-            attribution={"metric": "wastage_risk", "findings": findings})
+            attribution={"metric": "wastage_risk", "findings": findings},
+            recommendations=recommendations)
 
     def _parse_num(self, text, pattern):
         m = re.search(pattern, text)
