@@ -41,6 +41,8 @@ app = FastAPI(title="S5 AI Brain - Multi-Agent Bakery Intelligence", lifespan=li
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 memory = StructuredMemory()
+_response_cache: dict = {}
+_response_cache_max = 100
 deliberator = Deliberator(memory=memory)
 synthesizer = Synthesizer()
 
@@ -84,6 +86,11 @@ class ModuleAnalyzeRequest(BaseModel):
 async def health():
     return {"status": "ok", "agents": len(AGENTS), "templates": 7}
 
+def _response_cache_key(intent: str, params: dict) -> str:
+    date = str(params.get("date", "")) if params else ""
+    module = str(params.get("module", "")) if params else ""
+    return f"{intent}:{date}:{module}"
+
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest):
     t0 = time.perf_counter()
@@ -91,6 +98,16 @@ async def analyze(req: AnalyzeRequest):
     template = get_template(intent)
     if not template:
         raise HTTPException(400, f"Unknown intent: {intent}")
+    
+    # Check response cache
+    cache_key = _response_cache_key(intent, req.params)
+    if cache_key in _response_cache:
+        logger.info("Response cache HIT for %s", cache_key)
+        cached = dict(_response_cache[cache_key])
+        cached["cache_hit"] = True
+        cached["total_elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+        return cached
+
     logger.info("Analyze: intent=%s query=%s", intent, req.query)
     dag_result = await dag_executor.execute(template, req.params, req.query, intent)
     deliberation = None
@@ -105,11 +122,18 @@ async def analyze(req: AnalyzeRequest):
     output = await synthesizer.synthesize(dag_result, deliberation, memory, lang=req.lang)
     memory.add_query(req.query or intent, intent, output.get("summary", ""),
                      {"significant": output.get("significance", {}).get("significant", False)})
-    return {
+    result = {
         **output, "intent": intent,
         "total_elapsed_ms": round((time.perf_counter() - t0) * 1000, 1),
         "agents_executed": len(dag_result["results"]),
+        "cache_hit": False,
     }
+    # Write to response cache
+    _response_cache[cache_key] = result
+    if len(_response_cache) > _response_cache_max:
+        oldest = next(iter(_response_cache))
+        del _response_cache[oldest]
+    return result
 
 @app.post("/analyze/module")
 async def analyze_module(req: ModuleAnalyzeRequest):
@@ -122,7 +146,8 @@ async def analyze_module(req: ModuleAnalyzeRequest):
         "kpi": "full_diagnosis",
     }
     intent = module_intent_map.get(req.module, "full_diagnosis")
-    return await analyze(AnalyzeRequest(intent=intent, params=req.params))
+    params = {"date": req.date, **(req.params or {})}
+    return await analyze(AnalyzeRequest(intent=intent, params=params, lang=req.lang))
 
 @app.get("/templates")
 async def list_templates():

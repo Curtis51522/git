@@ -3,6 +3,7 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.product_mix")
 
 class ProductMixAgent(BaseAgent):
@@ -26,6 +27,26 @@ class ProductMixAgent(BaseAgent):
         except Exception as e:
             logger.warning("Product mix fetch failed: %s", e)
         return {"bread_ranking": [], "beverage_ranking": [], "category": {}}
+
+    async def fetch(self, params):
+        date_str = ""
+        if isinstance(params, dict):
+            date_str = str(params.get("date", ""))
+        ranking = await self._get_ranking(date_str)
+        total_bread = 0
+        total_bev = 0
+        try:
+            db = get_db()
+            cur = db.cursor()
+            cur.execute("SELECT COUNT(DISTINCT product_name) FROM order_items oi JOIN orders o ON oi.order_id=o.id WHERE oi.product_name LIKE %s", ("%Bread%",))
+            total_bread = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(DISTINCT product_name) FROM order_items oi JOIN orders o ON oi.order_id=o.id WHERE oi.product_name NOT LIKE %s", ("%Bread%",))
+            total_bev = cur.fetchone()[0]
+        except Exception as e:
+            logger.warning("ProductMix catalog count failed: %s", e)
+        ranking["total_bread_sku"] = total_bread
+        ranking["total_bev_sku"] = total_bev
+        return {"success": True, "data": ranking, "tool": "product_mix_db"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         data = raw.get("data", {}) if "data" in raw else raw
@@ -52,7 +73,9 @@ class ProductMixAgent(BaseAgent):
 
             top_name = bread[0].get("name", "?")
             top_qty = bread[0].get("qty", 0)
-            parts.append(f"Bread: {len(bread)} products, top is {top_name} ({top_qty} units, {chr(165)}{bread[0].get('revenue',0):.0f})")
+            total_sku = data.get("total_bread_sku", 0)
+            sku_context = f" of {total_sku} SKUs" if total_sku > 0 else ""
+            parts.append(f"Bread: {len(bread)}{sku_context} sold today, top is {top_name} ({top_qty} units, {chr(165)}{bread[0].get('revenue',0):.0f})")
 
             if top3_pct > 60:
                 root_cause = "high_concentration"
@@ -74,7 +97,9 @@ class ProductMixAgent(BaseAgent):
         if bev:
             top_bev = bev[0].get("name", "?")
             top_bev_qty = bev[0].get("qty", 0)
-            parts.append(f"Beverages: top is {top_bev} ({top_bev_qty} units)")
+            total_bev_sku = data.get("total_bev_sku", 0)
+            bev_sku_context = f" (of {total_bev_sku} beverage SKUs)" if total_bev_sku > 0 else ""
+            parts.append(f"Beverages: top is {top_bev} ({top_bev_qty} units){bev_sku_context}")
 
         # Category mix
         bread_rev = cat.get("Bread", 0)

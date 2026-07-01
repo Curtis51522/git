@@ -29,7 +29,7 @@ class MetricConflictAgent(BaseAgent):
         order_change = demand_data.get("order_change_pct", 0)
         if rev_change is not None and order_change is not None:
             atv_shift = abs(rev_change - order_change)
-            if atv_shift > 3:  # >3% gap = meaningful ATV shift
+            if atv_shift > 2:  # >2% gap = meaningful ATV shift
                 direction = "higher" if order_change > rev_change else "lower"
                 conflicts.append(
                     f"Revenue ({rev_change:+.1f}%) and orders ({order_change:+.1f}%) diverge by {atv_shift:.1f}% "
@@ -63,10 +63,14 @@ class MetricConflictAgent(BaseAgent):
 
     def _parse_trend(self, context):
         result = {}
-        # Extract pct change: "today ¥2326 vs avg ¥2490 (-6.6%)"
-        m = re.search(r'\(([+-]?\d+\.?\d*)%\)', context)
+        m = re.search(r'bread revenue.*?\(([+-]?\d+\.?\d*)%\)', context)
+        if not m:
+            m = re.search(r'today.*?\(([+-]?\d+\.?\d*)%\)', context)
+        if not m:
+            m = re.search(r'\(([+-]?\d+\.?\d*)%\)', context)
         if m: result["revenue_change_pct"] = float(m.group(1))
-        # Extract margin
+        m_atv = re.search(r'ATV.*?\(([+-]?\d+\.?\d*)%\)', context)
+        if m_atv: result["atv_change_pct"] = float(m_atv.group(1))
         m = re.search(r'[Mm]argin\s+(\d+\.?\d*)%', context)
         if m: result["margin"] = float(m.group(1))
         return result
@@ -89,7 +93,6 @@ class MetricConflictAgent(BaseAgent):
         m = re.search(r'[Tt]op\s+\d+\s+\w+\s*=\s*(\d+)%', context)
         if m: result["concentration_pct"] = int(m.group(1))
         return result
-
 
 class CausalChainAgent(BaseAgent):
     """L2: Traces root cause chain using FeatureSensitivityAgent + ExternalFactorsAgent + TrendAgent."""

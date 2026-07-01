@@ -64,15 +64,28 @@ class TrendAgent(BaseAgent):
             direction = "stable"
 
         # Orders trend
-        hist_orders = orders[:-1]
-        today_orders = orders[-1]
+        hist_orders = orders[:-1] if len(orders) > 1 else []
+        today_orders = orders[-1] if orders else 0
         avg_orders = sum(hist_orders) / len(hist_orders) if hist_orders else today_orders
+        order_change_pct = (today_orders - avg_orders) / max(avg_orders, 1) * 100
+
+        # ATV comparison
+        atv_note = ""
+        if avg_order and len(avg_order) > 1:
+            hist_atv = avg_order[:-1]
+            today_atv = avg_order[-1]
+            avg_atv = sum(hist_atv) / len(hist_atv) if hist_atv else today_atv
+            atv_change_pct = (today_atv - avg_atv) / max(avg_atv, 1) * 100
+            atv_note = f" ATV: today {chr(165)}{today_atv:.2f} vs avg {chr(165)}{avg_atv:.2f} ({atv_change_pct:+.1f}%)."
+            if abs(atv_change_pct) > 10:
+                direction_word = "higher" if atv_change_pct > 0 else "lower"
+                atv_note += f" Customers spending {direction_word} per visit than usual."
 
         opinion = (
             f"7-day bread revenue: today {chr(165)}{today_val:.0f} vs avg {chr(165)}{avg7:.0f} "
             f"({pct_vs_avg:+.1f}%). "
             f"Trend: {direction} (first half avg {chr(165)}{first_half:.0f}, second half {chr(165)}{second_half:.0f}). "
-            f"Orders: today {today_orders:.0f} vs avg {avg_orders:.1f}."
+            f"Orders: today {today_orders:.0f} vs avg {avg_orders:.1f} ({order_change_pct:+.1f}%)." + atv_note
         )
 
         recs = []
@@ -102,5 +115,7 @@ class TrendAgent(BaseAgent):
             })
 
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.80,
-            attribution={"metric": "trend", "root_cause": root_cause, "deviation": deviation},
+            attribution={"metric": "trend", "root_cause": root_cause, "deviation": deviation,
+                        "revenue_change_pct": round(pct_vs_avg, 1),
+                        "order_change_pct": round(order_change_pct, 1)},
             recommendations=recs)

@@ -4,6 +4,7 @@ if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
 from s5_agent.s5_config.settings import THRESHOLDS
+from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.staffing")
 
 class StaffingAgent(BaseAgent):
@@ -31,6 +32,22 @@ class StaffingAgent(BaseAgent):
             logger.warning("Schedule fetch failed: %s", e)
         return {"shifts": [], "total_staff": 0, "total_shifts": 0, "note": "api_unavailable"}
 
+    async def fetch(self, params):
+        date_str = ""
+        if isinstance(params, dict):
+            date_str = str(params.get("date", ""))
+        schedule_data = await self._get_schedule(date_str)
+        total_headcount = 0
+        try:
+            db = get_db()
+            cur = db.cursor()
+            cur.execute("SELECT COUNT(DISTINCT emp_id) FROM attendance_records")
+            total_headcount = cur.fetchone()[0]
+        except Exception as e:
+            logger.warning("Staffing headcount query failed: %s", e)
+        schedule_data["total_headcount"] = total_headcount
+        return {"success": True, "data": schedule_data, "tool": "staffing_db"}
+
     async def _get_attendance(self, date: str = ""):
         try:
             async with httpx.AsyncClient(timeout=10) as c:
@@ -50,9 +67,11 @@ class StaffingAgent(BaseAgent):
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         data = raw.get("data", {}) if "data" in raw else raw
         staff = data.get("total_staff", 0)
+        headcount = data.get("total_headcount", 0)
+        hc_context = f" of {headcount} total" if headcount > 0 else ""
         if staff < THRESHOLDS["staffing_min_heads"]:
-            return AgentOpinion(agent=self.name, opinion=f"Understaffed: only {staff} on shift",
+            return AgentOpinion(agent=self.name, opinion=f"Understaffed: only {staff}{hc_context} on shift",
                 confidence=0.85, attribution={"metric": "staffing", "root_cause": "understaffed", "deviation": THRESHOLDS["staffing_min_heads"] - staff},
                 recommendations=[{"action": "Consider calling backup staff", "urgency": "high", "projected_gain": 120, "ease": "low"}])
-        return AgentOpinion(agent=self.name, opinion=f"{staff} staff on shift, adequate for current demand",
+        return AgentOpinion(agent=self.name, opinion=f"{staff}{hc_context} staff on shift, adequate for current demand",
             confidence=0.85, attribution={"metric": "staffing", "root_cause": "adequate_staffing", "deviation": 0})
