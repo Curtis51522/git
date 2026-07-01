@@ -66,16 +66,25 @@ DRINK_NAMES = {
 # PRODUCT DATA
 # ============================================================
 def load_products():
-    """Return {product_name: {price, is_drink}} for all 45 products."""
-    df = pd.read_csv(RAW_CSV)
-    prices = df.groupby("product_name")["unit_price_cny"].mean().to_dict()
-    return {
-        p: {
-            "price": round(pr, 2),
-            "is_drink": p in DRINK_NAMES,
+    """Return {product_name: {price, is_drink}} for all 45 products from MySQL."""
+    from db.mysql_client import get_db
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT product_name, category, unit_price FROM products")
+    result = {}
+    for row in cur.fetchall():
+        name = str(row[0])
+        category = str(row[1]) if row[1] else ""
+        price = float(row[2]) if row[2] else 0.0
+        result[name] = {
+            "price": round(price, 2),
+            "is_drink": category == "beverage",
         }
-        for p, pr in prices.items()
-    }
+    # Fill any missing breads from DRINK_NAMES
+    for drink in DRINK_NAMES:
+        if drink not in result:
+            result[drink] = {"price": 12.0, "is_drink": True}
+    return result
 
 
 def load_s2_predictions(date_str=None):

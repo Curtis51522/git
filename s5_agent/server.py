@@ -27,6 +27,9 @@ from s5_agent.agents import (
     PricingAgent, ProfitAgent, PromoAgent, AttendanceAgent,
     TrendAgent, HourlyPatternAgent, ProductMixAgent,
     FeatureSensitivityAgent, MetricConflictAgent, CausalChainAgent, CrossRiskAgent,
+    ForecastOverviewAgent, ForecastUncertaintyAgent, ProductionPlanAgent,
+    MaterialProcurementAgent, ForecastAccuracyAgent,
+    PlanFeasibilityAgent, DemandRiskAgent, EfficiencyAgent, WastageRiskAgent,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -66,6 +69,15 @@ AGENTS = {
     "MetricConflictAgent": MetricConflictAgent("MetricConflictAgent"),
     "CausalChainAgent": CausalChainAgent("CausalChainAgent"),
     "CrossRiskAgent": CrossRiskAgent("CrossRiskAgent"),
+    "ForecastOverviewAgent": ForecastOverviewAgent("ForecastOverviewAgent"),
+    "ForecastUncertaintyAgent": ForecastUncertaintyAgent("ForecastUncertaintyAgent"),
+    "ProductionPlanAgent": ProductionPlanAgent("ProductionPlanAgent"),
+    "MaterialProcurementAgent": MaterialProcurementAgent("MaterialProcurementAgent"),
+    "ForecastAccuracyAgent": ForecastAccuracyAgent("ForecastAccuracyAgent"),
+    "PlanFeasibilityAgent": PlanFeasibilityAgent("PlanFeasibilityAgent"),
+    "DemandRiskAgent": DemandRiskAgent("DemandRiskAgent"),
+    "EfficiencyAgent": EfficiencyAgent("EfficiencyAgent"),
+    "WastageRiskAgent": WastageRiskAgent("WastageRiskAgent"),
 }
 dag_executor = DAGExecutor(AGENTS, memory=memory)
 

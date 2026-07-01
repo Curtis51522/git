@@ -106,62 +106,13 @@ class Synthesizer:
 
 
 
-        # Theme definitions for the prompt
+        # Theme definitions for the prompt - varies by intent
+        if intent == "production_advice":
+            theme_prompt = "You are a sharp bakery production planner. Agents below have analyzed the 7-day demand forecast, production plan, material needs, and model accuracy. Your output is a structured briefing " + lang_instr + ".\n\nWrite a single flowing narrative that tells the full story of the upcoming 7-day production window. No section headers, no bullet points, no labels. Start with the most important finding.\n\nWeave these themes together seamlessly:\n- 7-day demand outlook: total projected revenue, trend direction, peak/valley days, top products (from ForecastOverviewAgent).\n- Uncertainty hotspots: which products have widest prediction intervals, where the risk lies (from ForecastUncertaintyAgent).\n- Production plan: total bake, revenue, profit, buffer used. Is the plan aligned with demand? (from ProductionPlanAgent).\n- Material readiness: critical/low stock materials, total to order, biggest gaps (from MaterialProcurementAgent).\n- Model accuracy: WAPE, interval coverage, what it means for planning confidence (from ForecastAccuracyAgent).\n- Cross-checks: plan feasibility (PlanFeasibilityAgent), demand concentration risks (DemandRiskAgent), over/under-baking vs accuracy (EfficiencyAgent), worst-case wastage scenarios (WastageRiskAgent).\n\nThe reader is the bakery owner planning the next week's production and procurement. Give them actionable clarity.\n\nRULES:\n- Numbers only from agents. Currency: RMB yuan. NEVER approximate. Use exact agent values.\n- If the production plan is misaligned with demand, quantify the gap (units and revenue).\n- Let the L2 agents do the heavy analytical lifting.\n- If a section has insufficient data, say so honestly in one sentence.\n- Recommendations: Each MUST include a time anchor (For tomorrow/This week/Over the next 30 days). Each MUST name specific products or numbers from agents, never generic. Each SHOULD include expected impact. Recommendations go in the separate JSON array, NOT in the summary text.\n- Output MUST be valid JSON only, no markdown, no explanatory text outside the JSON.\n\nOUTPUT valid JSON:\n{\"summary\": \"...\",\n \"attribution\": [{\"factor\": \"...\", \"evidence\": \"agent + number\"}],\n \"recommendations\": [{\"action\": \"...\", \"urgency\": \"high|medium|low\", \"time_horizon\": \"today|tomorrow|this_week|next_7_days|next_30_days|ongoing\", \"rationale\": \"...\", \"expected_impact\": \"...\"}]}\n"
+        else:
+            theme_prompt = "You are a sharp bakery analyst. Agents below have analyzed individual business cards, then cross-referenced each other. Your output is a structured briefing " + lang_instr + ".\n\nWrite a single flowing narrative that tells the full story of today's performance \u2014 no section headers, no bullet points, no labels. Start with the most important finding and let each sentence naturally lead to the next.\n\nWeave these themes together seamlessly:\n- Revenue, orders, ATV, and 7-day trend direction (from TrendAgent, DemandAgent, ProfitAgent). Always compare orders vs revenue movement \u2014 if they diverge, explain the ATV shift.\n- Product concentration, category split, top-seller performance, and what drives demand (from ProductMixAgent, FeatureSensitivityAgent). Use business language, never mention model names (XGBoost), feature importance percentages, or technical parameters in the summary. Translate model insights into plain cause-and-effect statements the store owner can act on.\n- Operations: staffing, attendance, wastage, production yield (from StaffingAgent, AttendanceAgent, WastageAgent, YieldAgent) \u2014 weave in where relevant, not as a standalone section.\n- External context: weather, holidays, promos, discounts, competitor activity (from ExternalFactorsAgent, PricingAgent).\n- Cross-card conclusions: MetricConflictAgent divergences, CausalChainAgent root cause chain, CrossRiskAgent self-reinforcing loops. Do NOT expose agent-level disagreements. Synthesize into one reconciled insight.\n\nThe reader should feel like they're reading a colleague's update, not filling out a template.\n\nRULES:\n- Numbers only from agents. Currency: RMB yuan. NEVER approximate: if an agent says 2490, do NOT write ~2500 or ~3158. Use the exact agent number. If you must compute a derived number, show both the agent values and the result.\n- Let the L2 agents do the heavy analytical lifting.\n- Write as a sharp colleague briefing the store owner.\n- If a section has insufficient data, say so honestly in one sentence.\n- Recommendations: Each MUST include a time anchor (For tomorrow/This week/Over the next 30 days). Each MUST name specific products or numbers from agents, never generic. Each SHOULD include expected impact when computable. Recommendations go in the separate JSON array, NOT in the summary text.\n\nOUTPUT valid JSON:\n{\"summary\": \"Today's revenue was \\u00a5... from ... orders. ...\",\n \"attribution\": [{\"factor\": \"...\", \"evidence\": \"agent + number\"}],\n \"recommendations\": [{\"action\": \"...\", \"urgency\": \"high|medium|low\", \"time_horizon\": \"today|tomorrow|this_week|next_7_days|next_30_days|ongoing\", \"rationale\": \"...\", \"expected_impact\": \"...\"}]}\n"
 
-        theme_prompt = """You are a sharp bakery analyst. Agents below have analyzed individual business cards, then cross-referenced each other. Your output is a structured briefing """ + lang_instr + """$.
-
-
-
-Write a single flowing narrative that tells the full story of today's performance — no section headers, no bullet points, no labels. Start with the most important finding and let each sentence naturally lead to the next.
-
-Weave these themes together seamlessly:
-- Revenue, orders, ATV, and 7-day trend direction (from TrendAgent, DemandAgent, ProfitAgent). Always compare orders vs revenue movement — if they diverge, explain the ATV shift.
-- Product concentration, category split, top-seller performance, and what drives demand (from ProductMixAgent, FeatureSensitivityAgent). Use business language, never mention model names (XGBoost), feature importance percentages, or technical parameters in the summary. Translate model insights into plain cause-and-effect statements the store owner can act on.
-- Operations: staffing, attendance, wastage, production yield (from StaffingAgent, AttendanceAgent, WastageAgent, YieldAgent) — weave in where relevant, not as a standalone section.
-- External context: weather, holidays, promos, discounts, competitor activity (from ExternalFactorsAgent, PricingAgent).
-- Cross-card conclusions: MetricConflictAgent divergences, CausalChainAgent root cause chain, CrossRiskAgent self-reinforcing loops. Do NOT expose agent-level disagreements. Synthesize into one reconciled insight.
-
-The reader should feel like they're reading a colleague's update, not filling out a template.
-
-RULES:
-
-- Numbers only from agents. Currency: RMB yuan. NEVER approximate: if an agent says 2490, do NOT write ~2500 or ~3158. Use the exact agent number. If you must compute a derived number, show both the agent values and the result.
-
-- Let the L2 agents do the heavy analytical lifting.
-
-- Write as a sharp colleague briefing the store owner.
-
-- Each section 2-4 sentences, flowing naturally.
-
-- If a section has insufficient data, say so honestly in one sentence.
-
-- Recommendations: Each MUST include a time anchor (For tomorrow/This week/Over the next 30 days). Each MUST name specific products or numbers from agents, never generic. Each SHOULD include expected impact when computable. Recommendations go in the separate JSON array, NOT in the summary text.
-
-
-
-OUTPUT valid JSON:
-
-{"summary": "Today's revenue was \u00a5... from ... orders. ... This sits within a broader context of ... The product mix shows ... Behind these numbers, operations are ... Cross-referencing these cards reveals ...",
-
- "attribution": [{"factor": "...", "evidence": "agent + number"}],
-
- "recommendations": [
-  {
-    "action": "Specific action with time anchor (e.g., 'For tomorrow: ...' or 'This week: ...' or 'Over the next 30 days: ...')",
-    "urgency": "high|medium|low",
-    "time_horizon": "today|tomorrow|this_week|next_7_days|next_30_days|ongoing",
-    "rationale": "agent name + specific number (e.g., 'ProductMixAgent: top 3 at 83% means Macaron alone...')",
-    "expected_impact": "what change to expect (e.g., 'Could reduce concentration risk from 83% to ~70%')"
-  }
-]}
-
-
-
-Intent: """ + intent + """
-
-Agent findings:
-
-""" + chr(10).join(agent_summaries)
+        theme_prompt += '\n\n\n\nIntent: ' + intent + '\n\nAgent findings:\n\n' + chr(10).join(agent_summaries)
 
 
 
@@ -180,7 +131,7 @@ Agent findings:
                 if r.status_code == 200:
 
                     raw = r.json()["choices"][0]["message"]["content"].strip()
-
+                    
                     if raw.startswith("```"):
 
                         first_nl = raw.find("\n")
@@ -214,7 +165,7 @@ Agent findings:
         except Exception as e:
 
             logger.warning("LLM analysis failed: %s", e)
-
+            
         # Fallback
 
         fallback_summary = "; ".join(agent_summaries) if agent_summaries else "Analysis complete"

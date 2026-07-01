@@ -39,12 +39,19 @@ TEMPLATES = {
     ),
     "production_advice": DAGTemplate(
         intent="production_advice",
-        description="How much to bake tomorrow?",
+        description="7-day forecast analysis: demand, uncertainty, production plan, materials, accuracy",
         nodes=[
-            DAGNode("DemandAgent", phase=1),
-            DAGNode("ProductStockAgent", phase=1),
-            DAGNode("MaterialStockAgent", phase=1),
-            DAGNode("ProductionAgent", phase=2, dependencies=["DemandAgent","ProductStockAgent","MaterialStockAgent"]),
+            # L1: Data extraction (parallel)
+            DAGNode("ForecastOverviewAgent", phase=1),
+            DAGNode("ForecastUncertaintyAgent", phase=1),
+            DAGNode("ProductionPlanAgent", phase=1),
+            DAGNode("MaterialProcurementAgent", phase=1),
+            DAGNode("ForecastAccuracyAgent", phase=1),
+            # L2: Cross-analysis
+            DAGNode("PlanFeasibilityAgent", phase=2, dependencies=["ProductionPlanAgent","MaterialProcurementAgent"]),
+            DAGNode("DemandRiskAgent", phase=2, dependencies=["ForecastOverviewAgent","ForecastUncertaintyAgent"]),
+            DAGNode("EfficiencyAgent", phase=2, dependencies=["ProductionPlanAgent","ForecastAccuracyAgent"]),
+            DAGNode("WastageRiskAgent", phase=2, dependencies=["ForecastOverviewAgent","ProductionPlanAgent"]),
         ]
     ),
     "inventory_diagnosis": DAGTemplate(
