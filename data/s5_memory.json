@@ -5,15 +5,6 @@
     {
       "query": "profit_root_cause",
       "intent": "profit_root_cause",
-      "summary": "PER-CARD FINDINGS\n[TrendAgent]: Bread revenue -6.6% vs 7-day avg, but intraday trend rising (first half ¥2280 → second half ¥2701), orders down 4%.\n[FeatureSensitivityAgent]: Top predictor is 30-day rolling avg sales (39.3%), then rainy weather (21.2%); no high-impact external features active today.\n[HourlyPatternAgent]: Peaks at 09:00 (¥626), 16:00 (¥384), 18:00 (¥503); first bake deadline 07:00; dead zones 13:00, 21:00; beverage spikes at 15:00 (¥144), 17:00 (¥144).\n[ProductMixAgent]: Top 3 breads = 83% of revenue (concentration risk); beverages only 22% of mix; Macaron top seller (59 units, ¥590).\n[ExternalFactorsAgent]: No significant external factors—normal day.\n[DemandAgent]: Conflicting: reports 0 orders and ¥0 revenue (likely a data anomaly, ignored by L2 agents).\n[AttendanceAgent]: No attendance data available.\n[PricingAgent]: Discount rate normal at 0.0%.\n[StaffingAgent]: 9 staff on shift, adequate.\n[ProfitAgent]: Margin 81.7% on 41 orders, revenue ¥2984, profit ¥2437; no discount erosion or waste drag.\n[YieldAgent]: No production data.\n[WastageAgent]: Wastage normal.\n\nCROSS-CARD PATTERNS\n[MetricConflictAgent]: ALIGNED: Revenue (-6.6%) and orders (-4.0%) move together (gap 2.6%) → consistent demand pattern.\n[CausalChainAgent]: Root cause chain: sales momentum (30-day rolling avg 39.3%) dominates; no external shocks. Today’s dip is a continuation of recent trends, not a surprise. Improvements will take days to appear in the model because of the 30-day lag; external levers (promos, new products) can break a negative momentum cycle.\n[CrossRiskAgent]: CONCENTRATION-LAG LOOP: Top products drive 83% of revenue, and the 30-day rolling avg drives 39.3% of predictions. If a top product dips, the 30-day average falls → model predicts lower → actual sales follow → self-reinforcing decline. Break the loop by diversifying the product mix or running targeted promos on weakening items.",
-      "outcome": {
-        "significant": true
-      },
-      "timestamp": "2026-07-01T03:45:13.435731"
-    },
-    {
-      "query": "profit_root_cause",
-      "intent": "profit_root_cause",
       "summary": "PER-CARD FINDINGS\nTrendAgent: Bread revenue -6.6% vs 7-day avg, but intraday rising trend (first half ¥2280 → second half ¥2701).\nFeatureSensitivityAgent: Top feature 30-day rolling average sales (39.3%); no high-impact external features active.\nHourlyPatternAgent: Peak hours 09:00 (¥626), 16:00 (¥384), 18:00 (¥503); first bake deadline 07:00; beverage spikes at 15:00 and 17:00.\nProductMixAgent: Top 3 breads = 83% of revenue (concentration risk); beverages 22% of total.\nExternalFactorsAgent: No significant external factors (normal day).\nDemandAgent: Reports 0 orders today, contradicting TrendAgent and ProfitAgent (41 orders).\nPricingAgent: Discount rate normal 0.0%.\nStaffingAgent: 9 staff on shift, adequate.\nProfitAgent: Margin 81.7% on 41 orders (avg ¥72.78/order), revenue ¥2984, profit ¥2437.\nWastageAgent: Wastage normal.\n\nCROSS-CARD PATTERNS\nMetricConflictAgent: Aligned – revenue (-6.6%) and orders (-4.0%) move together (gap 2.6%), indicating consistent demand pattern.\nCausalChainAgent: Root cause chain – sales momentum (30-day rolling avg 39.3%, weather 21.2%) dominates; no external factors active. Today's deviation is a continuation of recent trends, not a shock. Improvements take days to appear in model; external levers (promos, new products) can break a negative cycle.\nCrossRiskAgent: Concentration-lag loop – top 3 products = 83% of revenue and 30-day rolling avg drives 39.3% of prediction. A dip in any top product self-reinforces decline. Break the loop by diversifying the product mix or running targeted promos on weakening items.",
       "outcome": {
         "significant": true
@@ -1801,6 +1792,15 @@
         "significant": false
       },
       "timestamp": "2026-07-02T22:12:24.397067"
+    },
+    {
+      "query": "production_advice",
+      "intent": "production_advice",
+      "summary": "The most critical finding is a 314-unit shortfall between next week’s demand forecast and the current production plan. Over July 2-8, demand is projected at 1,419 units and ¥17,420 revenue, peaking on July 6 at ¥2,667. The production plan calls for baking only 1,026 units. Together with 79 units of starting stock, total available is 1,105, which would meet just 78% of the forecast, leaving ¥6,422 of potential revenue unserved unless contingency baking is invoked. Croissant, croissant_chocolate, and donut are the highest-demand and most uncertain items - their demand ranges reach ¥35, ¥30, and ¥17 respectively - and the plan tries to compensate by baking them above the point forecast (155, 155, 83 units baked versus 138, 145, 79 forecast). However, these elevated bakes alone cannot close the overall gap. Material readiness is solid: the top five ingredients by weekly consumption are Bread Flour (need 45.2 kg, stock 45.6 kg, gap -0.4 kg), Butter (need 13.3 kg, stock 13.6 kg, gap -0.2 kg), Milk (need 8.5 L, stock 17.0 L, gap -8.4 L), Sugar (need 8.4 kg, stock 18.9 kg, gap -10.5 kg), and Eggs (need 8.2 kg, stock 28.9 kg, gap -20.7 kg). Packaging items are similarly well-stocked: Lids need 420 pcs (stock 467, gap -47), Packaging Bag need 342 pcs (stock 499, gap -157), Cup Regular need 294 pcs (stock 503, gap -209). All 18 materials are adequate, and only 2 units need to be ordered. No historical forecast accuracy data exists yet, so planning confidence depends entirely on the demand ranges and real-time sell-through signals, not past track record. The plan is feasible from a material and capacity standpoint, waste risk is moderate and acceptable, and the top-baked items align with the products carrying both the highest demand and the widest ranges. The primary risk is that the base bake locks in less than full demand coverage; activating the contingency capacity of up to 681 additional units this week is essential to capture the upside, particularly on peak days.",
+      "outcome": {
+        "significant": false
+      },
+      "timestamp": "2026-07-02T23:50:44.065526"
     }
   ],
   "version": 1

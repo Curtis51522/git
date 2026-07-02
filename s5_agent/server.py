@@ -175,7 +175,7 @@ async def analyze_module(req: ModuleAnalyzeRequest):
 async def get_priorities():
     """Return cached bundle priority recommendations from RecommendationAgent."""
     try:
-        cached = memory_store.get_latest("profit_root_cause")
+        cached = memory.get_latest("profit_root_cause")
         if cached and cached.get("data"):
             raw_text = cached["data"].get("summary", "") + " "
             for rec in cached["data"].get("recommendations", []):
@@ -201,12 +201,26 @@ class DiscountResponse(BaseModel):
 
 @app.post("/discounts")
 async def get_discounts(req: DiscountRequest):
-    """Return dynamic discount rates for requested products based on freshness."""
+    """Return dynamic discount rates combining freshness + RecommendationAgent signals.
+    
+    Priority strategy -> discount mapping:
+    - clearance: 40% (aggressive, must move stock)
+    - amplify: 15% (ride momentum with mild promo)
+    - margin: 25% (high margin can absorb deeper discount)
+    - diversify: 12% (small nudge to spread demand)
+    - no signal: freshness-based (20% Day-1, 0% Fresh)
+    """
     from api.freshness_service import get_discount_rate, get_sellable_batches
+    
+    STRATEGY_DISCOUNT = {
+        "clearance": 40,
+        "amplify": 15,
+        "margin": 25,
+        "diversify": 12,
+    }
     
     try:
         batches = get_sellable_batches()
-        # Get worst freshness per product
         freshness_map = {}
         for b in (batches.data or []):
             pn = b.get("product_name", "")
@@ -214,20 +228,63 @@ async def get_discounts(req: DiscountRequest):
             if pn not in freshness_map or f == "Day-1":
                 freshness_map[pn] = f
         
+        # Try to get RecommendationAgent priorities for dynamic discounts
+        priority_map = {}
+        try:
+            cached = memory.get_latest("profit_root_cause")
+            if cached and cached.get("data"):
+                raw_text = cached["data"].get("summary", "") + " "
+                for rec in cached["data"].get("recommendations", []):
+                    raw_text += rec.get("action", "") + " "
+                agent = AGENTS["RecommendationAgent"]
+                result = agent.analyze(None, {}, context=raw_text)
+                if result.metadata and "priority_recommendations" in result.metadata:
+                    for p in result.metadata["priority_recommendations"]:
+                        prod = p.get("product", "").lower().replace(" ", "_")
+                        strategy = p.get("strategy", "")
+                        priority_map[prod] = {
+                            "strategy": strategy,
+                            "discount_pct": STRATEGY_DISCOUNT.get(strategy, 20),
+                            "reason": p.get("reason", ""),
+                        }
+        except Exception:
+            pass  # Fall through to freshness-based
+        
+        # Auto-clearance: Day-1 items get clearance strategy even without S5 cache
         discounts = {}
         for pn in req.products:
             freshness = freshness_map.get(pn, "Fresh")
-            discount_pct = int(get_discount_rate(freshness) * 100)
-            discounts[pn] = {
-                "discount_pct": discount_pct,
-                "freshness": freshness,
-            }
+            base_discount = int(get_discount_rate(freshness) * 100)
+            
+            if pn in priority_map:
+                priority = priority_map[pn]
+                final_pct = min(max(base_discount, priority["discount_pct"]), 50)
+                discounts[pn] = {
+                    "discount_pct": final_pct,
+                    "freshness": freshness,
+                    "strategy": priority["strategy"],
+                    "reason": priority["reason"],
+                    "dynamic": True,
+                }
+            elif freshness == "Day-1":
+                discounts[pn] = {
+                    "discount_pct": min(max(base_discount, 40), 50),
+                    "freshness": freshness,
+                    "strategy": "clearance",
+                    "reason": "Day-1 stock: automatic clearance discount",
+                    "dynamic": True,
+                }
+            else:
+                discounts[pn] = {
+                    "discount_pct": base_discount,
+                    "freshness": freshness,
+                    "dynamic": False,
+                }
+        
         return {"discounts": discounts}
     except Exception as e:
         logger.warning("Discount lookup failed: %s", e)
-        return {"discounts": {pn: {"discount_pct": 0, "freshness": "Fresh"} for pn in req.products}}
-
-@app.get("/templates")
+        return {"discounts": {pn: {"discount_pct": 0, "freshness": "Fresh", "dynamic": False} for pn in req.products}}
 async def list_templates():
     from s5_agent.router.templates import TEMPLATES
     return {k: {"intent": v.intent, "description": v.description, "nodes": len(v.nodes)}

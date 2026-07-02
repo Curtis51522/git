@@ -206,6 +206,16 @@ async def get_combo(order: dict):
                     "total_score": round(total, 3), "total_price": round(bundle_price, 2),
                     "savings": round(savings, 2), "freshness_status": freshness,
                     "stock_qty": inv_data["total_qty"],
+                    "scoring_breakdown": {
+                        "flavor_pairing": round(W_FLAVOR*flavor_score, 3),
+                        "discount": round(W_DISCOUNT*discount_score, 3),
+                        "freshness": round(W_FRESH*freshness_score, 3),
+                        "inventory": round(W_INV*inv_score, 3),
+                        "context": round(W_CONTEXT*context_score, 3),
+                        "cart_boost": round(cart_boost, 3),
+                        "bread": pn,
+                        "coffee": coffee["key"],
+                    },
                 })
 
     # --- Direction 2: Coffee -> Bread (cart has coffee) ---
@@ -242,6 +252,16 @@ async def get_combo(order: dict):
                     "total_score": round(total, 3), "total_price": round(bundle_price, 2),
                     "savings": round(savings, 2), "freshness_status": freshness,
                     "stock_qty": inv_data["total_qty"],
+                    "scoring_breakdown": {
+                        "flavor_pairing": round(W_FLAVOR*flavor_score, 3),
+                        "discount": round(W_DISCOUNT*discount_score, 3),
+                        "freshness": round(W_FRESH*freshness_score, 3),
+                        "inventory": round(W_INV*inv_score, 3),
+                        "context": round(W_CONTEXT*context_score, 3),
+                        "coffee_boost": round(coffee_boost, 3),
+                        "bread": pn,
+                        "coffee": coffee["key"],
+                    },
                 })
 
     # Priority boost from RecommendationAgent
