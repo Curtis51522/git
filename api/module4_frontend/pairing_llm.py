@@ -33,35 +33,69 @@ logger = logging.getLogger("s4.pairing")
 # Cache
 _pairing_cache: dict | None = None
 
-BAKERY = [
-    {"key": "donut", "name": "Donut", "desc": "sweet fried dough, glazed or sugared, soft and airy"},
-    {"key": "croissant", "name": "Croissant", "desc": "buttery flaky laminated pastry, rich and layered"},
-    {"key": "bread_coconut", "name": "Coconut Bread", "desc": "soft bread with sweet shredded coconut filling"},
-    {"key": "bread_roll", "name": "Bread Roll", "desc": "plain soft dinner roll, mild and versatile"},
-    {"key": "chiffon", "name": "Chiffon Cake", "desc": "light airy cotton-soft sponge cake, mildly sweet"},
-    {"key": "croissant_chocolate", "name": "Chocolate Croissant", "desc": "flaky croissant with rich dark chocolate filling"},
-]
+def _load_bakery_products():
+    """Load all bakery products from DB for pairing matrix generation."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from db.mysql_client import get_db
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT product_name FROM products WHERE category='bakery' ORDER BY product_name")
+    products = []
+    for r in cur.fetchall():
+        key = r[0]
+        name = key.replace('_', ' ').title()
+        products.append({"key": key, "name": name, "desc": name})
+    cur.close()
+    db.close()
+    return products
 
-COFFEE = [
-    {"key": "latte", "name": "Latte", "desc": "smooth steamed milk with espresso, creamy and mild"},
-    {"key": "americano", "name": "Americano", "desc": "espresso diluted with hot water, clean and bold"},
-    {"key": "cappuccino", "name": "Cappuccino", "desc": "espresso with thick milk foam, strong and frothy"},
-    {"key": "cold_brew", "name": "Cold Brew", "desc": "cold-steeped smooth coffee, low acidity, chocolate notes"},
-    {"key": "espresso", "name": "Espresso", "desc": "concentrated intense coffee shot, bold and short"},
-    {"key": "flat_white", "name": "Flat White", "desc": "velvety microfoam milk with espresso, silky texture"},
-    {"key": "mocha", "name": "Mocha", "desc": "espresso with chocolate syrup and steamed milk, sweet indulgence"},
-    {"key": "iced_americano", "name": "Iced Americano", "desc": "chilled americano over ice, refreshing and crisp"},
-]
+_BAKERY_CACHE = None
+def _get_bakery():
+    global _BAKERY_CACHE
+    if _BAKERY_CACHE is None:
+        _BAKERY_CACHE = _load_bakery_products()
+    return _BAKERY_CACHE
+BAKERY = None  # Use _get_bakery() instead
+
+def _load_coffee_products():
+    """Load all beverage products from DB for pairing matrix generation."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    from db.mysql_client import get_db
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT product_name FROM products WHERE category='beverage' ORDER BY product_name")
+    products = []
+    for r in cur.fetchall():
+        key = r[0]
+        name = key.replace('_', ' ').title()
+        products.append({"key": key, "name": name, "desc": name})
+    cur.close()
+    db.close()
+    return products
+
+_COFFEE_CACHE = None
+def _get_coffee():
+    global _COFFEE_CACHE
+    if _COFFEE_CACHE is None:
+        _COFFEE_CACHE = _load_coffee_products()
+    return _COFFEE_CACHE
+COFFEE = None  # Use _get_coffee() instead
 
 # Hardcoded fallback matrix
-FALLBACK_MATRIX = {
-    "donut":              {"latte": 0.9, "americano": 0.7, "cappuccino": 0.6, "mocha": 0.8},
-    "croissant":          {"latte": 1.0, "cappuccino": 0.9, "flat_white": 0.8, "espresso": 0.7},
-    "bread_coconut":      {"americano": 0.8, "cold_brew": 0.7, "latte": 0.6},
-    "bread_roll":         {"latte": 0.7, "cappuccino": 0.6, "americano": 0.8},
-    "chiffon":            {"cold_brew": 0.9, "iced_americano": 0.8, "mocha": 0.7},
-    "croissant_chocolate":{"mocha": 1.0, "latte": 0.9, "cappuccino": 0.8, "espresso": 0.7},
-}
+def _build_fallback_matrix():
+    """Build a default pairing matrix when DeepSeek is unavailable.
+    All pairs default to 0.5 (neutral)."""
+    matrix = {}
+    for b in _get_bakery():
+        bk = b["key"]
+        matrix[bk] = {}
+        for c in _get_coffee():
+            matrix[bk][c["key"]] = 0.5
+    return matrix
+
+FALLBACK_MATRIX = None  # Built lazily via _build_fallback_matrix()
 
 
 def generate_pairing_matrix() -> dict:
@@ -77,11 +111,11 @@ def generate_pairing_matrix() -> dict:
         response = _call_deepseek(prompt, system, max_tokens=2000)
         matrix = json.loads(response)
         # Validate structure
-        for bread in BAKERY:
+        for bread in _get_bakery():
             bk = bread["key"]
             if bk not in matrix:
                 raise ValueError(f"Missing bread: {bk}")
-            for coffee in COFFEE:
+            for coffee in _get_coffee():
                 ck = coffee["key"]
                 if ck not in matrix[bk]:
                     matrix[bk][ck] = 0.3
@@ -90,7 +124,7 @@ def generate_pairing_matrix() -> dict:
         return matrix
     except Exception as e:
         logger.warning("DeepSeek pairing matrix unavailable (%s), using fallback", e)
-        return FALLBACK_MATRIX
+        return _build_fallback_matrix()
 
 def get_pairing_matrix(force_refresh: bool = False) -> dict:
     """Get the pairing matrix (cached after first generation)."""
@@ -103,15 +137,15 @@ def get_pairing_matrix(force_refresh: bool = False) -> dict:
 def _build_pairing_prompt() -> str:
     lines = ["Score every bread-coffee pair (0.0-1.0) based on flavor compatibility.\n"]
     lines.append("Breads:")
-    for b in BAKERY:
+    for b in _get_bakery():
         lines.append(f"  - {b['key']}: {b['desc']}")
     lines.append("\nCoffees:")
-    for c in COFFEE:
+    for c in _get_coffee():
         lines.append(f"  - {c['key']}: {c['desc']}")
     lines.append("\nReturn JSON like:")
     example = {}
-    for b in BAKERY[:2]:
+    for b in _get_bakery()[:2]:
         example[b["key"]] = {c["key"]: 0.5 for c in COFFEE[:2]}
     lines.append(json.dumps(example, indent=2))
-    lines.append("\nInclude ALL 6 breads and ALL 8 coffees. Scores must be 0.0-1.0.")
+    lines.append("\nInclude ALL breads and ALL coffees listed above. Scores must be 0.0-1.0.")
     return "\n".join(lines)

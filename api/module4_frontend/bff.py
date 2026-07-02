@@ -101,7 +101,13 @@ async def get_combo(order: dict):
     db = get_db()
     
     # Get all sellable bakery items (not coffee)
-    BAKERY_PRODUCTS = {'donut','croissant','bread_coconut','bread_roll','chiffon','croissant_chocolate'}
+
+    # Get all sellable bakery items dynamically from DB
+    cur_bakery = db.cursor()
+    cur_bakery.execute("SELECT product_name FROM products WHERE category='bakery'")
+    BAKERY_PRODUCTS = {r[0] for r in cur_bakery.fetchall()}
+    cur_bakery.close()
+
     
     r = q(db, "batch_inventory").select("*").gt("quantity", 0).neq("freshness_status", "Expired").execute()
     bakery_batches = [b for b in (r.data or []) if b.get("product_name","") in BAKERY_PRODUCTS]
@@ -136,14 +142,14 @@ async def get_combo(order: dict):
     from api.module4_frontend.pairing_llm import get_pairing_matrix
     PAIRING_MATRIX = get_pairing_matrix()
     
+    # Get all beverages dynamically from DB
+    cur_coffee = db.cursor()
+    cur_coffee.execute("SELECT product_name, selling_price FROM products WHERE category='beverage' ORDER BY product_name")
     COFFEE_DRINKS = [
-        {"name": "Latte", "key": "latte", "price": 8.50},
-        {"name": "Americano", "key": "americano", "price": 6.50},
-        {"name": "Cappuccino", "key": "cappuccino", "price": 9.00},
-        {"name": "Cold Brew", "key": "cold_brew", "price": 10.00},
-        {"name": "Iced Americano", "key": "iced_americano", "price": 7.20},
-        {"name": "Mocha", "key": "mocha", "price": 10.50},
+        {"name": r[0].replace('_', ' ').title(), "key": r[0], "price": float(r[1])}
+        for r in cur_coffee.fetchall()
     ]
+    cur_coffee.close()
     
     # Cart context: which breads does the customer already have?
     order_items = order.get("items", [])
