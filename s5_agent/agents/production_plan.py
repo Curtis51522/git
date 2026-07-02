@@ -40,14 +40,12 @@ class ProductionPlanAgent(BaseAgent):
         total_profit = summary.get("total_profit", 0)
         scenarios = summary.get("scenarios", {})
 
-        # Top baked products
-        by_product = {}
-        for row in grid:
-            pn = row.get("product_name", "")
-            qty = row.get("bake_qty", 0) or row.get("qty", 0) or 0
-            by_product[pn] = by_product.get(pn, 0) + qty
-        top_baked = sorted(by_product.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_str = "; ".join(f"{pn} ({qty}u)" for pn, qty in top_baked)
+        # Top baked products from weekly summary
+        top_baked = summary.get("top_products", [])[:5]
+        if not top_baked:
+            # Fallback: aggregate from plans if available
+            top_baked = []
+        top_str = "; ".join(f"{pn} ({qty}u)" for pn, qty in top_baked) if top_baked else "no product breakdown"
 
         scenario_note = ""
         q50_s = scenarios.get("q50", {})

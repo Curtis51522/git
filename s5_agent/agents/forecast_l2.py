@@ -167,6 +167,9 @@ class EfficiencyAgent(BaseAgent):
         elif wape and wape < 25:
             findings.append(f"Low WAPE ({wape:.0f}%) supports confident production planning")
 
+        # Normalize: "Buffer: 105%" parses as 105 → normalize to 1.05 ratio
+        if buffer and buffer > 5:
+            buffer = buffer / 100
         if buffer and buffer > 1.3:
             findings.append(f"High buffer ({buffer:.0%}) may cause over-production. Consider reducing to 1.2x for low-uncertainty products")
 
