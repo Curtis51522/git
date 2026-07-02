@@ -1571,7 +1571,7 @@ async function loadMaterials(){
     var totalOrder=0;
     var h='<div style="margin-top:4px"><strong style="font-size:13px;color:#4a3728">Material Procurement</strong></div>';
     h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px"><thead><tr style="background:#f5f0e8">';
-    h+='<th style="padding:6px 8px;text-align:left">Material</th><th style="padding:6px 8px;text-align:right">Weekly Need</th><th style="padding:6px 8px;text-align:right">Stock</th><th style="padding:6px 8px;text-align:right">To Order</th><th style="padding:6px 8px;text-align:center">Status</th></tr></thead><tbody>';
+    h+='<th style="padding:6px 8px;text-align:left">Material</th><th style="padding:6px 8px;text-align:right">Weekly Need</th><th style="padding:6px 8px;text-align:right">+5% Waste</th><th style="padding:6px 8px;text-align:right">Stock</th><th style="padding:6px 8px;text-align:right">To Order</th><th style="padding:6px 8px;text-align:center">Status</th></tr></thead><tbody>';
     for(var i=0;i<keys.length;i++){
       var it=items[keys[i]];
       var alertColors={urgent:'#fce4e4',order:'#fff8e1',ok:'#e8f5e9'};
@@ -1579,12 +1579,14 @@ async function loadMaterials(){
       var alertCol={urgent:'#e74c3c',order:'#f39c12',ok:'#27ae60'};
       var bg=alertColors[it.alert]||'#fff';
       var needStr=it.weekly_need!=null?it.weekly_need.toFixed(1)+' '+it.unit:it.note||'N/A';
+      var adjStr=it.adjusted_need!=null?it.adjusted_need.toFixed(2)+' '+it.unit:'-';
       var stockStr=it.current_stock.toFixed(2)+' '+it.unit;
       var orderStr=it.to_order>0?'<strong style="color:#e74c3c">'+it.to_order.toFixed(1)+' '+it.unit+'</strong>':'-';
       if(it.to_order>0)totalOrder++;
       h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
       h+='<td style="padding:6px 8px;font-weight:600;color:#4a3728">'+keys[i]+'</td>';
       h+='<td style="padding:6px 8px;text-align:right;color:#6b5b4f">'+needStr+'</td>';
+        h+='<td style="padding:6px 8px;text-align:right;color:#999;font-size:11px">'+adjStr+'</td>';
       h+='<td style="padding:6px 8px;text-align:right;color:#6b5b4f">'+stockStr+'</td>';
       h+='<td style="padding:6px 8px;text-align:right">'+orderStr+'</td>';
       h+='<td style="padding:6px 8px;text-align:center"><span style="color:'+alertCol[it.alert]+';font-weight:700;font-size:11px">'+alertText[it.alert]+'</span></td></tr>';

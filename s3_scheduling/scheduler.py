@@ -797,8 +797,6 @@ class Scheduler:
             unit = info.get("unit", "kg")
             adjusted = round(weekly_need_db * (1 + DEFAULT_WASTE), 2)
             to_order = round(max(0, adjusted - stock_db_units), 2)
-            if to_order < 1.0:
-                to_order = 0  # minimum order threshold: ignore trivial amounts
 
             if stock_db_units < weekly_need_db * 0.5:
                 alert = "urgent"
