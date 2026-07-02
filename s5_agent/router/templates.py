@@ -20,6 +20,7 @@ TEMPLATES = {
             DAGNode("MetricConflictAgent", phase=2, dependencies=["TrendAgent","DemandAgent","ProductMixAgent","ProfitAgent"]),
             DAGNode("CausalChainAgent", phase=2, dependencies=["FeatureSensitivityAgent","ExternalFactorsAgent","TrendAgent"]),
             DAGNode("CrossRiskAgent", phase=2, dependencies=["ProductMixAgent","FeatureSensitivityAgent","ProfitAgent"]),
+            DAGNode("RecommendationAgent", phase=4, dependencies=["ProductMixAgent","WastageAgent","TrendAgent","ProfitAgent","ExternalFactorsAgent"]),
             # L3: Domain synthesis agents
             DAGNode("PricingAgent", phase=3, dependencies=["DemandAgent","MetricConflictAgent"]),
             DAGNode("StaffingAgent", phase=3, dependencies=["AttendanceAgent"]),
@@ -91,6 +92,7 @@ TEMPLATES = {
             DAGNode("MetricConflictAgent", phase=2, dependencies=["TrendAgent","DemandAgent","ProductMixAgent","ProfitAgent"]),
             DAGNode("CausalChainAgent", phase=2, dependencies=["FeatureSensitivityAgent","ExternalFactorsAgent","TrendAgent"]),
             DAGNode("CrossRiskAgent", phase=2, dependencies=["ProductMixAgent","FeatureSensitivityAgent","ProfitAgent"]),
+            DAGNode("RecommendationAgent", phase=4, dependencies=["ProductMixAgent","WastageAgent","TrendAgent","ProfitAgent","ExternalFactorsAgent"]),
             DAGNode("ProductionAgent", phase=3, dependencies=["DemandAgent","MaterialStockAgent","WastageAgent"]),
             DAGNode("StaffingAgent", phase=3, dependencies=["AttendanceAgent"]),
             DAGNode("PricingAgent", phase=3, dependencies=["DemandAgent","MetricConflictAgent"]),

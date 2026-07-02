@@ -244,6 +244,19 @@ async def get_combo(order: dict):
                     "stock_qty": inv_data["total_qty"],
                 })
 
+    # Priority boost from RecommendationAgent
+    priority_products = order.get("priority_products", [])
+    if priority_products:
+        for s in all_scores:
+            for pp in priority_products:
+                pp_product = pp.get("product", "").lower().replace(" ", "_")
+                pp_coffee = pp.get("coffee", "").lower().replace(" ", "_")
+                boost = float(pp.get("boost", 1.5))
+                if s["product_name"] == pp_product and s["coffee_key"] == pp_coffee:
+                    s["total_score"] = round(s["total_score"] * boost, 3)
+                    s["priority_boost"] = boost
+                    break
+
     # Sort by score descending
     # Sort by savings when cart has only coffee (different bread discounts matter), otherwise by total_score
     if cart_coffee_keys and not cart_breads:

@@ -18,6 +18,7 @@ from s5_agent.agents.product_mix import ProductMixAgent
 
 from s5_agent.agents.feature_sensitivity import FeatureSensitivityAgent
 from s5_agent.agents.cross_card import MetricConflictAgent, CausalChainAgent, CrossRiskAgent
+from s5_agent.agents.recommendation import RecommendationAgent
 
 from s5_agent.agents.forecast_overview import ForecastOverviewAgent
 from s5_agent.agents.forecast_uncertainty import ForecastUncertaintyAgent

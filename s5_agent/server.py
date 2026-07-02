@@ -30,6 +30,7 @@ from s5_agent.agents import (
     ForecastOverviewAgent, ForecastUncertaintyAgent, ProductionPlanAgent,
     MaterialProcurementAgent, ForecastAccuracyAgent,
     PlanFeasibilityAgent, DemandRiskAgent, EfficiencyAgent, WastageRiskAgent,
+    RecommendationAgent,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -78,6 +79,7 @@ AGENTS = {
     "DemandRiskAgent": DemandRiskAgent("DemandRiskAgent"),
     "EfficiencyAgent": EfficiencyAgent("EfficiencyAgent"),
     "WastageRiskAgent": WastageRiskAgent("WastageRiskAgent"),
+    "RecommendationAgent": RecommendationAgent("RecommendationAgent"),
 }
 dag_executor = DAGExecutor(AGENTS, memory=memory)
 
@@ -166,6 +168,30 @@ async def analyze_module(req: ModuleAnalyzeRequest):
     return await analyze(AnalyzeRequest(intent=intent, params=params, lang=req.lang))
 
 
+
+
+
+@app.get("/priorities")
+async def get_priorities():
+    """Return cached bundle priority recommendations from RecommendationAgent."""
+    try:
+        cached = memory_store.get_latest("profit_root_cause")
+        if cached and cached.get("data"):
+            raw_text = cached["data"].get("summary", "") + " "
+            for rec in cached["data"].get("recommendations", []):
+                raw_text += rec.get("action", "") + " "
+            # Run RecommendationAgent on the cached context
+            agent = agents["RecommendationAgent"]
+            result = agent.analyze(None, {}, context=raw_text)
+            if result.metadata and "priority_recommendations" in result.metadata:
+                return {
+                    "status": "ok",
+                    "priorities": result.metadata["priority_recommendations"],
+                    "cached": True
+                }
+    except Exception as e:
+        logger.warning("Priority lookup failed: %s", e)
+    return {"status": "ok", "priorities": [], "cached": False}
 
 class DiscountRequest(BaseModel):
     products: list[str] = []
