@@ -410,7 +410,6 @@ def estimate_raw_materials(bake_plan, products):
         "yeast_g": round(total_flour * 0.01, 1),            # 1% of flour
         "coffee_beans_g": 0,   # estimated separately from beverages
         "tea_leaves_g": 0,     # estimated separately from beverages
-        "cups_pcs": 0,         # per beverage unit
         "cup_large_pcs": 0,
         "cup_regular_pcs": 0,
         "lids_pcs": 0,
@@ -454,7 +453,6 @@ def estimate_raw_materials(bake_plan, products):
         "yeast_g": round(total_flour * 0.01, 1),            # 1% of flour
         "coffee_beans_g": 0,   # estimated separately from beverages
         "tea_leaves_g": 0,     # estimated separately from beverages
-        "cups_pcs": 0,         # per beverage unit
         "cup_large_pcs": 0,
         "cup_regular_pcs": 0,
         "lids_pcs": 0,
@@ -738,7 +736,6 @@ class Scheduler:
             "yeast_g": ("Yeast", 1000),
             "coffee_beans_g": ("Coffee Beans", 1000),
             "tea_leaves_g": ("Tea Leaves", 1000),
-            "cups_pcs": ("Cups", 1),
             "cup_large_pcs": ("Cup Large", 1),
             "cup_regular_pcs": ("Cup Regular", 1),
             "lids_pcs": ("Lids", 1),
@@ -785,12 +782,11 @@ class Scheduler:
             agg["Coffee Beans"]["weekly_need"] += round(total_beverage_units * 0.015, 3)
             agg["Tea Leaves"]["weekly_need"] += round(total_beverage_units * 0.003, 3)
             # 1 cup + 1 lid per beverage
-            agg.setdefault("Cups", {"weekly_need": 0, "unit": "pcs"})
-            agg.setdefault("Cup Large", {"weekly_need": 0, "unit": "pcs"})
             agg.setdefault("Cup Regular", {"weekly_need": 0, "unit": "pcs"})
+            agg.setdefault("Cup Large", {"weekly_need": 0, "unit": "pcs"})
             agg.setdefault("Lids", {"weekly_need": 0, "unit": "pcs"})
-            agg["Cups"]["weekly_need"] += total_beverage_units * 0.5
-            agg["Cup Regular"]["weekly_need"] += total_beverage_units * 0.5
+            agg["Cup Regular"]["weekly_need"] += total_beverage_units * 0.7
+            agg["Cup Large"]["weekly_need"] += total_beverage_units * 0.3
             agg["Lids"]["weekly_need"] += total_beverage_units
 
         procurement = {}
