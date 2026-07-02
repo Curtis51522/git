@@ -616,6 +616,7 @@ function clearPanelCache(panel){
     _panelContainers={};
   }
 }
+function fmtQty(v,unit){if(unit==='pcs')return Math.round(v);return v.toFixed(3);}
 async function showPanel(panel){
 // Hide ALL panel containers first
 var allPanels=document.querySelectorAll('#content-area > .panel-container');
@@ -1782,7 +1783,7 @@ else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">
 
 function renderInventory(c){
   var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="inv-date" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b" onchange="fetchInventoryDashboard()"></div>' + '<div class="dash-grid" id="inv-kpis" style="margin-bottom:12px"></div>'
+  c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="inv-date" value="'+today+'" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b" onchange="fetchInventoryDashboard()"></div>' + '<div class="dash-grid" id="inv-kpis" style="margin-bottom:12px"></div>'
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Bread Stock Levels</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>Fresh vs Day-1 Ratio</h4><div id="inv-fresh-pie" style="height:180px"></div></div><div class="chart-panel"><h4>Top 5 Material Consumption</h4><div id="inv-consumption-chart" style="height:180px"></div></div></div>'
     
@@ -1886,7 +1887,7 @@ async function fetchInventoryDashboard(){
         var daysDisplay=daysLeft!==null?daysLeft.toFixed(0):"--";
 
         dt+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;font-weight:600;font-size:11px">'+s.material_name+'</td>'
-          +'<td style="padding:5px;text-align:right;font-weight:700">'+s.stock.toFixed(3)+' '+s.unit+'</td>'
+          +'<td style="padding:5px;text-align:right;font-weight:700">'+fmtQty(s.stock,s.unit)+' '+s.unit+'</td>'
           +'<td style="padding:5px;text-align:right;color:#6b5b4f">'+(s.daily_avg!==null?s.daily_avg.toFixed(2):"--")+'</td>'
           +'<td style="padding:5px;text-align:right;font-weight:700">'+daysDisplay+'</td>'
           +'</tr>';
@@ -1914,7 +1915,7 @@ async function fetchInventoryDashboard(){
           var rowId=tableId+'_row_'+i;
           t+='<tr style="border-bottom:1px solid #f0e8d8" id="'+rowId+'"><td style="padding:5px;font-weight:600;font-size:11px">'+m.material_name+'</td>'
             +'<td style="padding:5px;width:50%"><div style="background:#f0e8d8;border-radius:6px;height:14px;overflow:hidden">'
-            +'<div style="height:100%;width:'+pct+'%;background:'+barCol+';border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700">'+m.stock.toFixed(3)+' / '+baseline.toFixed(3)+' '+m.unit+'</div></div></td>'
+            +'<div style="height:100%;width:'+pct+'%;background:'+barCol+';border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700">'+fmtQty(m.stock,m.unit)+' / '+fmtQty(baseline,m.unit)+' '+m.unit+'</div></div></td>'
             +'<td style="padding:3px"><button onclick="showRestockInput(\''+m.material_name+'\',\''+rowId+'\',\''+m.unit+'\')" style="background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1" title="Restock">+</button></td></tr>';
         }
       }
@@ -1950,7 +1951,7 @@ async function loadStockDaysHistory(date){
           else status='<span style="color:#27ae60;font-weight:600">Good</span>';
         }
         dt+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;font-weight:600;font-size:11px">'+s.material_name+'</td>'
-          +'<td style="padding:5px;text-align:right;font-weight:700">'+s.stock.toFixed(3)+' '+s.unit+'</td>'
+          +'<td style="padding:5px;text-align:right;font-weight:700">'+fmtQty(s.stock,s.unit)+' '+s.unit+'</td>'
           +'<td style="padding:5px;text-align:right;color:#6b5b4f">'+(s.daily_avg!==null?s.daily_avg.toFixed(2):"--")+'</td>'
           +'<td style="padding:5px;text-align:right;font-weight:700;color:'+(daysLeft!==null&&daysLeft<=3?'#e74c3c':'#3d322b')+'">'+daysDisplay+'</td>'
           +'<td style="padding:5px;text-align:center">'+status+'</td></tr>';
@@ -2049,7 +2050,7 @@ for(var i=0;i<items.length;i++){
 var it=items[i];
 h+='<div style="margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:6px">';
 h+='<div style="font-size:12px;font-weight:600;color:#3d322b">'+it.material_name+' <span style="font-size:10px;color:#999">('+it.unit+')</span></div>';
-h+='<div style="font-size:10px;color:#888;margin:2px 0">DB stock: '+it.current_stock.toFixed(3)+' '+it.unit+' | Consumed: '+(it.consumed_since*1000).toFixed(0)+'g | Theory: '+it.theoretical_stock.toFixed(3)+' '+it.unit+'</div>';
+h+='<div style="font-size:10px;color:#888;margin:2px 0">DB stock: '+fmtQty(it.current_stock,it.unit)+' '+it.unit+' | Consumed: '+(it.consumed_since*1000).toFixed(0)+'g | Theory: '+fmtQty(it.theoretical_stock,it.unit)+' '+it.unit+'</div>';
 h+='<div style="display:flex;align-items:center;gap:6px">';
 h+='<span style="font-size:11px;color:#666">Actual:</span>';
 h+='<input type="number" id="iwc-'+it.material_name.replace(/ /g,'_')+'" value="'+it.theoretical_stock.toFixed(3)+'" step="0.001" min="0" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
@@ -2099,11 +2100,10 @@ el.innerHTML=h;
 
 function renderRevenue(container){
 var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-fetch(API+'/s4/revenue/daily').then(function(r){return r.json()}).then(function(dd){var defDate=dd.data?dd.data.date:today;
-document.getElementById('rev-date').value=defDate;
-loadRevenueData(defDate);
-}).catch(function(){loadRevenueData();});
-  setTimeout(function(){if(!document.getElementById('rev-s5-result')){var rdiv=document.createElement('div');rdiv.id='rev-s5-result';rdiv.style.cssText='display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-bottom:12px';var kpis=document.getElementById('rev-kpis');if(kpis)kpis.parentNode.insertBefore(rdiv,kpis);}var btn=document.getElementById('rev-s5-btn');if(btn)btn.onclick=function(){runModuleS5Analysis('revenue','rev-date','rev-s5-result');};btn.textContent='\uD83D\uDD0D '+t('AI Analysis');},300);
+loadRevenueData(today);
+  setTimeout(function(){if(!document.getElementById('rev-s5-result')){var rdiv=document.createElement('div');rdiv.id='rev-s5-result';rdiv.style.cssText='display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-bottom:12px';var kpis=document.getElementById('rev-kpis');if(kpis)kpis.parentNode.insertBefore(rdiv,kpis);}var btn=document.getElementById('rev-s5-btn');if(btn)btn.onclick=function(){runModuleS5Analysis('revenue','rev-date','rev-s5-result');};btn.textContent='🔍 '+t('AI Analysis');},100);
+  fetch(API+'/s4/revenue/daily').then(function(r){return r.json()}).then(function(dd){var defDate=dd.data?dd.data.date:today;if(defDate!==today){document.getElementById('rev-date').value=defDate;loadRevenueData(defDate);}}).catch(function(){});
+
 container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="rev-date" value="'+today+'" onchange="onRevenueDateChange(this.value)"><button class="btn btn-sm" style="margin-left:8px;background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer" id="rev-s5-btn" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b"></div>'
 +'<div class="dash-grid" id="rev-kpis"></div>'
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Hourly Sales <span id="rev-hourly-title"></span></h4><div id="rev-hourly-chart" style="height:200px"></div></div></div>'
