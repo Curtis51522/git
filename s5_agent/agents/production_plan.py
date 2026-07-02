@@ -39,6 +39,8 @@ class ProductionPlanAgent(BaseAgent):
         total_rev = summary.get("total_revenue", 0)
         total_profit = summary.get("total_profit", 0)
         scenarios = summary.get("scenarios", {})
+        day1_stock = data.get("day1_stock_total", 0)
+        total_available = total_bake + day1_stock
 
         # Top baked products from weekly summary
         top_baked = summary.get("top_products", [])[:5]
@@ -55,10 +57,11 @@ class ProductionPlanAgent(BaseAgent):
                 f"{q50_s.get('waste', 0)} waste units."
             )
 
+        stock_note = f" Starting stock: {day1_stock} units. Total available: {total_available} units." if day1_stock else ""
         opinion = (
             f"7-day production plan ({len(dates)} days): {total_bake} total bake units, "
             f"{chr(165)}{total_rev:.0f} revenue, {chr(165)}{total_profit:.0f} profit. "
-            f"Buffer: {buffer:.0%}. "
+            f"Buffer: {buffer:.0%}.{stock_note} "
             f"Top baked: {top_str}.{scenario_note}"
         )
 
@@ -138,15 +141,18 @@ def _query_plan(date_str=""):
         result = s.generate_7day_plan(start_date, day1_stock, forecast)
         d7 = result["dashboard_7day"]
         ws = result["weekly_summary"]
+        day1_total = sum(day1_stock.values())
         return {
             "grid": d7.get("grid", []),
             "dates": d7.get("dates", []),
             "buffer": d7.get("buffer_applied", 1.0),
+            "day1_stock_total": day1_total,
             "weekly_summary": {
                 "total_bake": ws.get("total_bake", 0),
                 "total_revenue": ws.get("total_revenue", 0),
                 "total_profit": ws.get("total_profit", 0),
                 "scenarios": ws.get("scenarios", {}),
+                "top_products": ws.get("top_products", []),
             }
         }
     except Exception as e:
