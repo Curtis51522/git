@@ -722,6 +722,20 @@ class Scheduler:
                 "unit": unit,
                 "alert": alert,
             }
+        # Include all DB materials not yet covered (packaging, beverage ingredients, etc.)
+        for db_name, info in db_stock.items():
+            if db_name not in procurement:
+                stock_qty = info.get("qty", 0)
+                procurement[db_name] = {
+                    "weekly_need": None,
+                    "adjusted_need": None,
+                    "current_stock": stock_qty,
+                    "to_order": 0,
+                    "alert": "ok" if stock_qty > 0 else "order",
+                    "unit": info.get("unit", "pcs"),
+                    "note": "no production consumption estimate"
+                }
+
         return {
             "week": f"{weekly_summary.get('week_start', '-')} ~ {weekly_summary.get('week_end', '-')}",
             "waste_rate_default": DEFAULT_WASTE,

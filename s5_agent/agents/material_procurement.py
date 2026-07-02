@@ -38,19 +38,24 @@ class MaterialProcurementAgent(BaseAgent):
         biggest_gap = {"name": "", "gap": 0}
 
         for name, info in items.items():
-            status = str(info.get("status", "")).lower()
-            need = float(info.get("weekly_need", 0))
+            alert = str(info.get("alert", info.get("status", ""))).lower()
+            need_raw = info.get("weekly_need")
+            need = float(need_raw) if need_raw is not None else None
             stock = float(info.get("current_stock", 0))
             order = float(info.get("to_order", 0))
             total_order += order
-            gap = need - stock
-            if gap > biggest_gap["gap"]:
-                biggest_gap = {"name": name, "gap": gap}
-            if status in ("critical", "low") or stock < need * 0.5:
-                if stock == 0 or stock < need * 0.3:
-                    critical.append({"name": name, "need": need, "stock": stock})
+            if need is not None:
+                gap = need - stock
+                if gap > biggest_gap["gap"]:
+                    biggest_gap = {"name": name, "gap": gap}
+            note = info.get("note", "")
+            if note:
+                ok_count += 1  # no estimate materials are informational only
+            elif alert in ("critical", "urgent", "low") or (need is not None and stock < need * 0.5):
+                if stock == 0 or (need is not None and stock < need * 0.3):
+                    critical.append({"name": name, "need": need or 0, "stock": stock})
                 else:
-                    low.append({"name": name, "need": need, "stock": stock})
+                    low.append({"name": name, "need": need or 0, "stock": stock})
             else:
                 ok_count += 1
 
