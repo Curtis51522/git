@@ -1217,7 +1217,7 @@ var discounts=s5d.discounts||{};
 discountOverrides={};
 for(var k in discounts){if(discounts[k].discount_pct>0)discountOverrides[k]=discounts[k].discount_pct;}
 }
-}catch(ex){throw new Error('Dynamic discount service (S5) unavailable. Please start S5 server on port 8002.');}
+}catch(ex){console.warn('Dynamic discount unavailable, using freshness-based discounts only');}
 var comboBody={items:items};
 if(Object.keys(discountOverrides).length>0)comboBody.discount_overrides=discountOverrides;
 var r=await fetch(API+'/s4/combo',{method:'POST',headers:hdrs,body:JSON.stringify(comboBody)});

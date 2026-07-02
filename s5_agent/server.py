@@ -165,6 +165,42 @@ async def analyze_module(req: ModuleAnalyzeRequest):
     params = {"date": req.date, "force_refresh": req.force_refresh, **(req.params or {})}
     return await analyze(AnalyzeRequest(intent=intent, params=params, lang=req.lang))
 
+
+
+class DiscountRequest(BaseModel):
+    products: list[str] = []
+
+class DiscountResponse(BaseModel):
+    discounts: dict = {}
+
+@app.post("/discounts")
+async def get_discounts(req: DiscountRequest):
+    """Return dynamic discount rates for requested products based on freshness."""
+    from api.freshness_service import get_discount_rate, get_sellable_batches
+    
+    try:
+        batches = get_sellable_batches()
+        # Get worst freshness per product
+        freshness_map = {}
+        for b in (batches.data or []):
+            pn = b.get("product_name", "")
+            f = b.get("freshness_status", "Fresh")
+            if pn not in freshness_map or f == "Day-1":
+                freshness_map[pn] = f
+        
+        discounts = {}
+        for pn in req.products:
+            freshness = freshness_map.get(pn, "Fresh")
+            discount_pct = int(get_discount_rate(freshness) * 100)
+            discounts[pn] = {
+                "discount_pct": discount_pct,
+                "freshness": freshness,
+            }
+        return {"discounts": discounts}
+    except Exception as e:
+        logger.warning("Discount lookup failed: %s", e)
+        return {"discounts": {pn: {"discount_pct": 0, "freshness": "Fresh"} for pn in req.products}}
+
 @app.get("/templates")
 async def list_templates():
     from s5_agent.router.templates import TEMPLATES
