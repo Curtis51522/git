@@ -193,6 +193,7 @@ async def inflow_scan(file: UploadFile = File(...)):
             "batch_id": batch_id,
             "product_name": item["product_name"],
             "quantity": qty,
+            "quantity_remaining": qty,
             "production_time": datetime.now().isoformat(),
             "freshness_status": "Fresh",
             "tray_color": item.get("tray_color"),
@@ -518,7 +519,7 @@ async def get_inventory_summary():
     """Return current inventory aggregated by product_name (total qty per product)
     including selling_price from the products table."""
     db = get_db()
-    r = q(db, "batch_inventory").select("*").gt("quantity", 0).execute()
+    r = q(db, "batch_inventory").select("*").gt("quantity_remaining", 0).execute()
     
     # Fetch selling_price per product for pricing info
     try:
@@ -532,7 +533,7 @@ async def get_inventory_summary():
     summary = {}
     for row in (r.data or []):
         pn = row.get("product_name", "unknown")
-        qty = row.get("quantity", 0)
+        qty = row.get("quantity_remaining", 0) or row.get("quantity", 0)
         if pn not in summary:
             summary[pn] = {"product_name": pn, "total_quantity": 0, "batches": 0,
                           "selling_price": prices.get(pn, 5.90)}

@@ -156,7 +156,7 @@ def _populate_batch_inventory(date):
             "INSERT INTO batch_inventory "
             "(batch_id, product_name, quantity, production_time, tray_color, freshness_status, quantity_initial, quantity_remaining, sales_area) "
             "SELECT "
-            "CONCAT('BTH-', DATE_FORMAT(o.order_date, '%%Y%%m%%d'), '-', oi.product_name) as batch_id, "
+            "CONCAT('BTH-', DATE_FORMAT(o.order_date, '%Y%m%d'), '-', oi.product_name) as batch_id, "
             "oi.product_name, "
             "SUM(oi.quantity) as quantity, "
             "TIMESTAMP(o.order_date, '06:00:00') as production_time, "

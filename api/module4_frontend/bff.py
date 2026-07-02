@@ -847,6 +847,22 @@ async def revenue_daily(date: str = None):
     avg_order = round(today_revenue / today_orders, 2) if today_orders else 0
     today_discount = round(float(row[3] or 0), 2)
     
+    # Deduct expired bakery cost (Day-2+ unsold bread written off)
+    cur.execute("""
+        SELECT COALESCE(SUM(t.cost), 0)
+        FROM (
+            SELECT it.batch_id, MAX(it.quantity * p.material_cost) as cost
+            FROM inventory_transactions it
+            JOIN products p ON it.product_name = p.product_name
+            WHERE it.freshness_status = 'Expired'
+              AND DATE(it.transaction_time) = %s
+              AND p.category = 'bakery'
+            GROUP BY it.batch_id
+        ) t
+    """, (date,))
+    expired_cost = round(float(cur.fetchone()[0] or 0), 2)
+    today_profit = round(today_profit - expired_cost, 2)
+    
     # Profit margin
     profit_margin = round(today_profit / today_revenue * 100, 1) if today_revenue else 0
     
@@ -860,6 +876,23 @@ async def revenue_daily(date: str = None):
     mtd_revenue = round(float(mtd_row[0] or 0), 2)
     mtd_profit = round(float(mtd_row[1] or 0), 2)
     mtd_orders = int(mtd_row[2] or 0)
+    
+    # Deduct expired bakery cost from MTD
+    cur.execute("""
+        SELECT COALESCE(SUM(t.cost), 0)
+        FROM (
+            SELECT it.batch_id, MAX(it.quantity * p.material_cost) as cost
+            FROM inventory_transactions it
+            JOIN products p ON it.product_name = p.product_name
+            WHERE it.freshness_status = 'Expired'
+              AND DATE(it.transaction_time) >= %s
+              AND DATE(it.transaction_time) <= %s
+              AND p.category = 'bakery'
+            GROUP BY it.batch_id
+        ) t
+    """, (month_start, date))
+    mtd_expired_cost = round(float(cur.fetchone()[0] or 0), 2)
+    mtd_profit = round(mtd_profit - mtd_expired_cost, 2)
     
     # Yesterday comparison
     yesterday = (dt.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -1342,7 +1375,7 @@ async def inventory_dashboard(date: str = None):
         date = dt.now().strftime("%Y-%m-%d")
 
     # Get current stock as baseline
-    cur.execute("""SELECT product_name, freshness_status, SUM(quantity_remaining) as qty FROM batch_inventory GROUP BY product_name, freshness_status""")
+    cur.execute("""SELECT bi.product_name, bi.freshness_status, SUM(bi.quantity_remaining) as qty FROM batch_inventory bi JOIN products p ON bi.product_name = p.product_name WHERE p.category = %s GROUP BY bi.product_name, bi.freshness_status""", ("bakery",))
     current_map = {}
     for r in cur.fetchall():
         current_map[(r[0], r[1])] = int(r[2] or 0)

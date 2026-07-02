@@ -498,13 +498,19 @@ document.getElementById('signin-btn').disabled=false;
 document.getElementById('signin-btn').textContent='Sign In';
 }
 var _panelContainers={};
+var _apiCache={};
 async function api(url,opts){
 opts=opts||{};
+var method=opts.method||'GET';
+var cacheKey=method+':'+url+':'+(opts.body?JSON.stringify(opts.body):'');
+if(method==='GET'&&_apiCache[cacheKey]&&(Date.now()-_apiCache[cacheKey].ts)<60000)return _apiCache[cacheKey].data;
 var headers={'Authorization':'Bearer '+token};
 if(opts.body&&!opts.bodyIsForm){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body);}
-var r=await fetch(API+url,{method:opts.method||'GET',headers:headers,body:opts.body});
+var r=await fetch(API+url,{method:method,headers:headers,body:opts.body});
 if(!r.ok){var txt=await r.text();throw new Error(txt||'Request failed');}
-return r.json();
+var data=await r.json();
+if(method==='GET')_apiCache[cacheKey]={data:data,ts:Date.now()};
+return data;
 }
 
 
@@ -622,20 +628,27 @@ if(btn)btn.classList.add('active');
 var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),revenue:t('Revenue'),attendance:'Attendance'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue,attendance:renderAttendance};
-if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
+if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 var container=getPanelContainer(panel);
 container.style.display='block';
 container.innerHTML='';
 if(panels[panel])panels[panel](container);
+if(panel==='pos'||panel==='revenue'){setTimeout(loadS5DiscountCache,0);}
 }
 
+var _apiCache={};
 async function api(url,opts){
 opts=opts||{};
+var method=opts.method||'GET';
+var cacheKey=method+':'+url+':'+(opts.body?JSON.stringify(opts.body):'');
+if(method==='GET'&&_apiCache[cacheKey]&&(Date.now()-_apiCache[cacheKey].ts)<60000)return _apiCache[cacheKey].data;
 var headers={'Authorization':'Bearer '+token};
 if(opts.body&&!opts.bodyIsForm){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body);}
-var r=await fetch(API+url,{method:opts.method||'GET',headers:headers,body:opts.body});
+var r=await fetch(API+url,{method:method,headers:headers,body:opts.body});
 if(!r.ok){var txt=await r.text();throw new Error(txt||'Request failed');}
-return r.json();
+var data=await r.json();
+if(method==='GET')_apiCache[cacheKey]={data:data,ts:Date.now()};
+return data;
 }
 
 function getItemPrice(item){
@@ -921,7 +934,7 @@ function refundOrder(ticketId){
   fetch(API+'/s4/orders/refund',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ticket_id:ticketId})})
   .then(function(r){return r.json();})
   .then(function(d){
-    if(d.status==='ok'){alert('Order refunded. Items restocked.');loadRecentOrders();clearPanelCache('revenue');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
+    if(d.status==='ok'){alert('Order refunded. Items restocked.');loadRecentOrders();clearPanelCache('revenue');clearPanelCache('inventory');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
     else{alert('Refund failed: '+(d.message||d.detail||'Unknown error'));}
   })
   .catch(function(e){alert('Refund error: '+e.message);});
@@ -1138,7 +1151,7 @@ var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantit
 var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod,dine_type:dineType})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
-clearPanelCache('revenue');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
+clearPanelCache('revenue');clearPanelCache('inventory');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
 else if(d.errors&&d.errors.length>0){alert("Checkout errors: "+d.errors.join(", "));renderPOS(document.getElementById("panel-pos")||document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
 hitlLog.push({action:"Checkout: "+(_payReceipt?(_payReceipt.total||_payTotal).toFixed(2):_payTotal.toFixed(2))+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
@@ -1176,7 +1189,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
+if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');clearPanelCache('inventory');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -2032,11 +2045,11 @@ try{
 var r=await api('/s4/inventory/check/history?limit=30');
 var items=r.history||[];
 if(!items.length){el.innerHTML='No history yet.';return;}
-var h='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f5f0e8"><th style="padding:4px">Date</th><th style="padding:4px">Material</th><th style="padding:4px">Theo.Consum</th><th style="padding:4px">Act.Consum</th><th style="padding:4px">Wastage</th><th style="padding:4px">Rate</th></tr></thead><tbody>';
+var h='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f5f0e8"><th style="padding:4px;text-align:left">Date</th><th style="padding:4px;text-align:left">Material</th><th style="padding:4px;text-align:left">Theo.Stock</th><th style="padding:4px;text-align:left">Act.Stock</th><th style="padding:4px;text-align:left">Wastage</th><th style="padding:4px;text-align:left">Rate</th></tr></thead><tbody>';
 for(var i=0;i<items.length;i++){
 var it=items[i];var wr=it.wastage_rate*100;
 var color=wr>10?'#e74c3c':wr>5?'#f39c12':'#27ae60';
-h+='<tr style="border-bottom:1px solid #e0d5c5"><td style="padding:4px">'+it.check_date+'</td><td style="padding:4px">'+it.material_name+'</td><td style="padding:4px;text-align:right">'+it.theoretical_consumed.toFixed(2)+'</td><td style="padding:4px;text-align:right">'+it.actual_consumed.toFixed(2)+'</td><td style="padding:4px;text-align:right">'+it.wastage_qty.toFixed(2)+'</td><td style="padding:4px;text-align:right;color:'+color+'">'+wr.toFixed(1)+'%</td></tr>';
+h+='<tr style="border-bottom:1px solid #e0d5c5"><td style="padding:4px;text-align:left">'+it.check_date+'</td><td style="padding:4px;text-align:left">'+it.material_name+'</td><td style="padding:4px;text-align:left">'+it.theoretical_stock.toFixed(2)+'</td><td style="padding:4px;text-align:left">'+it.actual_stock.toFixed(2)+'</td><td style="padding:4px;text-align:left">'+it.wastage_qty.toFixed(2)+'</td><td style="padding:4px;text-align:left;color:'+color+'">'+wr.toFixed(1)+'%</td></tr>';
 }
 h+='</tbody></table>';
 el.innerHTML=h;
@@ -2383,7 +2396,7 @@ if(!r.ok)throw new Error('Server error: '+r.status);
 return r.json();
 }).then(function(d){
 alert('Inflow complete!\nAdded '+d.batches.length+' batches.');
-inflowDets=[];loadStock();renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
+inflowDets=[];loadStock();clearPanelCache('inventory');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }).catch(function(err){alert('Inflow failed: '+err.message);});
 }
 function triggerScan(){console.log("1.triggerScan");var inp=document.getElementById("scan-file");console.log("2.input:",inp);inp.click();console.log("3.clicked");}
@@ -2401,7 +2414,7 @@ if(COFFEE_PRICES[p.product_name]!==undefined)COFFEE_PRICES[p.product_name]=p.uni
 if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }).catch(function(e){console.log('Price fetch err',e);});
 }
-function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=item.quantity||0;var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=item.quantity||0;}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=item.quantity||0;}}if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}}if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;
