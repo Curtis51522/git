@@ -55,6 +55,13 @@ class YieldAgent(BaseAgent):
     async def _get_planned(self, date: str = ""):
         return await self._get_bake(date)
 
+
+    @staticmethod
+    def _fmt_qty(qty, unit):
+        """Format quantity: integer for pcs, 3 decimals for kg/L."""
+        if unit == "pcs":
+            return f"{qty:.0f}"
+        return f"{qty:.3f}"
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         data = raw.get("data", {}) if "data" in raw else raw
         materials = data.get("materials", [])
@@ -80,7 +87,7 @@ class YieldAgent(BaseAgent):
 
         Y = chr(165)
         opinion = f"PRODUCTION: {product_count} products baked, {total_units} total units. "
-        opinion += f"{total_materials} raw materials consumed. Top material: {top_name} ({top_consumed:.3f}{top_unit})."
+        opinion += f"{total_materials} raw materials consumed. Top material: {top_name} ({self._fmt_qty(top_consumed, top_unit)}{top_unit})."
 
         recs = []
         if low_stock_materials:
