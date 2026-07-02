@@ -360,7 +360,7 @@ en:{
 'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out','Alerts':'Alerts',
 'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
 'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
-'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
+'Click Generate Top-3 for bundle recommendations':'Click Generate Top-3 for bundle recommendations',
 'Generating...':'Generating...','Save RM':'Save RM',
 'Why These 3?':'Why These 3?',
 
@@ -415,7 +415,7 @@ zh:{
 'Inventory':'库存','Revenue':'收入','Sign Out':'退出登录','Alerts':'提醒',
 'Cart':'购物车','Scan items or use manual entry':'扫描商品或手动输入',
 'Generate Top-3':'生成Top-3','Checkout':'结账','Total':'总计',
-'Add items to cart then generate Top-3 bundles':'添加商品到购物车后生成Top-3套餐',
+'Click Generate Top-3 for bundle recommendations':'添加商品到购物车后生成Top-3套餐',
 'Generating...':'生成中...','Save RM':'节省RM',
 'Why These 3?':'为什么选这三个？',
 'Script generation failed. Try our combos!':'话术生成失败，试试我们的组合！',
@@ -514,7 +514,7 @@ return data;
 }
 
 
-console.log("JS loaded v1783012523");
+console.log("JS loaded v1783012857");
 
 var token=sessionStorage.getItem('bakery_token')||'', role=sessionStorage.getItem('bakery_role')||'', username=sessionStorage.getItem('bakery_username')||'', currentPanel='pos';
 var API='';
@@ -756,7 +756,7 @@ bundleHTML+='<div class="bundle-price">¥'+b.total_price.toFixed(2)+'</div>';
 bundleHTML+='<div class="bundle-save">'+t('Save RM')+' '+b.savings.toFixed(2)+'</div></div>';
 }
 }
-}else{bundleHTML='<div class="bundle-hint">'+t('Add items to cart then generate Top-3 bundles')+'</div>';}
+}else{bundleHTML='<div class="bundle-hint">'+t('Click Generate Top-3 for bundle recommendations')+'</div>';}
 
 
 
@@ -1195,7 +1195,7 @@ else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
 async function generateBundle(){
-if(!cartItems.length){alert('Add items to cart first');return}
+
 bundleRecs=[{products:'Generating...',total_price:0,savings:0,items:[]}];
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 var items=[];for(var i=0;i<cartItems.length;i++){var tc=cartItems[i].tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};items.push({product_name:cartItems[i].product_name,quantity:cartItems[i].quantity,freshness:fMap[tc]||"Fresh"});}
