@@ -108,7 +108,9 @@ class Synthesizer:
 
         # Theme definitions for the prompt - varies by intent
         if intent == "production_advice":
-            theme_prompt = "You are a sharp bakery production planner. Agents below have analyzed the 7-day demand forecast, production plan, material needs, and model accuracy. Your output is a structured briefing " + lang_instr + ".\n\nWrite a single flowing narrative that tells the full story of the upcoming 7-day production window. No section headers, no bullet points, no labels. Start with the most important finding.\n\nWeave these themes together seamlessly:\n- 7-day demand outlook: total projected revenue, trend direction, peak/valley days, top products (from ForecastOverviewAgent).\n- Uncertainty hotspots: which products have widest prediction intervals, where the risk lies (from ForecastUncertaintyAgent).\n- Production plan: total bake, revenue, profit, buffer used. Is the plan aligned with demand? (from ProductionPlanAgent).\n- Material readiness: critical/low stock materials, total to order, biggest gaps (from MaterialProcurementAgent).\n- Model accuracy: WAPE, interval coverage, what it means for planning confidence (from ForecastAccuracyAgent).\n- Cross-checks: plan feasibility (PlanFeasibilityAgent), demand concentration risks (DemandRiskAgent), over/under-baking vs accuracy (EfficiencyAgent), worst-case wastage scenarios (WastageRiskAgent).\n\nThe reader is the bakery owner planning the next week's production and procurement. Give them actionable clarity.\n\nRULES:\n- Numbers only from agents. Currency: RMB yuan. NEVER approximate. Use exact agent values.\n- If the production plan bakes less than forecast demand, check whether starting stock (day1_stock) covers the gap before calling it lost revenue. Total available = bake + starting stock. Only the portion exceeding total available is truly unserved demand.\n- Let the L2 agents do the heavy analytical lifting.\n- If a section has insufficient data, say so honestly in one sentence.\n- Use agent recommendations below as your primary source \u2014 deduplicate, combine overlapping ones, and rank by urgency. Do NOT invent new products, quantities, or time frames that are not in the agent recommendations. You may only rephrase and merge them.\n- Recommendations: Each MUST include a time anchor (For tomorrow/This week/Over the next 30 days). Each MUST name specific products or numbers from agents, never generic. Each SHOULD include expected impact. Recommendations go in the separate JSON array, NOT in the summary text.\n- Output MUST be valid JSON only, no markdown, no explanatory text outside the JSON.\n\nOUTPUT valid JSON:\n{\"summary\": \"...\",\n \"attribution\": [{\"factor\": \"...\", \"evidence\": \"agent + number\"}],\n \"recommendations\": [{\"action\": \"...\", \"urgency\": \"high|medium|low\", \"time_horizon\": \"today|tomorrow|this_week|next_7_days|next_30_days|ongoing\", \"rationale\": \"...\", \"expected_impact\": \"...\"}]}\n"
+            theme_prompt = "You are a sharp bakery production planner. Agents below have analyzed the 7-day demand forecast, production plan, material needs, and forecast reliability. Your output is a structured briefing " + lang_instr + ".\n\nWrite a single flowing narrative that tells the full story of the upcoming 7-day production window. No section headers, no bullet points, no labels. Start with the most important finding.\n\nWeave these themes together seamlessly:\n- 7-day demand outlook: total projected revenue, trend direction, peak/valley days, top products (from ForecastOverviewAgent).\n- Uncertainty hotspots: which products have widest demand ranges, where the risk lies (from ForecastUncertaintyAgent).\n- Production plan: total bake, revenue, profit, buffer used. Is the plan aligned with demand? (from ProductionPlanAgent).\n- Material readiness: ALWAYS list the top 5 materials by weekly consumption with exact need/stock/gap numbers. Then note any critical/low stock alerts and total to order. Use the Top consumption line verbatim from MaterialProcurementAgent.\n- Forecast reliability: how well have past forecasts matched actual sales? If no data yet, say so and explain what it means for planning confidence (from ForecastAccuracyAgent).\n- Cross-checks: plan feasibility (PlanFeasibilityAgent), demand concentration risks (DemandRiskAgent), over/under-baking assessment (EfficiencyAgent), worst-case wastage scenarios (WastageRiskAgent).\n\nThe reader is the bakery owner planning the next week's production and procurement. Give them actionable clarity.\n\nRULES:\n- Numbers only from agents. Currency: RMB yuan. NEVER approximate. Use exact agent values.\n- If the production plan bakes less than forecast demand, check whether starting stock (day1_stock) covers the gap before calling it lost revenue. Total available = bake + starting stock. Only the portion exceeding total available is truly unserved demand.\n- Distinguish clearly between the production plan buffer setting and the actual supply coverage ratio (bake+stock divided by forecast). Never conflate the two.\n- The production plan allocates differently across products based on uncertainty; do not say \"overbakes\" or \"underbakes\" \u2014 say \"bakes X vs Y forecast\" instead.\n- FORBIDDEN words (will be filtered): 30-day, rolling average, predictor, model, self-reinforcing, concentration-lag, momentum-driven, WAPE, interval coverage, prediction interval, Q10, Q50. Use plain business words instead.\n- Let the L2 agents do the heavy analytical lifting.\n- If a section has insufficient data, say so honestly in one sentence.\n- Use agent recommendations below as your primary source \u2014 deduplicate, combine overlapping ones, and rank by urgency. Do NOT invent new products, quantities, or time frames that are not in the agent recommendations. You may only rephrase and merge them.\n- Recommendations: Each MUST include a time anchor (For tomorrow/This week/Over the next 30 days). Each MUST name specific products or numbers from agents, never generic. Each SHOULD include expected impact. Recommendations go in the separate JSON array, NOT in the summary text.\n- Output MUST be valid JSON only, no markdown, no explanatory text outside the JSON.\n\nOUTPUT valid JSON:\n{\"summary\": \"...\",\n \"attribution\": [{\"factor\": \"...\", \"evidence\": \"agent + number\"}],\n \"recommendations\": [{\"action\": \"...\", \"urgency\": \"high|medium|low\", \"time_horizon\": \"today|tomorrow|this_week|next_7_days|next_30_days|ongoing\", \"rationale\": \"...\", \"expected_impact\": \"...\"}]}\n"
+        elif intent == "wastage_root_cause":
+            theme_prompt = "You are a bakery kitchen manager reviewing today's wastage check. Agents below have analyzed material consumption, stock levels, and production yield. Write a plain-language briefing " + lang_instr + ".\n\nSingle flowing narrative, no section headers, no bullets. Start with the most important finding.\n\nWeave these together:\n- Overall wastage: how many materials checked, worst items with rates and yuan cost. If zero wastage, confirm the margin is real.\n- Top consumed materials: what did we use most today, connect to what we baked.\n- Stock: any materials running low?\n- Root cause: if wastage is high, why? Over-ordering, spoilage, prep waste? If low, confirm practices are working.\n\nRULES:\n- Numbers from agents only. RMB yuan. No approximation.\n- If no check submitted today, say so clearly and note when the last check was.\n- Always give yuan cost of wasted materials when available.\n- FORBIDDEN words: 30-day, rolling average, predictor, model, self-reinforcing, concentration-lag, momentum-driven. Use plain kitchen words.\n- Recommendations from agents below. Deduplicate. Each with time anchor.\n- Valid JSON only.\n\nOUTPUT: {\"summary\": \"...\", \"recommendations\": [...]}\n"
         else:
             theme_prompt = "You are a sharp bakery analyst. Agents below have analyzed individual business cards, then cross-referenced each other. Your output is a structured briefing " + lang_instr + ".\n\nWrite a single flowing narrative that tells the full story of today's performance \u2014 no section headers, no bullet points, no labels. Start with the most important finding and let each sentence naturally lead to the next.\n\nWeave these themes together seamlessly:\n- Revenue, orders, ATV, and 7-day trend direction (from TrendAgent, DemandAgent, ProfitAgent). Always compare orders vs revenue movement \u2014 if they diverge, explain the ATV shift.\n- Product concentration, category split, top-seller performance, and what drives demand (from ProductMixAgent, FeatureSensitivityAgent). Use business language, never mention model names (XGBoost), feature importance percentages, or technical parameters in the summary. Translate model insights into plain cause-and-effect statements the store owner can act on.\n- Operations: staffing, attendance, wastage, production yield (from StaffingAgent, AttendanceAgent, WastageAgent, YieldAgent) \u2014 weave in where relevant, not as a standalone section.\n- External context: weather, holidays, promos, discounts, competitor activity (from ExternalFactorsAgent, PricingAgent).\n- Cross-card conclusions: MetricConflictAgent divergences, CausalChainAgent root cause chain, CrossRiskAgent self-reinforcing loops. Do NOT expose agent-level disagreements. Synthesize into one reconciled insight.\n\nThe reader should feel like they're reading a colleague's update, not filling out a template.\n\nRULES:\n- Numbers only from agents. Currency: RMB yuan. NEVER approximate: if an agent says 2490, do NOT write ~2500 or ~3158. Use the exact agent number. If you must compute a derived number, show both the agent values and the result.\n- Let the L2 agents do the heavy analytical lifting.\n- Write as a sharp colleague briefing the store owner.\n- If a section has insufficient data, say so honestly in one sentence.\n- Use agent recommendations below as your primary source \u2014 deduplicate, combine overlapping ones, and rank by urgency. Do NOT invent new products, quantities, or time frames that are not in the agent recommendations. You may only rephrase and merge them.\n- Recommendations: Each MUST include a time anchor (For tomorrow/This week/Over the next 30 days). Each MUST name specific products or numbers from agents, never generic. Each SHOULD include expected impact when computable. Recommendations go in the separate JSON array, NOT in the summary text.\n\nOUTPUT valid JSON:\n{\"summary\": \"Today's revenue was \\u00a5... from ... orders. ...\",\n \"attribution\": [{\"factor\": \"...\", \"evidence\": \"agent + number\"}],\n \"recommendations\": [{\"action\": \"...\", \"urgency\": \"high|medium|low\", \"time_horizon\": \"today|tomorrow|this_week|next_7_days|next_30_days|ongoing\", \"rationale\": \"...\", \"expected_impact\": \"...\"}]}\n"
 
@@ -155,11 +157,11 @@ class Synthesizer:
 
                     return {
 
-                        "summary": parsed.get("summary", ""),
+                        "summary": self._sanitize_summary(parsed.get("summary", "")),
 
                         "attribution": parsed.get("attribution", []),
 
-                        "recommendations": parsed.get("recommendations", []),
+                        "recommendations": self._sanitize_recommendations(parsed.get("recommendations", [])),
 
                     }
 
@@ -191,11 +193,11 @@ class Synthesizer:
 
         return {
 
-            "summary": fallback_summary,
+            "summary": self._sanitize_summary(fallback_summary),
 
             "attribution": fallback_attribution,
 
-            "recommendations": fallback_recs[:6],
+            "recommendations": self._sanitize_recommendations(fallback_recs[:6]),
 
         }
 
@@ -323,3 +325,80 @@ class Synthesizer:
 
         return evidence
 
+
+
+    def _sanitize_summary(self, text):
+        """Replace forbidden technical terms with plain business language."""
+        # Normalize Unicode: replace fancy dashes/hyphens with ASCII hyphen
+        for ch in ['‐', '‑', '‒', '–', '—', '−']:
+            text = text.replace(ch, '-')
+        reps = [
+            ("30-day rolling average", "recent sales pattern"),
+            ("30-day rolling sales average", "recent sales pattern"),
+            ("30-day average", "recent trend"),
+            ("30-day rolling", "recent"),
+            ("rolling average", "recent trend"),
+            ("30-day", "recent"),
+            ("self-reinforce into", "feed on itself into"),
+            ("self-reinforce", "feed on itself"),
+            ("self-reinforcing loop", "a cycle where fewer sales lead to even fewer sales"),
+            ("self-reinforcing decline loop", "over-dependence risk"),
+            ("self-reinforcing decline", "a downward spiral"),
+            ("self-reinforcing risk", "over-dependence risk"),
+            ("self-reinforcing cycle", "a cycle where less selling leads to even less"),
+            ("self-reinforcing", "a repeating pattern"),
+            ("self-perpetuating", "a repeating pattern"),
+            ("concentration-lag loop", "over-dependence on a few products"),
+            ("concentration-lag cycle", "over-dependence on a few products"),
+            ("concentration loop", "over-dependence on a few products"),
+            ("momentum-driven", "driven by habit"),
+            ("lag-driven", "history-driven"),
+            ("predictor", "driver"),
+            ("demand model", "sales patterns"),
+            ("model projections", "demand outlook"),
+            ("model predicts", "the pattern suggests"),
+            ("the model", "the pattern"),
+            (" model", " pattern"),
+            ("prediction interval", "demand range"),
+            ("prediction intervals", "demand ranges"),
+            ("interval coverage", "forecast accuracy"),
+            ("WAPE", "forecast error"),
+            ("wape", "forecast error"),
+            ("Q50 scenario", "higher-demand scenario"),
+            ("Q10 scenario", "lower-demand scenario"),
+            ("Q50 trajectory", "higher-demand trajectory"),
+            ("Q10 trajectory", "lower-demand trajectory"),
+            ("Q50", "higher-demand"),
+            ("Q10", "lower-demand"),
+        ]
+        for old_t, new_t in reps:
+            text = text.replace(old_t, new_t)
+        import re
+        text = re.sub(r'\d+\.?\d*% of (the )?(prediction|demand|outcome|variance)', 'the single biggest factor', text)
+        text = re.sub(r'accounts? for \d+\.?\d*% of', 'is the main driver of', text)
+        text = re.sub(r'(carry|carries|hold|holds) \d+\.?\d*%[^.]*?(influence|weight)', 'are the strongest factors', text)
+        text = re.sub(r'(weights|weighted) at \d+\.?\d*%', 'is the main driver', text)
+        text = re.sub(r'exerting \d+\.?\d*% of the pull', 'being the main driver', text)
+        text = re.sub(r'a secondary \d+\.?\d*%', 'another factor', text)
+        # Clean up grammar artifacts from replacements
+        text = re.sub(r'\ba a\b', 'a', text)
+        text = text.replace('pattern of sales', 'pattern')
+        text = text.replace('pattern sales', 'patterns')
+        text = text.replace('driven by driven by', 'driven by')
+        text = text.replace('driven by habit by', 'driven by')
+        text = re.sub(r'\ba (\w+), a (\w)', r'a \1, \2', text)
+        text = text.replace('a over-', 'an over-')
+        return text
+
+    def _sanitize_recommendations(self, recs):
+        """Apply sanitizer to all text fields in recommendations."""
+        clean = []
+        for r in recs:
+            if isinstance(r, dict):
+                clean.append({
+                    k: self._sanitize_summary(v) if isinstance(v, str) and k in ('action', 'reason', 'impact', 'rationale', 'expected_impact') else v
+                    for k, v in r.items()
+                })
+            else:
+                clean.append(r)
+        return clean

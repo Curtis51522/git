@@ -225,7 +225,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button data-panel="schedule" data-i18n="Shift Schedule" class="manager-only" onclick="showPanel('schedule')">Schedule</button>
 <button data-panel="attendance" data-i18n="Attendance" onclick="showPanel('attendance')">Attendance</button>
 <button data-panel="inventory" data-i18n="Inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
-<button data-panel="wastage" data-i18n="Wastage Log" class="manager-only" onclick="showPanel('wastage')">Wastage</button>
 <button data-panel="revenue" data-i18n="Revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
 </nav>
 <span id="role-badge" class="role-badge"></span>
@@ -501,7 +500,7 @@ var p=document.getElementById('password');if(p)p.placeholder=t('Password');
 // Update panel title
 var pt=document.getElementById('panel-title');
 if(pt&&currentPanel){
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),attendance:t('Attendance'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue')};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),attendance:t('Attendance'),inventory:t('Inventory'),revenue:t('Revenue')};
 pt.textContent=titles[currentPanel]||currentPanel;
 }
 // Update alert badge title
@@ -640,9 +639,9 @@ var btns=document.querySelectorAll('.topnav nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue'),attendance:'Attendance'};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),revenue:t('Revenue'),attendance:'Attendance'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
-var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue,attendance:renderAttendance};
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue,attendance:renderAttendance};
 if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 var container=getPanelContainer(panel);
 container.style.display='block';
@@ -1159,7 +1158,7 @@ var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantit
 var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod,dine_type:dineType})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
-clearPanelCache('revenue');clearPanelCache('wastage');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
+clearPanelCache('revenue');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
 else if(d.errors&&d.errors.length>0){alert("Checkout errors: "+d.errors.join(", "));renderPOS(document.getElementById("panel-pos")||document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
 hitlLog.push({action:"Checkout: "+(_payReceipt?(_payReceipt.total||_payTotal).toFixed(2):_payTotal.toFixed(2))+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
@@ -1197,7 +1196,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');clearPanelCache('wastage');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
+if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -1789,13 +1788,27 @@ else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">
 }
 
 function renderInventory(c){
+  var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="inv-date" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b" onchange="fetchInventoryDashboard()"></div>' + '<div class="dash-grid" id="inv-kpis" style="margin-bottom:12px"></div>'
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Bread Stock Levels</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>Fresh vs Day-1 Ratio</h4><div id="inv-fresh-pie" style="height:180px"></div></div><div class="chart-panel"><h4>Top 5 Material Consumption</h4><div id="inv-consumption-chart" style="height:180px"></div></div></div>'
     
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Material Stock Days Remaining</h4><div id="inv-days-table"></div></div></div>'
-    +'<div class="chart-row"><div class="chart-panel"><h4>Baking Materials</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>Coffee Materials</h4><div id="inv-coffee-table"></div></div></div>';
+    +'<div class="chart-row"><div class="chart-panel"><h4>Baking Materials</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>Coffee Materials</h4><div id="inv-coffee-table"></div></div></div>'
+    +'<hr style="margin:16px 0;border-color:#e0d5c7">'
+    +'<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:280px"><h5 style="margin:0 0 8px;color:#8b6914">Material Wastage Rates</h5><div class="result-box" id="inv-wastage-summary" style="max-height:50vh;overflow-y:auto"><span class="spinner"></span>Loading...</div></div>'
+    +'<div style="flex:1;min-width:350px;border:1px solid #e0d5c7;border-radius:8px;padding:12px;background:#fdfaf5">'
+    +'<h5 style="margin:0 0 8px;color:#8b6914">New Material Check</h5>'
+    +'<div style="margin-bottom:8px"><label style="font-size:11px;color:#666">Date</label><input type="date" id="inv-wastage-date" value="'+today+'" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;margin-top:2px"></div>'
+    +'<div id="inv-wastage-counts" style="max-height:45vh;overflow-y:auto"><span class="spinner"></span>Loading materials...</div>'
+    +'<button class="btn btn-primary" onclick="submitInvWastageCheck()" style="width:100%;margin-top:8px">Submit Check</button>'
+    +'<div id="inv-wastage-result-msg" style="margin-top:8px;font-size:12px"></div>'
+    +'</div></div>'
+    +'<div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="loadInvWastageHistory()">View History</button>'
+    +'<div id="inv-wastage-history" class="result-box" style="max-height:30vh;overflow-y:auto;margin-top:8px"></div></div>';
   fetchInventoryDashboard();
+  loadInvWastageMaterials().then(function(){loadInvWastageRates();});
   setTimeout(function(){injectS5ResultDiv('inv-table','inv-s5-result');injectS5Button('inv-s5-btn','inventory','inv-date','inv-s5-result');},300);
 }
 async function fetchInventoryDashboard(){
@@ -1953,25 +1966,9 @@ function renderAttendance(c){
   loadAttendance();
 }
 
-function renderWastage(c){
-var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-c.innerHTML='<div class="panel" style="flex:1"><h4>Raw Material Inventory Check</h4>'
-+'<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
-+'<div style="flex:1;min-width:280px"><h5 style="margin:0 0 8px;color:#8b6914">Material Wastage Rates</h5><div class="result-box" id="wastage-summary" style="max-height:50vh;overflow-y:auto"><span class="spinner"></span>Loading...</div></div>'
-+'<div style="flex:1;min-width:350px;border:1px solid #e0d5c7;border-radius:8px;padding:12px;background:#fdfaf5">'
-+'<h5 style="margin:0 0 8px;color:#8b6914">New Material Check</h5>'
-+'<div style="margin-bottom:8px"><label style="font-size:11px;color:#666">Date</label><input type="date" id="wastage-date" value="'+today+'" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;margin-top:2px"></div>'
-+'<div id="wastage-counts" style="max-height:45vh;overflow-y:auto"><span class="spinner"></span>Loading materials...</div>'
-+'<button class="btn btn-primary" onclick="submitWastageCheck()" style="width:100%;margin-top:8px">Submit Check</button>'
-+'<div id="wastage-result-msg" style="margin-top:8px;font-size:12px"></div>'
-+'</div></div>'
-+'<div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="loadWastageHistory()">View History</button>'
-+'<div id="wastage-history" class="result-box" style="max-height:30vh;overflow-y:auto;margin-top:8px"></div></div></div>';
-loadWastageMaterials().then(function(){loadWastageRates();});
-  setTimeout(function(){injectS5ResultDiv('wastage-summary','ws-s5-result');injectS5Button('ws-s5-btn','wastage','wastage-date','ws-s5-result');},300);
-}
-async function loadWastageRates(){
-var el=document.getElementById('wastage-summary');
+
+async function loadInvWastageRates(){
+var el=document.getElementById('inv-wastage-summary');
 try{
 var theoResp=await api('/s4/inventory/materials/theoretical');
 var theoItems=theoResp.materials||[];
@@ -2008,11 +2005,11 @@ h+='</tbody></table>';
 el.innerHTML=h;
 }catch(e){el.textContent='Error: '+e.message;}
 }
-async function loadWastageMaterials(){
+async function loadInvWastageMaterials(){
 try{
 var r=await api('/s4/inventory/materials/theoretical');
 var items=r.materials||[];
-var countsDiv=document.getElementById('wastage-counts');
+var countsDiv=document.getElementById('inv-wastage-counts');
 var h='';
 for(var i=0;i<items.length;i++){
 var it=items[i];
@@ -2021,36 +2018,36 @@ h+='<div style="font-size:12px;font-weight:600;color:#3d322b">'+it.material_name
 h+='<div style="font-size:10px;color:#888;margin:2px 0">DB stock: '+it.current_stock.toFixed(3)+' '+it.unit+' | Consumed: '+(it.consumed_since*1000).toFixed(0)+'g | Theory: '+it.theoretical_stock.toFixed(3)+' '+it.unit+'</div>';
 h+='<div style="display:flex;align-items:center;gap:6px">';
 h+='<span style="font-size:11px;color:#666">Actual:</span>';
-h+='<input type="number" id="wc-'+it.material_name.replace(/ /g,'_')+'" value="'+it.theoretical_stock.toFixed(3)+'" step="0.001" min="0" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
+h+='<input type="number" id="iwc-'+it.material_name.replace(/ /g,'_')+'" value="'+it.theoretical_stock.toFixed(3)+'" step="0.001" min="0" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
 h+='<span style="font-size:10px;color:#999">'+it.unit+'</span>';
 h+='</div></div>';
 }
 countsDiv.innerHTML=h||'No materials found';
-}catch(e){document.getElementById('wastage-counts').textContent='Error: '+e.message;}
+}catch(e){document.getElementById('inv-wastage-counts').textContent='Error: '+e.message;}
 }
-async function submitWastageCheck(){
-var date=document.getElementById('wastage-date').value;
-var inputs=document.querySelectorAll('#wastage-counts input[type=number]');
+async function submitInvWastageCheck(){
+var date=document.getElementById('inv-wastage-date').value;
+var inputs=document.querySelectorAll('#inv-wastage-counts input[type=number]');
 var counts=[];
 inputs.forEach(function(inp){
 var id=inp.id;
-if(id.startsWith('wc-')){
-var mn=id.slice(3).replace(/_/g,' ');
+if(id.startsWith('iwc-')){
+var mn=id.slice(4).replace(/_/g,' ');
 counts.push({material_name:mn,actual_stock:parseFloat(inp.value)||0});
 }
 });
-if(counts.length===0){document.getElementById('wastage-result-msg').innerHTML='<span style="color:#e74c3c">No materials to check</span>';return;}
-var msg=document.getElementById('wastage-result-msg');
+if(counts.length===0){document.getElementById('inv-wastage-result-msg').innerHTML='<span style="color:#e74c3c">No materials to check</span>';return;}
+var msg=document.getElementById('inv-wastage-result-msg');
 msg.innerHTML='<span class="spinner"></span> Processing...';
 try{
 var resp=await fetch(API+'/s4/inventory/check',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({check_date:date,counts:counts})});
 var d=await resp.json();
 msg.innerHTML='<span style="color:#27ae60">Check submitted! '+d.results.length+' materials logged.</span>';
-loadWastageMaterials().then(function(){loadWastageRates();});
+loadInvWastageMaterials().then(function(){loadInvWastageRates();});
 }catch(e){msg.innerHTML='<span style="color:#e74c3c">Error: '+e.message+'</span>';}
 }
-async function loadWastageHistory(){
-var el=document.getElementById('wastage-history');
+async function loadInvWastageHistory(){
+var el=document.getElementById('inv-wastage-history');
 try{
 var r=await api('/s4/inventory/check/history?limit=30');
 var items=r.history||[];

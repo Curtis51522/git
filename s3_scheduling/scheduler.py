@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """
 S3 CP-SAT Production Scheduler
 ================================

@@ -1,4 +1,4 @@
-﻿import os, sys, logging
+import os, sys, logging
 from datetime import datetime as dt, timedelta
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
@@ -59,7 +59,36 @@ class MaterialProcurementAgent(BaseAgent):
             else:
                 ok_count += 1
 
+        ingr_items = []
+        pkg_items = []
+        for name, info in items.items():
+            need_raw = info.get("weekly_need")
+            if need_raw is None or info.get("note", ""):
+                continue
+            need = float(need_raw)
+            stock = float(info.get("current_stock", 0))
+            unit = info.get("unit", "kg")
+            entry = dict(name=name, need=need, stock=stock, unit=unit)
+            if unit == "pcs":
+                pkg_items.append(entry)
+            else:
+                ingr_items.append(entry)
+        def fmt_group(items_list, top_n):
+            items_list.sort(key=lambda x: -x["need"])
+            parts_list = []
+            for ti in items_list[:top_n]:
+                gap = ti["need"] - ti["stock"]
+                gap_sign = "+" if gap >= 0 else ""
+                parts_list.append(f"{ti['name']} (need {ti['need']:.1f}{ti['unit']}, stock {ti['stock']:.1f}{ti['unit']}, gap {gap_sign}{gap:.1f}{ti['unit']})")
+            return "; ".join(parts_list) if parts_list else ""
+        ingr_line = "Top ingredients: " + fmt_group(ingr_items, 5) if ingr_items else ""
+        pkg_line = "Top packaging: " + fmt_group(pkg_items, 3) if pkg_items else ""
+
         parts = [f"{len(items)} materials monitored."]
+        if ingr_line:
+            parts.append(ingr_line)
+        if pkg_line:
+            parts.append(pkg_line)
         if critical:
             parts.append(f"Critical: " + ", ".join(
                 f"{c['name']} (need {c['need']:.1f}, have {c['stock']:.1f})" for c in critical

@@ -4,7 +4,7 @@ from s5_agent.core.dag import DAGTemplate, DAGNode
 TEMPLATES = {
     "profit_root_cause": DAGTemplate(
         intent="profit_root_cause",
-        description="Why is profit/revenue abnormal? (L1 card agents -> L2 cross-card -> L3 synthesis)",
+        description="Daily P&L analysis: revenue -> costs -> wastage -> profit (L1 cards -> L2 cross-card -> L3 synthesis)",
         nodes=[
             # L1: Card-level analysis (parallel)
             DAGNode("TrendAgent", phase=1),
@@ -14,6 +14,8 @@ TEMPLATES = {
             DAGNode("ExternalFactorsAgent", phase=1),
             DAGNode("DemandAgent", phase=1),
             DAGNode("AttendanceAgent", phase=1),
+            DAGNode("MaterialStockAgent", phase=1),
+            DAGNode("ProductStockAgent", phase=1),
             # L2: Cross-card analysis
             DAGNode("MetricConflictAgent", phase=2, dependencies=["TrendAgent","DemandAgent","ProductMixAgent","ProfitAgent"]),
             DAGNode("CausalChainAgent", phase=2, dependencies=["FeatureSensitivityAgent","ExternalFactorsAgent","TrendAgent"]),
@@ -22,8 +24,8 @@ TEMPLATES = {
             DAGNode("PricingAgent", phase=3, dependencies=["DemandAgent","MetricConflictAgent"]),
             DAGNode("StaffingAgent", phase=3, dependencies=["AttendanceAgent"]),
             DAGNode("ProfitAgent", phase=4, dependencies=["ExternalFactorsAgent","DemandAgent","PricingAgent","StaffingAgent","CausalChainAgent","CrossRiskAgent"]),
-            DAGNode("YieldAgent", phase=4, dependencies=["ProfitAgent"]),
-            DAGNode("WastageAgent", phase=4, dependencies=["ProfitAgent"]),
+            DAGNode("YieldAgent", phase=4, dependencies=["ProfitAgent","MaterialStockAgent","ProductStockAgent"]),
+            DAGNode("WastageAgent", phase=4, dependencies=["ProfitAgent","MaterialStockAgent","ProductStockAgent"]),
         ]
     ),
     "wastage_root_cause": DAGTemplate(
