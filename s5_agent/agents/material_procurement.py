@@ -35,7 +35,7 @@ class MaterialProcurementAgent(BaseAgent):
         low = []
         ok_count = 0
         total_order = 0
-        biggest_gap = {"name": "", "gap": 0}
+        biggest_gap = {"name": "", "gap": 0, "unit": "kg"}
 
         for name, info in items.items():
             alert = str(info.get("alert", info.get("status", ""))).lower()
@@ -47,15 +47,15 @@ class MaterialProcurementAgent(BaseAgent):
             if need is not None:
                 gap = need - stock
                 if gap > biggest_gap["gap"]:
-                    biggest_gap = {"name": name, "gap": gap}
+                    biggest_gap = {"name": name, "gap": gap, "unit": info.get("unit", "kg")}
             note = info.get("note", "")
             if note:
                 ok_count += 1  # no estimate materials are informational only
             elif alert in ("critical", "urgent", "low") or (need is not None and stock < need * 0.5):
                 if stock == 0 or (need is not None and stock < need * 0.3):
-                    critical.append({"name": name, "need": need or 0, "stock": stock})
+                    critical.append({"name": name, "need": need or 0, "stock": stock, "unit": info.get("unit","kg")})
                 else:
-                    low.append({"name": name, "need": need or 0, "stock": stock})
+                    low.append({"name": name, "need": need or 0, "stock": stock, "unit": info.get("unit","kg")})
             else:
                 ok_count += 1
 
@@ -73,13 +73,14 @@ class MaterialProcurementAgent(BaseAgent):
                 pkg_items.append(entry)
             else:
                 ingr_items.append(entry)
+        _fmt = lambda v, u: f"{v:.1f}" if u != "pcs" else f"{v:.0f}"
         def fmt_group(items_list, top_n):
             items_list.sort(key=lambda x: -x["need"])
             parts_list = []
             for ti in items_list[:top_n]:
                 gap = ti["need"] - ti["stock"]
                 gap_sign = "+" if gap >= 0 else ""
-                parts_list.append(f"{ti['name']} (need {ti['need']:.1f}{ti['unit']}, stock {ti['stock']:.1f}{ti['unit']}, gap {gap_sign}{gap:.1f}{ti['unit']})")
+                parts_list.append(f"{ti['name']} (need {_fmt(ti['need'],ti['unit'])}{ti['unit']}, stock {_fmt(ti['stock'],ti['unit'])}{ti['unit']}, gap {gap_sign}{_fmt(gap,ti['unit'])}{ti['unit']})")
             return "; ".join(parts_list) if parts_list else ""
         ingr_line = "Top ingredients: " + fmt_group(ingr_items, 5) if ingr_items else ""
         pkg_line = "Top packaging: " + fmt_group(pkg_items, 3) if pkg_items else ""
@@ -100,7 +101,7 @@ class MaterialProcurementAgent(BaseAgent):
         parts.append(f"{ok_count} materials adequate.")
         parts.append(f"Total to order: {total_order:.0f} units.")
         if biggest_gap["name"]:
-            parts.append(f"Largest gap: {biggest_gap['name']} (shortfall {biggest_gap['gap']:.1f}).")
+            parts.append(f"Largest gap: {biggest_gap['name']} (shortfall {_fmt(biggest_gap['gap'],biggest_gap.get('unit','kg'))}).")
 
         opinion = " ".join(parts)
 

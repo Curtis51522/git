@@ -121,7 +121,7 @@ class Synthesizer:
 
         try:
 
-            async with httpx.AsyncClient(timeout=90) as client:
+            async with httpx.AsyncClient(timeout=180) as client:
 
                 r = await client.post(self.llm_url, json={
 

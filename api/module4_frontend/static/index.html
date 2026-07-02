@@ -230,7 +230,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button id="lang-en" class="active" onclick="setLang('en')">EN</button>
 <button id="lang-zh" onclick="setLang('zh')">中文</button>
 </div>
-</div>
 <button class="logout-btn" onclick="doLogout()" data-i18n="Sign Out">Sign Out</button>
 </div>
 <div class="main">
@@ -242,8 +241,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 
 <input type="file" accept="image/*" style="display:none" id="scan-file" onchange="console.log('onchange fired');handleScan(event)">
 
-</div>
-</div>
 <div id="edit-modal" class="modal-overlay" onclick="if(event.target===this)closeEditModal()">
 <div class="modal-box">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -360,7 +357,7 @@ var LANG=localStorage.getItem('bakery_lang')||'en';
 var T={
 en:{
 'POS Checkout':'POS Checkout','Sales Forecast':'Sales Forecast','Shift Schedule':'Shift Schedule',
-'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out',
+'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out','Alerts':'Alerts',
 'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
 'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
 'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
@@ -376,7 +373,7 @@ en:{
 'Prep Checklist':'Prep Checklist','Acknowledge':'Acknowledge',
 'Stock':'Stock','Fresh':'Fresh','Day-1':'Day-1','Day-2':'Day-2','Near-Expired':'Near-Expired',
 'Send':'Send','Ask me anything...':'Ask me anything...',
-'AI Summary':'AI Summary',
+'AI Summary':'AI Summary','System Alerts':'System Alerts',
 'Username':'Username','Password':'Password','Sign In':'Sign In',
 'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token',
 'Request failed':'Request failed','Manager only':'Manager only',
@@ -415,7 +412,7 @@ en:{
 },
 zh:{
 'POS Checkout':'POS结账','Sales Forecast':'销售预测','Shift Schedule':'排班表',
-'Inventory':'库存','Revenue':'收入','Sign Out':'退出登录',
+'Inventory':'库存','Revenue':'收入','Sign Out':'退出登录','Alerts':'提醒',
 'Cart':'购物车','Scan items or use manual entry':'扫描商品或手动输入',
 'Generate Top-3':'生成Top-3','Checkout':'结账','Total':'总计',
 'Add items to cart then generate Top-3 bundles':'添加商品到购物车后生成Top-3套餐',
@@ -431,7 +428,7 @@ zh:{
 'Prep Checklist':'准备清单','Acknowledge':'确认',
 'Stock':'库存','Fresh':'新鲜','Day-1':'第1天','Day-2':'第2天','Near-Expired':'临期',
 'Send':'发送','Ask me anything...':'问我任何问题...',
-'AI Summary':'AI摘要',
+'AI Summary':'AI摘要','System Alerts':'系统提醒',
 'Username':'用户名','Password':'密码','Sign In':'登录',
 'Invalid credentials':'凭据无效','Missing token':'缺少令牌','Invalid token':'令牌无效',
 'Request failed':'请求失败','Manager only':'仅限经理',
@@ -488,7 +485,6 @@ if(pt&&currentPanel){
 var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),attendance:t('Attendance'),inventory:t('Inventory'),revenue:t('Revenue')};
 pt.textContent=titles[currentPanel]||currentPanel;
 }
-// Update alert badge title
 // Re-render current panel for dynamic content
 if(typeof currentPanel!=='undefined'&&currentPanel){showPanel(currentPanel);}
 }
@@ -1180,7 +1176,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
+if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -2669,6 +2665,8 @@ startSwap(eid,ename,d,slot,role);
 }
 });
 
+
+startAlertPoll();
 </script>
 
 
