@@ -394,12 +394,42 @@ def estimate_raw_materials(bake_plan, products):
     materials = {"flour_g": 0, "butter_g": 0, "sugar_g": 0,
                  "egg_whole_g": 0, "egg_yolk_g": 0, "egg_white_g": 0,
                  "milk_ml": 0, "chocolate_g": 0}
+    cake_products = {"chiffon", "chocolate_cake"}
     for product, quantity in bake_plan.items():
         if quantity == 0 or product in DRINK_NAMES:
             continue
         recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
         for key in materials:
             materials[key] += quantity * recipe[key]
+    # Derive secondary materials from primary ones
+    total_flour = materials["flour_g"]
+    derived = {
+        "cake_flour_g": 0,
+        "baking_powder_g": round(total_flour * 0.02, 1),  # 2% of flour
+        "salt_g": round(total_flour * 0.015, 1),            # 1.5% of flour
+        "yeast_g": round(total_flour * 0.01, 1),            # 1% of flour
+        "coffee_beans_g": 0,   # estimated separately from beverages
+        "tea_leaves_g": 0,     # estimated separately from beverages
+        "cups_pcs": 0,         # per beverage unit
+        "cup_large_pcs": 0,
+        "cup_regular_pcs": 0,
+        "lids_pcs": 0,
+        "box_pcs": 0,
+        "packaging_bag_pcs": 0,
+        "packaging_box_pcs": 0,
+    }
+    # Reassign cake flour for cake products
+    for product, quantity in bake_plan.items():
+        if product in cake_products and quantity > 0:
+            recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
+            cake_flour = quantity * recipe.get("flour_g", 0)
+            derived["cake_flour_g"] += cake_flour
+    derived["cake_flour_g"] = round(derived["cake_flour_g"], 1)
+    # Packaging: 1 packaging bag per 3 bread items
+    total_bread_units = sum(q for p, q in bake_plan.items() if p not in DRINK_NAMES)
+    derived["packaging_bag_pcs"] = round(total_bread_units / 3, 1)
+    derived["packaging_box_pcs"] = round(total_bread_units / 6, 1)  # boxes for larger orders
+    materials.update(derived)
     return {k: round(v, 1) for k, v in materials.items()}
 _DEFAULT_RECIPE = {"flour_g":45, "butter_g":10, "sugar_g":8, "egg_whole_g":10, "egg_yolk_g":0, "egg_white_g":0, "milk_ml":15, "chocolate_g":0}
 
@@ -408,12 +438,42 @@ def estimate_raw_materials(bake_plan, products):
     materials = {"flour_g": 0, "butter_g": 0, "sugar_g": 0,
                  "egg_whole_g": 0, "egg_yolk_g": 0, "egg_white_g": 0,
                  "milk_ml": 0, "chocolate_g": 0}
+    cake_products = {"chiffon", "chocolate_cake"}
     for product, quantity in bake_plan.items():
         if quantity == 0 or product in DRINK_NAMES:
             continue
         recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
         for key in materials:
             materials[key] += quantity * recipe[key]
+    # Derive secondary materials from primary ones
+    total_flour = materials["flour_g"]
+    derived = {
+        "cake_flour_g": 0,
+        "baking_powder_g": round(total_flour * 0.02, 1),  # 2% of flour
+        "salt_g": round(total_flour * 0.015, 1),            # 1.5% of flour
+        "yeast_g": round(total_flour * 0.01, 1),            # 1% of flour
+        "coffee_beans_g": 0,   # estimated separately from beverages
+        "tea_leaves_g": 0,     # estimated separately from beverages
+        "cups_pcs": 0,         # per beverage unit
+        "cup_large_pcs": 0,
+        "cup_regular_pcs": 0,
+        "lids_pcs": 0,
+        "box_pcs": 0,
+        "packaging_bag_pcs": 0,
+        "packaging_box_pcs": 0,
+    }
+    # Reassign cake flour for cake products
+    for product, quantity in bake_plan.items():
+        if product in cake_products and quantity > 0:
+            recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
+            cake_flour = quantity * recipe.get("flour_g", 0)
+            derived["cake_flour_g"] += cake_flour
+    derived["cake_flour_g"] = round(derived["cake_flour_g"], 1)
+    # Packaging: 1 packaging bag per 3 bread items
+    total_bread_units = sum(q for p, q in bake_plan.items() if p not in DRINK_NAMES)
+    derived["packaging_bag_pcs"] = round(total_bread_units / 3, 1)
+    derived["packaging_box_pcs"] = round(total_bread_units / 6, 1)  # boxes for larger orders
+    materials.update(derived)
     return {k: round(v, 1) for k, v in materials.items()}
 # ============================================================
 # CP-SAT SOLVER
@@ -598,7 +658,7 @@ class Scheduler:
             "plans": plans,
             "weekly_summary": weekly,
             "dashboard_7day": self.dashboard_format_7day(plans, start_date),
-            "dashboard_materials": self.dashboard_format_materials(weekly),
+            "dashboard_materials": self.dashboard_format_materials(weekly, plans, demand_forecast_7day),
         }
 
     def _aggregate_weekly(self, plans):
@@ -660,7 +720,7 @@ class Scheduler:
             "dates": dates, "buffer_applied": DEMAND_BUFFER, "grid": grid,
         }
 
-    def dashboard_format_materials(self, weekly_summary):
+    def dashboard_format_materials(self, weekly_summary, plans=None, forecast=None):
         """Format for Forecasting Dashboard Panel 3: Raw Material Procurement."""
         # Material key to DB mapping
         _MATERIAL_DB_MAP = {
@@ -672,6 +732,19 @@ class Scheduler:
             "egg_white_g": ("Eggs", 1000),
             "milk_ml": ("Milk", 1000),
             "chocolate_g": ("Chocolate", 1000),
+            "cake_flour_g": ("Cake Flour", 1000),
+            "baking_powder_g": ("Baking Powder", 1000),
+            "salt_g": ("Salt", 1000),
+            "yeast_g": ("Yeast", 1000),
+            "coffee_beans_g": ("Coffee Beans", 1000),
+            "tea_leaves_g": ("Tea Leaves", 1000),
+            "cups_pcs": ("Cups", 1),
+            "cup_large_pcs": ("Cup Large", 1),
+            "cup_regular_pcs": ("Cup Regular", 1),
+            "lids_pcs": ("Lids", 1),
+            "box_pcs": ("Box", 1),
+            "packaging_bag_pcs": ("Packaging Bag", 1),
+            "packaging_box_pcs": ("Packaging Box", 1),
         }
         # Fetch real stock from database
         db_stock = {}
@@ -695,8 +768,30 @@ class Scheduler:
         for mat_key, weekly_need_g in weekly_summary.get("materials", {}).items():
             db_name, divisor = _MATERIAL_DB_MAP.get(mat_key, (mat_key, 1000))
             if db_name not in agg:
-                agg[db_name] = {"weekly_need": 0, "unit": "kg"}
+                agg[db_name] = {"weekly_need": 0, "unit": "kg" if divisor > 1 else "pcs"}
             agg[db_name]["weekly_need"] += weekly_need_g / divisor
+
+        # Estimate beverage materials from forecast
+        total_beverage_units = 0
+        if forecast:
+            for d in forecast.values():
+                for p, v in d.items():
+                    if p in DRINK_NAMES:
+                        total_beverage_units += v.get("q50", 0)
+        if total_beverage_units > 0:
+            # ~15g coffee per cup, ~3g tea per cup
+            agg.setdefault("Coffee Beans", {"weekly_need": 0, "unit": "kg"})
+            agg.setdefault("Tea Leaves", {"weekly_need": 0, "unit": "kg"})
+            agg["Coffee Beans"]["weekly_need"] += round(total_beverage_units * 0.015, 3)
+            agg["Tea Leaves"]["weekly_need"] += round(total_beverage_units * 0.003, 3)
+            # 1 cup + 1 lid per beverage
+            agg.setdefault("Cups", {"weekly_need": 0, "unit": "pcs"})
+            agg.setdefault("Cup Large", {"weekly_need": 0, "unit": "pcs"})
+            agg.setdefault("Cup Regular", {"weekly_need": 0, "unit": "pcs"})
+            agg.setdefault("Lids", {"weekly_need": 0, "unit": "pcs"})
+            agg["Cups"]["weekly_need"] += total_beverage_units * 0.5
+            agg["Cup Regular"]["weekly_need"] += total_beverage_units * 0.5
+            agg["Lids"]["weekly_need"] += total_beverage_units
 
         procurement = {}
         for db_name, a in agg.items():
@@ -722,20 +817,6 @@ class Scheduler:
                 "unit": unit,
                 "alert": alert,
             }
-        # Include all DB materials not yet covered (packaging, beverage ingredients, etc.)
-        for db_name, info in db_stock.items():
-            if db_name not in procurement:
-                stock_qty = info.get("qty", 0)
-                procurement[db_name] = {
-                    "weekly_need": None,
-                    "adjusted_need": None,
-                    "current_stock": stock_qty,
-                    "to_order": 0,
-                    "alert": "ok" if stock_qty > 0 else "order",
-                    "unit": info.get("unit", "pcs"),
-                    "note": "no production consumption estimate"
-                }
-
         return {
             "week": f"{weekly_summary.get('week_start', '-')} ~ {weekly_summary.get('week_end', '-')}",
             "waste_rate_default": DEFAULT_WASTE,
