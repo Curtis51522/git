@@ -1368,7 +1368,7 @@ c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:
 loadSchedule();
   var km2=document.getElementById('kpi-ranking-month');
   loadKPIRanking(km2?km2.value:today.substring(0,7));
-  setTimeout(function(){injectS5Button('sc-s5-btn-row','schedule','sched-date','sc-s5-result');},300);
+  // Schedule AI analysis button removed - data is self-explanatory
 }
 
 async function generateSchedule(){
@@ -1802,7 +1802,7 @@ function renderInventory(c){
     +'<div id="inv-wastage-s5-result" style="display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-top:8px;max-height:50vh;overflow-y:auto"></div><div id="inv-wastage-history" class="result-box" style="max-height:30vh;overflow-y:auto;margin-top:8px"></div></div>';
   fetchInventoryDashboard();
   loadInvWastageMaterials().then(function(){loadInvWastageRates();});
-  setTimeout(function(){injectS5ResultDiv('inv-table','inv-s5-result');injectS5Button('inv-s5-btn','inventory','inv-date','inv-s5-result');},300);
+  // Inventory AI analysis button removed - data is self-explanatory
 }
 async function fetchInventoryDashboard(){
   var bkpi=document.getElementById("inv-kpis");
