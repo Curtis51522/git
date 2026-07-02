@@ -1578,7 +1578,7 @@ async function loadMaterials(){
       var alertText={urgent:'Urgent',order:'Order',ok:'OK'};
       var alertCol={urgent:'#e74c3c',order:'#f39c12',ok:'#27ae60'};
       var bg=alertColors[it.alert]||'#fff';
-      var needStr=it.weekly_need.toFixed(1)+' '+it.unit;
+      var needStr=it.weekly_need!=null?it.weekly_need.toFixed(1)+' '+it.unit:it.note||'N/A';
       var stockStr=it.current_stock.toFixed(2)+' '+it.unit;
       var orderStr=it.to_order>0?'<strong style="color:#e74c3c">'+it.to_order.toFixed(1)+' '+it.unit+'</strong>':'-';
       if(it.to_order>0)totalOrder++;
