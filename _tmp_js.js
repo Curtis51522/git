@@ -1,357 +1,4 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bakery AI System</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b6914;min-height:100vh}
-.hidden{display:none!important}
-#login-page{display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#8b6914 0%,#8b6914 50%,#d4a853 100%)}
-#login-page .card{background:#fff;border-radius:16px;padding:40px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
-#login-page h1{font-size:28px;color:#8b6914;margin-bottom:8px}
-#login-page .sub{color:#8b6914;margin-bottom:24px;font-size:14px}
-#login-page input{width:100%;padding:14px 16px;margin:8px 0;border:2px solid #e0d5c7;border-radius:10px;font-size:16px;transition:border .2s}
-#login-page input:focus{border-color:#8b6914;outline:none}
-#login-page button{width:100%;padding:12px;background:#8b6914;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;margin-top:16px;transition:background .2s}
-#login-page button:hover{background:#6b4f10}
-#error-msg{color:#e74c3c;margin-top:12px;font-size:13px;min-height:20px}
-#dashboard{display:flex;flex-direction:column;height:100vh}
-.topnav{display:flex;align-items:center;gap:6px;padding:8px 16px;background:#f5f0eb;border-bottom:1px solid #e0d5c7;flex-shrink:0}
-.topnav h2{font-size:18px;color:#5c3d2e;margin-right:8px;white-space:nowrap}
-.topnav nav{display:flex;gap:4px;flex:1;overflow-x:auto}
-.topnav nav button{padding:7px 12px;background:transparent;border:none;color:#5c3d2e;font-size:13px;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:500;transition:all .2s}
-.topnav nav button:hover,.topnav nav button.active{background:#8b6914;color:#fff}
-.topnav .logout-btn{padding:6px 12px;background:#8b6914;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap}
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.topbar{padding:12px 20px;background:#fffcf7;border-bottom:1px solid #e8dcc8}
-.topbar h3{font-size:18px;color:#8b6914}
-.content{flex:1;padding:12px;overflow-y:auto}
-.role-badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin:8px 0}
-.role-manager{background:#e67e22;color:#fff}
-.role-staff{background:#27ae60;color:#fff}
-.panel{background:#fff;border-radius:10px;padding:8px 10px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.panel h4{font-size:16px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}
-.btn{display:inline-block;padding:8px 14px;border-radius:6px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
-.btn-primary{background:#8b6914;color:#fff}.btn-primary:hover{background:#8b6914}
-.btn-success{background:#27ae60;color:#fff}
-.btn-outline{background:transparent;border:2px solid #8b6914;color:#8b6914}
-.btn-sm{padding:5px 10px;font-size:12px}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid #e0d5c7;border-top-color:#8b6914;border-radius:50%;animation:spin .6s linear infinite;margin-right:6px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.result-box{background:#fff;color:#3d322b;border-radius:8px;padding:14px;font-family:Consolas,'Courier New',monospace;font-size:15px;max-height:400px;overflow-y:auto;white-space:pre-wrap;margin-top:8px}
 
-.scan-area{border:2px dashed #d4c4a8;border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;background:#faf7f2}
-.scan-area:hover{border-color:#8b6914;background:#fdf9f3}
-.scan-area .icon{font-size:36px;margin-bottom:4px}
-.scan-area p{color:#8b6914;font-size:14px}
-.detect-card{background:#fdfaf5;border:1px solid #e8dcc8;border-radius:10px;padding:12px;margin-bottom:8px}
-.detect-card .detect-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
-.detect-card .detect-name{font-weight:700;font-size:17px;color:#8b6914;text-transform:capitalize}
-.detect-card .detect-qty{font-size:13px;color:#8b6914;background:#f0e8d8;padding:2px 8px;border-radius:10px}
-.detect-card .detect-meta{display:flex;gap:12px;font-size:14px;color:#6b5b4f;margin-bottom:4px}
-.detect-confidence{font-weight:700}.detect-confidence.high{color:#27ae60}.detect-confidence.mid{color:#f39c12}.detect-confidence.low{color:#e74c3c}
-.detect-tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;margin-right:6px}
-.detect-tag-fresh{background:#d5f5e3;color:#1e8449}.detect-tag-day1{background:#fef9e7;color:#b7950b}.detect-tag-discount{background:#fdedec;color:#c0392b}
-.detect-status{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;display:inline-block}
-.detect-status-confirmed{background:#d5f5e3;color:#1e8449}.detect-status-review{background:#fdebd0;color:#b9770e}.detect-status-pending{background:#eaecee;color:#5d6d7e}
-.detect-actions{display:flex;gap:6px;margin-top:8px}
-.detect-actions button{flex:1;padding:4px 0;border-radius:6px;border:1px solid #d4c5b2;background:#fff;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s}
-.detect-actions .detect-confirm:hover{background:#27ae60;color:#fff;border-color:#27ae60}
-.detect-actions .detect-edit:hover{background:#f39c12;color:#fff;border-color:#f39c12}
-.detect-actions .detect-delete:hover{background:#e74c3c;color:#fff;border-color:#e74c3c}
-.hit-log{font-size:12px;color:#8b6914;margin-top:8px;padding:8px 12px;background:#fdfaf5;border-radius:8px;border:1px dashed #e0d5c7}
-.drink-grid{display:flex;flex-wrap:wrap;gap:6px}
-.drink-btn{background:#fff;border:1.5px solid #d4c5b2;border-radius:6px;padding:6px 10px;cursor:pointer;text-align:left;transition:all .15s;display:inline-flex;flex-direction:column;gap:2px;min-width:120px}
-.drink-btn:hover{background:#8b6914;color:#fff;border-color:#8b6914;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.12)}
-.drink-btn:hover .drink-desc,.drink-btn:hover .drink-price{color:#d4c4a8}
-.drink-btn .drink-name{font-weight:700;font-size:16px}
-.drink-btn .drink-desc{font-size:11px;color:#8b6914;margin-top:1px}
-.drink-btn .drink-price{font-size:15px;font-weight:700;color:#8b6914;margin-top:2px}
-.cart-summary{background:#fdfaf5;border-radius:8px;padding:8px 10px;margin-top:6px;max-height:40vh;overflow-y:auto}
-.cart-summary .cart-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:16px;border-bottom:1px solid #f0e8d8;min-height:44px}
-.cart-summary .cart-row:last-child{border-bottom:none;font-size:17px;font-weight:700;color:#8b6914;padding-top:8px}
-.checkout-btn{width:100%;padding:10px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px;box-shadow:0 2px 6px rgba(39,174,96,.25)}
-.checkout-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(39,174,96,.35)}
-.bundle-grid{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.bundle-card{background:#fdfaf5;border:1.5px dashed #e0d5c7;border-radius:8px;padding:10px;text-align:center;transition:all .15s;cursor:pointer}
-.bundle-card:hover{border-color:#8b6914;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.06)}
-.bundle-card .bundle-rank{font-size:11px;font-weight:700;color:#8b6914;text-transform:uppercase;letter-spacing:1px}
-.bundle-card .bundle-products{font-size:14px;font-weight:700;color:#8b6914;margin:6px 0}
-.bundle-card .bundle-price{font-size:18px;font-weight:700;color:#27ae60}
-.bundle-card .bundle-save{font-size:11px;color:#e74c3c}
-.bundle-hint{text-align:center;color:#8b6914;font-size:13px;padding:20px}
-.sched-table{width:100%;border-collapse:collapse;font-size:15px}
-.sched-table th,.sched-table td{border:1px solid #d4c5b2;padding:8px 10px;text-align:center}
-.sched-table th{background:#8b6914;color:#fff;font-weight:700;font-size:14px;padding:12px 14px}
-.sched-table td{background:#fff;min-width:120px;padding:12px 14px;font-size:14px}
-.sched-table tr:nth-child(even) td{background:#f8f6f3}
-.sched-table td:first-child{background:#ecf0f1;font-weight:700;color:#8b6914}
-.shift-cell{padding:7px 10px;margin:2px 0;background:#f5f0eb;border-radius:4px;font-size:14px;font-weight:500}
-.btn-group{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.btn-warning{background:#e67e22;color:#fff}
-
-
-.cart-status{font-size:12px;font-weight:600;padding:3px 8px;border-radius:8px;margin-left:8px;white-space:nowrap}
-.cart-status-confirmed{background:#d5f5e3;color:#1e8449}
-.cart-status-review{background:#fdebd0;color:#b9770e}
-.cart-status-pending{background:#eaecee;color:#5d6d7e}
-.cart-edit-btn{color:#8b6914;background:#fff;border:1px solid #d4c5b2;border-radius:4px;cursor:pointer;font-size:12px;padding:4px 10px;margin-left:8px;white-space:nowrap;font-weight:600}
-.cart-edit-btn:hover{background:#f39c12;color:#fff;border-color:#f39c12}
-
-
-.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:999;justify-content:center;align-items:center}
-.modal-overlay.show{display:flex}
-.modal-box{background:#fff;border-radius:16px;padding:24px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.modal-box h3{font-size:18px;color:#8b6914;margin-bottom:16px}
-.modal-box label{display:block;font-size:12px;font-weight:600;color:#8b6914;margin-bottom:4px;margin-top:12px}
-.modal-box input,.modal-box select{width:100%;padding:10px 12px;border:2px solid #e0d5c7;border-radius:8px;font-size:14px;transition:border .2s}
-.modal-box input:focus,.modal-box select:focus{border-color:#8b6914;outline:none}
-.modal-box select{appearance:none;background:#fff url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%235c3d2e' d='M6 8L1 3h10z'/></svg>") no-repeat right 12px center;padding-right:36px}
-.modal-btns{display:flex;gap:8px;margin-top:20px}
-.modal-btns button{flex:1;padding:8px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
-.modal-btn-save{background:#27ae60;color:#fff}
-.modal-btn-save:hover{background:#2ecc71}
-.modal-btn-cancel{background:#e0d5c7;color:#8b6914}
-.modal-btn-cancel:hover{background:#d4c5b2}
-.modal-btn-delete{background:#e74c3c;color:#fff}
-.modal-btn-delete:hover{background:#c0392b}
-/* Coffee customization modal */
-.coffee-option-group{margin:12px 0}
-.coffee-option-group .opt-label{display:block;font-size:13px;font-weight:700;color:#8b6914;margin-bottom:6px}
-.coffee-option-row{display:flex;gap:6px;flex-wrap:wrap}
-.coffee-opt-btn{padding:8px 14px;border:2px solid #e0d5c7;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:#8b6914;transition:all .15s;white-space:nowrap}
-.coffee-opt-btn:hover{border-color:#8b6914;background:#fdf9f3}
-.coffee-opt-btn.selected{background:#8b6914;color:#fff;border-color:#8b6914}
-.coffee-modal-actions{display:flex;gap:8px;margin-top:20px}
-.coffee-modal-actions button{flex:1;padding:10px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
-.coffee-modal-add{background:#27ae60;color:#fff}
-.coffee-modal-add:hover{background:#2ecc71}
-.coffee-modal-cancel{background:#e0d5c7;color:#8b6914}
-.coffee-modal-cancel:hover{background:#d4c5b2}
-
-.coffee-tag{display:inline-block;font-size:10px;padding:1px 5px;border-radius:6px;background:#f0e8d8;color:#8b6914;margin-left:2px;font-weight:400;white-space:nowrap}
-#edit-qty::-webkit-outer-spin-button,#edit-qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-
-
-#swap-modal .modal-box{background:#fff;border-radius:16px;padding:28px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
-#swap-employee-select{width:100%;padding:12px;border-radius:8px;border:2px solid #e0d5c7;font-size:15px;background:#fff;color:#5d4037}
-#swap-employee-select:focus{outline:none;border-color:#8b6914}
-
-
-.swap-emp-btn{width:100%;padding:12px 16px;border:2px solid #e0d5c7;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;font-weight:600;color:#5d4037;text-align:left;transition:all .15s}
-.swap-emp-btn:hover{background:#f5f0eb;border-color:#8b6914}
-
-
-
-.payment-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center}
-.payment-overlay.show{display:flex}
-.payment-panel{background:#fff;border-radius:12px;width:400px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
-.payment-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee}
-.payment-header h3{margin:0;font-size:18px;color:#8b6914}
-.close-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#999;padding:0;line-height:1}
-.close-btn:hover{color:#333}
-.receipt-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center}
-.receipt-panel{background:#fff;border-radius:12px;width:380px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);font-family:monospace}
-.receipt-header{background:#8b6914;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;text-align:center}
-.receipt-header h3{margin:0;font-size:18px}
-.receipt-header .receipt-id{font-size:11px;opacity:0.85;margin-top:4px}
-.receipt-body{padding:16px 20px}
-.receipt-line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dotted #e0d5c0;font-size:13px}
-.receipt-line .item-name{flex:1}
-.receipt-line .item-qty{color:#888;margin:0 8px}
-.receipt-line .item-discount{color:#d32f2f;font-size:11px}
-.receipt-divider{border-top:2px dashed #ccc;margin:10px 0}
-.receipt-total{display:flex;justify-content:space-between;font-size:18px;font-weight:700;padding:8px 0;color:#8b6914}
-.receipt-savings{text-align:center;color:#27ae60;font-size:13px;padding:4px 0}
-.receipt-footer{text-align:center;padding:12px 20px 20px}
-.receipt-footer button{margin:4px 6px;padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:14px}
-.receipt-btn-print{background:#8b6914;color:#fff}
-.receipt-btn-close{background:#eee;color:#333}
-@media print{
-  body>:not(#receipt-overlay):not(#payment-modal){display:none!important}
-  #receipt-overlay{position:static!important;background:none!important;display:flex!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important}
-  .receipt-panel{box-shadow:none!important;width:100%!important;max-width:100%!important;max-height:none!important;border-radius:0!important}
-  .receipt-btn-close,.receipt-footer{display:none!important}
-  .receipt-header h3{font-size:18px!important;margin:0 0 8px 0!important}
-  .receipt-line{font-size:13px!important;padding:4px 0!important}
-  .receipt-total{font-size:16px!important;font-weight:700!important}
-}
-
-
-.lang-toggle{display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #8b6914;margin:2px 4px}
-.lang-toggle button{padding:3px 8px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#8b6914;transition:all .15s}
-.lang-toggle button.active{background:#8b6914;color:#fff}
-.lang-toggle button:hover:not(.active){background:#f0e8d8}
-.dash-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-bottom:14px}
-.kpi-card{background:#fff;border-radius:10px;padding:10px 6px;box-shadow:0 2px 8px rgba(0,0,0,.04);text-align:center;border:1px solid #f0e8d8}
-.kpi-card .kpi-value{font-size:18px;font-weight:700;color:#8b6914}
-.kpi-card .kpi-label{font-size:10px;color:#6b5b4f;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
-.kpi-card .kpi-change{font-size:9px;margin-top:2px}
-.kpi-up{color:#27ae60}.kpi-down{color:#e74c3c}
-.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
-.chart-panel{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #f0e8d8}
-.chart-panel h4{font-size:14px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}
-.chart-full{grid-column:1/-1}
-.table-panel{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #f0e8d8;margin-bottom:14px}
-.table-panel h4{font-size:14px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}.panel-container{display:none}
-</style>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-</head>
-<body>
-<div id="login-page">
-<div class="card">
-<h1 data-i18n="Bakery AI System">Bakery AI System</h1>
-<div class="sub" data-i18n="Bakery-Cafe Intelligent Operations">Bakery-Cafe Intelligent Operations</div>
-<input id="username" placeholder="Username" autocomplete="username" value="manager">
-<input id="password" type="password" placeholder="Password" autocomplete="current-password" value="hash123">
-<button onclick="doLogin()" id="signin-btn" data-i18n="Sign In">Sign In</button>
-<div id="error-msg"></div>
-</div>
-</div>
-<div id="dashboard" class="hidden">
-<div class="topnav">
-<h2>Bakery AI</h2>
-<nav>
-<button class="active" data-panel="pos" onclick="showPanel('pos')">POS</button>
-<button data-panel="forecast" data-i18n="Sales Forecast" class="manager-only" onclick="showPanel('forecast')">Forecast</button>
-<button data-panel="schedule" data-i18n="Shift Schedule" class="manager-only" onclick="showPanel('schedule')">Schedule</button>
-<button data-panel="attendance" data-i18n="Attendance" onclick="showPanel('attendance')">Attendance</button>
-<button data-panel="inventory" data-i18n="Inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
-<button data-panel="revenue" data-i18n="Revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
-</nav>
-<span id="role-badge" class="role-badge"></span>
-<span style="color:#6b5b4f;font-size:12px;white-space:nowrap" id="user-display"></span>
-<div class="lang-toggle">
-<button id="lang-en" class="active" onclick="setLang('en')">EN</button>
-<button id="lang-zh" onclick="setLang('zh')">中文</button>
-</div>
-</div>
-<button class="logout-btn" onclick="doLogout()" data-i18n="Sign Out">Sign Out</button>
-</div>
-<div class="main">
-<div class="topbar" style="padding:6px 16px"><span id="panel-title" style="font-size:13px;color:#6b5b4f">POS Checkout</span></div>
-<div class="content" id="content-area"></div>
-</div>
-</div>
-
-
-<input type="file" accept="image/*" style="display:none" id="scan-file" onchange="console.log('onchange fired');handleScan(event)">
-
-</div>
-</div>
-<div id="edit-modal" class="modal-overlay" onclick="if(event.target===this)closeEditModal()">
-<div class="modal-box">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-<h3 style="margin:0">Edit Cart Item</h3>
-<button onclick="closeEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#8b6914;padding:0;line-height:1">&times;</button>
-</div>
-<input type="hidden" id="edit-idx">
-<input type="hidden" id="edit-error" value="">
-<div id="edit-status-display" style="padding:4px 0;font-size:13px;color:#8b6914"></div>
-<label>Product Name</label>
-<select id="edit-name">
-<optgroup label="-- Bakery --"></optgroup>
-<optgroup label="-- Beverages --"></optgroup>
-</select>
-<label>Quantity</label>
-<div style="display:flex;align-items:center;gap:0">
-<button type="button" onclick="changeQty(-1)" style="padding:10px 16px;border:2px solid #e0d5c7;border-right:none;border-radius:8px 0 0 8px;background:#f5f0eb;font-size:18px;font-weight:700;cursor:pointer;color:#8b6914">-</button>
-<input id="edit-qty" type="number" min="1" max="99" value="1" style="border-radius:0;text-align:center;font-size:16px;font-weight:700;-moz-appearance:textfield" >
-<button type="button" onclick="changeQty(1)" style="padding:10px 16px;border:2px solid #e0d5c7;border-left:none;border-radius:0 8px 8px 0;background:#f5f0eb;font-size:18px;font-weight:700;cursor:pointer;color:#8b6914">+</button>
-</div>
-
-<label>Freshness <span style="font-weight:400;color:#999;font-size:12px"></span></label>
-<select id="edit-freshness">
-<option value="auto">Auto</option>
-<option value="Fresh">Fresh</option>
-<option value="Day-1">Day-1 (20% off)</option>
-
-
-</select>
-
-<label>Error Type</label>
-<select id="edit-error-type">
-<option value="">-- None --</option>
-<option value="wrong_product">Wrong product identified</option>
-<option value="wrong_quantity">Wrong quantity</option>
-<option value="damaged">Damaged / defective item</option>
-<option value="mislabeled">Mislabeled (wrong freshness tag)</option>
-<option value="other">Other</option>
-</select>
-
-<div class="modal-btns">
-<button class="modal-btn-delete" onclick="deleteCartItem()">Delete Item</button>
-<button class="modal-btn-save" onclick="saveCartItem()">Save Changes</button>
-</div>
-</div>
-</div>
-
-<!-- Beverage Customization Modal -->
-<div id="coffee-modal" class="modal-overlay" onclick="if(event.target===this)closeCoffeeModal()">
-<div class="modal-box" style="max-width:440px">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-<h3 style="margin:0" id="coffee-modal-title">Customize Beverage</h3>
-<button onclick="closeCoffeeModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#8b6914;padding:0;line-height:1">&times;</button>
-</div>
-<div class="coffee-option-group">
-<span class="opt-label">Size</span>
-<div class="coffee-option-row" id="coffee-size-options">
-<button class="coffee-opt-btn selected" onclick="selectCoffeeOption('size','regular')" data-val="regular">Regular</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('size','large')" data-val="large">Large +RM3</button>
-</div>
-</div>
-<div class="coffee-option-group">
-<span class="opt-label">Temperature</span>
-<div class="coffee-option-row" id="coffee-temp-options">
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('temp','hot')" data-val="hot">Hot</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('temp','cold')" data-val="cold">Cold</button>
-</div>
-</div>
-<div class="coffee-option-group">
-<span class="opt-label">Sweetness</span>
-<div class="coffee-option-row" id="coffee-sugar-options">
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','normal')" data-val="normal">Normal Sweet</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','less')" data-val="less">Less Sweet</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','slight')" data-val="slight">Slightly Sweet</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('sugar','none')" data-val="none">No Sugar</button>
-</div>
-</div>
-<div class="coffee-option-group coffee-modal-ice" id="coffee-ice-group" style="display:none">
-<span class="opt-label">Ice Level</span>
-<div class="coffee-option-row" id="coffee-ice-options">
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('ice','normal')" data-val="normal">Normal</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('ice','less')" data-val="less">Less</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('ice','none')" data-val="none">No Ice</button>
-</div>
-</div>
-<div class="coffee-modal-actions">
-<button class="coffee-modal-cancel" onclick="closeCoffeeModal()">Cancel</button>
-<button class="coffee-modal-add" onclick="confirmCoffeeAdd()">Add to Cart</button>
-</div>
-</div>
-</div>
-
-<!-- Swap Modal -->
-<div id="swap-modal" class="modal-overlay" onclick="if(event.target===this)document.getElementById('swap-modal').classList.remove('show')">
-<div class="modal-box" style="max-width:400px">
-<h3 id="swap-modal-msg">Swap Employee</h3>
-<label style="font-size:14px;font-weight:600;display:block;margin-bottom:8px">Swap with:</label>
-<div id="swap-employee-list" style="display:flex;flex-direction:column;gap:6px;max-height:250px;overflow-y:auto"></div>
-<div style="display:flex;gap:10px;margin-top:16px">
-<button onclick="document.getElementById('swap-modal').classList.remove('show')" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd;background:#f5f0e8;cursor:pointer;font-size:14px;font-weight:600">Close</button>
-</div>
-</div>
-</div>
-
-
-
-
-<script>
 
 function formatMoney(v){return (v||0).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0});}
 
@@ -360,7 +7,7 @@ var LANG=localStorage.getItem('bakery_lang')||'en';
 var T={
 en:{
 'POS Checkout':'POS Checkout','Sales Forecast':'Sales Forecast','Shift Schedule':'Shift Schedule',
-'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out',
+'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out','Alerts':'Alerts',
 'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
 'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
 'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
@@ -376,7 +23,7 @@ en:{
 'Prep Checklist':'Prep Checklist','Acknowledge':'Acknowledge',
 'Stock':'Stock','Fresh':'Fresh','Day-1':'Day-1','Day-2':'Day-2','Near-Expired':'Near-Expired',
 'Send':'Send','Ask me anything...':'Ask me anything...',
-'AI Summary':'AI Summary',
+'AI Summary':'AI Summary','System Alerts':'System Alerts',
 'Username':'Username','Password':'Password','Sign In':'Sign In',
 'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token',
 'Request failed':'Request failed','Manager only':'Manager only',
@@ -411,11 +58,71 @@ en:{
 'Dine-in':'Dine-in',
 'Takeaway':'Takeaway',
 'Orders':'Orders',
-'Order History':'Order History'
+'Order History':'Order History',
+'Apple Pie':'Apple Pie',
+'Bagel':'Bagel',
+'Baguette':'Baguette',
+'Bread Coconut':'Bread Coconut',
+'Bread Roll':'Bread Roll',
+'Brioche':'Brioche',
+'Brownie':'Brownie',
+'Chiffon':'Chiffon',
+'Chocolate Cake':'Chocolate Cake',
+'Chocopie':'Chocopie',
+'Cookie':'Cookie',
+'Cornbread':'Cornbread',
+'Cream Horn':'Cream Horn',
+'Croissant':'Croissant',
+'Croissant Chocolate':'Croissant Chocolate',
+'Donut':'Donut',
+'Eggtart':'Eggtart',
+'Flatbread':'Flatbread',
+'Macaron':'Macaron',
+'Mantequilla':'Mantequilla',
+'Melon Bread':'Melon Bread',
+'Muffin':'Muffin',
+'Pancake':'Pancake',
+'Pandesal':'Pandesal',
+'Pizza Bread':'Pizza Bread',
+'Pullman':'Pullman',
+'Soboru Bread':'Soboru Bread',
+'Sourdough':'Sourdough',
+'Stickbread':'Stickbread',
+'Tostada':'Tostada',
+'Americano':'Americano',
+'Cappuccino':'Cappuccino',
+'Caramel Macchiato':'Caramel Macchiato',
+'Chai Latte':'Chai Latte',
+'Cold Brew':'Cold Brew',
+'Earl Grey':'Earl Grey',
+'English Breakfast':'English Breakfast',
+'Espresso':'Espresso',
+'Flat White':'Flat White',
+'Hot Chocolate':'Hot Chocolate',
+'Latte':'Latte',
+'Lemonade':'Lemonade',
+'Matcha Latte':'Matcha Latte',
+'Milk Tea':'Milk Tea',
+'Mocha':'Mocha',
+'Bergamot-infused black tea':'Bergamot-infused black tea',
+'Classic black tea with milk':'Classic black tea with milk',
+'Espresso with chocolate':'Espresso with chocolate',
+'Espresso with frothy milk foam':'Espresso with frothy milk foam',
+'Espresso with hot water':'Espresso with hot water',
+'Freshly squeezed lemon juice':'Freshly squeezed lemon juice',
+'Full-bodied black tea':'Full-bodied black tea',
+'Japanese green tea with milk':'Japanese green tea with milk',
+'Pure concentrated coffee shot':'Pure concentrated coffee shot',
+'Rich cocoa with steamed milk':'Rich cocoa with steamed milk',
+'Slow-steeped for 18 hours':'Slow-steeped for 18 hours',
+'Smooth espresso with steamed milk':'Smooth espresso with steamed milk',
+'Spiced Indian tea with milk':'Spiced Indian tea with milk',
+'Vanilla syrup with caramel drizzle':'Vanilla syrup with caramel drizzle',
+'Velvety microfoam with espresso':'Velvety microfoam with espresso',
 },
 zh:{
 'POS Checkout':'POS结账','Sales Forecast':'销售预测','Shift Schedule':'排班表',
-'Inventory':'库存','Revenue':'收入','Sign Out':'退出登录',
+'Inventory':'库存','Revenue':'收入','Sign Out':'退出登录','Alerts':'提醒',
 'Cart':'购物车','Scan items or use manual entry':'扫描商品或手动输入',
 'Generate Top-3':'生成Top-3','Checkout':'结账','Total':'总计',
 'Add items to cart then generate Top-3 bundles':'添加商品到购物车后生成Top-3套餐',
@@ -431,7 +138,7 @@ zh:{
 'Prep Checklist':'准备清单','Acknowledge':'确认',
 'Stock':'库存','Fresh':'新鲜','Day-1':'第1天','Day-2':'第2天','Near-Expired':'临期',
 'Send':'发送','Ask me anything...':'问我任何问题...',
-'AI Summary':'AI摘要',
+'AI Summary':'AI摘要','System Alerts':'系统提醒',
 'Username':'用户名','Password':'密码','Sign In':'登录',
 'Invalid credentials':'凭据无效','Missing token':'缺少令牌','Invalid token':'令牌无效',
 'Request failed':'请求失败','Manager only':'仅限经理',
@@ -467,7 +174,67 @@ zh:{
 'Dine-in':'堂食',
 'Takeaway':'打包',
 'Orders':'订单',
-'Order History':'订单历史'}};
+'Order History':'订单历史',
+'Apple Pie':'苹果派',
+'Bagel':'贝果',
+'Baguette':'法棍',
+'Bread Coconut':'椰子面包',
+'Bread Roll':'面包卷',
+'Brioche':'布里欧修',
+'Brownie':'布朗尼',
+'Chiffon':'戚风蛋糕',
+'Chocolate Cake':'巧克力蛋糕',
+'Chocopie':'巧克力派',
+'Cookie':'曲奇',
+'Cornbread':'玉米面包',
+'Cream Horn':'奶油号角',
+'Croissant':'可颂',
+'Croissant Chocolate':'巧克力可颂',
+'Donut':'甜甜圈',
+'Eggtart':'蛋挞',
+'Flatbread':'扁面包',
+'Macaron':'马卡龙',
+'Mantequilla':'黄油面包',
+'Melon Bread':'蜜瓜面包',
+'Muffin':'玛芬',
+'Pancake':'松饼',
+'Pandesal':'菲式面包',
+'Pizza Bread':'披萨面包',
+'Pullman':'普尔曼吐司',
+'Soboru Bread':'酥菠萝面包',
+'Sourdough':'酸面包',
+'Stickbread':'面包棒',
+'Tostada':'烤玉米饼',
+'Americano':'美式',
+'Cappuccino':'卡布奇诺',
+'Caramel Macchiato':'焦糖玛奇朵',
+'Chai Latte':'印度奶茶',
+'Cold Brew':'冷萃',
+'Earl Grey':'伯爵茶',
+'English Breakfast':'英式早餐茶',
+'Espresso':'浓缩咖啡',
+'Flat White':'馥芮白',
+'Hot Chocolate':'热巧克力',
+'Latte':'拿铁',
+'Lemonade':'柠檬水',
+'Matcha Latte':'抹茶拿铁',
+'Milk Tea':'奶茶',
+'Mocha':'摩卡',
+'Bergamot-infused black tea':'佛手柑红茶',
+'Classic black tea with milk':'经典红茶配牛奶',
+'Espresso with chocolate':'浓缩咖啡配巧克力',
+'Espresso with frothy milk foam':'浓缩咖啡配奶泡',
+'Espresso with hot water':'浓缩咖啡加热水',
+'Freshly squeezed lemon juice':'鲜榨柠檬汁',
+'Full-bodied black tea':'醇厚红茶',
+'Japanese green tea with milk':'日式抹茶配牛奶',
+'Pure concentrated coffee shot':'纯浓缩咖啡',
+'Rich cocoa with steamed milk':'浓郁可可配蒸奶',
+'Slow-steeped for 18 hours':'18小时慢泡',
+'Smooth espresso with steamed milk':'顺滑浓缩咖啡配蒸奶',
+'Spiced Indian tea with milk':'印度香料茶配牛奶',
+'Vanilla syrup with caramel drizzle':'香草糖浆配焦糖淋酱',
+'Velvety microfoam with espresso':'丝绒微泡配浓缩咖啡',}};
 function t(k){var m=T[LANG];if(m&&m[k])return m[k];if(LANG!=='en'&&T.en&&T.en[k])return T.en[k];return k;}
 function setLang(l){
 LANG=l;localStorage.setItem('bakery_lang',l);
@@ -485,10 +252,11 @@ var p=document.getElementById('password');if(p)p.placeholder=t('Password');
 // Update panel title
 var pt=document.getElementById('panel-title');
 if(pt&&currentPanel){
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),attendance:t('Attendance'),inventory:t('Inventory'),revenue:t('Revenue')};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),attendance:t('Attendance'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue')};
 pt.textContent=titles[currentPanel]||currentPanel;
 }
 // Update alert badge title
+var ab=document.getElementById('alert-badge');if(ab)ab.title=t('System Alerts');
 // Re-render current panel for dynamic content
 if(typeof currentPanel!=='undefined'&&currentPanel){showPanel(currentPanel);}
 }
@@ -623,9 +391,9 @@ var btns=document.querySelectorAll('.topnav nav button');
 for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
 var btn=document.querySelector('[data-panel='+panel+']');
 if(btn)btn.classList.add('active');
-var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),revenue:t('Revenue'),attendance:'Attendance'};
+var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),wastage:t('Wastage Log'),revenue:t('Revenue'),attendance:'Attendance'};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
-var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue,attendance:renderAttendance};
+var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,wastage:renderWastage,revenue:renderRevenue,attendance:renderAttendance};
 if(panel==='pos'||panel==='revenue')loadS5DiscountCache();if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 var container=getPanelContainer(panel);
 container.style.display='block';
@@ -680,7 +448,7 @@ var sc=d.status==='confirmed'?'detect-status-confirmed':(d.status==='review'?'de
 var sl=d.status==='confirmed'?t('Confirmed'):(d.status==='review'?t('Needs Review'):t('Pending'));
 var pr=(PRODUCT_PRICES[d.product_name]||COFFEE_PRICES[d.product_name]||5).toFixed(2);
 detectHTML+='<div class="detect-card">';
-detectHTML+='<div class="detect-header"><span class="detect-name">'+d.product_name.replace(/_/g,' ')+'</span>';
+detectHTML+='<div class="detect-header"><span class="detect-name">'+t(d.product_name.replace(/_/g,' '))+'</span>';
 detectHTML+='<span class="detect-qty">x'+d.quantity+'</span></div>';
 detectHTML+='<div class="detect-meta">';
 detectHTML+='<span>¥'+pr+'</span><span>Stock: '+(d.stock||'--')+'</span>';
@@ -755,8 +523,8 @@ var coffeeBtns='';
 for(var i=0;i<COFFEE_DRINKS.length;i++){
 var cd=COFFEE_DRINKS[i];
 coffeeBtns+='<button class="drink-btn" onclick="openCoffeeModal('+"'"+cd.key+"'"+')">';
-coffeeBtns+='<span class="drink-name">'+cd.name+'</span>';
-coffeeBtns+='<span class="drink-desc">'+cd.desc+'</span>';
+coffeeBtns+='<span class="drink-name">'+t(cd.name)+'</span>';
+coffeeBtns+='<span class="drink-desc">'+t(cd.desc)+'</span>';
 coffeeBtns+='<span class="drink-price">¥'+cd.price+'</span></button>';
 }
 
@@ -778,8 +546,8 @@ var bp=PRODUCT_PRICES[bk]||5;
 var dr={"Fresh":0,"Day-1":DISCOUNT_RATE};
 var discountRate=dr[curFresh]||0;
 bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"','"+curFresh+"'"+')" style="border-left:4px solid '+fci+'">';
-bakeryBtns+='<span class="drink-name">'+capName(bk)+'</span>';
-bakeryBtns+='<span class="drink-desc">Stock: '+stockInfo+'</span>';
+bakeryBtns+='<span class="drink-name">'+t(capName(bk))+'</span>';
+bakeryBtns+='<span class="drink-desc">'+t('Stock')+': '+stockInfo+'</span>';
 if(discountRate>0){
     bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">¥'+bp.toFixed(2)+'</s> ¥'+(bp*(1-discountRate)).toFixed(2)+'</span>';
 }else{
@@ -863,7 +631,7 @@ h+='</div>';
 h+='<div class="panel"><h4>'+t('Cart - Current Order')+'</h4>';
 h+='<div class="cart-summary">';
 if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>Total</span><span>¥'+total.toFixed(2)+'</span></div>';}
-else{h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px">No items in cart</p>';}
+else{h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px">'+t('No items in cart')+'</p>';}
 h+='</div>';
 if(cartItems.length>0){h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="clearCart()">Clear</button><button class="checkout-btn" onclick="completePayment()" style="flex:1">Checkout - ¥'+total.toFixed(2)+'</button></div>';}
 h+='</div></div>';
@@ -880,7 +648,7 @@ h+='</div>';
 
 h+='</div>';
 // Recent Orders for refund
-h+='<div class="panel" style="margin-top:10px"><h4>Orders <input type="date" id="refund-date" value="'+new Date().toISOString().slice(0,10)+'" onchange="loadRecentOrders()" style="float:right;font-size:10px;padding:2px 4px;border:1px solid #e0d5c7;border-radius:4px;margin-left:6px;width:120px"><button class="btn btn-sm" onclick="loadRecentOrders()" style="float:right;font-size:10px;padding:3px 8px">Refresh</button></h4>';
+h+='<div class="panel" style="margin-top:10px"><h4>'+t('Orders')+' <input type="date" id="refund-date" value="'+new Date().toISOString().slice(0,10)+'" onchange="loadRecentOrders()" style="float:right;font-size:10px;padding:2px 4px;border:1px solid #e0d5c7;border-radius:4px;margin-left:6px;width:120px"><button class="btn btn-sm" onclick="loadRecentOrders()" style="float:right;font-size:10px;padding:3px 8px">Refresh</button></h4>';
 h+='<div id="recent-orders-list" style="max-height:200px;overflow-y:auto;font-size:11px">';
 h+='<p style="color:#8b6914;text-align:center;padding:8px;font-size:11px">Loading...</p>';
 h+='</div></div>';
@@ -1142,7 +910,7 @@ var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantit
 var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod,dine_type:dineType})});
 if(!resp.ok)throw new Error("Checkout failed");
 var d=await resp.json();
-clearPanelCache('revenue');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
+clearPanelCache('revenue');clearPanelCache('wastage');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
 else if(d.errors&&d.errors.length>0){alert("Checkout errors: "+d.errors.join(", "));renderPOS(document.getElementById("panel-pos")||document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
 hitlLog.push({action:"Checkout: "+(_payReceipt?(_payReceipt.total||_payTotal).toFixed(2):_payTotal.toFixed(2))+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
@@ -1180,7 +948,7 @@ var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
 var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
 if(!r.ok)throw new Error('Checkout failed');
 var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
+if(d.status==='ok'){alert(t('Payment Complete')+' - ¥'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');clearPanelCache('wastage');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));fetch(S5_API+'/alerts/check',{method:'POST'}).catch(function(){});}
 else{alert('Partial: '+(d.errors||[]).join('; '));}
 }catch(e){alert('Payment failed: '+e.message);}
 }
@@ -1292,12 +1060,11 @@ function renderForecast(c){
     +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-demand">-</div><div class="kpi-label">Products Forecast</div></div>'
     +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-plan">-</div><div class="kpi-label">Bake Plan Items</div></div>'
     +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-matl">-</div><div class="kpi-label">Materials to Order</div></div></div>'
-    +'<div class="chart-row"><div class="chart-panel chart-full"><div id="fc-accuracy-bar" style="font-size:12px;margin-bottom:8px"></div><h4>Demand Forecast</h4><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><input type="date" id="fc-date" value="'+today+'" onchange="loadForecast(false)" style="padding:6px 10px;border:1px solid #d4c5a9;border-radius:6px;font-size:13px"><button class="btn btn-sm" style="font-size:11px" onclick="loadForecast(true)">Refresh</button></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px" id="fc-s5-btn-row"></div><div id="forecast-result" style="overflow-x:auto;max-width:100%"><span class="spinner"></span>Loading forecast...</div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel chart-full"><div id="fc-accuracy-bar" style="font-size:12px;margin-bottom:8px"></div><h4>Demand Forecast</h4><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><input type="date" id="fc-date" value="'+today+'" onchange="loadForecast(false)" style="padding:6px 10px;border:1px solid #d4c5a9;border-radius:6px;font-size:13px"><button class="btn btn-sm" style="font-size:11px" onclick="loadForecast(true)">Refresh</button></div><div id="forecast-result" style="overflow-x:auto;max-width:100%"><span class="spinner"></span>Loading forecast...</div></div></div>'
     +'<div class="chart-row" style="margin-top:12px"><div class="chart-panel" style="flex:1"><h4>Production Plan <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadProdPlan()">Refresh</button></h4><div id="prod-plan-result"><span class="spinner"></span>Loading...</div></div><div class="chart-panel" style="flex:1"><h4>Material Procurement <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadMaterials()">Refresh</button></h4><div id="materials-result"><span class="spinner"></span>Loading...</div></div></div>';
   loadForecast(false);
   loadProdPlan();
   loadMaterials();
-  setTimeout(function(){injectS5ResultDiv('forecast-result','fc-s5-result');injectS5Button('fc-s5-btn-row','forecast','fc-date','fc-s5-result');},200);
 }
 async function loadForecast(force){
 var dateEl=document.getElementById('fc-date');var dateParam=dateEl&&dateEl.value?'&date='+dateEl.value:'';
@@ -1359,7 +1126,6 @@ c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:
 loadSchedule();
   var km2=document.getElementById('kpi-ranking-month');
   loadKPIRanking(km2?km2.value:today.substring(0,7));
-  setTimeout(function(){injectS5Button('sc-s5-btn-row','schedule','sched-date','sc-s5-result');},300);
 }
 
 async function generateSchedule(){
@@ -1554,22 +1320,20 @@ async function loadMaterials(){
     var totalOrder=0;
     var h='<div style="margin-top:4px"><strong style="font-size:13px;color:#4a3728">Material Procurement</strong></div>';
     h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px"><thead><tr style="background:#f5f0e8">';
-    h+='<th style="padding:6px 8px;text-align:left">Material</th><th style="padding:6px 8px;text-align:right">Weekly Need</th><th style="padding:6px 8px;text-align:right">Waste (5%)</th><th style="padding:6px 8px;text-align:right">Stock</th><th style="padding:6px 8px;text-align:right">To Order</th><th style="padding:6px 8px;text-align:center">Status</th></tr></thead><tbody>';
+    h+='<th style="padding:6px 8px;text-align:left">Material</th><th style="padding:6px 8px;text-align:right">Weekly Need</th><th style="padding:6px 8px;text-align:right">Stock</th><th style="padding:6px 8px;text-align:right">To Order</th><th style="padding:6px 8px;text-align:center">Status</th></tr></thead><tbody>';
     for(var i=0;i<keys.length;i++){
       var it=items[keys[i]];
       var alertColors={urgent:'#fce4e4',order:'#fff8e1',ok:'#e8f5e9'};
       var alertText={urgent:'Urgent',order:'Order',ok:'OK'};
       var alertCol={urgent:'#e74c3c',order:'#f39c12',ok:'#27ae60'};
       var bg=alertColors[it.alert]||'#fff';
-      var needStr=it.weekly_need!=null?it.weekly_need.toFixed(1)+' '+it.unit:it.note||'N/A';
-      var adjStr=it.waste_amount!=null?it.waste_amount.toFixed(2)+' '+it.unit:'-';
+      var needStr=it.weekly_need.toFixed(1)+' '+it.unit;
       var stockStr=it.current_stock.toFixed(2)+' '+it.unit;
       var orderStr=it.to_order>0?'<strong style="color:#e74c3c">'+it.to_order.toFixed(1)+' '+it.unit+'</strong>':'-';
       if(it.to_order>0)totalOrder++;
       h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
       h+='<td style="padding:6px 8px;font-weight:600;color:#4a3728">'+keys[i]+'</td>';
       h+='<td style="padding:6px 8px;text-align:right;color:#6b5b4f">'+needStr+'</td>';
-        h+='<td style="padding:6px 8px;text-align:right;color:#999;font-size:11px">'+adjStr+'</td>';
       h+='<td style="padding:6px 8px;text-align:right;color:#6b5b4f">'+stockStr+'</td>';
       h+='<td style="padding:6px 8px;text-align:right">'+orderStr+'</td>';
       h+='<td style="padding:6px 8px;text-align:center"><span style="color:'+alertCol[it.alert]+';font-weight:700;font-size:11px">'+alertText[it.alert]+'</span></td></tr>';
@@ -1674,9 +1438,7 @@ try{
 var d=new Date(sd+'T00:00:00');var days=daysToSunday(d);
 var r=await api('/s3/schedule?date='+sd+'&days='+days);
 var s=r.schedule||[];if(!s.length){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-warn"></span>No schedule';return}
-var scTable=document.getElementById("sc-table");if(!scTable){scTable=document.createElement("div");scTable.id="sc-table";}
-  injectS5ResultDiv?null:null;
-  renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
+renderScheduleTable(s,r);cachedSchedule=s;cachedSummary=r;cachedDate=sd;
 }catch(e){document.getElementById('schedule-result').textContent='Error: '+e.message;}
 }
 async function resyncSchedule(){
@@ -1772,28 +1534,13 @@ else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">
 }
 
 function renderInventory(c){
-  var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="inv-date" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b" onchange="fetchInventoryDashboard()"></div>' + '<div class="dash-grid" id="inv-kpis" style="margin-bottom:12px"></div>'
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Bread Stock Levels</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>Fresh vs Day-1 Ratio</h4><div id="inv-fresh-pie" style="height:180px"></div></div><div class="chart-panel"><h4>Top 5 Material Consumption</h4><div id="inv-consumption-chart" style="height:180px"></div></div></div>'
     
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Material Stock Days Remaining</h4><div id="inv-days-table"></div></div></div>'
-    +'<div class="chart-row"><div class="chart-panel"><h4>Baking Materials</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>Coffee Materials</h4><div id="inv-coffee-table"></div></div></div>'
-    +'<hr style="margin:16px 0;border-color:#e0d5c7">'
-    +'<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<div style="flex:1;min-width:280px"><h5 style="margin:0 0 8px;color:#8b6914">Material Wastage Rates</h5><div class="result-box" id="inv-wastage-summary" style="max-height:50vh;overflow-y:auto"><span class="spinner"></span>Loading...</div></div>'
-    +'<div style="flex:1;min-width:350px;border:1px solid #e0d5c7;border-radius:8px;padding:12px;background:#fdfaf5">'
-    +'<h5 style="margin:0 0 8px;color:#8b6914">New Material Check</h5>'
-    +'<div style="margin-bottom:8px"><label style="font-size:11px;color:#666">Date</label><input type="date" id="inv-wastage-date" value="'+today+'" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;margin-top:2px"></div>'
-    +'<div id="inv-wastage-counts" style="max-height:45vh;overflow-y:auto"><span class="spinner"></span>Loading materials...</div>'
-    +'<button class="btn btn-primary" onclick="submitInvWastageCheck()" style="width:100%;margin-top:8px">Submit Check</button>'
-    +'<div id="inv-wastage-result-msg" style="margin-top:8px;font-size:12px"></div>'
-    +'</div></div>'
-    +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="loadInvWastageHistory()">View History</button><button class="btn btn-sm" style="background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer" id="inv-wastage-s5-btn" onclick="runModuleS5Analysis(\'wastage\',\'inv-wastage-date\',\'inv-wastage-s5-result\')">AI Analysis</button></div>'
-    +'<div id="inv-wastage-s5-result" style="display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-top:8px;max-height:50vh;overflow-y:auto"></div><div id="inv-wastage-history" class="result-box" style="max-height:30vh;overflow-y:auto;margin-top:8px"></div></div>';
+    +'<div class="chart-row"><div class="chart-panel"><h4>Baking Materials</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>Coffee Materials</h4><div id="inv-coffee-table"></div></div></div>';
   fetchInventoryDashboard();
-  loadInvWastageMaterials().then(function(){loadInvWastageRates();});
-  setTimeout(function(){injectS5ResultDiv('inv-table','inv-s5-result');injectS5Button('inv-s5-btn','inventory','inv-date','inv-s5-result');},300);
 }
 async function fetchInventoryDashboard(){
   var bkpi=document.getElementById("inv-kpis");
@@ -1950,9 +1697,24 @@ function renderAttendance(c){
   loadAttendance();
 }
 
-
-async function loadInvWastageRates(){
-var el=document.getElementById('inv-wastage-summary');
+function renderWastage(c){
+var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+c.innerHTML='<div class="panel" style="flex:1"><h4>Raw Material Inventory Check</h4>'
++'<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
++'<div style="flex:1;min-width:280px"><h5 style="margin:0 0 8px;color:#8b6914">Material Wastage Rates</h5><div class="result-box" id="wastage-summary" style="max-height:50vh;overflow-y:auto"><span class="spinner"></span>Loading...</div></div>'
++'<div style="flex:1;min-width:350px;border:1px solid #e0d5c7;border-radius:8px;padding:12px;background:#fdfaf5">'
++'<h5 style="margin:0 0 8px;color:#8b6914">New Material Check</h5>'
++'<div style="margin-bottom:8px"><label style="font-size:11px;color:#666">Date</label><input type="date" id="wastage-date" value="'+today+'" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;margin-top:2px"></div>'
++'<div id="wastage-counts" style="max-height:45vh;overflow-y:auto"><span class="spinner"></span>Loading materials...</div>'
++'<button class="btn btn-primary" onclick="submitWastageCheck()" style="width:100%;margin-top:8px">Submit Check</button>'
++'<div id="wastage-result-msg" style="margin-top:8px;font-size:12px"></div>'
++'</div></div>'
++'<div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="loadWastageHistory()">View History</button>'
++'<div id="wastage-history" class="result-box" style="max-height:30vh;overflow-y:auto;margin-top:8px"></div></div></div>';
+loadWastageMaterials().then(function(){loadWastageRates();});
+}
+async function loadWastageRates(){
+var el=document.getElementById('wastage-summary');
 try{
 var theoResp=await api('/s4/inventory/materials/theoretical');
 var theoItems=theoResp.materials||[];
@@ -1989,11 +1751,11 @@ h+='</tbody></table>';
 el.innerHTML=h;
 }catch(e){el.textContent='Error: '+e.message;}
 }
-async function loadInvWastageMaterials(){
+async function loadWastageMaterials(){
 try{
 var r=await api('/s4/inventory/materials/theoretical');
 var items=r.materials||[];
-var countsDiv=document.getElementById('inv-wastage-counts');
+var countsDiv=document.getElementById('wastage-counts');
 var h='';
 for(var i=0;i<items.length;i++){
 var it=items[i];
@@ -2002,36 +1764,36 @@ h+='<div style="font-size:12px;font-weight:600;color:#3d322b">'+it.material_name
 h+='<div style="font-size:10px;color:#888;margin:2px 0">DB stock: '+it.current_stock.toFixed(3)+' '+it.unit+' | Consumed: '+(it.consumed_since*1000).toFixed(0)+'g | Theory: '+it.theoretical_stock.toFixed(3)+' '+it.unit+'</div>';
 h+='<div style="display:flex;align-items:center;gap:6px">';
 h+='<span style="font-size:11px;color:#666">Actual:</span>';
-h+='<input type="number" id="iwc-'+it.material_name.replace(/ /g,'_')+'" value="'+it.theoretical_stock.toFixed(3)+'" step="0.001" min="0" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
+h+='<input type="number" id="wc-'+it.material_name.replace(/ /g,'_')+'" value="'+it.theoretical_stock.toFixed(3)+'" step="0.001" min="0" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
 h+='<span style="font-size:10px;color:#999">'+it.unit+'</span>';
 h+='</div></div>';
 }
 countsDiv.innerHTML=h||'No materials found';
-}catch(e){document.getElementById('inv-wastage-counts').textContent='Error: '+e.message;}
+}catch(e){document.getElementById('wastage-counts').textContent='Error: '+e.message;}
 }
-async function submitInvWastageCheck(){
-var date=document.getElementById('inv-wastage-date').value;
-var inputs=document.querySelectorAll('#inv-wastage-counts input[type=number]');
+async function submitWastageCheck(){
+var date=document.getElementById('wastage-date').value;
+var inputs=document.querySelectorAll('#wastage-counts input[type=number]');
 var counts=[];
 inputs.forEach(function(inp){
 var id=inp.id;
-if(id.startsWith('iwc-')){
-var mn=id.slice(4).replace(/_/g,' ');
+if(id.startsWith('wc-')){
+var mn=id.slice(3).replace(/_/g,' ');
 counts.push({material_name:mn,actual_stock:parseFloat(inp.value)||0});
 }
 });
-if(counts.length===0){document.getElementById('inv-wastage-result-msg').innerHTML='<span style="color:#e74c3c">No materials to check</span>';return;}
-var msg=document.getElementById('inv-wastage-result-msg');
+if(counts.length===0){document.getElementById('wastage-result-msg').innerHTML='<span style="color:#e74c3c">No materials to check</span>';return;}
+var msg=document.getElementById('wastage-result-msg');
 msg.innerHTML='<span class="spinner"></span> Processing...';
 try{
 var resp=await fetch(API+'/s4/inventory/check',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({check_date:date,counts:counts})});
 var d=await resp.json();
 msg.innerHTML='<span style="color:#27ae60">Check submitted! '+d.results.length+' materials logged.</span>';
-loadInvWastageMaterials().then(function(){loadInvWastageRates();});
+loadWastageMaterials().then(function(){loadWastageRates();});
 }catch(e){msg.innerHTML='<span style="color:#e74c3c">Error: '+e.message+'</span>';}
 }
-async function loadInvWastageHistory(){
-var el=document.getElementById('inv-wastage-history');
+async function loadWastageHistory(){
+var el=document.getElementById('wastage-history');
 try{
 var r=await api('/s4/inventory/check/history?limit=30');
 var items=r.history||[];
@@ -2053,8 +1815,7 @@ fetch(API+'/s4/revenue/daily').then(function(r){return r.json()}).then(function(
 document.getElementById('rev-date').value=defDate;
 loadRevenueData(defDate);
 }).catch(function(){loadRevenueData();});
-  setTimeout(function(){if(!document.getElementById('rev-s5-result')){var rdiv=document.createElement('div');rdiv.id='rev-s5-result';rdiv.style.cssText='display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-bottom:12px';var kpis=document.getElementById('rev-kpis');if(kpis)kpis.parentNode.insertBefore(rdiv,kpis);}var btn=document.getElementById('rev-s5-btn');if(btn)btn.onclick=function(){runModuleS5Analysis('revenue','rev-date','rev-s5-result');};btn.textContent='\uD83D\uDD0D '+t('AI Analysis');},300);
-container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="rev-date" value="'+today+'" onchange="onRevenueDateChange(this.value)"><button class="btn btn-sm" style="margin-left:8px;background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer" id="rev-s5-btn" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b"></div>'
+container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><input type="date" id="rev-date" value="'+today+'" onchange="onRevenueDateChange(this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b"></div>'
 +'<div class="dash-grid" id="rev-kpis"></div>'
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Hourly Sales <span id="rev-hourly-title"></span></h4><div id="rev-hourly-chart" style="height:200px"></div></div></div>'
 +'<div class="chart-row"><div class="chart-panel chart-half"><h4>Category Breakdown <span id="rev-cat-title"></span></h4><div id="rev-category-chart" style="height:200px"></div></div><div class="chart-panel chart-half"><h4>Payment Methods <span id="rev-pay-title"></span></h4><div id="rev-payment-chart" style="height:200px"></div></div></div>'
@@ -2669,80 +2430,54 @@ startSwap(eid,ename,d,slot,role);
 }
 });
 
-</script>
+var alertPollTimer=null;
 
+function startAlertPoll(){
+  if(alertPollTimer)clearInterval(alertPollTimer);
+  pollAlertCount();
+  alertPollTimer=setInterval(pollAlertCount,30000);
+}
+async function pollAlertCount(){
+  try{var r=await api('/s5/alerts/count');
+  var el=document.getElementById('alert-count');if(el)el.textContent=r.unacked_count||0;
+  var badge=document.getElementById('alert-badge');
+  if(badge){if(r.unacked_count>0)badge.style.display='inline-flex';}
+  // Refresh panel content if open
+  var panel=document.getElementById('alert-panel');
+  if(panel&&panel.style.display!=='none'){showAlertPanel();}
+  }catch(e){}
+}
+async function showAlertPanel(){
+  document.getElementById('alert-panel').style.display='flex';
+  document.getElementById('alert-list-content').innerHTML='<span class="spinner"></span> Loading...';
+  try{var r=await api('/s5/alerts/list?limit=100');
+  var alerts=r.alerts||[];
+  if(!alerts.length){document.getElementById('alert-list-content').innerHTML='<div style="padding:20px;text-align:center;color:#6b5b4f">No alerts. System is healthy.</div>';return}
+  var h='';
+  alerts.forEach(function(a){
+    var sevColor=a.severity==='critical'?'#e74c3c':a.severity==='warning'?'#e67e22':'#3498db';
+    h+='<div style="border-left:4px solid '+sevColor+';background:#fafaf5;margin-bottom:8px;padding:10px 12px;border-radius:4px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+    h+='<div><strong style="color:'+sevColor+'">'+a.severity.toUpperCase()+'</strong> <span style="color:#8b6914;font-size:11px">['+a.source+']</span></div>';
+    h+='<div style="font-size:11px;color:#999">'+new Date(a.created_at).toLocaleString()+'</div></div>';
+    h+='<div style="margin:6px 0;font-size:13px">'+a.detail+'</div>';
+    if(a.root_cause)h+='<div style="font-size:11px;color:#e67e22;margin:4px 0">'+a.root_cause+'</div>';
+    h+='<div style="display:flex;gap:8px;margin-top:6px">';
+    if(!a.acknowledged)h+='<button onclick="ackAlert('+a.alert_id+')" style="background:#27ae60;color:#fff;border:none;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px">Acknowledge</button>';
+    else h+='<span style="font-size:11px;color:#999">Acknowledged</span>';
+    h+='</div></div>';
+  });
+  document.getElementById('alert-list-content').innerHTML=h;
+  }catch(e){document.getElementById('alert-list-content').textContent='Error: '+e.message;}
+}
+async function ackAlert(id){
+  try{await api('/s5/alerts/ack',{method:'POST',body:{alert_id:id}});
+  showAlertPanel();pollAlertCount();}catch(e){}
+}
+async function ackAllAlerts(){
+  try{await api('/s5/alerts/ack',{method:'POST',body:{ack_all:true}});
+  showAlertPanel();pollAlertCount();}catch(e){}
+}
+async function clearAllAlerts(){if(!confirm('Delete all alert history?'))return;try{await api('/s5/alerts/clear',{method:'POST',body:{}});showAlertPanel();pollAlertCount();}catch(e){}}function closeAlertPanel(){document.getElementById('alert-panel').style.display='none';}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!-- Payment Modal -->
-<div id="payment-modal" class="payment-overlay hidden" onclick="if(event.target===this)closePaymentModal()">
-<div class="payment-panel">
-<div class="payment-header"><h3>Payment</h3><button class="close-btn" onclick="closePaymentModal()">&times;</button></div>
-<div style="padding:12px 20px 20px">
-<div style="padding:12px 0">Total: <strong id="pay-total" style="font-size:18px">¥0.00</strong></div>
-<div style="display:flex;gap:8px;margin-bottom:12px">
-<button class="btn btn-outline btn-sm" style="flex:1" onclick="selectPaymentMethod('cash')">Cash</button>
-<button class="btn btn-outline btn-sm" style="flex:1" onclick="selectPaymentMethod('card')">Card</button>
-<button class="btn btn-outline btn-sm" style="flex:1" onclick="selectPaymentMethod('qr')">QR Code</button>
-</div>
-<div id="pay-cash-row" style="display:none;margin-bottom:12px">
-<label style="font-size:12px;color:#666">Received (RM)</label>
-<div style="display:flex;gap:8px"><input type="number" id="pay-cash" step="0.01" min="0" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:16px" oninput="calcChange()"><button class="btn btn-outline btn-sm" style="padding:8px 14px" onclick="exactCash()">Exact Amount</button></div>
-<div id="pay-change" style="font-size:14px;color:#4caf50;margin-top:4px;font-weight:600"></div>
-</div>
-<div id="pay-qr-msg" style="display:none;text-align:center;padding:16px;background:#f5f5f5;border-radius:8px;margin-bottom:12px">
-<div style="font-size:48px">&#x1F4F1;</div>
-<div style="font-size:14px;color:#666;margin-top:8px">Scan QR code to pay<br>Click Confirm after payment</div>
-</div>
-<div id="pay-card-msg" style="display:none;text-align:center;padding:16px;background:#f5f5f5;border-radius:8px;margin-bottom:12px">
-<div style="font-size:48px">&#x1F4B3;</div>
-<div style="font-size:14px;color:#666;margin-top:8px">Card payment<br>Click Confirm to process</div>
-</div>
-<button id="pay-confirm-btn" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px" onclick="confirmPayment()" disabled>Confirm Payment</button>
-</div>
-</div>
-</div>
-
-<!-- Receipt Overlay -->
-<div id="receipt-overlay" class="payment-overlay hidden">
-<div class="receipt-panel">
-<div class="receipt-header"><h3>&#10003; Payment Successful</h3><div class="receipt-id" id="receipt-id-display"></div></div>
-<div class="receipt-body" id="receipt-content"></div>
-<div class="receipt-footer">
-<button class="receipt-btn-print" onclick="printReceipt()">Print</button>
-<button class="receipt-btn-close" onclick="closeReceipt()">New Sale</button>
-</div>
-</div>
-</div>
-<script src="/s5_analysis.js"></script>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+startAlertPoll();

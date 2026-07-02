@@ -1,0 +1,30 @@
+2026-07-01 12:12:53 [INFO] s1.full_train: System: Windows | Python 3.11.15 | PyTorch 2.11.0+cu128
+2026-07-01 12:12:53 [INFO] s1.full_train: GPU: NVIDIA GeForce RTX 5070 Ti Laptop GPU (11.9 GB VRAM)
+2026-07-01 12:12:53 [INFO] s1.full_train: CUDA version: 12.8
+2026-07-01 12:12:53 [INFO] s1.full_train: Loaded configuration from C:\Users\Curtis\Desktop\learningmaterials\SEMESTER3\bakery-ai-system\s1_recognition\best_config.json
+2026-07-01 12:12:53 [INFO] s1.full_train:   experiment: lr0.005_mosaic1.0_bs16_SGD_grid
+2026-07-01 12:12:53 [INFO] s1.full_train:   lr0: 0.005
+2026-07-01 12:12:53 [INFO] s1.full_train:   mosaic: 1.0
+2026-07-01 12:12:53 [INFO] s1.full_train:   batch: 16
+2026-07-01 12:12:53 [INFO] s1.full_train:   optimizer: SGD
+2026-07-01 12:12:53 [INFO] s1.full_train:   pretrained: True
+2026-07-01 12:12:53 [INFO] s1.full_train:   epochs: 30
+2026-07-01 12:12:53 [INFO] s1.full_train:   mAP50: 0.8944
+2026-07-01 12:12:53 [INFO] s1.full_train:   mAP50_95: 0.7389
+2026-07-01 12:12:53 [INFO] s1.full_train:   peak_gpu_memory_gb: 6.31
+2026-07-01 12:12:54 [INFO] s1.full_train: ========================================================================
+2026-07-01 12:12:54 [INFO] s1.full_train: FULL TRAINING ¡ª 200 epochs
+2026-07-01 12:12:54 [INFO] s1.full_train: Hyperparameters:
+2026-07-01 12:12:54 [INFO] s1.full_train:   lr0=0.0050, mosaic=1.0, batch=16, optimizer=SGD, pretrained=True
+2026-07-01 12:12:54 [INFO] s1.full_train:   Data: C:\Users\Curtis\Desktop\learningmaterials\SEMESTER3\bakery-ai-system\data\merged_yolo\data.yaml
+2026-07-01 12:12:54 [INFO] s1.full_train: ========================================================================
+2026-07-01 12:12:54 [INFO] s1.full_train: Dataset: 28 classes, train=train/images, val=valid/images
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "C:\Users\Curtis\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Curtis\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\spawn.py", line 132, in _main
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_pickle.UnpicklingError: pickle data was truncated

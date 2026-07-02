@@ -1,0 +1,194 @@
+bm:{
+'POS Checkout':'POS Daftar Keluar','Sales Forecast':'Ramalan Jualan','Shift Schedule':'Jadual Syif',
+'Inventory':'Inventori','Revenue':'Hasil','Sign Out':'Log Keluar','Alerts':'Amaran',
+'Cart':'Troli','Scan items or use manual entry':'Imbas barang atau guna entri manual',
+'Generate Top-3':'Jana Top-3','Checkout':'Bayar','Total':'Jumlah',
+'Add items to cart then generate Top-3 bundles':'Tambah barang ke troli kemudian jana pakej Top-3',
+'Generating...':'Menjana...','Save RM':'Jimat RM',
+'Sales Script':'Skrip Jualan','Generating script...':'Menjana skrip...',
+'Script generation failed. Try our combos!':'Penjanaan skrip gagal. Cuba pakej kami!',
+'Payment Complete':'Pembayaran Selesai','items deducted':'barang ditolak',
+'Refresh':'Muat Semula','Loading forecast...':'Memuat ramalan...',
+'Product':'Produk','Date':'Tarikh','Predicted':'Ramalan','Range':'Julat','Confidence':'Keyakinan',
+'today':'hari ini','high':'tinggi','medium':'sederhana','low':'rendah',
+'closed':'tutup','Forecast error':'Ralat ramalan','No forecast data available':'Tiada data ramalan',
+'Solve Schedule':'Selesai Jadual','Resync':'Segerak Semula','Add Sick Leave':'Tambah Cuti Sakit',
+'Prep Checklist':'Senarai Semak Persediaan','Acknowledge':'Sahkan',
+'Stock':'Stok','Fresh':'Segar','Day-1':'Hari-1','Day-2':'Hari-2','Near-Expired':'Hampir Luput',
+'Send':'Hantar','Ask me anything...':'Tanya apa sahaja...',
+'AI Summary':'Ringkasan AI','System Alerts':'Amaran Sistem',
+'Username':'Nama Pengguna','Password':'Kata Laluan','Sign In':'Log Masuk',
+'Invalid credentials':'Bukti kelayakan tidak sah','Missing token':'Token hilang','Invalid token':'Token tidak sah',
+'Request failed':'Permintaan gagal','Manager only':'Pengurus sahaja',
+'Cannot modify past schedules. Select today or a future date.':'Tidak boleh ubah jadual lepas. Pilih hari ini atau tarikh akan datang.',
+'OK':'OK','Cancel':'Batal','Error':'Ralat',
+'Delete':'Padam','Edit':'Sunting','Confirm':'Sahkan',
+'Confirmed':'Disahkan','Needs Review':'Perlu Semakan','Pending':'Tertunda',
+'No corrections yet':'Tiada pembetulan lagi','corrections':'pembetulan',
+'Scan error':'Ralat imbasan','Bundle error':'Ralat pakej',
+'Payment Failed':'Pembayaran Gagal','No items in cart':'Tiada barang dalam troli',
+'Generate Top-3 bundles first':'Jana pakej Top-3 dahulu',
+'Script generation failed':'Penjanaan skrip gagal',
+'No pending schedule found. Click Solve Schedule.':'Tiada jadual. Klik Selesai Jadual.',
+'Employee ID':'ID Pekerja','Date (YYYY-MM-DD)':'Tarikh (TTTT-BB-HH)',
+'Sick leave recorded':'Cuti sakit direkodkan','Schedule resynced':'Jadual disegerakkan',
+'Product Name':'Nama Produk','Quantity':'Kuantiti','Price (RM)':'Harga (RM)',
+'Inflow Scan':'Imbasan Masuk','Manual Inflow':'Kemasukan Manual',
+'fresh':'segar','day-1':'hari-1','Total Stock':'Jumlah Stok',
+'Inflow complete':'Kemasukan selesai','batches created':'kelompok dicipta',
+'Product:':'Produk:','Qty:':'Kuan:','Add Batch':'Tambah Kelompok',
+'Batches':'Kelompok','Details':'Butiran','Close':'Tutup',
+'Production Time':'Masa Pengeluaran','Status':'Status',
+'Shift':'Syif','Role':'Peranan','Employee':'Pekerja','Re-sync complete (fresh schedule)':'Segerak selesai (jadual baharu)','Day-1 stock:':'Stok Hari-1:','Fresh stock:':'Stok segar:','e.g. How many croissants tomorrow?':'cth. Berapa croissant esok?','Enter username and password':'Sila masukkan nama pengguna dan kata laluan','Signing in...':'Sedang log masuk...','Manager':'Pengurus','Staff':'Kakitangan','Camera - Visual Recognition':'Kamera - Pengecaman Visual','Click to scan / upload image':'Klik untuk imbas / muat naik imej','Scanning tray...':'Mengimbas dulang...','Fresh Batch Inflow':'Kemasukan Kelompok Segar','Scan fresh-baked goods to add to inventory':'Imbas barangan baru dibakar untuk ditambah ke inventori','Scan Fresh Batch':'Imbas Kelompok Segar','Confirm Inflow':'Sahkan Kemasukan','HITL Correction Log':'Log Pembetulan HITL','AI Store Manager':'Pengurus Kedai AI','Loading...':'Memuatkan...','Loading shifts...':'Memuatkan syif...','Loading inventory...':'Memuatkan inventori...','Top-3 Bundle':'Pakej Top-3','batches | Click Refresh to update':'kelompok | Klik Muat Semula','KPI error':'Ralat KPI','Loading KPI...':'Memuat KPI...','Batch ID':'ID Kelompok','Area':'Kawasan','Freshness':'Kesegaran','Qty':'Kuan','Batch Inventory':'Inventori Kelompok','KPI':'KPI','Fair':'Adil','Gap (hrs)':'Jurang (jam)','Employees':'Pekerja','Get Sales Script':'Dapatkan Skrip Jualan','Generate':'Jana','Actual':'Sebenar','Expected (shifts)':'Dijangka (syif)','Extra':'Lebihan','Rate':'Kadar','Ask':'Tanya','Restock':'Stok Semula','Waste':'Bazir','Schedule':'Jadual','Audit':'Audit','Type a question':'Taip soalan','Enter a question':'Masukkan soalan','Processing...':'Memproses...','restock_q':'Berapa croissant perlu saya bakar esok?','waste_q':'Kenapa pembaziran tinggi minggu ini?','schedule_q':'Periksa jadual untuk anomali','audit_q':'Jalankan pemeriksaan kesihatan kedai penuh','Stock:':'Stok:',
+}};
+function t(k){var m=T[LANG];if(m&&m[k])return m[k];if(LANG!=='en'&&T.en&&T.en[k])return T.en[k];return k;}
+function setLang(l){
+LANG=l;localStorage.setItem('bakery_lang',l);
+document.getElementById('lang-en').classList.toggle('active',l==='en');
+document.getElementById('lang-bm').classList.toggle('active',l==='bm');
+// Update static DOM elements
+var btns=document.querySelectorAll('.topnav nav button');
+if(btns.length>=5){btns[0].textContent=t('POS Checkout');btns[1].textContent=t('Sales Forecast');btns[2].textContent=t('Shift Schedule');btns[3].textContent=t('Inventory');btns[4].textContent=t('Revenue');}
+var lo=document.querySelector('.logout-btn');if(lo)lo.textContent=t('Sign Out');
+var ab=document.getElementById('alert-badge');if(ab){ab.title=t('System Alerts');ab.childNodes[1].textContent=' '+t('Alerts')+' ';}
+var un=document.getElementById('username');if(un)un.placeholder=t('Username');
+var pw=document.getElementById('password');if(pw)pw.placeholder=t('Password');
+var si=document.getElementById('signin-btn');if(si)si.textContent=t('Sign In');
+// Update modal buttons
+var modals=document.querySelectorAll('[id$="-modal"]');
+for(var i=0;i<modals.length;i++){
+var btns=modals[i].querySelectorAll('button');
+for(var j=0;j<btns.length;j++){
+var txt=btns[j].textContent.trim();
+if(txt==='Cancel'||txt==='Batal')btns[j].textContent=t('Cancel');
+if(txt==='Confirm'||txt==='Sahkan')btns[j].textContent=t('Confirm');
+if(txt==='Close'||txt==='Tutup')btns[j].textContent=t('Close');
+if(txt==='Delete'||txt==='Padam')btns[j].textContent=t('Delete');
+if(txt==='Edit'||txt==='Sunting')btns[j].textContent=t('Edit');
+}}
+// Update freshness dropdown
+var fs=document.getElementById('edit-freshness');if(fs){var opts=fs.options;if(opts[1])opts[1].textContent=t('Fresh');if(opts[2])opts[2].textContent=t('Day-1')+' (20% off)';}
+agentState=null;showPanel(currentPanel);
+}
+setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
+
+function doLogout(){
+token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];
+document.getElementById('dashboard').classList.add('hidden');
+document.getElementById('login-page').classList.remove('hidden');
+document.getElementById('signin-btn').disabled=false;
+document.getElementById('signin-btn').textContent='Sign In';
+}
+var _panelContainers={};
+async function api(url,opts){
+opts=opts||{};
+var headers={'Authorization':'Bearer '+token};
+if(opts.body&&!opts.bodyIsForm){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body);}
+var r=await fetch(API+url,{method:opts.method||'GET',headers:headers,body:opts.body});
+if(!r.ok){var txt=await r.text();throw new Error(txt||'Request failed');}
+return r.json();
+}
+
+
+console.log("JS loaded v1779702768");
+
+var token='', role='', username='', currentPanel='pos';
+var API='';
+var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false, dineType='dine_in';
+var PRODUCT_PRICES={apple_pie:14.00,bagel:12.00,baguette:10.00,bread_coconut:10.00,bread_roll:8.00,brioche:18.00,brownie:18.00,chiffon:18.00,chocolate_cake:20.00,chocopie:10.00,cookie:9.00,cornbread:8.00,cream_horn:14.00,croissant:10.00,croissant_chocolate:12.00,donut:7.00,eggtart:7.00,flatbread:9.00,macaron:10.00,mantequilla:9.00,melon_bread:10.00,muffin:12.00,pancake:14.00,pandesal:6.00,pizza_bread:16.00,pullman:10.00,soboru_bread:13.00,sourdough:22.00,stickbread:7.00,tostada:10.00};
+var PRODUCT_COSTS={apple_pie:1.90,bagel:0.66,baguette:0.48,bread_coconut:1.42,bread_roll:1.18,brioche:1.97,brownie:7.56,chiffon:1.32,chocolate_cake:4.10,chocopie:3.05,cookie:1.26,cornbread:1.45,cream_horn:2.03,croissant:2.07,croissant_chocolate:3.15,donut:1.31,eggtart:1.87,flatbread:0.62,macaron:0.33,mantequilla:1.77,melon_bread:1.52,muffin:1.77,pancake:1.41,pandesal:1.07,pizza_bread:1.02,pullman:0.89,soboru_bread:1.59,sourdough:0.52,stickbread:0.87,tostada:0.96};
+var COFFEE_PRICES={latte:18.00,americano:14.00,cappuccino:18.00,mocha:22.00,espresso:12.00,flat_white:20.00,caramel_macchiato:22.00,cold_brew:18.00,hot_chocolate:16.00,matcha_latte:18.00,milk_tea:14.00,chai_latte:16.00,earl_grey:12.00,english_breakfast:12.00,lemonade:12.00};
+var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.py
+var s5DiscountCache={};
+
+var COFFEE_DRINKS=[
+{name:'Latte',desc:'Smooth espresso with steamed milk',price:'18.00',key:'latte',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
+{name:'Americano',desc:'Espresso with hot water',price:'14.00',key:'americano',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:'18.00',key:'cappuccino',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
+{name:'Mocha',desc:'Espresso with chocolate',price:'22.00',key:'mocha',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
+{name:'Espresso',desc:'Pure concentrated coffee shot',price:'12.00',key:'espresso',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'Flat White',desc:'Velvety microfoam with espresso',price:'20.00',key:'flat_white',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
+{name:'Caramel Macchiato',desc:'Vanilla syrup with caramel drizzle',price:'22.00',key:'caramel_macchiato',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
+{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:'18.00',key:'cold_brew',default_size:'regular',default_temp:'cold',default_sugar:'slight',default_ice:'normal'},
+{name:'Hot Chocolate',desc:'Rich cocoa with steamed milk',price:'16.00',key:'hot_chocolate',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
+{name:'Matcha Latte',desc:'Japanese green tea with milk',price:'18.00',key:'matcha_latte',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
+{name:'Milk Tea',desc:'Classic black tea with milk',price:'14.00',key:'milk_tea',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
+{name:'Chai Latte',desc:'Spiced Indian tea with milk',price:'16.00',key:'chai_latte',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
+{name:'Earl Grey',desc:'Bergamot-infused black tea',price:'12.00',key:'earl_grey',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'English Breakfast',desc:'Full-bodied black tea',price:'12.00',key:'english_breakfast',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
+{name:'Lemonade',desc:'Freshly squeezed lemon juice',price:'12.00',key:'lemonade',default_size:'regular',default_temp:'cold',default_sugar:'normal',default_ice:'normal'}
+];
+
+async function doLogin(){
+var u=document.getElementById('username').value.trim();
+var p=document.getElementById('password').value;
+if(!u||!p){document.getElementById('error-msg').textContent=t('Enter username and password');return}
+document.getElementById('signin-btn').disabled=true;
+document.getElementById('signin-btn').textContent=t('Signing in...');
+try{
+var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+if(!r.ok){var txt=await r.text();throw new Error(txt||t('Request failed'))}
+var d=await r.json();
+token=d.access_token;role=d.role;username=d.username;API=window.location.origin.replace('localhost','127.0.0.1');S5_API=API+'/s5';
+document.getElementById('login-page').classList.add('hidden');
+document.getElementById('dashboard').classList.remove('hidden');
+document.getElementById('user-display').textContent=username;
+var badge=document.getElementById('role-badge');
+badge.textContent=role==='manager'?t('Manager'):t('Staff');
+badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
+var mb=document.querySelectorAll('.manager-only');
+for(var i=0;i<mb.length;i++)mb[i].style.display=role==='manager'?'':'none';
+showPanel('pos');loadStock();loadPrices();
+}catch(e){
+document.getElementById('error-msg').textContent='Error: '+e.message;
+document.getElementById('signin-btn').disabled=false;
+document.getElementById('signin-btn').textContent='Sign In';
+}
+}
+
+
+var LANG='en';
+var T={
+en:{
+'POS Checkout':'POS Checkout','Sales Forecast':'Sales Forecast','Shift Schedule':'Shift Schedule',
+'Inventory':'Inventory','Revenue':'Revenue','Sign Out':'Sign Out','Alerts':'Alerts',
+'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
+'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
+'Add items to cart then generate Top-3 bundles':'Add items to cart then generate Top-3 bundles',
+'Generating...':'Generating...','Save RM':'Save RM',
+'Sales Script':'Sales Script','Generating script...':'Generating script...',
+'Script generation failed. Try our combos!':'Script generation failed. Try our combos!',
+'Payment Complete':'Payment Complete','items deducted':'items deducted',
+'Refresh':'Refresh','Loading forecast...':'Loading forecast...',
+'Product':'Product','Date':'Date','Predicted':'Predicted','Range':'Range','Confidence':'Confidence',
+'today':'today','high':'high','medium':'medium','low':'low',
+'closed':'closed','Forecast error':'Forecast error','No forecast data available':'No forecast data available',
+'Solve Schedule':'Solve Schedule','Resync':'Resync','Add Sick Leave':'Add Sick Leave',
+'Prep Checklist':'Prep Checklist','Acknowledge':'Acknowledge',
+'Stock':'Stock','Fresh':'Fresh','Day-1':'Day-1','Day-2':'Day-2','Near-Expired':'Near-Expired',
+'Send':'Send','Ask me anything...':'Ask me anything...',
+'AI Summary':'AI Summary','System Alerts':'System Alerts',
+'Username':'Username','Password':'Password','Sign In':'Sign In',
+'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token',
+'Request failed':'Request failed','Manager only':'Manager only',
+'Cannot modify past schedules. Select today or a future date.':'Cannot modify past schedules. Select today or a future date.',
+'OK':'OK','Cancel':'Cancel','Error':'Error',
+'Delete':'Delete','Edit':'Edit','Confirm':'Confirm',
+'Confirmed':'Confirmed','Needs Review':'Needs Review','Pending':'Pending',
+'No corrections yet':'No corrections yet','corrections':'corrections',
+'Scan error':'Scan error','Bundle error':'Bundle error',
+'Payment Failed':'Payment Failed','No items in cart':'No items in cart',
+'Generate Top-3 bundles first':'Generate Top-3 bundles first',
+'Script generation failed':'Script generation failed',
+'No pending schedule found. Click Solve Schedule.':'No pending schedule found. Click Solve Schedule.',
+'Employee ID':'Employee ID','Date (YYYY-MM-DD)':'Date (YYYY-MM-DD)',
+'Sick leave recorded':'Sick leave recorded','Schedule resynced':'Schedule resynced',
+'Product Name':'Product Name','Quantity':'Quantity','Price (RM)':'Price (RM)',
+'Inflow Scan':'Inflow Scan','Manual Inflow':'Manual Inflow',
+'fresh':'fresh','day-1':'day-1','Total Stock':'Total Stock',
+'Inflow complete':'Inflow complete','batches created':'batches created',
+'Product:':'Product:','Qty:':'Qty:','Add Batch':'Add Batch',
+'Batches':'Batches','Details':'Details','Close':'Close',
+'Production Time':'Production Time','Status':'Status',
+'Shift':'Shift','Role':'Role','Employee':'Employee','Re-sync complete (fresh schedule)':'Re-sync complete (fresh schedule)','Day-1 stock:':'Day-1 stock:','Fresh stock:':'Fresh stock:','e.g. How many croissants tomorrow?':'e.g. How many croissants tomorrow?','Enter username and password':'Enter username and password','Signing in...':'Signing in...','Manager':'Manager','Staff':'Staff','Camera - Visual Recognition':'Camera - Visual Recognition','Click to scan / upload image':'Click to scan / upload image','Scanning tray...':'Scanning tray...','Fresh Batch Inflow':'Fresh Batch Inflow','Scan fresh-baked goods to add to inventory':'Scan fresh-baked goods to add to inventory','Scan Fresh Batch':'Scan Fresh Batch','Confirm Inflow':'Confirm Inflow','HITL Correction Log':'HITL Correction Log','AI Store Manager':'AI Store Manager','Loading...':'Loading...','Loading shifts...':'Loading shifts...','Loading inventory...':'Loading inventory...','Top-3 Bundle':'Top-3 Bundle','batches | Click Refresh to update':'batches | Click Refresh to update','KPI error':'KPI error','Loading KPI...':'Loading KPI...','Batch ID':'Batch ID','Area':'Area','Freshness':'Freshness','Qty':'Qty','Batch Inventory':'Batch Inventory','KPI':'KPI','Fair':'Fair','Gap (hrs)':'Gap (hrs)','Employees':'Employees','Get Sales Script':'Get Sales Script','Generate':'Generate','Actual':'Actual','Expected (shifts)':'Expected (shifts)','Extra':'Extra','Rate':'Rate','Ask':'Ask','Restock':'Restock','Waste':'Waste','Schedule':'Schedule','Audit':'Audit','Type a question':'Type a question','Enter a question':'Enter a question','Processing...':'Processing...','restock_q':'How many croissants should I bake tomorrow?','waste_q':'Why is waste high this week?','schedule_q':'Check schedule for anomalies','audit_q':'Run full store health check','Stock:':'Stock:',
+},
