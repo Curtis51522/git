@@ -805,8 +805,10 @@ class Scheduler:
             else:
                 alert = "ok"
 
+            waste_amount = round(adjusted - weekly_need_db, 2)
             procurement[db_name] = {
                 "weekly_need": weekly_need_db,
+                "waste_amount": waste_amount,
                 "adjusted_need": adjusted,
                 "current_stock": stock_db_units,
                 "to_order": to_order,
