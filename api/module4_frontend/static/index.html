@@ -1786,7 +1786,7 @@ function renderInventory(c){
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Bread Stock Levels</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>Fresh vs Day-1 Ratio</h4><div id="inv-fresh-pie" style="height:180px"></div></div><div class="chart-panel"><h4>Top 5 Material Consumption</h4><div id="inv-consumption-chart" style="height:180px"></div></div></div>'
     
-    +'<div class="chart-row"><div class="chart-panel chart-full"><h4>Material Stock Days Remaining</h4><div id="inv-days-table"></div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel chart-full"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0">Material Stock Days Remaining</h4><input type="date" id="inv-stockdays-date" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b" onchange="loadStockDaysHistory(this.value)"></div><div id="inv-days-table"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>Baking Materials</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>Coffee Materials</h4><div id="inv-coffee-table"></div></div></div>'
     +'<hr style="margin:16px 0;border-color:#e0d5c7">'
     +'<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
@@ -1895,6 +1895,10 @@ async function fetchInventoryDashboard(){
     dt+='</tbody></table>';
     document.getElementById("inv-days-table").innerHTML=dt;
 
+    // Set stock days date picker to current date
+    var sdd=document.getElementById("inv-stockdays-date");
+    if(sdd&&!sdd.value)sdd.value=d.date||"";
+
     function buildMatTable(materials, tableId){
       var t='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">'
         +'<th style="padding:6px;text-align:left">Material</th><th style="padding:6px;text-align:left">Stock</th><th style="padding:6px;width:28px"></th></tr></thead><tbody>';
@@ -1920,6 +1924,43 @@ async function fetchInventoryDashboard(){
     document.getElementById("inv-coffee-table").innerHTML=buildMatTable(coffee,"coffee");
 
   }catch(e){if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">Error: '+e.message+'</div>';}
+}
+
+async function loadStockDaysHistory(date){
+  if(!date)return;
+  var tbl=document.getElementById("inv-days-table");
+  if(!tbl)return;
+  tbl.innerHTML='<div class="spinner"></div>';
+  try{
+    var r=await api("/s4/inventory/stock-days-history?date="+date);
+    var sd=r.stock_days||[];
+    var dt='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">'
+      +'<th style="padding:6px;text-align:left">Material</th><th style="padding:6px;text-align:right">Stock</th><th style="padding:6px;text-align:right">Daily Avg</th><th style="padding:6px;text-align:right">Days Left</th><th style="padding:6px;text-align:center">Status</th></tr></thead><tbody>';
+    if(sd.length===0){
+      dt+='<tr><td colspan="5" style="padding:12px;text-align:center;color:#6b5b4f">No consumption data for '+date+'</td></tr>';
+    }else{
+      for(var i=0;i<sd.length;i++){
+        var s=sd[i];
+        var daysLeft=s.days_remaining;
+        var daysDisplay=daysLeft!==null?daysLeft.toFixed(0):"--";
+        var status="";
+        if(daysLeft!==null){
+          if(daysLeft<=3)status='<span style="color:#e74c3c;font-weight:700">Low</span>';
+          else if(daysLeft<=7)status='<span style="color:#f39c12;font-weight:600">OK</span>';
+          else status='<span style="color:#27ae60;font-weight:600">Good</span>';
+        }
+        dt+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;font-weight:600;font-size:11px">'+s.material_name+'</td>'
+          +'<td style="padding:5px;text-align:right;font-weight:700">'+s.stock.toFixed(3)+' '+s.unit+'</td>'
+          +'<td style="padding:5px;text-align:right;color:#6b5b4f">'+(s.daily_avg!==null?s.daily_avg.toFixed(2):"--")+'</td>'
+          +'<td style="padding:5px;text-align:right;font-weight:700;color:'+(daysLeft!==null&&daysLeft<=3?'#e74c3c':'#3d322b')+'">'+daysDisplay+'</td>'
+          +'<td style="padding:5px;text-align:center">'+status+'</td></tr>';
+      }
+    }
+    dt+='</tbody></table>';
+    tbl.innerHTML=dt;
+  }catch(err){
+    tbl.innerHTML='<div style="color:#e74c3c;padding:8px">Failed to load historical data</div>';
+  }
 }
 
 

@@ -1544,6 +1544,82 @@ async def inventory_dashboard(date: str = None):
         "consumption_top5": consumption_top5,
     }
 
+
+@router.get("/inventory/stock-days-history")
+async def stock_days_history(date: str = None):
+    """Return historical stock days remaining for a given date.
+    Computes stock position at end of the target date and daily average
+    consumption up to that date."""
+    from datetime import datetime as dt, timedelta
+    
+    db = get_db()
+    cur = db.cursor()
+    
+    if date is None:
+        date = dt.now().strftime("%Y-%m-%d")
+    
+    target_end = date + " 23:59:59"
+    
+    stock_days = []
+    
+    # Get all materials
+    cur.execute("SELECT material_name, stock_quantity, unit FROM raw_materials ORDER BY material_name")
+    materials = cur.fetchall()
+    
+    for r in materials:
+        mn = r[0]
+        current_stock = float(r[1] or 0)
+        unit = r[2]
+        
+        # Stock at target date = current_stock + outflows_after_date - inflows_after_date
+        cur.execute("""
+            SELECT 
+                COALESCE(SUM(CASE WHEN transaction_type = 'outflow' THEN quantity ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN transaction_type = 'inflow' THEN quantity ELSE 0 END), 0)
+            FROM material_transactions
+            WHERE material_name = %s AND created_at > %s
+        """, (mn, target_end))
+        adj_row = cur.fetchone()
+        outflow_after = float(adj_row[0] or 0)
+        inflow_after = float(adj_row[1] or 0)
+        stock_at_date = round(current_stock + outflow_after - inflow_after, 3)
+        
+        # Daily average consumption up to target date
+        cur.execute("""
+            SELECT COALESCE(SUM(quantity), 0),
+                   DATEDIFF(%s, MIN(created_at)) + 1
+            FROM material_transactions
+            WHERE material_name = %s AND transaction_type = 'outflow'
+              AND created_at <= %s
+        """, (date, mn, target_end))
+        crow = cur.fetchone()
+        total_outflow = float(crow[0] or 0)
+        date_span = int(crow[1] or 0)
+        
+        if total_outflow > 0 and date_span > 0:
+            daily_avg = round(total_outflow / date_span, 3)
+            days_remaining = round(stock_at_date / daily_avg, 1) if daily_avg > 0 else None
+        else:
+            daily_avg = None
+            days_remaining = None
+        
+        stock_days.append({
+            "material_name": mn,
+            "stock": stock_at_date,
+            "daily_avg": daily_avg,
+            "days_remaining": days_remaining,
+            "unit": unit,
+        })
+    
+    cur.close()
+    db.close()
+    
+    return {
+        "status": "ok",
+        "date": date,
+        "stock_days": stock_days,
+    }
+
 @router.get("/inventory/wastage/summary")
 async def wastage_summary():
     """Get latest wastage rates per material."""
