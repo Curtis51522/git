@@ -514,7 +514,7 @@ return data;
 }
 
 
-console.log("JS loaded v1783041004");
+console.log("JS loaded v1783041503");
 
 var token=sessionStorage.getItem('bakery_token')||'', role=sessionStorage.getItem('bakery_role')||'', username=sessionStorage.getItem('bakery_username')||'', currentPanel='pos';
 var API='';
@@ -777,7 +777,7 @@ var bkeys=Object.keys(PRODUCT_PRICES).sort();
 if(!window._bakeryFreshness)window._bakeryFreshness={};
 for(var i=0;i<bkeys.length;i++){
 var bk=bkeys[i];
-if(freshnessMap&&freshnessMap[bk])window._bakeryFreshness[bk]=freshnessMap[bk];if(window._bakeryFreshness[bk]===undefined)window._bakeryFreshness[bk]="Fresh";
+if(window._bakeryFreshness[bk]===undefined)window._bakeryFreshness[bk]=freshnessMap&&freshnessMap[bk]?freshnessMap[bk]:"Fresh";
 var curFresh=window._bakeryFreshness[bk];
 var stockInfo=stockMap&&stockMap[bk]?stockMap[bk]:'--';
 var freshQty=window._freshStock&&window._freshStock[bk]?window._freshStock[bk]:0;
