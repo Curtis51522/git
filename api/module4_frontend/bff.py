@@ -171,7 +171,7 @@ async def get_combo(order: dict):
     max_inv = max(inv["total_qty"] for inv in inventory.values()) if inventory else 1
 
     # Strict mode: when cart has both bread and coffee, only pair cart items
-    strict_mode = bool(cart_breads and cart_coffee_keys)
+    strict_mode = False  # Always consider full inventory; cart items boosted via cart_boost
 
     # --- Direction 1: Bread -> Coffee (cart has bread or empty) ---
     if cart_breads or not cart_coffee_keys:
@@ -193,8 +193,8 @@ async def get_combo(order: dict):
                 f_map = {"Fresh": 0.3, "Day-1": 0.8, "Expired": 1.0}
                 freshness_score = f_map.get(freshness, 0.5)
                 inv_score = min(inv_pressure, 1.0)
-                context_score = 1.0 if ck not in cart_coffee_keys else 0.3
-                cart_boost = 0.15 if pn in cart_breads else 0.0
+                context_score = 1.0 if ck not in cart_coffee_keys else 0.5
+                cart_boost = (0.20 if pn in cart_breads else 0.0) + (0.20 if ck in cart_coffee_keys else 0.0) + (0.10 if (pn in cart_breads and ck in cart_coffee_keys) else 0.0)
                 total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score + cart_boost)
                 bundle_price = (get_product_prices().get(pn, 5.0)*(1-discount)) + coffee["price"]
                 regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
@@ -239,8 +239,8 @@ async def get_combo(order: dict):
                     continue
                 flavor_score = pairings.get(ck, 0.3)
                 # Bread NOT in cart = higher context (new recommendation)
-                context_score = 1.0 if pn not in cart_breads else 0.3
-                coffee_boost = 0.15 if ck in cart_coffee_keys else 0.0
+                context_score = 1.0 if pn not in cart_breads else 0.5
+                coffee_boost = (0.20 if ck in cart_coffee_keys else 0.0) + (0.20 if pn in cart_breads else 0.0) + (0.10 if (pn in cart_breads and ck in cart_coffee_keys) else 0.0)
                 total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score + coffee_boost)
                 bundle_price = (get_product_prices().get(pn, 5.0)*(1-discount)) + coffee["price"]
                 regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
@@ -264,17 +264,19 @@ async def get_combo(order: dict):
                     },
                 })
 
-    # Priority boost from RecommendationAgent
+    # Priority boost from RecommendationAgent (additive, proportional to strategy weight)
     priority_products = order.get("priority_products", [])
     if priority_products:
+        BOOST_ADDITIVE = {2.5: 0.15, 2.0: 0.12, 1.8: 0.10, 1.5: 0.08}
         for s in all_scores:
             for pp in priority_products:
                 pp_product = pp.get("product", "").lower().replace(" ", "_")
                 pp_coffee = pp.get("coffee", "").lower().replace(" ", "_")
                 boost = float(pp.get("boost", 1.5))
+                add_bonus = BOOST_ADDITIVE.get(boost, 0.05)
                 if s["product_name"] == pp_product and s["coffee_key"] == pp_coffee:
-                    s["total_score"] = round(s["total_score"] * boost, 3)
-                    s["priority_boost"] = boost
+                    s["total_score"] = min(round(s["total_score"] + add_bonus, 3), 1.0)
+                    s["priority_boost"] = add_bonus
                     break
 
     # Sort by score descending
@@ -284,12 +286,19 @@ async def get_combo(order: dict):
     else:
         all_scores.sort(key=lambda x: x["total_score"], reverse=True)
 
-    # Pick top-3: prefer diverse breads, but if fewer than 3 unique breads
-    # available (e.g. cart only has chiffon), fill with next-best coffees
+    # Pick top-3: Top-1 from cart breads (relevance), rest from full inventory (diversity + clearance)
     top3 = []
     seen_products = set()
 
-    # Pass 1: grab one per unique bread
+    # Pass 1a: pick best cart bread first (guarantees customer-relevant Top-1)
+    if cart_breads:
+        for s in all_scores:
+            if s["product_name"] in cart_breads and s["product_name"] not in seen_products:
+                top3.append(s)
+                seen_products.add(s["product_name"])
+                break
+
+    # Pass 1b: pick diverse from remaining (all inventory, including non-cart)
     for s in all_scores:
         if s["product_name"] not in seen_products:
             top3.append(s)

@@ -514,7 +514,7 @@ return data;
 }
 
 
-console.log("JS loaded v1783012857");
+console.log("JS loaded v1783041004");
 
 var token=sessionStorage.getItem('bakery_token')||'', role=sessionStorage.getItem('bakery_role')||'', username=sessionStorage.getItem('bakery_username')||'', currentPanel='pos';
 var API='';
@@ -1279,7 +1279,7 @@ var html='';
 for(var i=0;i<bundleRecs.length;i++){
 var b=bundleRecs[i];
 var bd=b.scoring_breakdown;
-if(!bd){html+='<div style="background:#fdfaf5;border-radius:8px;padding:10px 12px;margin-bottom:8px;line-height:1.5;font-size:13px;color:#5d4037;border:1px solid #e8dcc8"><strong style="color:#8b6914">#'+(i+1)+' '+capName(b.product_name)+' + '+capName(b.coffee_key||'')+'</strong><br>Score: '+(b.total_score||0).toFixed(2)+' | Save: ¥'+(b.savings||0).toFixed(2)+'</div>';continue;}
+if(!bd){html+='<div style="background:#fdfaf5;border-radius:8px;padding:10px 12px;margin-bottom:8px;line-height:1.5;font-size:13px;color:#5d4037;border:1px solid #e8dcc8"><strong style="color:#8b6914">#'+(i+1)+' '+capName(b.product_name)+' + '+capName(b.coffee_key||'')+'</strong><br>Score: '+(b.total_score||0).toFixed(3)+' | Save: ¥'+(b.savings||0).toFixed(2)+'</div>';continue;}
 var reasons=[];
 var pctMap={};
 for(var k in bd){if(typeof bd[k]==='number')pctMap[k]=Math.round(bd[k]*100);}
@@ -1292,7 +1292,7 @@ if(bd.cart_boost>0||bd.coffee_boost>0)reasons.push('Completes cart');
 html+='<div style="background:#fdfaf5;border-radius:8px;padding:10px 12px;margin-bottom:8px;line-height:1.5;font-size:13px;color:#5d4037;border:1px solid #e8dcc8">';
 html+='<strong style="color:#8b6914;font-size:14px">#'+(i+1)+' '+capName(b.product_name)+' + '+capName(b.coffee_key||'')+'</strong>';
 html+='<div style="font-size:11px;color:#6b8e23;margin-top:2px;font-weight:500">'+reasons.join(' · ')+'</div>';
-html+='<div style="font-size:10px;color:#8b6914;margin-top:2px">Score '+(b.total_score||0).toFixed(2)+' | ¥'+(b.total_price||0).toFixed(2)+' | Save ¥'+(b.savings||0).toFixed(2)+'</div>';
+html+='<div style="font-size:10px;color:#8b6914;margin-top:2px">Score '+(b.total_score||0).toFixed(3)+' | ¥'+(b.total_price||0).toFixed(2)+' | Save ¥'+(b.savings||0).toFixed(2)+'</div>';
 var dims=[
 {label:'Flavor Pairing',key:'flavor_pairing',icon:'🍞☕',desc:'How well the bread and coffee complement each other'},
 {label:'Discount Value',key:'discount',icon:'🏄',desc:'Savings passed to customer from freshness-based discount'},
