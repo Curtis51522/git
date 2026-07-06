@@ -33,6 +33,8 @@ import os, sys, json, argparse
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 from ortools.sat.python import cp_model
 
 # ============================================================
@@ -160,13 +162,13 @@ def _init_s2_models():
 
     # Product name mapping
     _RAW = pd.read_csv(RAW_CSV)
-    all_products = sorted(_RAW["product_name"].unique())
+    id_name = _RAW[["product_id", "product_name"]].drop_duplicates()
     _S2_META = {
-        "pid_to_name": {i: p for i, p in enumerate(all_products)},
-        "name_to_pid": {p: i for i, p in enumerate(all_products)},
-        "weather_monthly": train.groupby("month")[["temp_mean", "temp_max", "temp_min", "humidity", "precipitation"]].mean().to_dict("index"),
-        "last_day": train[train["date"] == train["date"].max()][["product_id", "lag_1", "lag_7_avg", "lag_30_avg", "quantity"]].copy(),
-        "feature_cols": ["product_id", "temp_mean", "temp_max", "temp_min", "humidity", "precipitation", "day_of_week", "month", "is_weekend", "is_holiday", "lag_1", "lag_7_avg", "lag_30_avg"],
+        "pid_to_name": dict(zip(id_name["product_id"], id_name["product_name"])),
+        "name_to_pid": dict(zip(id_name["product_name"], id_name["product_id"])),
+        "weather_monthly": train.groupby("month")[["temp_mean", "temp_range", "is_cold_day", "is_hot_day"]].mean().to_dict("index"),
+        "last_day": train[train["date"] == train["date"].max()][["product_id", "category", "daily_tickets", "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7", "quantity"]].copy(),
+        "feature_cols": ["product_id", "category", "daily_tickets", "day_of_week", "month", "is_weekend", "is_holiday", "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7", "is_day1", "is_top3", "discount_pct", "is_member_day", "is_rainy", "temp_mean", "temp_range", "is_cold_day", "is_hot_day", "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio"],
     }
     return True
 
@@ -198,10 +200,10 @@ def _predict_from_models(date_str):
         rows.append({
             "product_id": pid,
             "temp_mean": wm.get("temp_mean", 20),
-            "temp_max": wm.get("temp_max", 25),
-            "temp_min": wm.get("temp_min", 15),
-            "humidity": wm.get("humidity", 70),
-            "precipitation": wm.get("precipitation", 3),
+            "temp_range": wm.get("temp_range", 0),
+            "is_cold_day": wm.get("is_cold_day", 0),
+            "is_hot_day": wm.get("is_hot_day", 0),
+            
             "day_of_week": w,
             "month": m,
             "is_weekend": 1 if w >= 5 else 0,
@@ -288,194 +290,74 @@ def _predict_from_training(date_str):
 # ============================================================
 # RAW MATERIAL ESTIMATION
 # ============================================================
-# Per-product recipes: grams/ml per unit for each bread product
-# Bakers percentages from verified professional sources, converted to per-unit.
-#
-# Sources:
-#   Croissant:         BITA (Baking Industry Training Australia) - bita.org.au
-#   Brioche:           King Arthur Baking Professional Formulas - kingarthurbaking.com/pro/formulas/brioche
-#   Donut:             Seasoned Advice StackExchange (tested formula) - cooking.stackexchange.com/q/49438
-#   Brownie:           CIA Baking and Pastry cookbook - thebutterchronicles.wordpress.com
-#   Egg Tart / Pastry: The Flavor Bender (Pate Sucree standard) - theflavorbender.com
-#   Baguette:          French lean bread standard (68% hydration) - sourdoughhydration.com
-#   Sourdough:         Standard artisan formula - theperfectloaf.com
-#   Chiffon Cake:      Baking Forums standard ratio - baking-forums.com
-#   Cookie/Muffin:     Standard shortbread/quickbread ratios
-#   Macaron:           Standard French macaron formula
-#   Lean breads:       Baguette/sourdough ratios adapted per variant
-#   Enriched breads:   Brioche/donut ratios adapted per variant
-PRODUCT_RECIPES = {
-    # egg_whole_g = whole egg (yolk+white together)
-    # egg_yolk_g  = pure yolk only (white is byproduct)
-    # egg_white_g = pure white only (yolk is byproduct)
-    # 1 egg approx 50g (20g yolk + 30g white)
-    #
-    # Verified sources per product listed inline.
+# Loads recipes from MySQL product_recipes table
+# Derives secondary materials (baking powder, salt, yeast) from flour ratio
 
-    # ==== LEAN BREADS: no egg ====
-    # Source: French lean bread standard (68-75% hydration, flour+water+salt+yeast only)
-    "baguette":     {"flour_g":60, "butter_g":0,  "sugar_g":0,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":0,   "chocolate_g":0},
-    # Source: The Perfect Loaf, SourdoughHydration (flour+water+salt+starter only)
-    "sourdough":    {"flour_g":65, "butter_g":0,  "sugar_g":0,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":0,   "chocolate_g":0},
-    # Source: standard flatbread (no enrichment)
-    "flatbread":    {"flour_g":55, "butter_g":3,  "sugar_g":0,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":0,   "chocolate_g":0},
-    # Source: King Arthur Grissini formula (flour+water+oil+butter+salt+yeast, NO egg) ? kingarthurbaking.com/pro/formulas/grissini
-    "stickbread":   {"flour_g":45, "butter_g":6,  "sugar_g":5,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":10,  "chocolate_g":0},
-    # Source: standard white sandwich bread (enriched, whole egg)
-    "pullman":      {"flour_g":55, "butter_g":5,  "sugar_g":5,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":10,  "chocolate_g":0},
-    # Source: standard bagel (boiled, no egg in dough)
-    "bagel":        {"flour_g":65, "butter_g":2,  "sugar_g":3,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":0,   "chocolate_g":0},
+# Cake products (use Cake Flour instead of Bread Flour)
+_CAKE_PRODUCTS = {"chiffon", "chocolate_cake", "brownie", "chocopie", "tiramisu", "muffin"}
 
-    # ==== ENRICHED BREADS: whole egg ====
-    # Source: ChainBaker ? "enriched dough...they all contain the whole egg" ? chainbaker.com/eggs
-    "bread_roll":   {"flour_g":40, "butter_g":8,  "sugar_g":6,  "egg_whole_g":8,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":15,  "chocolate_g":0},
-    # Source: Oh My Food Recipes ? "enriched with butter, eggs, and milk" ? ohmyfoodrecipes.com
-    "bread_coconut":{"flour_g":40, "butter_g":10, "sugar_g":10, "egg_whole_g":10, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":20,  "chocolate_g":0},
-    # Source: Serious Eats ? "milk, eggs, and butter" ? seriouseats.com/pandesal
-    "pandesal":     {"flour_g":40, "butter_g":6,  "sugar_g":8,  "egg_whole_g":8,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":15,  "chocolate_g":0},
-    # Source: King Arthur Baking Professional ? kingarthurbaking.com/pro/formulas/brioche
-    "brioche":      {"flour_g":38, "butter_g":19, "sugar_g":5,  "egg_whole_g":22, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":5,   "chocolate_g":0},
-    # Source: Feast and Farm ? "2 eggs" in standard cornbread ? feastandfarm.com
-    "cornbread":    {"flour_g":45, "butter_g":10, "sugar_g":8,  "egg_whole_g":10, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":20,  "chocolate_g":0},
-    # Source: Instagram reel C7R4TBjpDrO ? "175 grams Eggs" in pan de mantequilla
-    "mantequilla":  {"flour_g":40, "butter_g":18, "sugar_g":8,  "egg_whole_g":10, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":10,  "chocolate_g":0},
-    # Source: pizza dough standard (flour+water+yeast+oil, no egg)
-    "pizza_bread":  {"flour_g":50, "butter_g":8,  "sugar_g":3,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":10,  "chocolate_g":0},
-
-    # ==== SWEET BREADS: whole egg in enriched dough ====
-    # Source: Just One Cookbook ? enriched bread dough with egg ? justonecookbook.com/melon-pan
-    "melon_bread":  {"flour_g":42, "butter_g":12, "sugar_g":14, "egg_whole_g":10, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":15,  "chocolate_g":0},
-    # Source: Jessica's Dinner Party ? "whisk in the egg" ? jessicasdinnerparty.com
-    "soboru_bread": {"flour_g":42, "butter_g":14, "sugar_g":12, "egg_whole_g":10, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":12,  "chocolate_g":0},
-
-    # ==== LAMINATED / PASTRY ====
-    # Source: BITA (Baking Industry Training Australia) ? bita.org.au ? 10% eggs in dough
-    "croissant":         {"flour_g":48, "butter_g":24, "sugar_g":4,  "egg_whole_g":8,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":5,   "chocolate_g":0},
-    "croissant_chocolate":{"flour_g":48, "butter_g":22, "sugar_g":4,  "egg_whole_g":8,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":5,   "chocolate_g":15},
-    # Source: America's Test Kitchen, NYT ? custard filling uses EGG YOLK, crust uses whole egg
-    "eggtart":     {"flour_g":28, "butter_g":14, "sugar_g":12, "egg_whole_g":5,  "egg_yolk_g":15, "egg_white_g":0,  "milk_ml":15,  "chocolate_g":0},
-    # Source: La Cucina Italiana ? custard uses 4 EGG YOLKS, puff pastry wrapper NO egg ? lacucinaitaliana.com
-    "cream_horn":  {"flour_g":38, "butter_g":20, "sugar_g":8,  "egg_whole_g":0,  "egg_yolk_g":12, "egg_white_g":0,  "milk_ml":10,  "chocolate_g":0},
-    # Source: King Arthur Baking apple pie (egg in crust + egg wash) ? kingarthurbaking.com
-    "apple_pie":   {"flour_g":45, "butter_g":20, "sugar_g":14, "egg_whole_g":8,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":8,   "chocolate_g":0},
-    # Source: standard tostada (lean, toasted, no enrichment)
-    "tostada":     {"flour_g":50, "butter_g":8,  "sugar_g":3,  "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":5,   "chocolate_g":0},
-
-    # ==== DONUTS: whole egg ====
-    # Source: StackExchange (tested formula) ? cooking.stackexchange.com/q/49438 ? 25% egg
-    "donut":       {"flour_g":35, "butter_g":9,  "sugar_g":18, "egg_whole_g":10, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":15,  "chocolate_g":0},
-    # Source: standard pancake (whole egg)
-    "pancake":     {"flour_g":40, "butter_g":8,  "sugar_g":8,  "egg_whole_g":10, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":30,  "chocolate_g":0},
-
-    # ==== CAKES: separated eggs ====
-    # Source: ASBE (American Society of Baking), Serious Eats ? yolks in batter + whites whipped to meringue
-    "chiffon":      {"flour_g":25, "butter_g":0,  "sugar_g":30, "egg_whole_g":0,  "egg_yolk_g":18, "egg_white_g":27, "milk_ml":0,   "chocolate_g":0},
-    # Source: Christine's Recipes, Professional Baking textbook ? separated-egg sponge method
-    "chocolate_cake":{"flour_g":30, "butter_g":15, "sugar_g":25, "egg_whole_g":0,  "egg_yolk_g":12, "egg_white_g":18, "milk_ml":15,  "chocolate_g":25},
-
-    # ==== COOKIES / BARS: whole egg ====
-    # Source: standard shortbread/sugar cookie (whole egg in dough)
-    "cookie":      {"flour_g":25, "butter_g":15, "sugar_g":18, "egg_whole_g":1,  "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":3,   "chocolate_g":0},
-    # Source: Elle & Vire Professionnel ? EGG WHITE ONLY for meringue, no yolks ? elle-et-vire.com
-    "macaron":     {"flour_g":8,  "butter_g":0,  "sugar_g":20, "egg_whole_g":0,  "egg_yolk_g":0,  "egg_white_g":10, "milk_ml":0,   "chocolate_g":0},
-    # Source: standard muffin quickbread (whole egg)
-    "muffin":      {"flour_g":35, "butter_g":14, "sugar_g":18, "egg_whole_g":12, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":25,  "chocolate_g":0},
-
-    # ==== CHOCOLATE-RICH: whole egg ====
-    # Source: CIA Baking and Pastry textbook ? thebutterchronicles.wordpress.com ? 138% eggs (whole)
-    "brownie":     {"flour_g":28, "butter_g":38, "sugar_g":60, "egg_whole_g":35, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":0,   "chocolate_g":50},
-    # Source: FoodCraft Korean Choco Pie ? "incorporate the eggs one by one" (whole) ? foodcraft.app
-    "chocopie":    {"flour_g":30, "butter_g":12, "sugar_g":22, "egg_whole_g":12, "egg_yolk_g":0,  "egg_white_g":0,  "milk_ml":10,  "chocolate_g":20},
-}
-_DEFAULT_RECIPE = {"flour_g":45, "butter_g":10, "sugar_g":8, "egg_whole_g":10, "egg_yolk_g":0, "egg_white_g":0, "milk_ml":15, "chocolate_g":0}
+def load_recipe_from_db(product_name):
+    """Query product_recipes table for a single product's materials (kg/pcs/L per unit)."""
+    try:
+        from db.mysql_client import get_db
+        db = get_db()
+        cur = db.cursor()
+        cur.execute(
+            "SELECT material_name, quantity_per_unit FROM product_recipes WHERE product_name = %s",
+            (product_name,)
+        )
+        rows = cur.fetchall()
+        cur.close()
+        return {r[0]: float(r[1]) for r in rows} if rows else {}
+    except Exception as e:
+        # Fallback: empty recipe (product will be skipped)
+        return {}
 
 def estimate_raw_materials(bake_plan, products):
-    """Estimate raw material requirements from bake plan using per-product recipes."""
-    materials = {"flour_g": 0, "butter_g": 0, "sugar_g": 0,
-                 "egg_whole_g": 0, "egg_yolk_g": 0, "egg_white_g": 0,
-                 "milk_ml": 0, "chocolate_g": 0}
-    cake_products = {"chiffon", "chocolate_cake"}
-    for product, quantity in bake_plan.items():
-        if quantity == 0 or product in DRINK_NAMES:
-            continue
-        recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
-        for key in materials:
-            materials[key] += quantity * recipe[key]
-    # Derive secondary materials from primary ones
-    total_flour = materials["flour_g"]
-    derived = {
-        "cake_flour_g": 0,
-        "baking_powder_g": round(total_flour * 0.02, 1),  # 2% of flour
-        "salt_g": round(total_flour * 0.015, 1),            # 1.5% of flour
-        "yeast_g": round(total_flour * 0.01, 1),            # 1% of flour
-        "coffee_beans_g": 0,   # estimated separately from beverages
-        "tea_leaves_g": 0,     # estimated separately from beverages
-        "cup_large_pcs": 0,
-        "cup_regular_pcs": 0,
-        "lids_pcs": 0,
-        "box_pcs": 0,
-        "packaging_bag_pcs": 0,
-        "packaging_box_pcs": 0,
-    }
-    # Reassign cake flour for cake products
-    for product, quantity in bake_plan.items():
-        if product in cake_products and quantity > 0:
-            recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
-            cake_flour = quantity * recipe.get("flour_g", 0)
-            derived["cake_flour_g"] += cake_flour
-    derived["cake_flour_g"] = round(derived["cake_flour_g"], 1)
-    # Packaging: 1 packaging bag per 3 bread items
-    total_bread_units = sum(q for p, q in bake_plan.items() if p not in DRINK_NAMES)
-    derived["packaging_bag_pcs"] = round(total_bread_units / 3, 1)
-    derived["packaging_box_pcs"] = round(total_bread_units / 6, 1)  # boxes for larger orders
-    materials.update(derived)
-    return {k: round(v, 1) for k, v in materials.items()}
-_DEFAULT_RECIPE = {"flour_g":45, "butter_g":10, "sugar_g":8, "egg_whole_g":10, "egg_yolk_g":0, "egg_white_g":0, "milk_ml":15, "chocolate_g":0}
+    """
+    Estimate raw material needs from a bake plan using DB product_recipes.
 
-def estimate_raw_materials(bake_plan, products):
-    """Estimate raw material requirements from bake plan using per-product recipes."""
-    materials = {"flour_g": 0, "butter_g": 0, "sugar_g": 0,
-                 "egg_whole_g": 0, "egg_yolk_g": 0, "egg_white_g": 0,
-                 "milk_ml": 0, "chocolate_g": 0}
-    cake_products = {"chiffon", "chocolate_cake"}
-    for product, quantity in bake_plan.items():
-        if quantity == 0 or product in DRINK_NAMES:
+    Returns dict: {material_name: total_kg_or_pcs}
+
+    Secondary materials (not in product_recipes) derived from flour:
+      - Baking Powder: 2% of total flour weight
+      - Salt: 1.5% of total flour weight
+      - Yeast: 1% of total flour weight
+
+    Cake products (chiffon, chocolate_cake, brownie, chocopie, muffins)
+    use Cake Flour instead of Bread Flour for the flour component.
+    """
+    materials = {}  # material_name -> total (kg for dry, L for liquid, pcs for items)
+
+    for product_key, quantity in bake_plan.items():
+        if quantity <= 0:
             continue
-        recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
-        for key in materials:
-            materials[key] += quantity * recipe[key]
-    # Derive secondary materials from primary ones
-    total_flour = materials["flour_g"]
-    derived = {
-        "cake_flour_g": 0,
-        "baking_powder_g": round(total_flour * 0.02, 1),  # 2% of flour
-        "salt_g": round(total_flour * 0.015, 1),            # 1.5% of flour
-        "yeast_g": round(total_flour * 0.01, 1),            # 1% of flour
-        "coffee_beans_g": 0,   # estimated separately from beverages
-        "tea_leaves_g": 0,     # estimated separately from beverages
-        "cup_large_pcs": 0,
-        "cup_regular_pcs": 0,
-        "lids_pcs": 0,
-        "box_pcs": 0,
-        "packaging_bag_pcs": 0,
-        "packaging_box_pcs": 0,
-    }
-    # Reassign cake flour for cake products
-    for product, quantity in bake_plan.items():
-        if product in cake_products and quantity > 0:
-            recipe = PRODUCT_RECIPES.get(product, _DEFAULT_RECIPE)
-            cake_flour = quantity * recipe.get("flour_g", 0)
-            derived["cake_flour_g"] += cake_flour
-    derived["cake_flour_g"] = round(derived["cake_flour_g"], 1)
-    # Packaging: 1 packaging bag per 3 bread items
-    total_bread_units = sum(q for p, q in bake_plan.items() if p not in DRINK_NAMES)
-    derived["packaging_bag_pcs"] = round(total_bread_units / 3, 1)
-    derived["packaging_box_pcs"] = round(total_bread_units / 6, 1)  # boxes for larger orders
-    materials.update(derived)
-    return {k: round(v, 1) for k, v in materials.items()}
-# ============================================================
-# CP-SAT SOLVER
-# ============================================================
+
+        recipe = load_recipe_from_db(product_key)
+        if not recipe:
+            continue
+
+        for mat_name, qty_per_unit in recipe.items():
+            total = quantity * qty_per_unit
+            materials[mat_name] = materials.get(mat_name, 0) + total
+
+    # Derive secondary materials from total flour
+    bread_flour = materials.get("Bread Flour", 0)
+    cake_flour = materials.get("Cake Flour", 0)
+    total_flour = bread_flour + cake_flour
+
+    if total_flour > 0:
+        materials["Baking Powder"] = round(total_flour * 0.02, 3)
+        materials["Salt"] = round(total_flour * 0.015, 3)
+        materials["Yeast"] = round(total_flour * 0.01, 3)
+
+    # For cake products, flour should be Cake Flour not Bread Flour
+    # (product_recipes already has the right material_name from DB)
+    # We keep both columns for dashboard display
+
+    # Round all values
+    return {k: round(v, 3) for k, v in materials.items() if v > 0}
+
 class Scheduler:
     def __init__(self):
         self.products = load_products()
@@ -720,29 +602,7 @@ class Scheduler:
 
     def dashboard_format_materials(self, weekly_summary, plans=None, forecast=None):
         """Format for Forecasting Dashboard Panel 3: Raw Material Procurement."""
-        # Material key to DB mapping
-        _MATERIAL_DB_MAP = {
-            "flour_g": ("Bread Flour", 1000),
-            "butter_g": ("Butter", 1000),
-            "sugar_g": ("Sugar", 1000),
-            "egg_whole_g": ("Eggs", 1000),
-            "egg_yolk_g": ("Eggs", 1000),
-            "egg_white_g": ("Eggs", 1000),
-            "milk_ml": ("Milk", 1000),
-            "chocolate_g": ("Chocolate", 1000),
-            "cake_flour_g": ("Cake Flour", 1000),
-            "baking_powder_g": ("Baking Powder", 1000),
-            "salt_g": ("Salt", 1000),
-            "yeast_g": ("Yeast", 1000),
-            "coffee_beans_g": ("Coffee Beans", 1000),
-            "tea_leaves_g": ("Tea Leaves", 1000),
-            "cup_large_pcs": ("Cup Large", 1),
-            "cup_regular_pcs": ("Cup Regular", 1),
-            "lids_pcs": ("Lids", 1),
-            "box_pcs": ("Box", 1),
-            "packaging_bag_pcs": ("Packaging Bag", 1),
-            "packaging_box_pcs": ("Packaging Box", 1),
-        }
+        # Fetch real stock from database
         # Fetch real stock from database
         db_stock = {}
         try:
@@ -760,13 +620,16 @@ class Scheduler:
             logger.warning("dashboard_format_materials: DB query failed: %s", e)
 
         DEFAULT_WASTE = 0.05
-        # Aggregate by DB material name (multiple scheduler keys may map to same DB row)
+        # Materials now use DB names directly (kg for dry/liquid, pcs for items)
         agg = {}
-        for mat_key, weekly_need_g in weekly_summary.get("materials", {}).items():
-            db_name, divisor = _MATERIAL_DB_MAP.get(mat_key, (mat_key, 1000))
-            if db_name not in agg:
-                agg[db_name] = {"weekly_need": 0, "unit": "kg" if divisor > 1 else "pcs"}
-            agg[db_name]["weekly_need"] += weekly_need_g / divisor
+        for mat_name, weekly_need in weekly_summary.get("materials", {}).items():
+            # Skip packaging/secondary that come from beverage estimation
+            unit = "kg"
+            if mat_name in ("Cup Large", "Cup Regular", "Lids", "Box", "Packaging Bag", "Packaging Box"):
+                unit = "pcs"
+            elif mat_name == "Milk":
+                unit = "L"
+            agg[mat_name] = {"weekly_need": float(weekly_need), "unit": unit}
 
         # Estimate beverage materials from forecast
         total_beverage_units = 0
@@ -847,9 +710,9 @@ def run_paper_evaluation(save_path=None):
 
     # Product mapping
     raw = pd.read_csv(_EVAL_META_CSV)
-    all_products = sorted(raw["product_name"].unique())
-    pid_to_name = {i: p for i, p in enumerate(all_products)}
-    name_to_pid = {p: i for i, p in enumerate(all_products)}
+    id_name = raw[["product_id", "product_name"]].drop_duplicates()
+    pid_to_name = dict(zip(id_name["product_id"], id_name["product_name"]))
+    name_to_pid = dict(zip(id_name["product_name"], id_name["product_id"]))
 
     # Load S2 models
     if not _init_s2_models():
@@ -857,7 +720,7 @@ def run_paper_evaluation(save_path=None):
         return None
 
     # Weather means (from test period itself for accurate eval)
-    weather_test = test_df.groupby("month")[["temp_mean", "temp_max", "temp_min", "humidity", "precipitation"]].mean().to_dict("index")
+    weather_test = test_df.groupby("month")[["temp_mean", "temp_range", "is_cold_day", "is_hot_day"]].mean().to_dict("index")
 
     # Get all unique weeks in test period
     test_dates = sorted(test_df["date"].unique())
@@ -902,27 +765,41 @@ def run_paper_evaluation(save_path=None):
             day_actual = {}
             m = day_dt.month
             w = day_dt.weekday()
-            wm = weather_test.get(m, {"temp_mean": 20, "temp_max": 25, "temp_min": 15, "humidity": 70, "precipitation": 3})
+            wm = weather_test.get(m, {"temp_mean": 20, "temp_range": 0, "is_cold_day": 0, "is_hot_day": 0})
 
             for _, row in day_data.iterrows():
                 pid = int(row["product_id"])
                 name = pid_to_name.get(pid, str(pid))
 
-                # Build feature row with real lag values
+                                # Build feature row with real lag values from test data
                 row_df = pd.DataFrame([{
                     "product_id": pid,
-                    "temp_mean": wm["temp_mean"],
-                    "temp_max": wm["temp_max"],
-                    "temp_min": wm["temp_min"],
-                    "humidity": wm["humidity"],
-                    "precipitation": wm["precipitation"],
+                    "category": row.get("category", 1),
+                    "daily_tickets": row.get("daily_tickets", 40),
                     "day_of_week": w,
                     "month": m,
                     "is_weekend": 1 if w >= 5 else 0,
-                    "is_holiday": 0,
+                    "is_holiday": row.get("is_holiday", 0),
                     "lag_1": row["lag_1"],
                     "lag_7_avg": row["lag_7_avg"],
                     "lag_30_avg": row["lag_30_avg"],
+                    "roll_std_7": row.get("roll_std_7", 0),
+                    "roll_std_14": row.get("roll_std_14", 0),
+                    "trend_7": row.get("trend_7", 0),
+                    "is_day1": row.get("is_day1", 0),
+                    "is_top3": row.get("is_top3", 0),
+                    "discount_pct": row.get("discount_pct", 0),
+                    "is_member_day": row.get("is_member_day", 0),
+                    "is_rainy": row.get("is_rainy", 0),
+                    "temp_mean": wm["temp_mean"],
+                    "temp_range": wm["temp_range"],
+                    "is_cold_day": wm["is_cold_day"],
+                    "is_hot_day": wm["is_hot_day"],
+                    "large_ratio": row.get("large_ratio", 0),
+                    "cold_ratio": row.get("cold_ratio", 0),
+                    "sweetness_avg": row.get("sweetness_avg", 0),
+                    "ice_avg": row.get("ice_avg", 0),
+                    "temp_hot_ratio": row.get("temp_hot_ratio", 0),
                 }])[_S2_META["feature_cols"]]
 
                 q10_val = max(0, int(round(_S2_MODELS["q10"].predict(row_df)[0])))
@@ -933,12 +810,13 @@ def run_paper_evaluation(save_path=None):
                     day_forecast[name] = {"q10": q10_val, "q50": q50_val, "q90": q90_val}
                 day_actual[name] = int(row["quantity"])
 
-                # Track actual vs predicted
-                if name not in all_actual_sales:
-                    all_actual_sales[name] = 0
-                    all_predicted_sales[name] = 0
-                all_actual_sales[name] += int(row["quantity"])
-                all_predicted_sales[name] += q50_val
+                # Track actual vs predicted (breads only)
+                if name not in DRINK_NAMES:
+                    if name not in all_actual_sales:
+                        all_actual_sales[name] = 0
+                        all_predicted_sales[name] = 0
+                    all_actual_sales[name] += int(row["quantity"])
+                    all_predicted_sales[name] += q50_val
 
             if day_forecast:
                 forecast[day_str] = day_forecast

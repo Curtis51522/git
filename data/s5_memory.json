@@ -5,24 +5,6 @@
     {
       "query": "profit_root_cause",
       "intent": "profit_root_cause",
-      "summary": "PER-CARD FINDINGS\nExternalFactorsAgent: No significant external factors (normal day).\nDemandAgent: 41 orders today, avg ¥72.78/order, total revenue ¥2984.\nAttendanceAgent: 7/7 employees absent today.\nStaffingAgent: 9 staff on shift, adequate for current demand.\nPricingAgent: Discount rate normal: 0.0%.\nProfitAgent: Margin 81.7% on 41 orders (avg ¥72.78/order), revenue ¥2984, profit ¥2437, no discount erosion or waste drag.\nYieldAgent: No production data available.\nWastageAgent: Wastage normal.\n\nCROSS-CARD PATTERNS\nMetricConflictAgent: AttendanceAgent reports all 7 employees absent, but StaffingAgent reports 9 staff on shift and adequate—direct contradiction; likely data error or misclassification of 'absent' vs 'on shift'.\nCausalChainAgent: Root cause chain: Attendance data integrity failure → inflated staff count → misaligned demand coverage assessment → potential hidden labor cost or phantom staff.\nCrossRiskAgent: Cross-card risks include (1) profit margin may be inflated if actual labor costs are missing, (2) operational decisions based on false staffing levels, (3) reputational risk if customers experience understaffing despite stated coverage.",
-      "outcome": {
-        "significant": false
-      },
-      "timestamp": "2026-07-01T03:54:07.342152"
-    },
-    {
-      "query": "profit_root_cause",
-      "intent": "profit_root_cause",
-      "summary": "PER-CARD FINDINGS\nExternalFactorsAgent: No significant external factors (normal day).\nDemandAgent: 41 orders today, avg ¥72.78/order, total revenue ¥2984.\nAttendanceAgent: 7/7 employees absent today (critical).\nPricingAgent: Discount rate normal 0.0%.\nStaffingAgent: 9 staff on shift, adequate for current demand.\nProfitAgent: Margin 81.7% on 41 orders (¥2984 revenue, ¥2437 profit), no discount erosion or waste drag.\nYieldAgent: No production data available.\nWastageAgent: Wastage normal.\n\nCROSS-CARD PATTERNS\nMetricConflictAgent: Direct conflict between AttendanceAgent (7/7 absent) and StaffingAgent (9 staff on shift) – inconsistent labor status.\nCausalChainAgent: Root cause chain: if attendance is correct, operations impossible, so revenue/profit figures are likely invalid due to data mismatch (reporting period or system error). If staffing is correct, attendance report is wrong.\nCrossRiskAgent: High cross-card risk: unreliable labor data undermines all revenue and profitability metrics; decisions based on these numbers could lead to overstaffing or misreading demand.",
-      "outcome": {
-        "significant": false
-      },
-      "timestamp": "2026-07-01T03:56:07.826810"
-    },
-    {
-      "query": "profit_root_cause",
-      "intent": "profit_root_cause",
       "summary": "PER-CARD FINDINGS\nExternalFactorsAgent: No significant external factors (normal day).\nDemandAgent: 41 orders today, avg ¥72.78/order, total revenue ¥2984.\nAttendanceAgent: 7/7 employees absent today – all staff missing.\nPricingAgent: Discount rate normal at 0.0%.\nStaffingAgent: 9 staff on shift, adequate for current demand.\nProfitAgent: Margin 81.7% on 41 orders (avg ¥72.78/order), revenue ¥2984, profit ¥2437; no discount erosion or waste drag.\nYieldAgent: No production data available.\nWastageAgent: Wastage normal.\n\nCROSS-CARD PATTERNS\nMetricConflictAgent: Direct conflict between AttendanceAgent (7/7 absent) and StaffingAgent (9 staff on shift) – one agent reports zero employees present while the other reports a full shift; this is a data integrity issue that must be resolved before further analysis.\nCausalChainAgent: Profit root cause is clean – high margin (81.7%) driven by zero discount erosion (PricingAgent 0.0%), normal wastage (WastageAgent normal), and stable revenue from 41 orders; no cost or demand anomalies detected. The attendance-staffing conflict does not affect today's profit calculation but undermines confidence in operational data.\nCrossRiskAgent: Primary risk is reliance on contradictory staffing data – if actual attendance is low, future shifts may be understaffed or overtime costs may spike; also, the conflict may indicate a tracking error that could affect payroll and scheduling decisions.",
       "outcome": {
         "significant": false
@@ -1801,6 +1783,24 @@
         "significant": true
       },
       "timestamp": "2026-07-03T09:31:07.723033"
+    },
+    {
+      "query": "production_advice",
+      "intent": "production_advice",
+      "summary": "The week’s most critical constraint is the 28.4-kg Bread Flour gap, which directly limits bake volumes and must be closed immediately to avoid lost output. Total forecast demand for 6-12 July is 2,070 units, projecting ¥24,597 revenue, with a rising trend and a peak day on 10 July (¥4,070). Top sellers are croissant_chocolate (157 units, ¥1,884), croissant (154 units, ¥1,540), baguette (145 units, ¥1,305), donut (86 units, ¥688), and mantequilla (69 units, ¥552). The production plan calls for 1,749 baked units against 79 units of starting stock, giving total available supply of 1,828 units-only 88.3% of the forecast. This yields ¥19,321 revenue and ¥12,615 profit, leaving 242 units of demand unserved. The plan’s internal buffer is set at 105%, but the actual supply coverage ratio is lower because the buffer applies to the bake, not to the full forecast plus stock. The highest uncertainty sits on croissant (forecast ¥0-¥36 range), croissant_chocolate (¥0-¥30), baguette (¥0-¥25), donut (¥0-¥17), and pancake (¥0-¥10). To manage this, the plan bakes 164 croissant_chocolate vs 157 forecast, 161 croissant vs 154, 151 baguette vs 145, while donut and mantequilla are baked exactly to forecast at 86 and 69 units. The higher-demand downside scenario shows profit could drop to ¥9,638 with 553 waste units, though the overall wastage risk is assessed as moderate. Material readiness: Top ingredients: Bread Flour (need 74.0kg, stock 45.6kg, gap +28.4kg); Butter (need 21.5kg, stock 13.5kg, gap +8.0kg); Sugar (need 17.7kg, stock 18.9kg, gap -1.2kg); Eggs (need 16.3kg, stock 28.9kg, gap -12.6kg); Milk (need 15.4L, stock 16.8L, gap -1.4L). Packaging is ample-Lids, Cup Regular, and Cup Large all show surplus. Total new material to order is 43 units, with Bread Flour being the only critical shortage. No historical forecast accuracy data exists yet, so planning confidence relies entirely on the current demand picture and falls back on aggressive daily adjustments. Bread is the main driver of revenue, meaning a bread-only demand shock would hit the whole week hard; however, beverages have little power to offset that risk.",
+      "outcome": {
+        "significant": false
+      },
+      "timestamp": "2026-07-06T19:33:20.861809"
+    },
+    {
+      "query": "profit_root_cause",
+      "intent": "profit_root_cause",
+      "summary": "Today's revenue collapsed to ¥31 on a single order, a 99.4% plunge from the weekly average of ¥2,115. This is not a random shock but the latest point in a steepening downward trend - the business generated just ¥26 in profit at an 85% margin on that lone transaction.",
+      "outcome": {
+        "significant": true
+      },
+      "timestamp": "2026-07-06T19:37:19.154169"
     }
   ],
   "version": 1

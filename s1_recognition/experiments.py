@@ -70,7 +70,7 @@ logger = logging.getLogger("s1.experiments")
 # ---------------------------------------------------------------------------
 DATA_YAML = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data", "merged_yolo", "data.yaml",
+    "data", "merged_yolo_30cls", "data.yaml",
 )
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs")
 RESULTS_CSV = os.path.join(

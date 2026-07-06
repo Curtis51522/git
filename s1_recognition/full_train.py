@@ -1,364 +1,267 @@
 """
-s1_recognition/full_train.py — Full-length YOLO Training with Optimal Hyperparameters
-======================================================================================
+s1_recognition/full_train.py ??YOLO11s Ablation Study & Full Training
+========================================================================
 
-Methodology
------------
-Trains YOLO11s for 200 epochs using the optimal hyperparameter configuration
-discovered by `experiments.py` (grid search + ablation). The configuration
-is read from `s1_recognition/best_config.json`.
+Ablation experiments to isolate the contribution of each training component:
+  1. Baseline:    AdamW, 100ep, basic aug  (default YOLO recipe)
+  2. Optimizer:   SGD,   100ep, basic aug  (isolates optimizer effect)
+  3. Epochs:      SGD,   200ep, basic aug  (isolates extended training)
+  4. Proposed:    SGD,   200ep, full aug   (grid-search recipe + mixup)
 
-Key design decisions for bakery detection:
-- **Full training length (200 epochs)**: Based on findings from He et al.
-  (2019) "Rethinking ImageNet Pre-training" — longer training benefits
-  from-scratch and fine-tuning scenarios. 200 epochs provides sufficient
-  convergence for a 16k-image dataset while avoiding overfitting.
-- **Transfer learning**: COCO-pretrained YOLO11s backbone unless the best
-  config specifies pretrained=False (the ablation study determines this).
-- **Regularisation**: Label smoothing (0.1), weight decay (5e-4), cosine LR
-  schedule, and warmup (5 epochs) per Szegedy et al. (2016) and
-  Ultralytics YOLO recommendations.
-- **Augmentation**: Multi-scale training (Ge et al. 2021, YOLOX),
-  mosaic + mixup augmentation (Bochkovskiy et al. 2020, YOLOv4),
-  colour jitter, rotation, shear, and flip.
-- **Output**: The final best.pt is saved to `models/yolo/best.pt` for
-  downstream inference (module1_yolo.py, API server).
+All experiments use the same effective learning rate (lr0=0.005, nbs=batch)
+and the same dataset (merged_yolo_30cls, 30 classes).
 
 Usage
 -----
-    python s1_recognition/full_train.py
-    python s1_recognition/full_train.py --config path/to/best_config.json --epochs 200 --batch 16
+    python s1_recognition/full_train.py --all     # run all 4 experiments
+    python s1_recognition/full_train.py --proposed # run only proposed
 """
 
-import os
-import sys
-import json
-import time
-import logging
-import argparse
-import platform
-import shutil
-
-import torch
-import yaml
+import os, sys, json, time, logging, argparse, platform, shutil
+import torch, yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import YOLO_MODEL_PATH
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger("s1.full_train")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+logger = logging.getLogger("s1.ablation")
 
-
-# ---------------------------------------------------------------------------
-# Default paths
-# ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_DIR = os.path.dirname(_SCRIPT_DIR)
-
-DEFAULT_CONFIG_PATH = os.path.join(_SCRIPT_DIR, "best_config.json")
 DEFAULT_DATA_YAML = os.path.join(_PROJECT_DIR, "data", "merged_yolo_30cls", "data.yaml")
 FINAL_MODEL_DIR = os.path.join(_PROJECT_DIR, "models", "yolo")
-DEFAULT_EPOCHS = 200
 
+# ---- Experiment definitions ----
+# Each dict: name, optimizer, epochs, batch, mixup, multi_scale, label_smoothing, description
+EXPERIMENTS = [
+    {
+        "tag": "ablation_baseline",
+        "name": "Baseline",
+        "optimizer": "AdamW", "epochs": 100, "batch": 16, "nbs": 16,
+        "lr0": 0.005, "mosaic": 1.0, "mixup": 0.0, "multi_scale": False,
+        "label_smoothing": 0.0,
+        "hsv_h": 0.015, "hsv_s": 0.7, "hsv_v": 0.4,
+        "degrees": 0.0, "shear": 0.0,
+        "warmup_epochs": 3, "close_mosaic": 10, "patience": 30,
+        "desc": "AdamW 100ep basic aug (lr0=0.005, not default 0.01, for fair comparison)",
+    },
+    {
+        "tag": "ablation_sgd",
+        "name": "Ablation: SGD",
+        "optimizer": "SGD", "epochs": 100, "batch": 16, "nbs": 16,
+        "lr0": 0.005, "mosaic": 1.0, "mixup": 0.0, "multi_scale": False,
+        "label_smoothing": 0.0,
+        "hsv_h": 0.015, "hsv_s": 0.7, "hsv_v": 0.4,
+        "degrees": 0.0, "shear": 0.0,
+        "warmup_epochs": 3, "close_mosaic": 10, "patience": 30,
+        "desc": "SGD 100ep basic aug (isolates optimizer change)",
+    },
+    {
+        "tag": "ablation_epochs",
+        "name": "Ablation: +Epochs",
+        "optimizer": "SGD", "epochs": 200, "batch": 8, "nbs": 8,
+        "lr0": 0.005, "mosaic": 1.0, "mixup": 0.0, "multi_scale": False,
+        "label_smoothing": 0.0,
+        "hsv_h": 0.015, "hsv_s": 0.7, "hsv_v": 0.4,
+        "degrees": 0.0, "shear": 0.0,
+        "warmup_epochs": 3, "close_mosaic": 10, "patience": 50,
+        "desc": "SGD 200ep basic aug (isolates extended training)",
+    },
+    {
+        "tag": "ablation_proposed",
+        "name": "Proposed (Full)",
+        "optimizer": "SGD", "epochs": 200, "batch": 8, "nbs": 8,
+        "lr0": 0.005, "mosaic": 1.0, "mixup": 0.1, "multi_scale": True,
+        "label_smoothing": 0.1,
+        "hsv_h": 0.015, "hsv_s": 0.4, "hsv_v": 0.3,
+        "degrees": 15, "shear": 0.1,
+        "warmup_epochs": 5, "close_mosaic": 15, "patience": 50,
+        "desc": "SGD 200ep full aug (grid-search recipe + mixup)",
+    },
+]
 
-# ---------------------------------------------------------------------------
-# GPU info
-# ---------------------------------------------------------------------------
-def log_system_info() -> None:
-    """Log system, Python, PyTorch, and GPU details for experiment tracking."""
-    logger.info("System: %s | Python %s | PyTorch %s",
-                platform.system(), sys.version.split()[0], torch.__version__)
+def log_system_info():
+    logger.info("System: %s | Python %s | PyTorch %s", platform.system(), sys.version.split()[0], torch.__version__)
     if torch.cuda.is_available():
         gpu_name = torch.cuda.get_device_name(0)
-        vram = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+        vram = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         logger.info("GPU: %s (%.1f GB VRAM)", gpu_name, vram)
-        logger.info("CUDA version: %s", torch.version.cuda)
-    else:
-        logger.warning("CUDA not available — training will be very slow on CPU.")
 
-
-# ---------------------------------------------------------------------------
-# Load configuration
-# ---------------------------------------------------------------------------
-def load_config(config_path: str) -> dict:
-    """
-    Load hyperparameter configuration from JSON file.
-
-    Expected keys: lr0, mosaic, batch, optimizer, epochs (optional, overridden
-    by command-line --epochs), pretrained (optional, defaults to True).
-    """
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(
-            f"Configuration file not found: {config_path}\n"
-            f"Run s1_recognition/experiments.py first to generate best_config.json."
-        )
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-
-    logger.info("Loaded configuration from %s", config_path)
-    for k, v in config.items():
-        logger.info("  %s: %s", k, v)
-
-    return config
-
-
-# ---------------------------------------------------------------------------
-# Full training
-# ---------------------------------------------------------------------------
-def full_train(
-    config: dict,
-    epochs: int = DEFAULT_EPOCHS,
-    data_yaml: str = DEFAULT_DATA_YAML,
-) -> dict:
-    """
-    Run full-length YOLO training with the best hyperparameter configuration.
-
-    Parameters
-    ----------
-    config : dict
-        Hyperparameter dictionary with keys: lr0, mosaic, batch, optimizer,
-        and optionally pretrained.
-    epochs : int
-        Number of training epochs (default: 200).
-    data_yaml : str
-        Path to dataset YAML configuration.
-
-    Returns
-    -------
-    dict with training metrics: mAP50, mAP50_95, peak_gpu_memory_gb,
-    training_time_s, and model_path.
-    """
+def run_experiment(exp: dict, data_yaml: str) -> dict:
+    """Run a single ablation experiment. Returns metrics dict."""
     from ultralytics import YOLO
 
-    lr0 = float(config["lr0"])
-    mosaic = float(config["mosaic"])
-    batch = int(config["batch"])
-    optimizer = config.get("optimizer", "AdamW")
-    pretrained = config.get("pretrained", True)
-
-    # Seed everything for reproducibility
-    import random as _random
-    _random.seed(42)
-    import numpy as _np
-    _np.random.seed(42)
-    torch.manual_seed(42)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(42)
-
-    os.makedirs(FINAL_MODEL_DIR, exist_ok=True)
-
     logger.info("=" * 72)
-    logger.info("FULL TRAINING — %d epochs", epochs)
-    logger.info("Hyperparameters:")
-    logger.info("  lr0=%.4f, mosaic=%.1f, batch=%d, optimizer=%s, pretrained=%s",
-                lr0, mosaic, batch, optimizer, pretrained)
+    logger.info("EXPERIMENT: %s", exp["name"])
+    logger.info("  %s", exp["desc"])
+    logger.info("  optimizer=%s epochs=%d batch=%d/%d lr0=%.4f mosaic=%.1f",
+                exp["optimizer"], exp["epochs"], exp["batch"], exp["nbs"], exp["lr0"], exp["mosaic"])
+    logger.info("  mixup=%.1f multi_scale=%s label_smoothing=%.1f",
+                exp["mixup"], exp["multi_scale"], exp["label_smoothing"])
     logger.info("  Data: %s", data_yaml)
     logger.info("=" * 72)
 
-    # Validate data YAML
     with open(data_yaml) as f:
         ds = yaml.safe_load(f)
-    logger.info("Dataset: %d classes, train=%s, val=%s",
-                ds.get("nc", 0), ds.get("train"), ds.get("val"))
+    logger.info("Dataset: %d classes, train=%s, val=%s", ds.get("nc", 0), ds.get("train"), ds.get("val"))
 
-    # Reset GPU memory stats
     torch.cuda.reset_peak_memory_stats()
     t_start = time.time()
 
     model = YOLO("yolo11s.pt")
 
-    training_args = dict(
+    args = dict(
         data=data_yaml,
-        epochs=epochs,
+        epochs=exp["epochs"],
         imgsz=640,
-        batch=batch,
-        name="full_train_bakery",
+        batch=exp["batch"],
+        nbs=exp["nbs"],
+        name=exp["tag"],
         project=os.path.join(_PROJECT_DIR, "runs", "detect"),
         exist_ok=True,
-        pretrained=pretrained,
-        workers=4,
-        optimizer=optimizer,
-        lr0=lr0,
+        pretrained=True,
+        workers=2,
+        cache='disk',
+        optimizer=exp["optimizer"],
+        lr0=exp["lr0"],
         cos_lr=True,
-        warmup_epochs=5,
-        box=7.5,
-        cls=0.5,
-        dfl=1.5,
+        warmup_epochs=exp["warmup_epochs"],
+        box=7.5, cls=0.5, dfl=1.5,
         dropout=0.0,
         weight_decay=0.0005,
-        label_smoothing=0.1,
-        multi_scale=True,
+        label_smoothing=exp["label_smoothing"],
+        multi_scale=exp["multi_scale"],
         augment=True,
-        hsv_h=0.015,
-        hsv_s=0.4,
-        hsv_v=0.3,
-        degrees=15,
-        translate=0.1,
-        scale=0.3,
-        shear=0.1,
-        perspective=0.0,
-        flipud=0.0,
-        fliplr=0.5,
-        mosaic=mosaic,
-        mixup=0.1 if mosaic > 0.0 else 0.0,
-        close_mosaic=15 if mosaic > 0.0 else 0,
-        patience=50,
+        hsv_h=exp["hsv_h"], hsv_s=exp["hsv_s"], hsv_v=exp["hsv_v"],
+        degrees=exp["degrees"],
+        translate=0.1, scale=0.5,
+        shear=exp["shear"],
+        perspective=0.0, flipud=0.0, fliplr=0.5,
+        mosaic=exp["mosaic"],
+        mixup=exp["mixup"],
+        close_mosaic=exp["close_mosaic"],
+        patience=exp["patience"],
+        amp=True,
         device=0,
     )
 
-    results = model.train(**training_args)
+    results = model.train(**args)
 
     t_elapsed = time.time() - t_start
-    peak_mem = torch.cuda.max_memory_allocated() / (1024 ** 3)
+    peak_mem = torch.cuda.max_memory_allocated() / (1024**3)
 
-    # Extract metrics
     metrics = {
+        "experiment": exp["name"],
+        "tag": exp["tag"],
         "mAP50": round(float(results.results_dict.get("metrics/mAP50(B)", 0)), 4),
         "mAP50_95": round(float(results.results_dict.get("metrics/mAP50-95(B)", 0)), 4),
         "training_time_s": round(t_elapsed, 1),
         "peak_gpu_memory_gb": round(peak_mem, 2),
-        "epochs_trained": epochs,
+        "epochs_trained": exp["epochs"],
+        "model_path": os.path.join(_PROJECT_DIR, "runs", "detect", exp["tag"], "weights", "best.pt"),
     }
 
-    logger.info("Training completed in %.1f s (%.2f GB peak VRAM).",
-                t_elapsed, peak_mem)
-    logger.info("mAP@0.5 = %.4f, mAP@0.5:0.95 = %.4f",
-                metrics["mAP50"], metrics["mAP50_95"])
+    logger.info("%s done: mAP50=%.4f mAP50-95=%.4f time=%.0fs VRAM=%.1fGB",
+                exp["name"], metrics["mAP50"], metrics["mAP50_95"], t_elapsed, peak_mem)
 
-    # Copy best.pt to final model location
-    src_best = os.path.join("runs", "detect", "full_train_bakery", "weights", "best.pt")
-    if os.path.exists(src_best):
-        shutil.copy2(src_best, YOLO_MODEL_PATH)
-        logger.info("Final model saved: %s", YOLO_MODEL_PATH)
-        metrics["model_path"] = YOLO_MODEL_PATH
-    else:
-        logger.warning("best.pt not found at %s", src_best)
-        metrics["model_path"] = None
-
-    # Also save a copy in s1_recognition/runs
-    exp_run_dir = os.path.join(_SCRIPT_DIR, "runs", "full_train_final")
-    os.makedirs(exp_run_dir, exist_ok=True)
-    if os.path.exists(src_best):
-        shutil.copy2(src_best, os.path.join(exp_run_dir, "best.pt"))
-        logger.info("Copy also saved: %s", os.path.join(exp_run_dir, "best.pt"))
-
-    return metrics
-
-
-# ---------------------------------------------------------------------------
-# Per-class evaluation
-# ---------------------------------------------------------------------------
-def evaluate_model(model_path: str, data_yaml: str) -> dict:
-    """
-    Evaluate the trained model on the validation set with per-class metrics.
-
-    Returns dict with overall mAP and per-class AP for thesis reporting.
-    """
-    from ultralytics import YOLO
-
-    if not os.path.exists(model_path):
-        logger.error("Model not found: %s", model_path)
-        return {}
-
-    logger.info("Evaluating model: %s", model_path)
-    model = YOLO(model_path)
+    # Per-class evaluation
+    logger.info("Running per-class validation...")
     val_results = model.val(data=data_yaml, split="val", device=0)
-
     per_class = {}
     if val_results.box.ap_class_index is not None and val_results.names:
-        for i, ap in enumerate(val_results.box.ap50):
-            cls_name = val_results.names.get(
-                val_results.box.ap_class_index[i], f"class_{i}"
-            )
+        ap50 = val_results.box.ap50 if hasattr(val_results.box, 'ap50') and val_results.box.ap50 is not None else []
+        for idx, ap in enumerate(ap50):
+            cls_id = val_results.box.ap_class_index[idx] if idx < len(val_results.box.ap_class_index) else idx
+            cls_name = val_results.names.get(int(cls_id), f"class_{cls_id}")
             per_class[cls_name] = round(float(ap), 4)
+    metrics["per_class_ap50"] = per_class
 
-    metrics = {
-        "mAP50": round(float(val_results.box.map50), 4),
-        "mAP50_95": round(float(val_results.box.map), 4),
-        "per_class_ap50": per_class,
-    }
+    # Save per-experiment JSON
+    exp_json = os.path.join(_SCRIPT_DIR, f"{exp['tag']}_metrics.json")
+    with open(exp_json, "w", encoding="utf-8") as f:
+        json.dump(metrics, f, indent=2)
+    logger.info("Per-class metrics saved: %s (%d classes)", exp_json, len(per_class))
 
-    logger.info("Evaluation:")
-    logger.info("  mAP@0.5 = %.4f", metrics["mAP50"])
-    logger.info("  mAP@0.5:0.95 = %.4f", metrics["mAP50_95"])
-    logger.info("  Per-class AP (top 5):")
-    sorted_classes = sorted(per_class.items(), key=lambda x: x[1], reverse=True)
-    for cls_name, ap in sorted_classes[:5]:
-        logger.info("    %s: %.4f", cls_name, ap)
-    logger.info("  Per-class AP (bottom 5):")
-    for cls_name, ap in sorted_classes[-5:]:
-        logger.info("    %s: %.4f", cls_name, ap)
+    # Log top/bottom 5
+    if per_class:
+        sorted_ap = sorted(per_class.items(), key=lambda x: x[1], reverse=True)
+        logger.info("  Top 5: %s", ", ".join(f"{n}={v:.3f}" for n, v in sorted_ap[:5]))
+        logger.info("  Bottom 5: %s", ", ".join(f"{n}={v:.3f}" for n, v in sorted_ap[-5:]))
+
+    # Free GPU memory before next experiment
+    del model
+    torch.cuda.empty_cache()
 
     return metrics
 
+def print_comparison(all_metrics: list):
+    """Print ablation comparison table."""
+    logger.info("")
+    logger.info("=" * 72)
+    logger.info("ABLATION STUDY RESULTS")
+    logger.info("=" * 72)
+    logger.info("%-25s %10s %12s %8s %10s", "Experiment", "mAP@0.5", "mAP@0.5:0.95", "Time(h)", "VRAM(GB)")
+    logger.info("-" * 72)
+    for m in all_metrics:
+        logger.info("%-25s %10.4f %12.4f %7.1f %9.1f",
+                    m["experiment"], m["mAP50"], m["mAP50_95"],
+                    m["training_time_s"]/3600, m["peak_gpu_memory_gb"])
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+    # Delta from baseline
+    if all_metrics:
+        base = all_metrics[0]
+        logger.info("")
+        logger.info("Improvement over Baseline:")
+        for m in all_metrics[1:]:
+            delta = m["mAP50"] - base["mAP50"]
+            logger.info("  %-25s mAP50: %+.4f  mAP50-95: %+.4f",
+                        m["experiment"], delta, m["mAP50_95"] - base["mAP50_95"])
+    logger.info("=" * 72)
+
+    # Save JSON
+    results_path = os.path.join(_SCRIPT_DIR, "ablation_results.json")
+    with open(results_path, "w", encoding="utf-8") as f:
+        json.dump(all_metrics, f, indent=2)
+    logger.info("Results saved: %s", results_path)
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Full YOLO training with optimal hyperparameters (200 epochs)."
-    )
-    parser.add_argument(
-        "--config", type=str, default=DEFAULT_CONFIG_PATH,
-        help=f"Path to best_config.json (default: {DEFAULT_CONFIG_PATH})",
-    )
-    parser.add_argument(
-        "--data", type=str, default=DEFAULT_DATA_YAML,
-        help=f"Dataset YAML (default: {DEFAULT_DATA_YAML})",
-    )
-    parser.add_argument(
-        "--epochs", type=int, default=DEFAULT_EPOCHS,
-        help=f"Number of training epochs (default: {DEFAULT_EPOCHS})",
-    )
-    parser.add_argument(
-        "--batch", type=int, default=None,
-        help="Override batch size from config.",
-    )
-    parser.add_argument(
-        "--eval-only", action="store_true",
-        help="Skip training; only evaluate an existing model.",
-    )
-    parser.add_argument(
-        "--model", type=str, default=YOLO_MODEL_PATH,
-        help="Model path for --eval-only (default: models/yolo/best.pt)",
-    )
+    parser = argparse.ArgumentParser(description="YOLO11s ablation study for bakery detection.")
+    parser.add_argument("--all", action="store_true", help="Run all 4 ablation experiments in sequence.")
+    parser.add_argument("--proposed", action="store_true", help="Run only the proposed experiment.")
+    parser.add_argument("--data", type=str, default=DEFAULT_DATA_YAML, help="Dataset YAML path.")
     args = parser.parse_args()
 
     log_system_info()
 
-    if args.eval_only:
-        evaluate_model(args.model, args.data)
-        return
+    if args.proposed:
+        to_run = [EXPERIMENTS[-1]]
+    elif args.all:
+        to_run = EXPERIMENTS
+    else:
+        to_run = EXPERIMENTS  # default: run all
 
-    config = load_config(args.config)
+    all_metrics = []
+    for exp in to_run:
+        try:
+            metrics = run_experiment(exp, args.data)
+            all_metrics.append(metrics)
+        except Exception as e:
+            logger.error("Experiment %s FAILED: %s", exp["name"], e)
+            all_metrics.append({"experiment": exp["name"], "error": str(e)})
 
-    # Allow command-line batch override
-    if args.batch is not None:
-        config["batch"] = args.batch
-        logger.info("Batch size overridden to %d", args.batch)
+    if len(all_metrics) >= 2:
+        print_comparison(all_metrics)
 
-    # Run full training
-    metrics = full_train(config, epochs=args.epochs, data_yaml=args.data)
+    # Copy proposed model to final location (only if proposed ran successfully)
+    proposed = [m for m in all_metrics if m.get("tag") == "ablation_proposed" and "error" not in m]
+    if proposed:
+        src = proposed[0].get("model_path")
+        if src and os.path.exists(src):
+            os.makedirs(FINAL_MODEL_DIR, exist_ok=True)
+            shutil.copy2(src, YOLO_MODEL_PATH)
+            logger.info("Final model: %s", YOLO_MODEL_PATH)
 
-    # Evaluate the final model
-    evaluate_model(YOLO_MODEL_PATH, args.data)
-
-    logger.info("=" * 72)
-    logger.info("FULL TRAINING COMPLETE")
-    logger.info("Best model: %s", YOLO_MODEL_PATH)
-    logger.info("mAP@0.5 = %.4f, mAP@0.5:0.95 = %.4f",
-                metrics["mAP50"], metrics["mAP50_95"])
-    logger.info("Training time: %.1f s", metrics["training_time_s"])
-    logger.info("=" * 72)
-
+    logger.info("ALL DONE")
 
 if __name__ == "__main__":
     main()
