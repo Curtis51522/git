@@ -1,0 +1,50 @@
+{
+  "week_start": "2026-07-06",
+  "employees": {
+    "E004": {
+      "name": "Liu Yang",
+      "role": "baker",
+      "shifts": 9
+    },
+    "E008": {
+      "name": "Wu Tao",
+      "role": "baker",
+      "shifts": 9
+    },
+    "E003": {
+      "name": "Wang Lei",
+      "role": "barista",
+      "shifts": 9
+    },
+    "E007": {
+      "name": "Huang Jian",
+      "role": "cashier",
+      "shifts": 9
+    },
+    "E001": {
+      "name": "Zhang Wei",
+      "role": "baker",
+      "shifts": 9
+    },
+    "E006": {
+      "name": "Zhao Min",
+      "role": "baker",
+      "shifts": 9
+    },
+    "E009": {
+      "name": "Lin Yue",
+      "role": "barista",
+      "shifts": 9
+    },
+    "E002": {
+      "name": "Li Na",
+      "role": "cashier",
+      "shifts": 9
+    },
+    "E005": {
+      "name": "Chen Hao",
+      "role": "baker",
+      "shifts": 9
+    }
+  }
+}

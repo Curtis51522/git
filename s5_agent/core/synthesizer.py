@@ -23,6 +23,7 @@ class Synthesizer:
     async def synthesize(self, dag_result: Dict, deliberation: Dict = None,
 
                           memory = None, lang: str = "en") -> Dict[str, Any]:
+        lang = self._normalize_lang(lang)
 
         results = dag_result.get("results", {})
 
@@ -71,6 +72,7 @@ class Synthesizer:
 
 
     async def _llm_analyze(self, results: Dict, intent: str, deliberation: Dict = None, lang: str = "en") -> Dict[str, Any]:
+        lang = self._normalize_lang(lang)
 
         agent_summaries = []
 
@@ -93,12 +95,11 @@ class Synthesizer:
 
 
         if not self.llm_key:
-
-            return {"summary": " | ".join(agent_summaries)[:200], "attribution": [], "recommendations": []}
-
+            return self._fallback_analysis(agent_summaries, agent_recs, results, lang)
 
 
-        lang_instr = "in Chinese (Simplified Chinese)" if lang == "zh" else "in English"
+
+        lang_instr = "in Simplified Chinese" if lang == "zh" else "in English"
 
         if lang == "bm":
 
@@ -172,36 +173,43 @@ class Synthesizer:
 
             logger.warning("LLM analysis failed: %s", e)
             
-        # Fallback
+        return self._fallback_analysis(agent_summaries, agent_recs, results, lang)
 
+    def _normalize_lang(self, lang: str) -> str:
+        value = (lang or "en").strip().lower()
+        if value in ("zh", "zh-cn", "cn", "chinese", "simplified_chinese"):
+            return "zh"
+        return "en"
+
+    def _fallback_analysis(self, agent_summaries: List[str], agent_recs: List[str],
+                           results: Dict, lang: str) -> Dict[str, Any]:
         fallback_summary = "; ".join(agent_summaries) if agent_summaries else "Analysis complete"
+        if lang == "zh":
+            if agent_summaries:
+                fallback_summary = "AI \u5206\u6790\u5df2\u5b8c\u6210\u3002\u5f53\u524d\u672a\u83b7\u5f97\u5927\u6a21\u578b\u4e2d\u6587\u7efc\u5408\u7ed3\u679c\uff0c\u4ee5\u4e0b\u4e3a\u4ee3\u7406\u539f\u59cb\u6458\u8981\uff1a" + fallback_summary
+            else:
+                fallback_summary = "AI \u5206\u6790\u5df2\u5b8c\u6210\uff0c\u4f46\u5f53\u524d\u6ca1\u6709\u53ef\u7528\u7684\u4ee3\u7406\u6458\u8981\u3002"
 
         fallback_attribution = []
-
         for name, r in results.items():
-
             r = r if isinstance(r, dict) else r.__dict__
-
             opinion = r.get("opinion", "")
-
             if opinion:
-
                 fallback_attribution.append({"factor": name, "evidence": opinion[:200]})
 
         fallback_recs = []
-
         for rec_item in agent_recs:
-
-            fallback_recs.append({"action": rec_item, "urgency": "medium", "rationale": ""})
+            action = rec_item
+            rationale = ""
+            if lang == "zh":
+                action = "\u67e5\u770b\u4ee3\u7406\u5efa\u8bae\uff1a" + rec_item
+                rationale = "\u5927\u6a21\u578b\u4e2d\u6587\u7efc\u5408\u4e0d\u53ef\u7528\u65f6\u4fdd\u7559\u539f\u59cb\u4ee3\u7406\u5efa\u8bae\uff0c\u907f\u514d\u4e22\u5931\u4e1a\u52a1\u4fe1\u53f7\u3002"
+            fallback_recs.append({"action": action, "urgency": "medium", "rationale": rationale})
 
         return {
-
             "summary": self._sanitize_summary(fallback_summary),
-
             "attribution": fallback_attribution,
-
             "recommendations": self._sanitize_recommendations(fallback_recs[:6]),
-
         }
 
 
@@ -292,7 +300,7 @@ class Synthesizer:
 
             "en": {"sig": "Action recommended", "norm": "Normal fluctuation, no action needed"},
 
-            "zh": {"sig": "??????", "norm": "?????????"},
+            "zh": {"sig": "\u5efa\u8bae\u91c7\u53d6\u884c\u52a8", "norm": "\u6b63\u5e38\u6ce2\u52a8\uff0c\u6682\u4e0d\u9700\u8981\u884c\u52a8"},
 
             "bm": {"sig": "Tindakan disyorkan", "norm": "Turun naik normal, tiada tindakan diperlukan"},
 

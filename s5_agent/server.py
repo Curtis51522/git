@@ -1,4 +1,4 @@
-# s5_agent/server.py — S5 AI Brain server (port 8001)
+# s5_agent/server.py - S5 dashboard analysis server (port 8001)
 import asyncio, logging, time, sys, os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -38,10 +38,10 @@ logger = logging.getLogger("s5.server")
 
 @asynccontextmanager
 async def lifespan(app):
-    logger.info("S5 AI Brain starting with 19 agents, 7 templates...")
+    logger.info("S5 dashboard analysis starting with %d agents, 7 templates...", len(AGENTS))
     yield
 
-app = FastAPI(title="S5 AI Brain - Multi-Agent Bakery Intelligence", lifespan=lifespan)
+app = FastAPI(title="S5 Dashboard Analysis - Multi-Agent Bakery Intelligence", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 memory = StructuredMemory()
@@ -101,14 +101,21 @@ class ModuleAnalyzeRequest(BaseModel):
 async def health():
     return {"status": "ok", "agents": len(AGENTS), "templates": 7}
 
-def _response_cache_key(intent: str, params: dict) -> str:
+def _normalize_lang(lang: str) -> str:
+    value = (lang or "en").strip().lower()
+    if value in ("zh", "zh-cn", "cn", "chinese", "simplified_chinese"):
+        return "zh"
+    return "en"
+
+def _response_cache_key(intent: str, params: dict, lang: str = "en") -> str:
     date = str(params.get("date", "")) if params else ""
     module = str(params.get("module", "")) if params else ""
-    return f"{intent}:{date}:{module}"
+    return f"{intent}:{date}:{module}:{_normalize_lang(lang)}"
 
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest):
     t0 = time.perf_counter()
+    req.lang = _normalize_lang(req.lang)
     intent = req.intent or route_intent(req.query)[0]
     template = get_template(intent)
     if not template:
@@ -116,7 +123,7 @@ async def analyze(req: AnalyzeRequest):
     
     # Check response cache (skip if force_refresh)
     force_refresh = req.params.get("force_refresh", False) if req.params else False
-    cache_key = _response_cache_key(intent, req.params)
+    cache_key = _response_cache_key(intent, req.params, req.lang)
     if not force_refresh and cache_key in _response_cache:
         logger.info("Response cache HIT for %s", cache_key)
         cached = dict(_response_cache[cache_key])
@@ -164,8 +171,9 @@ async def analyze_module(req: ModuleAnalyzeRequest):
         "kpi": "full_diagnosis",
     }
     intent = module_intent_map.get(req.module, "full_diagnosis")
-    params = {"date": req.date, "force_refresh": req.force_refresh, **(req.params or {})}
-    return await analyze(AnalyzeRequest(intent=intent, params=params, lang=req.lang))
+    lang = _normalize_lang(req.lang)
+    params = {"date": req.date, "module": req.module, "force_refresh": req.force_refresh, **(req.params or {})}
+    return await analyze(AnalyzeRequest(intent=intent, params=params, lang=lang))
 
 
 

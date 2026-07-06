@@ -123,6 +123,52 @@ def load_employees() -> List[Employee]:
 # S2 forecast helper
 # ======================================================================
 
+def _classify_demand_level(total_units: int, weekday_baseline: Optional[float] = None) -> str:
+    if total_units <= 0:
+        return "low"
+    if weekday_baseline and weekday_baseline > 0:
+        demand_index = total_units / weekday_baseline
+        if demand_index > 1.15:
+            return "high"
+        if demand_index < 0.85:
+            return "low"
+        return "normal"
+    if total_units >= 400:
+        return "high"
+    if total_units >= 200:
+        return "normal"
+    return "low"
+
+
+def _fetch_weekday_demand_baselines(start_date: str, lookback_days: int = 180) -> Dict[int, float]:
+    try:
+        base = datetime.strptime(start_date, "%Y-%m-%d").date()
+        history_start = (base - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        db = get_db()
+        c = db.cursor(dictionary=True)
+        c.execute(
+            "SELECT WEEKDAY(dt) AS weekday, AVG(day_units) AS avg_units "
+            "FROM ("
+            "  SELECT DATE(transaction_time) AS dt, SUM(quantity) AS day_units "
+            "  FROM inventory_transactions "
+            "  WHERE transaction_type='outflow' "
+            "    AND DATE(transaction_time) >= %s "
+            "    AND DATE(transaction_time) < %s "
+            "  GROUP BY DATE(transaction_time)"
+            ") daily "
+            "GROUP BY WEEKDAY(dt)",
+            (history_start, start_date),
+        )
+        return {
+            int(row["weekday"]): float(row["avg_units"])
+            for row in c.fetchall()
+            if row.get("weekday") is not None and row.get("avg_units") is not None
+        }
+    except Exception as e:
+        logger.warning("S3 weekday demand baseline query failed: %s", e)
+        return {}
+
+
 def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
     """Fetch S2 forecast, aggregate by date, and compute data-driven demand levels.
 
@@ -157,18 +203,14 @@ def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
             if freshness in ("Fresh", "Total"):
                 daily[d]["coffee_units"] += int(demand * COFFEE_DEMAND_RATIO)
 
-        # --- Fixed demand level classification (stable across restarts) ---
-        # Thresholds: >=250 high, >=150 normal, >0 low, 0 = closed
+        weekday_baselines = _fetch_weekday_demand_baselines(start_date)
         for d, item in daily.items():
             total = item["total_units"]
-            if total == 0:
-                daily[d]["demand_level"] = "low"  # closed day
-            elif total >= 400:
-                daily[d]["demand_level"] = "high"
-            elif total >= 200:
-                daily[d]["demand_level"] = "normal"
-            else:
-                daily[d]["demand_level"] = "low"
+            weekday = datetime.strptime(d, "%Y-%m-%d").weekday()
+            baseline = weekday_baselines.get(weekday)
+            daily[d]["demand_level"] = _classify_demand_level(total, baseline)
+            daily[d]["demand_baseline"] = round(baseline, 1) if baseline else None
+            daily[d]["demand_index"] = round(total / baseline, 3) if baseline else None
 
         return daily
 
@@ -352,6 +394,11 @@ def solve_shift_schedule(
     for role in ROLES:
         role_members[role] = sum(1 for e in range(N) if emp_of[e].role == role)
 
+    role_required_hours = {role: 0 for role in ROLES}
+    for d in range(num_days):
+        for role in ("baker", "cashier", "barista"):
+            role_required_hours[role] += daily_demand[d].get(role, 0) * sum(slot_hours)
+
     for e in range(N):
         emp = emp_of[e]
         weekly_hours = sum(
@@ -365,6 +412,9 @@ def solve_shift_schedule(
             total = role_members.get(emp.role, 1)
             available = max(1, total - sick_in_role)
             max_h = min(63, max_h * total // available)
+        role_capacity = role_members.get(emp.role, 0) * max_h
+        if role_required_hours.get(emp.role, 0) > role_capacity:
+            max_h = 63
         if high_day_count >= 2:
             max_h = min(63, max_h + high_day_count * 7)
         model.Add(weekly_hours <= max_h)
