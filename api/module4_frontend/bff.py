@@ -1097,8 +1097,7 @@ async def revenue_daily(date: str = None):
 # GET /s4/revenue/hourly -- Hourly breakdown of bread vs beverages sales
 @router.get("/revenue/hourly")
 async def revenue_hourly(date: str = None):
-    """Return hourly sales breakdown (bread vs beverages) for a given date."""
-    from datetime import datetime as dt
+    """Return hourly revenue, profit, order behavior, and category split for a date."""
 
     db = get_db()
     cur = db.cursor()
@@ -1106,6 +1105,18 @@ async def revenue_hourly(date: str = None):
     if date is None:
         cur.execute("SELECT MAX(order_date) FROM orders")
         date = str(cur.fetchone()[0])
+
+    cur.execute("""
+        SELECT HOUR(order_time) as hr,
+               COUNT(*) as orders,
+               COALESCE(SUM(total_amount), 0) as revenue,
+               COALESCE(SUM(total_profit), 0) as profit
+        FROM orders
+        WHERE order_date = %s
+        GROUP BY hr
+        ORDER BY hr
+    """, (date,))
+    order_rows = [r for r in cur]
 
     cur.execute("""
         SELECT HOUR(o.order_time) as hr, p.category, SUM(oi.line_total) as revenue
@@ -1117,8 +1128,8 @@ async def revenue_hourly(date: str = None):
         ORDER BY hr
     """, (date,))
     rows = [r for r in cur]
-    if rows:
-        all_hours = sorted(set(int(r[0]) for r in rows))
+    all_hours = sorted(set(int(r[0]) for r in rows + order_rows if r[0] is not None))
+    if all_hours:
         raw_min = min(all_hours)
         raw_max = max(all_hours)
         min_hr = max(6, raw_min - 1)
@@ -1136,6 +1147,11 @@ async def revenue_hourly(date: str = None):
     hours = [f"{h:02d}:00" for h in range(min_hr, max_hr + 1)]
     bread_data = [0.0] * num_hours
     beverage_data = [0.0] * num_hours
+    revenue_data = [0.0] * num_hours
+    profit_data = [0.0] * num_hours
+    order_data = [0] * num_hours
+    avg_order_data = [0.0] * num_hours
+    margin_data = [0.0] * num_hours
 
     for row in rows:
         hr = int(row[0])
@@ -1148,6 +1164,19 @@ async def revenue_hourly(date: str = None):
             else:
                 beverage_data[idx] = rev
 
+    for row in order_rows:
+        hr = int(row[0])
+        idx = hr - min_hr
+        if 0 <= idx < num_hours:
+            orders = int(row[1] or 0)
+            revenue = round(float(row[2] or 0), 2)
+            profit = round(float(row[3] or 0), 2)
+            order_data[idx] = orders
+            revenue_data[idx] = revenue
+            profit_data[idx] = profit
+            avg_order_data[idx] = round(revenue / orders, 2) if orders else 0.0
+            margin_data[idx] = round(profit / revenue * 100, 1) if revenue else 0.0
+
     return {
         "status": "ok",
         "data": {
@@ -1155,6 +1184,11 @@ async def revenue_hourly(date: str = None):
             "hours": hours,
             "bread": bread_data,
             "beverages": beverage_data,
+            "revenue": revenue_data,
+            "profit": profit_data,
+            "orders": order_data,
+            "avg_order": avg_order_data,
+            "margin": margin_data,
         }
     }
 
@@ -1669,19 +1703,36 @@ async def stock_days_history(date: str = None):
     }
 
 @router.get("/inventory/wastage/summary")
-async def wastage_summary():
-    """Get latest wastage rates per material."""
+async def wastage_summary(date: str = ""):
+    """Get latest wastage rates per material up to the selected date."""
     db = get_db()
     cur = db.cursor()
-    cur.execute("""
-        SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
-        FROM material_wastage_log m1
-        INNER JOIN (
-            SELECT material_name, MAX(id) as max_id
-            FROM material_wastage_log
-            GROUP BY material_name
-        ) m2 ON m1.id = m2.max_id
-    """)
+    if date:
+        cur.execute("""
+            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
+            FROM material_wastage_log m1
+            INNER JOIN (
+                SELECT mw.material_name, MAX(mw.id) as max_id
+                FROM material_wastage_log mw
+                WHERE mw.check_date = (
+                    SELECT MAX(mw2.check_date)
+                    FROM material_wastage_log mw2
+                    WHERE mw2.material_name = mw.material_name
+                      AND mw2.check_date <= %s
+                )
+                GROUP BY mw.material_name
+            ) m2 ON m1.id = m2.max_id
+        """, (date,))
+    else:
+        cur.execute("""
+            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
+            FROM material_wastage_log m1
+            INNER JOIN (
+                SELECT material_name, MAX(id) as max_id
+                FROM material_wastage_log
+                GROUP BY material_name
+            ) m2 ON m1.id = m2.max_id
+        """)
     rows = cur.fetchall()
     summary = []
     for r in rows:
@@ -1692,7 +1743,7 @@ async def wastage_summary():
             "wastage_rate": float(r[3]),
             "check_date": str(r[4]),
         })
-    return {"status": "ok", "summary": summary}
+    return {"status": "ok", "date": date, "summary": summary}
 @router.post("/inventory/restock")
 async def inventory_restock(payload: dict):
     """Restock raw materials. Adds quantity to stock_quantity and records transaction."""

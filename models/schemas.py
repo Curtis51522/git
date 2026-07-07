@@ -95,6 +95,7 @@ class SalesForecast(BaseModel):
     lower_bound: int = 0
     upper_bound: int = 0
     confidence: str
+    unit_price: float = 0.0
 class ComboScore(BaseModel):
     product_name: str
     flavor_pairing: float = 0.0

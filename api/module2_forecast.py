@@ -467,6 +467,14 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
 
     q50_model = _get_unified_quantile("q50")
     pid_map = _get_product_id_map()
+    unit_prices = {}
+    try:
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("SELECT product_name, unit_price FROM products")
+        unit_prices = {str(row[0]): float(row[1] or 0.0) for row in cur.fetchall()}
+    except Exception as e:
+        logger.warning("Product price lookup failed for forecast response: %s", e)
 
     for prod in products_to_forecast:
         if prod not in pid_map:
@@ -499,6 +507,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 lower_bound=lower_bound,
                 upper_bound=upper_bound,
                 confidence="Conformal 80%",
+                unit_price=unit_prices.get(prod, 0.0),
             ))
     response = {
         "status": "ok",

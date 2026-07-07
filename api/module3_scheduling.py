@@ -1346,15 +1346,19 @@ async def get_7day_production_plan(date: str = None):
         day1_stock = {p: 0 for p in s.breads}
     forecast = generate_7day_s2_forecast(start_date)
     result = s.generate_7day_plan(start_date, day1_stock, forecast)
+    day1_stock_total = sum(day1_stock.values())
+    dashboard_7day = dict(result["dashboard_7day"])
+    dashboard_7day["day1_stock_total"] = day1_stock_total
 
     return {
         "status": "ok",
         "generated_at": _dt.now().isoformat(),
-        "dashboard_7day": result["dashboard_7day"],
+        "dashboard_7day": dashboard_7day,
         "weekly_summary": {
             "total_bake": result["weekly_summary"]["total_bake"],
             "total_profit": result["weekly_summary"]["total_profit"],
             "total_revenue": result["weekly_summary"]["total_revenue"],
+            "day1_stock_total": day1_stock_total,
             "daily_profits": result["weekly_summary"]["daily_profits"],
             "scenarios": result["weekly_summary"]["scenarios"],
             "top_products": result["weekly_summary"]["top_products"],

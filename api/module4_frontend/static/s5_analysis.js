@@ -53,9 +53,21 @@ function labelS5Token(value) {
     stockout_risk: 'Stockout risk',
     scenario_profit_gap: 'Profit swing between downside and expected demand',
     production_waste_rate_pct: 'Expected waste exposure',
+    production_total_bake: 'Planned bake units',
+    supply_coverage_pct: 'Supply coverage rate',
+    demand_gap_units: 'Forecast demand gap',
+    total_available_units: 'Total available supply',
     material_low_count: 'Low-stock materials',
     material_critical_count: 'Critical material blockers',
     material_total_order: 'Material order requirement',
+    material_count_checked: 'Materials checked',
+    wasted_material_count: 'Materials with recorded waste',
+    total_waste_cost: 'Recorded waste cost',
+    top_consumed_materials: 'Top consumed materials',
+    yield_data_available: 'Production yield data availability',
+    yield_total_units: 'Yield total units',
+    material_wastage_risk: 'Material wastage risk',
+    yield_data_gap: 'Production yield data gap',
     forecast_total_units: 'Forecast demand units',
     forecast_total_revenue: 'Forecast revenue',
     forecast_avg_interval_width: 'Demand uncertainty range',
@@ -118,7 +130,7 @@ function collectS5Details(data) {
     var ids = Array.isArray(recommendations[j].evidence_ids) ? recommendations[j].evidence_ids : [];
     for (var e = 0; e < ids.length; e++) recommendationEvidenceIds.push(ids[e]);
   }
-  var evidenceIds = recommendationEvidenceIds.length ? recommendationEvidenceIds : agentEvidenceIds;
+  var evidenceIds = agentEvidenceIds.concat(recommendationEvidenceIds);
 
   return {
     confidence: confidenceCount ? confidenceTotal / confidenceCount : null,

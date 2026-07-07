@@ -107,11 +107,23 @@ def test_production_advice_uses_full_forecast_l1_agent_outputs():
     metrics_by_agent = {output.agent_name: output.metrics for output in result.agent_outputs}
     assert metrics_by_agent["ForecastOverviewAgent"]["forecast_total_units"] == 900.0
     assert metrics_by_agent["ProductionPlanAgent"]["total_bake"] == 420
+    assert metrics_by_agent["ProductionPlanAgent"]["supply_coverage_pct"] == 49.4
+    assert metrics_by_agent["ProductionPlanAgent"]["demand_gap_units"] == 455
+    assert metrics_by_agent["ProductionPlanAgent"]["total_available_units"] == 445
     assert metrics_by_agent["MaterialProcurementAgent"]["low_material_count"] == 1
-    assert result.summary.startswith("This week's plan is profitable, but it is deliberately conservative against the demand forecast.")
+    assert result.summary.startswith("The 7-day production plan is economically positive, but it is deliberately conservative against the demand forecast.")
     assert "900 units" in result.summary
     assert "445 units available" in result.summary
+    assert "covering 49.4% of forecast demand" in result.summary
     assert "leaving a 455-unit gap" in result.summary
+    assert "Three production choices are visible" in result.summary
+    assert "hold at 420 planned units" in result.summary
+    assert "expand toward 900 forecast units" in result.summary
+    assert "stage production from a 357-unit base" in result.summary
+    assert "The staged option is preferred" in result.summary
+    assert "release extra bake only after the first 1-2 trading days" in result.summary
+    assert "priority should go to croissant and baguette" in result.summary
+    assert "Material constraints should shape the release order" in result.summary
     assert "No material is critical yet, but 1 low-stock item still needs attention" in result.summary
     assert "multi-source forecast check" not in result.summary
     assert "croissant, baguette" in result.summary
@@ -119,6 +131,8 @@ def test_production_advice_uses_full_forecast_l1_agent_outputs():
     assert "Q50" not in result.summary
     assert any(node.id == "claim:ProductionPlanAgent" for node in result.evidence_graph.nodes)
     assert any(node.id == "metric:production_total_bake" for node in result.evidence_graph.nodes)
+    assert any(node.id == "metric:supply_coverage_pct" for node in result.evidence_graph.nodes)
+    assert any(node.id == "metric:demand_gap_units" for node in result.evidence_graph.nodes)
     assert any(node.id == "metric:forecast_total_units" for node in result.evidence_graph.nodes)
     assert any(node.id == "metric:material_total_order" for node in result.evidence_graph.nodes)
 
@@ -222,6 +236,8 @@ def test_forecast_graph_fetches_data_when_raw_inputs_missing(monkeypatch):
     assert len(result.agent_outputs) == 5
     metrics_by_agent = {output.agent_name: output.metrics for output in result.agent_outputs}
     assert metrics_by_agent["ProductionPlanAgent"]["total_bake"] == 420
+    assert metrics_by_agent["ProductionPlanAgent"]["supply_coverage_pct"] == 445.0
+    assert metrics_by_agent["ProductionPlanAgent"]["demand_gap_units"] == 0
     assert metrics_by_agent["ForecastOverviewAgent"]["forecast_total_units"] == 100.0
     hedge = next(
         recommendation
@@ -230,7 +246,78 @@ def test_forecast_graph_fetches_data_when_raw_inputs_missing(monkeypatch):
     )
     assert "Keep the remaining planned bake flexible" in hedge.action
     assert "100-unit demand forecast" in hedge.action
+    assert "Use the first 1-2 trading days as the release gate" in hedge.action
+    assert "do not release the contingency bake automatically" in hedge.action
+    assert "Prioritize the top forecast driver first" in hedge.action
     assert hedge.evidence_ids == [
         "scenario_profit_gap",
         "production_waste_rate_pct",
+        "supply_coverage_pct",
+        "demand_gap_units",
+        "forecast_wape",
+        "forecast_coverage",
     ]
+
+
+def test_forecast_summary_translates_accuracy_into_production_strategy():
+    raw = {
+        "forecast_overview": {
+            "data": {
+                "entries": [
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "croissant",
+                        "predicted_qty": 500.0,
+                        "lower_bound": 70.0,
+                        "upper_bound": 130.0,
+                        "unit_price": 12.0,
+                    }
+                ]
+            }
+        },
+        "production": {
+            "data": {
+                "grid": [{"date": "2026-07-07", "bake_qty": 300}],
+                "dates": ["2026-07-07"],
+                "buffer": 1.05,
+                "day1_stock_total": 100,
+                "weekly_summary": {
+                    "total_bake": 300,
+                    "total_revenue": 3600.0,
+                    "total_profit": 1800.0,
+                    "scenarios": {
+                        "q50": {"profit": 1800.0, "waste": 45},
+                        "q10": {"profit": 900.0, "waste": 90},
+                    },
+                    "top_products": [("croissant", 300)],
+                },
+            }
+        },
+        "forecast_accuracy": {
+            "data": {
+                "overall": {
+                    "WAPE": 30.0,
+                    "conformal_coverage_80": 78.5,
+                    "conformal_avg_width": 5.0,
+                }
+            }
+        },
+    }
+    request = S5Request(
+        query="Generate production advice",
+        module="forecast",
+        params={"date": "2026-07-07", "product": "all"},
+    )
+
+    result = asyncio.run(run_s5_graph("production_advice", request, raw_inputs=raw))
+
+    assert "covering 80.0% of forecast demand" in result.summary
+    metrics_by_agent = {output.agent_name: output.metrics for output in result.agent_outputs}
+    assert metrics_by_agent["ProductionPlanAgent"]["supply_coverage_pct"] == 80.0
+    assert metrics_by_agent["ProductionPlanAgent"]["demand_gap_units"] == 100
+    assert "Three production choices are visible" in result.summary
+    assert "stage production from a 255-unit base" in result.summary
+    assert "a 100-unit supply gap remains" in result.summary
+    assert "30.0% recent error means the week should not be locked in at once" in result.summary
+    assert "78.5% coverage is useful for release guardrails" in result.summary
+    assert "staged production and material readiness checks should guide extra bake releases" in result.summary

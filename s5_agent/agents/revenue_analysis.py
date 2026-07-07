@@ -362,13 +362,19 @@ class OrderBehaviorAgent:
         if not low_sample_collapse and abs(order_change_pct - aov_change_pct) > 15:
             risks.append("order_value_shift")
             if order_change_pct < 0 < aov_change_pct:
-                action = "Monitor whether higher average order value is masking lower traffic."
+                action = (
+                    "Track traffic for 2-3 trading days before launching broad discounts; "
+                    "if orders keep falling, use targeted bundles to restore visits while protecting average order value."
+                )
                 rationale = (
                     f"Orders moved {order_change_pct:+.1f}% on the revenue dashboard, "
                     f"while average order value moved {aov_change_pct:+.1f}%, so the day depends more on basket value than traffic."
                 )
             else:
-                action = "Monitor average order value while order volume rises."
+                action = (
+                    "Track average order value for 2-3 trading days before launching broad discounts; "
+                    "if basket value keeps weakening, use targeted bundles to lift spend per visit."
+                )
                 rationale = (
                     f"Orders are up {order_change_pct:.1f}% on the revenue dashboard, "
                     f"but average order value moved {aov_change_pct:+.1f}%, so revenue may be relying on more low-value orders."
@@ -380,7 +386,7 @@ class OrderBehaviorAgent:
                     urgency="low",
                     time_horizon="this_week",
                     rationale=rationale,
-                    expected_impact="Keeps healthy margin from hiding a weaker customer-spend pattern.",
+                    expected_impact="Turns the traffic and basket-value split into a measured promotion decision instead of a broad discount reaction.",
                     evidence_ids=[
                         "profit_margin_pct",
                         "order_change_pct",
@@ -618,9 +624,17 @@ class HourlyRevenueAgent:
         hours = data.get("hours", []) if isinstance(data.get("hours", []), list) else []
         bread = data.get("bread", []) if isinstance(data.get("bread", []), list) else []
         beverages = data.get("beverages", []) if isinstance(data.get("beverages", []), list) else []
+        revenue_values = data.get("revenue", []) if isinstance(data.get("revenue", []), list) else []
+        profit_values = data.get("profit", []) if isinstance(data.get("profit", []), list) else []
+        order_values = data.get("orders", []) if isinstance(data.get("orders", []), list) else []
+        avg_order_values = data.get("avg_order", []) if isinstance(data.get("avg_order", []), list) else []
+        margin_values = data.get("margin", []) if isinstance(data.get("margin", []), list) else []
         totals = []
         for index, hour in enumerate(hours):
-            total = _float(bread[index] if index < len(bread) else 0.0) + _float(beverages[index] if index < len(beverages) else 0.0)
+            if revenue_values:
+                total = _float(revenue_values[index] if index < len(revenue_values) else 0.0)
+            else:
+                total = _float(bread[index] if index < len(bread) else 0.0) + _float(beverages[index] if index < len(beverages) else 0.0)
             totals.append((str(hour), total))
 
         total_revenue = sum(value for _, value in totals)
@@ -634,13 +648,107 @@ class HourlyRevenueAgent:
             low_threshold = max(total_revenue / max(len(totals), 1) * 0.35, 20.0)
             low_hours = [hour for hour, value in totals if value <= low_threshold]
 
-        if peak_hour:
+        profit_totals = []
+        for index, hour in enumerate(hours):
+            profit_totals.append((str(hour), _float(profit_values[index] if index < len(profit_values) else 0.0)))
+        total_profit = sum(value for _, value in profit_totals)
+        profit_available = bool(profit_values) and total_profit > 0
+        peak_profit_hour = ""
+        peak_profit = 0.0
+        peak_profit_share_pct = 0.0
+        peak_profit_margin_pct = 0.0
+        peak_profit_orders = 0
+        peak_profit_avg_order = 0.0
+        if profit_available:
+            peak_profit_hour, peak_profit = max(profit_totals, key=lambda item: item[1])
+            peak_profit_share_pct = round(peak_profit / max(total_profit, 1.0) * 100, 1)
+            peak_index = hours.index(peak_profit_hour) if peak_profit_hour in hours else -1
+            if peak_index >= 0:
+                peak_profit_margin_pct = _float(margin_values[peak_index] if peak_index < len(margin_values) else 0.0)
+                peak_profit_orders = _int(order_values[peak_index] if peak_index < len(order_values) else 0)
+                peak_profit_avg_order = _float(avg_order_values[peak_index] if peak_index < len(avg_order_values) else 0.0)
+
+        if profit_available:
+            claim = (
+                f"Peak profit hour is {peak_profit_hour}, generating {chr(165)}{peak_profit:.0f} profit "
+                f"and {peak_profit_share_pct:.1f}% of tracked hourly profit; peak revenue hour is {peak_hour}."
+            )
+        elif peak_hour:
             claim = (
                 f"Peak revenue hour is {peak_hour}, contributing {peak_share_pct:.1f}% "
                 "of tracked hourly revenue; hourly profit is not available, so revenue timing is used as a proxy."
             )
         else:
             claim = "Hourly revenue data is not available, so intraday profitability timing cannot be assessed."
+
+        evidence_items = [
+            _evidence(
+                "peak_revenue_hour",
+                "hourly_revenue",
+                "Hour with the highest tracked revenue",
+                peak_hour,
+                date=params.get("date", ""),
+                peak_revenue=round(peak_revenue, 2),
+            ),
+            _evidence(
+                "hourly_peak_revenue_share_pct",
+                "hourly_revenue",
+                "Revenue share contributed by the peak hour",
+                peak_share_pct,
+                date=params.get("date", ""),
+            ),
+            _evidence(
+                "low_revenue_hours",
+                "hourly_revenue",
+                "Hours with low tracked revenue relative to the trading day",
+                low_hours[:3],
+                date=params.get("date", ""),
+            ),
+        ]
+        if profit_available:
+            evidence_items.extend(
+                [
+                    _evidence(
+                        "peak_profit_hour",
+                        "hourly_profit",
+                        "Hour with the highest tracked profit",
+                        peak_profit_hour,
+                        date=params.get("date", ""),
+                        peak_profit=round(peak_profit, 2),
+                    ),
+                    _evidence(
+                        "hourly_peak_profit_share_pct",
+                        "hourly_profit",
+                        "Profit share contributed by the peak profit hour",
+                        peak_profit_share_pct,
+                        date=params.get("date", ""),
+                    ),
+                ]
+            )
+
+        recommendations = []
+        if profit_available and peak_profit_share_pct >= 18:
+            recommendations.append(
+                Recommendation(
+                    id="peak_profit_window_protection",
+                    action=(
+                        f"Protect the {peak_profit_hour} profit window with enough stock, service coverage, "
+                        "and high-margin pairing availability."
+                    ),
+                    urgency="low",
+                    time_horizon="this_week",
+                    rationale=(
+                        f"The peak profit hour contributes {peak_profit_share_pct:.1f}% of tracked hourly profit "
+                        f"with a {peak_profit_margin_pct:.1f}% hourly margin."
+                    ),
+                    expected_impact="Preserves the strongest intraday profit window without forcing broad discounts.",
+                    evidence_ids=[
+                        "peak_profit_hour",
+                        "hourly_peak_profit_share_pct",
+                        "peak_profit_margin_pct",
+                    ],
+                )
+            )
 
         return AgentOutput(
             agent_name=self.name,
@@ -652,38 +760,27 @@ class HourlyRevenueAgent:
                 "hourly_peak_revenue_share_pct": peak_share_pct,
                 "low_revenue_hours": low_hours[:3],
                 "hourly_total_revenue": round(total_revenue, 2),
+                "peak_profit_hour": peak_profit_hour,
+                "peak_profit": round(peak_profit, 2),
+                "hourly_peak_profit_share_pct": peak_profit_share_pct,
+                "hourly_total_profit": round(total_profit, 2),
+                "peak_profit_margin_pct": round(peak_profit_margin_pct, 1),
+                "peak_profit_orders": peak_profit_orders,
+                "peak_profit_avg_order": round(peak_profit_avg_order, 2),
             },
-            evidence_items=[
-                _evidence(
-                    "peak_revenue_hour",
-                    "hourly_revenue",
-                    "Hour with the highest tracked revenue",
-                    peak_hour,
-                    date=params.get("date", ""),
-                    peak_revenue=round(peak_revenue, 2),
-                ),
-                _evidence(
-                    "hourly_peak_revenue_share_pct",
-                    "hourly_revenue",
-                    "Revenue share contributed by the peak hour",
-                    peak_share_pct,
-                    date=params.get("date", ""),
-                ),
-                _evidence(
-                    "low_revenue_hours",
-                    "hourly_revenue",
-                    "Hours with low tracked revenue relative to the trading day",
-                    low_hours[:3],
-                    date=params.get("date", ""),
-                ),
-            ],
-            risks=["hourly_revenue_concentration"] if peak_share_pct >= 40 else [],
-            recommendations=[],
+            evidence_items=evidence_items,
+            risks=["hourly_profit_concentration" if profit_available else "hourly_revenue_concentration"]
+            if (peak_profit_share_pct if profit_available else peak_share_pct) >= 40
+            else [],
+            recommendations=recommendations,
             data_quality=DataQuality(
                 freshness="fresh" if peak_hour else "unknown",
-                completeness=1.0 if peak_hour else 0.35,
-                source_status={"hourly_revenue": "fresh" if peak_hour else "unknown"},
-                limitations=["Hourly profit is not available; revenue timing is used as a proxy."],
+                completeness=1.0 if peak_hour and profit_available else 0.75 if peak_hour else 0.35,
+                source_status={
+                    "hourly_revenue": "fresh" if peak_hour else "unknown",
+                    "hourly_profit": "fresh" if profit_available else "missing",
+                },
+                limitations=[] if profit_available else ["Hourly profit is not available; revenue timing is used as a proxy."],
             ),
         )
 
