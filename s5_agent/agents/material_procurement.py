@@ -4,6 +4,9 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.schemas.agent_output import AgentOutput, DataQuality
+from s5_agent.schemas.evidence import EvidenceItem
+from s5_agent.schemas.recommendation import Recommendation
 from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.material_procurement")
 
@@ -109,6 +112,115 @@ class MaterialProcurementAgent(BaseAgent):
             attribution={"metric": "material_procurement", "root_cause": "materials_analysis",
                          "critical_count": len(critical), "low_count": len(low),
                          "total_order": total_order})
+
+    def analyze_for_graph(self, raw: dict, params: dict) -> AgentOutput:
+        opinion = self.analyze(raw, params)
+        data = raw.get("data", {}) if isinstance(raw, dict) and "data" in raw else raw
+        if not isinstance(data, dict):
+            data = {}
+
+        items = data.get("items", {}) or {}
+        critical_materials = []
+        low_materials = []
+        total_order = 0.0
+        largest_gap = 0.0
+        largest_gap_material = ""
+
+        for name, info in items.items():
+            alert = str(info.get("alert", info.get("status", ""))).lower()
+            need_raw = info.get("weekly_need")
+            need = float(need_raw) if need_raw is not None else None
+            stock = float(info.get("current_stock", 0.0) or 0.0)
+            order = float(info.get("to_order", 0.0) or 0.0)
+            total_order += order
+
+            if need is not None:
+                gap = need - stock
+                if gap > largest_gap:
+                    largest_gap = gap
+                    largest_gap_material = str(name)
+
+            if alert in ("critical", "urgent"):
+                critical_materials.append(str(name))
+            elif alert == "low":
+                low_materials.append(str(name))
+            elif need is not None and stock < need:
+                low_materials.append(str(name))
+
+        evidence_items = [
+            EvidenceItem(
+                id="material_count",
+                source="material_procurement",
+                description="Number of materials checked for the production plan",
+                value=len(items),
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="material_low_count",
+                source="material_procurement",
+                description="Materials below required stock for the planning horizon",
+                value=len(set(low_materials)),
+                metadata={"date": params.get("date", ""), "materials": sorted(set(low_materials))},
+            ),
+            EvidenceItem(
+                id="material_critical_count",
+                source="material_procurement",
+                description="Materials in critical procurement status",
+                value=len(set(critical_materials)),
+                metadata={"date": params.get("date", ""), "materials": sorted(set(critical_materials))},
+            ),
+            EvidenceItem(
+                id="material_total_order",
+                source="material_procurement",
+                description="Total material order quantity required",
+                value=round(total_order, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+        ]
+
+        recommendations = []
+        material_watchlist = sorted(set(critical_materials + low_materials))
+        if material_watchlist:
+            recommendations.append(
+                Recommendation(
+                    id="material_procurement_action_1",
+                    action=(
+                        "Review procurement for low-stock materials before locking the weekly bake: "
+                        + ", ".join(material_watchlist[:5])
+                    ),
+                    urgency="high" if critical_materials else "medium",
+                    time_horizon="this_week",
+                    rationale="The production plan depends on materials that are below the required weekly stock level.",
+                    expected_impact="Reduces the chance of production shortfall caused by material constraints.",
+                    evidence_ids=["material_low_count", "material_critical_count", "material_total_order"],
+                )
+            )
+
+        return AgentOutput(
+            agent_name="MaterialProcurementAgent",
+            claim=opinion.opinion,
+            confidence=float(opinion.confidence),
+            metrics={
+                "material_count": len(items),
+                "critical_material_count": len(set(critical_materials)),
+                "low_material_count": len(set(low_materials)),
+                "material_total_order": round(total_order, 2),
+                "largest_material_gap": round(largest_gap, 2),
+                "largest_gap_material": largest_gap_material,
+            },
+            evidence_items=evidence_items,
+            risks=["material_shortage_risk"] if material_watchlist else [],
+            recommendations=recommendations,
+            data_quality=DataQuality(
+                freshness="fresh" if items else "missing",
+                completeness=1.0 if items else 0.0,
+                source_status={"material_procurement": "fresh" if items else "missing"},
+            ),
+            metadata={
+                "critical_materials": sorted(set(critical_materials)),
+                "low_materials": sorted(set(low_materials)),
+            },
+        )
 
 
 def _query_materials(date_str=""):

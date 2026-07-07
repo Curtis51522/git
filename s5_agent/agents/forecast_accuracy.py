@@ -1,9 +1,16 @@
-﻿import os, sys, logging
+import json
+import os, sys, logging
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
+
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.schemas.agent_output import AgentOutput, DataQuality
+from s5_agent.schemas.evidence import EvidenceItem
 logger = logging.getLogger("s5.agent.forecast_accuracy")
+
 
 class ForecastAccuracyAgent(BaseAgent):
     def _setup_tools(self):
@@ -33,28 +40,76 @@ class ForecastAccuracyAgent(BaseAgent):
         avg_width = overall.get("conformal_avg_width", 0)
 
         opinion = (
-            f"Model accuracy: WAPE {wape:.1f}% (lower is better). "
-            f"Conformal 80% coverage: {coverage:.1f}% (target 80%). "
-            f"Avg prediction interval: {chr(165)}{avg_width:.1f}."
+            f"Forecast reliability: recent error {wape:.1f}%, "
+            f"coverage {coverage:.1f}%, average demand range {avg_width:.1f} units."
         )
 
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.80,
             attribution={"metric": "forecast_accuracy", "root_cause": "accuracy_report",
                          "WAPE": wape, "coverage": coverage})
 
+    def analyze_for_graph(self, raw: dict, params: dict) -> AgentOutput:
+        opinion = self.analyze(raw, params)
+        data = raw.get("data", {}) if isinstance(raw, dict) and "data" in raw else raw
+        if not isinstance(data, dict):
+            data = {}
+
+        overall = data.get("overall", {}) or {}
+        wape = float(overall.get("WAPE", 0.0) or 0.0)
+        coverage = float(overall.get("conformal_coverage_80", 0.0) or 0.0)
+        avg_width = float(overall.get("conformal_avg_width", 0.0) or 0.0)
+
+        evidence_items = [
+            EvidenceItem(
+                id="forecast_wape",
+                source="forecast_accuracy",
+                description="Weighted absolute percentage error for recent forecasts",
+                value=round(wape, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="forecast_coverage",
+                source="forecast_accuracy",
+                description="Recent forecast interval coverage rate",
+                value=round(coverage, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="forecast_accuracy_interval_width",
+                source="forecast_accuracy",
+                description="Average recent forecast interval width",
+                value=round(avg_width, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+        ]
+
+        return AgentOutput(
+            agent_name="ForecastAccuracyAgent",
+            claim=opinion.opinion,
+            confidence=float(opinion.confidence),
+            metrics={
+                "forecast_wape": round(wape, 2),
+                "forecast_coverage": round(coverage, 2),
+                "forecast_accuracy_interval_width": round(avg_width, 2),
+            },
+            evidence_items=evidence_items,
+            risks=[],
+            recommendations=[],
+            data_quality=DataQuality(
+                freshness="fresh" if overall else "missing",
+                completeness=1.0 if overall else 0.0,
+                source_status={"forecast_accuracy": "fresh" if overall else "missing"},
+            ),
+        )
+
 
 def _query_accuracy():
     try:
-        import httpx
-        import asyncio
-        async def _fetch():
-            async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get("http://127.0.0.1:8002/s2/accuracy")
-                if r.status_code == 200:
-                    d = r.json()
-                    return d.get("metrics", {})
-                return {}
-        return asyncio.run(_fetch())
-    except Exception as e:
+        with urlopen("http://127.0.0.1:8002/s2/accuracy", timeout=10) as response:
+            if response.status != 200:
+                return {"overall": {}}
+            payload = json.loads(response.read().decode("utf-8"))
+            return payload.get("metrics", {})
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as e:
         logger.warning("ForecastAccuracy fetch failed: %s", e)
         return {"overall": {}}

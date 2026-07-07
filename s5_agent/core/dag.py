@@ -1,6 +1,6 @@
 # s5_agent/core/dag.py
 import asyncio, logging, time
-from typing import Dict, Any, List, Set, Tuple
+from typing import Dict, Any, List
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("s5.dag")
@@ -17,17 +17,21 @@ class DAGTemplate:
     nodes: List[DAGNode]
     description: str = ""
 
+class DAGValidationError(ValueError):
+    pass
+
 class DAGExecutor:
     def __init__(self, agents: Dict[str, Any], memory=None):
         self.agents = agents
         self.memory = memory
-        self.max_phases = 4
+        self.max_phases = 8
         self.total_timeout = 120
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._cache_max_size = 200
 
     async def execute(self, template: DAGTemplate, params: Dict,
                       query: str = "", intent: str = "") -> Dict[str, Any]:
+        self.validate_template(template)
         # Check cache
         cache_key = self._make_cache_key(intent, params)
         if cache_key in self._cache:
@@ -91,6 +95,31 @@ class DAGExecutor:
             oldest = next(iter(self._cache))
             del self._cache[oldest]
         return output
+
+    def validate_template(self, template: DAGTemplate) -> None:
+        if not template.nodes:
+            raise DAGValidationError(f"Template {template.intent} has no nodes")
+        phases: Dict[str, int] = {}
+        for node in template.nodes:
+            if node.agent_name in phases:
+                raise DAGValidationError(f"Duplicate agent in template {template.intent}: {node.agent_name}")
+            if node.agent_name not in self.agents:
+                raise DAGValidationError(f"Unknown agent in template {template.intent}: {node.agent_name}")
+            if node.phase < 1 or node.phase > self.max_phases:
+                raise DAGValidationError(
+                    f"Invalid phase for {node.agent_name} in template {template.intent}: {node.phase}"
+                )
+            phases[node.agent_name] = node.phase
+        for node in template.nodes:
+            for dep in node.dependencies:
+                if dep not in phases:
+                    raise DAGValidationError(
+                        f"{node.agent_name} depends on missing agent {dep} in template {template.intent}"
+                    )
+                if phases[dep] >= node.phase:
+                    raise DAGValidationError(
+                        f"{node.agent_name} phase {node.phase} depends on {dep} phase {phases[dep]}"
+                    )
 
     def _make_cache_key(self, intent: str, params: Dict) -> str:
         date = str(params.get("date", "")) if params else ""

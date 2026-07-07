@@ -4,6 +4,9 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.schemas.agent_output import AgentOutput, DataQuality
+from s5_agent.schemas.evidence import EvidenceItem
+from s5_agent.schemas.recommendation import Recommendation
 from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.production_plan")
 
@@ -51,18 +54,26 @@ class ProductionPlanAgent(BaseAgent):
 
         scenario_note = ""
         q50_s = scenarios.get("q50", {})
+        q50_waste = float(q50_s.get("waste", 0) or 0) if q50_s else 0.0
+        waste_rate_pct = round(q50_waste / max(float(total_bake or 0), 1.0) * 100, 1)
         if q50_s:
             scenario_note = (
-                f" Q50 scenario: {chr(165)}{q50_s.get('profit', 0):.0f} profit, "
-                f"{q50_s.get('waste', 0)} waste units."
+                f" In the expected-demand scenario, profit reaches {chr(165)}{q50_s.get('profit', 0):.0f}, "
+                f"but {q50_s.get('waste', 0)} units may remain as waste, "
+                f"equal to a {waste_rate_pct}% waste rate."
             )
 
-        stock_note = f" Starting stock: {day1_stock} units. Total available: {total_available} units." if day1_stock else ""
+        planning_days = len(dates) if len(dates) == 7 else 7
+        stock_note = (
+            f" A {buffer:.0%} buffer lifts total available supply to {total_available} units "
+            f"after {day1_stock} starting-stock units."
+            if day1_stock
+            else f" A {buffer:.0%} buffer is applied to the production plan."
+        )
         opinion = (
-            f"7-day production plan ({len(dates)} days): {total_bake} total bake units, "
-            f"{chr(165)}{total_rev:.0f} revenue, {chr(165)}{total_profit:.0f} profit. "
-            f"Buffer: {buffer:.0%}.{stock_note} "
-            f"Top baked: {top_str}.{scenario_note}"
+            f"The {planning_days}-day plan calls for {total_bake} bake units, with projected "
+            f"revenue of {chr(165)}{total_rev:.0f} and profit of {chr(165)}{total_profit:.0f}."
+            f"{stock_note} The main bake load is concentrated in {top_str}.{scenario_note}"
         )
 
         recommendations = []
@@ -87,11 +98,25 @@ class ProductionPlanAgent(BaseAgent):
         if q50_s and q10_s:
             profit_gap = q50_s.get("profit", 0) - q10_s.get("profit", 0)
             if profit_gap > 500:
+                base_units = int(total_bake * 0.85)
                 recommendations.append({
-                    "action": f"Hedge production: bake {int(total_bake * 0.85)} base units, hold contingency capacity for +{int(profit_gap / 10)} units if early-day sales confirm Q50 trajectory",
+                    "action": (
+                        f"Start with an 85% base bake of {base_units} units. Keep the remaining "
+                        f"planned bake flexible, and release additional capacity only if early "
+                        f"sales follow the expected demand path."
+                    ),
                     "urgency": "high", "time_horizon": "this_week",
-                    "rationale": f"Wide profit swing ({chr(165)}{profit_gap:.0f}) between Q10 and Q50 scenarios means demand is volatile",
-                    "expected_impact": f"Protects against {chr(165)}{abs(q10_s.get('profit', 0)):.0f} worst-case loss while capturing upside"
+                    "rationale": (
+                        f"The downside-to-expected profit gap is {chr(165)}{profit_gap:.0f}, so demand "
+                        f"uncertainty is large enough to justify staged production instead "
+                        f"of committing the full {total_bake} units upfront."
+                    ),
+                    "expected_impact": (
+                        f"This protects against the {chr(165)}{abs(q10_s.get('profit', 0)):.0f} "
+                        f"downside case while keeping upside capacity available; it also "
+                        f"keeps the {waste_rate_pct}% expected-demand waste exposure visible before "
+                        f"extra production is released."
+                    )
                 })
 
         # Daily distribution check
@@ -117,6 +142,114 @@ class ProductionPlanAgent(BaseAgent):
             attribution={"metric": "production_plan", "root_cause": "plan_analysis",
                          "total_bake": total_bake, "total_rev": total_rev, "total_profit": total_profit},
             recommendations=recommendations)
+
+    def analyze_for_graph(self, raw: dict, params: dict) -> AgentOutput:
+        opinion = self.analyze(raw, params)
+        data = raw.get("data", {}) if isinstance(raw, dict) and "data" in raw else raw
+        if not isinstance(data, dict):
+            data = {}
+
+        summary = data.get("weekly_summary", {}) or {}
+        total_bake = int(summary.get("total_bake", 0) or 0)
+        total_revenue = float(summary.get("total_revenue", 0.0) or 0.0)
+        total_profit = float(summary.get("total_profit", 0.0) or 0.0)
+        buffer = float(data.get("buffer", 1.0) or 1.0)
+        day1_stock_total = int(data.get("day1_stock_total", 0) or 0)
+        grid = data.get("grid", []) or []
+        dates = data.get("dates", []) or []
+        scenarios = summary.get("scenarios", {}) or {}
+        q50_profit = float((scenarios.get("q50", {}) or {}).get("profit", 0.0) or 0.0)
+        q10_profit = float((scenarios.get("q10", {}) or {}).get("profit", 0.0) or 0.0)
+        q50_waste = float((scenarios.get("q50", {}) or {}).get("waste", 0.0) or 0.0)
+        scenario_profit_gap = round(q50_profit - q10_profit, 2)
+        waste_rate_pct = round(q50_waste / max(total_bake, 1) * 100, 2)
+
+        risks = []
+        if buffer > 1.3:
+            risks.append("overproduction_risk")
+        if buffer < 1.0:
+            risks.append("stockout_risk")
+        if scenario_profit_gap > 500:
+            risks.append("forecast_volatility_risk")
+
+        evidence_items = [
+            EvidenceItem(
+                id="production_total_bake",
+                source="production_plan",
+                description="Total planned bake units for the planning horizon",
+                value=total_bake,
+                metadata={"date": params.get("date", ""), "days": len(dates)},
+            ),
+            EvidenceItem(
+                id="production_buffer",
+                source="production_plan",
+                description="Production buffer applied to forecast demand",
+                value=buffer,
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="scenario_profit_gap",
+                source="production_plan",
+                description="Profit gap between median and downside production scenarios",
+                value=scenario_profit_gap,
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="production_waste_rate_pct",
+                source="production_plan",
+                description="Expected-demand waste units as a percentage of planned bake units",
+                value=waste_rate_pct,
+                metadata={"date": params.get("date", ""), "expected_demand_waste_units": q50_waste},
+            ),
+        ]
+
+        recommendations = []
+        for index, recommendation in enumerate(opinion.recommendations):
+            evidence_ids = ["production_buffer"]
+            action_text = recommendation.get("action", "")
+            if "base bake" in action_text and "expected demand path" in action_text:
+                evidence_ids = ["scenario_profit_gap", "production_waste_rate_pct"]
+            recommendations.append(
+                Recommendation(
+                    id=f"production_plan_action_{index + 1}",
+                    action=recommendation.get("action", "Review production plan."),
+                    urgency=recommendation.get("urgency", "medium"),
+                    time_horizon=recommendation.get("time_horizon", "this_week"),
+                    rationale=recommendation.get(
+                        "rationale",
+                        "Production plan metrics indicate an actionable planning risk.",
+                    ),
+                    expected_impact=recommendation.get("expected_impact"),
+                    evidence_ids=evidence_ids,
+                )
+            )
+
+        return AgentOutput(
+            agent_name="ProductionPlanAgent",
+            claim=opinion.opinion,
+            confidence=float(opinion.confidence),
+            metrics={
+                "total_bake": total_bake,
+                "total_revenue": total_revenue,
+                "total_profit": total_profit,
+                "buffer": buffer,
+                "day1_stock_total": day1_stock_total,
+                "scenario_profit_gap": scenario_profit_gap,
+                "waste_rate_pct": waste_rate_pct,
+            },
+            evidence_items=evidence_items,
+            risks=risks,
+            recommendations=recommendations,
+            data_quality=DataQuality(
+                freshness="fresh" if grid else "unknown",
+                completeness=1.0 if total_bake > 0 else 0.5,
+                source_status={"production_plan": "fresh" if grid else "unknown"},
+            ),
+            metadata={
+                "planning_days": len(dates),
+                "top_products": summary.get("top_products", [])[:5],
+            },
+        )
 
 
 def _query_plan(date_str=""):

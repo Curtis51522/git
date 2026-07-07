@@ -4,6 +4,9 @@ import httpx, logging
 from typing import Dict, Any
 from .base import BaseAgent
 from s5_agent.s5_config.settings import S1_INVENTORY_URL, THRESHOLDS
+from s5_agent.schemas.agent_output import AgentOutput, DataQuality
+from s5_agent.schemas.evidence import EvidenceItem
+from s5_agent.schemas.recommendation import Recommendation
 
 logger = logging.getLogger("s5.agent.inventory")
 
@@ -42,18 +45,20 @@ class InventoryAgent(BaseAgent):
     def _query_db_freshness(self, product_filter=None):
         """Query batch_inventory directly for authoritative freshness data."""
         try:
-            from memory_store import _get_db
-            db = _get_db()
+            from db.mysql_client import get_db
+            db = get_db()
             cur = db.cursor()
             if product_filter:
                 placeholders = ",".join(["%s"] * len(product_filter))
                 cur.execute(
-                    f"SELECT product_name, freshness_status, SUM(quantity) as total "
+                    f"SELECT product_name, freshness_status, "
+                    f"SUM(COALESCE(quantity_remaining, quantity, 0)) as total "
                     f"FROM batch_inventory WHERE product_name IN ({placeholders}) "
                     f"GROUP BY product_name, freshness_status", list(product_filter))
             else:
                 cur.execute(
-                    "SELECT product_name, freshness_status, SUM(quantity) as total "
+                    "SELECT product_name, freshness_status, "
+                    "SUM(COALESCE(quantity_remaining, quantity, 0)) as total "
                     "FROM batch_inventory GROUP BY product_name, freshness_status")
             rows = cur.fetchall()
             cur.close()
@@ -105,7 +110,7 @@ class InventoryAgent(BaseAgent):
                     "selling_price": pdata.get("selling_price", THRESHOLDS["inventory_default_price"]),
                 }
         else:
-            # Fallback: S1 API + heuristic guess (legacy)
+            # Fallback: S1 API plus batch-based freshness estimate.
             inventory_list = raw.get("inventory", [])
             for item in inventory_list:
                 pname = item.get("product_name", "unknown")
@@ -153,3 +158,55 @@ class InventoryAgent(BaseAgent):
                 "unit_price": per_product.get(product, {}).get("selling_price", THRESHOLDS["inventory_default_price"]) if target_products and len(target_products) == 1 else 5.90,
             },
         }
+
+    def analyze_for_graph(self, raw: Dict[str, Any], params: Dict[str, Any]) -> AgentOutput:
+        result = self.analyze(raw, params)
+        data = result.get("data", {})
+        inventory = data.get("inventory", 0)
+        fresh = data.get("fresh", 0)
+        day1_available = data.get("day1_available", 0)
+        waste_risk = data.get("waste_risk")
+        product = params.get("product", "croissant")
+        confidence = float(result.get("confidence", 0.0))
+        freshness_value = "fresh" if confidence >= 0.75 else "unknown"
+        evidence_id = "inventory_total"
+
+        recommendations = []
+        if waste_risk in {"medium", "high"}:
+            recommendations.append(
+                Recommendation(
+                    id="inventory_clearance",
+                    action="Run a targeted clearance action for inventory at waste risk.",
+                    urgency="high" if waste_risk == "high" else "medium",
+                    time_horizon="today",
+                    rationale="Inventory waste risk is elevated for the requested product scope.",
+                    evidence_ids=[evidence_id],
+                )
+            )
+
+        return AgentOutput(
+            agent_name="InventoryAgent",
+            claim=result["opinion"],
+            confidence=confidence,
+            metrics={
+                "inventory": inventory,
+                "fresh": fresh,
+                "day1_available": day1_available,
+            },
+            evidence_items=[
+                EvidenceItem(
+                    id=evidence_id,
+                    source="inventory",
+                    description="Total inventory for requested product scope",
+                    value=inventory,
+                    metadata={"product": product},
+                )
+            ],
+            risks=[waste_risk] if waste_risk else [],
+            recommendations=recommendations,
+            data_quality=DataQuality(
+                freshness=freshness_value,
+                completeness=1.0 if inventory > 0 else 0.5,
+                source_status={"inventory": freshness_value},
+            ),
+        )

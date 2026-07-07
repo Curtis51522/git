@@ -19,7 +19,10 @@ from s5_agent.core.dag import DAGExecutor
 from s5_agent.core.deliberator import Deliberator
 from s5_agent.core.synthesizer import Synthesizer
 from s5_agent.core.memory import StructuredMemory
-from s5_agent.router.templates import get_template
+from s5_agent.graph.registry import module_to_template
+from s5_agent.graph.runner import run_s5_graph
+from s5_agent.graph.state import S5Request
+from s5_agent.router.templates import TEMPLATES, get_template
 from s5_agent.router.intent_router import route_intent
 from s5_agent.agents import (
     ExternalFactorsAgent, DemandAgent, MaterialStockAgent, ProductStockAgent,
@@ -82,6 +85,7 @@ AGENTS = {
     "RecommendationAgent": RecommendationAgent("RecommendationAgent"),
 }
 dag_executor = DAGExecutor(AGENTS, memory=memory)
+LANGGRAPH_MODULES = {"inventory", "revenue", "forecast"}
 
 class AnalyzeRequest(BaseModel):
     query: str = ""
@@ -99,7 +103,14 @@ class ModuleAnalyzeRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "agents": len(AGENTS), "templates": 7}
+    return {"status": "ok", "agents": len(AGENTS), "templates": len(TEMPLATES)}
+
+@app.get("/templates")
+async def list_templates():
+    return {
+        key: {"intent": value.intent, "description": value.description, "nodes": len(value.nodes)}
+        for key, value in TEMPLATES.items()
+    }
 
 def _normalize_lang(lang: str) -> str:
     value = (lang or "en").strip().lower()
@@ -111,6 +122,85 @@ def _response_cache_key(intent: str, params: dict, lang: str = "en") -> str:
     date = str(params.get("date", "")) if params else ""
     module = str(params.get("module", "")) if params else ""
     return f"{intent}:{date}:{module}:{_normalize_lang(lang)}"
+
+def _latest_cached_synthesis(intent: str) -> dict:
+    for value in reversed(list(_response_cache.values())):
+        if value.get("intent") == intent:
+            return value
+    for entry in reversed(memory.data.get("query_history", [])):
+        if entry.get("intent") == intent:
+            return {"summary": entry.get("summary", ""), "recommendations": []}
+    return {}
+
+def _priority_context(cached: dict) -> str:
+    parts = [cached.get("summary", "")]
+    for rec in cached.get("recommendations", []):
+        parts.append(rec.get("action", ""))
+        parts.append(rec.get("rationale", ""))
+    for evidence in cached.get("evidence", {}).values():
+        if isinstance(evidence, dict):
+            parts.append(evidence.get("opinion", ""))
+    return " ".join(part for part in parts if part)
+
+def _build_priority_recommendations(context: str) -> list:
+    if not context:
+        return []
+    agent = AGENTS["RecommendationAgent"]
+    try:
+        result = agent.analyze(None, {}, context=context)
+        metadata = getattr(result, "metadata", {}) or {}
+        priorities = metadata.get("priority_recommendations", [])
+        if priorities:
+            return priorities[:3]
+    except Exception as exc:
+        logger.debug("RecommendationAgent direct analysis unavailable: %s", exc)
+
+    signals = agent._parse_signals(context)
+    priorities = []
+
+    def add_priority(product: str, coffee: str, reason: str, boost: float, strategy: str) -> None:
+        if product and product not in [item["product"] for item in priorities]:
+            priorities.append({
+                "product": product,
+                "coffee": coffee,
+                "reason": reason,
+                "boost": boost,
+                "strategy": strategy,
+            })
+
+    for product in signals.get("day1_products", [])[:3]:
+        add_priority(
+            product,
+            agent._best_coffee_for(product, signals),
+            f"Day-1 clearance: {product} needs to move before expiry",
+            2.5,
+            "clearance",
+        )
+    for product in signals.get("rising_products", [])[:2]:
+        add_priority(
+            product,
+            agent._best_coffee_for(product, signals),
+            f"Momentum: {product} volume rising, amplify with bundle",
+            2.0,
+            "amplify",
+        )
+    for product in signals.get("high_margin_products", [])[:2]:
+        add_priority(
+            product,
+            signals.get("high_margin_coffee", "cold_brew"),
+            f"Margin play: {product} has strong profit margin",
+            1.8,
+            "margin",
+        )
+    for product in signals.get("concentration_risk_products", [])[:2]:
+        add_priority(
+            product,
+            agent._best_coffee_for(product, signals),
+            f"Diversification: reduce reliance on {signals.get('top_seller', 'hero item')}",
+            1.5,
+            "diversify",
+        )
+    return priorities[:3]
 
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest):
@@ -162,6 +252,25 @@ async def analyze(req: AnalyzeRequest):
 
 @app.post("/analyze/module")
 async def analyze_module(req: ModuleAnalyzeRequest):
+    lang = _normalize_lang(req.lang)
+    if req.module in LANGGRAPH_MODULES:
+        template_id = module_to_template(req.module)
+        graph_params = {
+            "date": req.date,
+            "module": req.module,
+            "product": "all",
+            **(req.params or {}),
+        }
+        graph_request = S5Request(
+            query=req.module,
+            module=req.module,
+            params=graph_params,
+            lang=lang,
+            force_refresh=req.force_refresh,
+        )
+        graph_response = await run_s5_graph(template_id, graph_request)
+        return graph_response.model_dump()
+
     module_intent_map = {
         "revenue": "profit_root_cause",
         "wastage": "wastage_root_cause",
@@ -171,7 +280,6 @@ async def analyze_module(req: ModuleAnalyzeRequest):
         "kpi": "full_diagnosis",
     }
     intent = module_intent_map.get(req.module, "full_diagnosis")
-    lang = _normalize_lang(req.lang)
     params = {"date": req.date, "module": req.module, "force_refresh": req.force_refresh, **(req.params or {})}
     return await analyze(AnalyzeRequest(intent=intent, params=params, lang=lang))
 
@@ -183,29 +291,16 @@ async def analyze_module(req: ModuleAnalyzeRequest):
 async def get_priorities():
     """Return cached bundle priority recommendations from RecommendationAgent."""
     try:
-        cached = memory.get_latest("profit_root_cause")
-        if cached and cached.get("data"):
-            raw_text = cached["data"].get("summary", "") + " "
-            for rec in cached["data"].get("recommendations", []):
-                raw_text += rec.get("action", "") + " "
-            # Run RecommendationAgent on the cached context
-            agent = agents["RecommendationAgent"]
-            result = agent.analyze(None, {}, context=raw_text)
-            if result.metadata and "priority_recommendations" in result.metadata:
-                return {
-                    "status": "ok",
-                    "priorities": result.metadata["priority_recommendations"],
-                    "cached": True
-                }
+        cached = _latest_cached_synthesis("profit_root_cause")
+        priorities = _build_priority_recommendations(_priority_context(cached))
+        if priorities:
+            return {"status": "ok", "priorities": priorities, "cached": True}
     except Exception as e:
         logger.warning("Priority lookup failed: %s", e)
     return {"status": "ok", "priorities": [], "cached": False}
 
 class DiscountRequest(BaseModel):
     products: list[str] = []
-
-class DiscountResponse(BaseModel):
-    discounts: dict = {}
 
 @app.post("/discounts")
 async def get_discounts(req: DiscountRequest):
@@ -239,22 +334,15 @@ async def get_discounts(req: DiscountRequest):
         # Try to get RecommendationAgent priorities for dynamic discounts
         priority_map = {}
         try:
-            cached = memory.get_latest("profit_root_cause")
-            if cached and cached.get("data"):
-                raw_text = cached["data"].get("summary", "") + " "
-                for rec in cached["data"].get("recommendations", []):
-                    raw_text += rec.get("action", "") + " "
-                agent = AGENTS["RecommendationAgent"]
-                result = agent.analyze(None, {}, context=raw_text)
-                if result.metadata and "priority_recommendations" in result.metadata:
-                    for p in result.metadata["priority_recommendations"]:
-                        prod = p.get("product", "").lower().replace(" ", "_")
-                        strategy = p.get("strategy", "")
-                        priority_map[prod] = {
-                            "strategy": strategy,
-                            "discount_pct": STRATEGY_DISCOUNT.get(strategy, 20),
-                            "reason": p.get("reason", ""),
-                        }
+            cached = _latest_cached_synthesis("profit_root_cause")
+            for p in _build_priority_recommendations(_priority_context(cached)):
+                prod = p.get("product", "").lower().replace(" ", "_")
+                strategy = p.get("strategy", "")
+                priority_map[prod] = {
+                    "strategy": strategy,
+                    "discount_pct": STRATEGY_DISCOUNT.get(strategy, 20),
+                    "reason": p.get("reason", ""),
+                }
         except Exception:
             pass  # Fall through to freshness-based
         
@@ -293,11 +381,6 @@ async def get_discounts(req: DiscountRequest):
     except Exception as e:
         logger.warning("Discount lookup failed: %s", e)
         return {"discounts": {pn: {"discount_pct": 0, "freshness": "Fresh", "dynamic": False} for pn in req.products}}
-async def list_templates():
-    from s5_agent.router.templates import TEMPLATES
-    return {k: {"intent": v.intent, "description": v.description, "nodes": len(v.nodes)}
-            for k, v in TEMPLATES.items()}
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8001, log_level="info")

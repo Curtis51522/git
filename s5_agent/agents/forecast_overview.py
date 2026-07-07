@@ -4,6 +4,8 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.schemas.agent_output import AgentOutput, DataQuality
+from s5_agent.schemas.evidence import EvidenceItem
 from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.forecast_overview")
 
@@ -94,6 +96,98 @@ class ForecastOverviewAgent(BaseAgent):
             attribution={"metric": "forecast_overview", "root_cause": "forecast_analysis",
                          "deviation": 0, "direction": direction,
                          "total_qty": total_qty, "total_rev": total_rev})
+
+    def analyze_for_graph(self, raw: dict, params: dict) -> AgentOutput:
+        opinion = self.analyze(raw, params)
+        data = raw.get("data", {}) if isinstance(raw, dict) and "data" in raw else raw
+        if not isinstance(data, dict):
+            data = {}
+
+        entries = data.get("entries", []) or []
+        by_day = {}
+        by_product = {}
+        total_units = 0.0
+        total_revenue = 0.0
+        for entry in entries:
+            day = entry.get("forecast_date", "")
+            product = entry.get("product_name", "")
+            quantity = float(entry.get("predicted_qty", 0.0) or 0.0)
+            price = float(entry.get("unit_price", 0.0) or 0.0)
+            revenue = quantity * price
+            by_day.setdefault(day, {"units": 0.0, "revenue": 0.0})
+            by_day[day]["units"] += quantity
+            by_day[day]["revenue"] += revenue
+            by_product.setdefault(product, {"units": 0.0, "revenue": 0.0})
+            by_product[product]["units"] += quantity
+            by_product[product]["revenue"] += revenue
+            total_units += quantity
+            total_revenue += revenue
+
+        sorted_days = sorted(by_day.items())
+        trend = "unknown"
+        if len(sorted_days) >= 2:
+            first_half = sum(value["revenue"] for _, value in sorted_days[: max(len(sorted_days) // 2, 1)])
+            second_half = sum(value["revenue"] for _, value in sorted_days[max(len(sorted_days) // 2, 1):])
+            if second_half > first_half:
+                trend = "rising"
+            elif second_half < first_half:
+                trend = "falling"
+            else:
+                trend = "stable"
+
+        peak_day = max(sorted_days, key=lambda item: item[1]["revenue"])[0] if sorted_days else ""
+        top_products = sorted(
+            by_product.items(),
+            key=lambda item: item[1]["units"],
+            reverse=True,
+        )[:5]
+        top_product_names = [name for name, _ in top_products if name]
+
+        evidence_items = [
+            EvidenceItem(
+                id="forecast_total_units",
+                source="forecast_overview",
+                description="Total forecast demand units for the planning horizon",
+                value=round(total_units, 2),
+                metadata={"date": params.get("date", ""), "entry_count": len(entries)},
+            ),
+            EvidenceItem(
+                id="forecast_total_revenue",
+                source="forecast_overview",
+                description="Total forecast revenue for the planning horizon",
+                value=round(total_revenue, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="forecast_peak_day",
+                source="forecast_overview",
+                description="Highest-revenue forecast day",
+                value=peak_day,
+                metadata={"date": params.get("date", "")},
+            ),
+        ]
+
+        return AgentOutput(
+            agent_name="ForecastOverviewAgent",
+            claim=opinion.opinion,
+            confidence=float(opinion.confidence),
+            metrics={
+                "forecast_total_units": round(total_units, 2),
+                "forecast_total_revenue": round(total_revenue, 2),
+                "forecast_trend": trend,
+                "forecast_peak_day": peak_day,
+                "top_forecast_products": top_product_names,
+            },
+            evidence_items=evidence_items,
+            risks=[],
+            recommendations=[],
+            data_quality=DataQuality(
+                freshness="fresh" if entries else "missing",
+                completeness=1.0 if entries else 0.0,
+                source_status={"forecast_overview": "fresh" if entries else "missing"},
+            ),
+            metadata={"top_products": top_product_names},
+        )
 
 
 def _get_beverage_names():

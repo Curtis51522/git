@@ -1,0 +1,80 @@
+[
+  {
+    "scenario_id": "inventory_shortage",
+    "variant": "rule_only",
+    "module": "inventory",
+    "template": "inventory_diagnosis",
+    "evidence_coverage": 0.0,
+    "unsupported_recommendation_rate": 1.0,
+    "verification_passed": 0.0,
+    "conflict_present": 0.0,
+    "data_quality_warning_count": 1,
+    "mean_agent_confidence": 0.4,
+    "decision_quality_score": 0.28
+  },
+  {
+    "scenario_id": "inventory_shortage",
+    "variant": "proposed",
+    "module": "inventory",
+    "template": "inventory_diagnosis",
+    "evidence_coverage": 1.0,
+    "unsupported_recommendation_rate": 0.0,
+    "verification_passed": 1.0,
+    "conflict_present": 0.0,
+    "data_quality_warning_count": 0,
+    "mean_agent_confidence": 0.5,
+    "decision_quality_score": 0.9
+  },
+  {
+    "scenario_id": "production_overbuffer",
+    "variant": "rule_only",
+    "module": "forecast",
+    "template": "production_advice",
+    "evidence_coverage": 0.0,
+    "unsupported_recommendation_rate": 1.0,
+    "verification_passed": 0.0,
+    "conflict_present": 0.0,
+    "data_quality_warning_count": 1,
+    "mean_agent_confidence": 0.4,
+    "decision_quality_score": 0.28
+  },
+  {
+    "scenario_id": "production_overbuffer",
+    "variant": "proposed",
+    "module": "forecast",
+    "template": "production_advice",
+    "evidence_coverage": 1.0,
+    "unsupported_recommendation_rate": 0.0,
+    "verification_passed": 1.0,
+    "conflict_present": 0.0,
+    "data_quality_warning_count": 0,
+    "mean_agent_confidence": 0.8,
+    "decision_quality_score": 0.96
+  },
+  {
+    "scenario_id": "profit_low_margin",
+    "variant": "rule_only",
+    "module": "revenue",
+    "template": "profit_root_cause",
+    "evidence_coverage": 0.0,
+    "unsupported_recommendation_rate": 1.0,
+    "verification_passed": 0.0,
+    "conflict_present": 0.0,
+    "data_quality_warning_count": 1,
+    "mean_agent_confidence": 0.4,
+    "decision_quality_score": 0.28
+  },
+  {
+    "scenario_id": "profit_low_margin",
+    "variant": "proposed",
+    "module": "revenue",
+    "template": "profit_root_cause",
+    "evidence_coverage": 1.0,
+    "unsupported_recommendation_rate": 0.0,
+    "verification_passed": 1.0,
+    "conflict_present": 0.0,
+    "data_quality_warning_count": 0,
+    "mean_agent_confidence": 0.85,
+    "decision_quality_score": 0.97
+  }
+]

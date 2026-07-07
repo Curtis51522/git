@@ -1,0 +1,41 @@
+{
+  "id": "inventory_shortage",
+  "template": "inventory_diagnosis",
+  "module": "inventory",
+  "product": "croissant",
+  "params": {
+    "date": "2026-07-07",
+    "product": "croissant"
+  },
+  "raw_inputs": {
+    "inventory": {
+      "inventory": [
+        {
+          "product_name": "croissant",
+          "total_quantity": 80,
+          "batches": 2,
+          "selling_price": 5.9
+        }
+      ]
+    }
+  },
+  "inventory": {
+    "day1": 12,
+    "day2": 4,
+    "day3": 0
+  },
+  "fresh": {
+    "day1": 8,
+    "day2": 3,
+    "day3": 0
+  },
+  "day1_available": 12,
+  "expected_risks": [
+    "stockout",
+    "lost_sales"
+  ],
+  "expected_recommendation_topics": [
+    "clear_day1_inventory",
+    "adjust_production_plan"
+  ]
+}

@@ -34,6 +34,8 @@ Do not assume or guess. Check Obsidian before writing code or making decisions.
 - Currency: CNY
 - Server: Uvicorn
 - No _core.js
+- Prefer standard library and built-in platform APIs whenever they meet the requirement; add third-party dependencies only when they provide clear, necessary value.
+- Do not use PowerShell as the primary way to write or modify code. Use `apply_patch` for manual edits and reserve shell commands for inspection, testing, formatting, and running tools.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence

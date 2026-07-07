@@ -1,0 +1,25 @@
+{
+  "id": "profit_low_margin",
+  "template": "profit_root_cause",
+  "module": "revenue",
+  "params": {
+    "date": "2026-07-07",
+    "product": "all"
+  },
+  "raw_inputs": {
+    "profit": {
+      "data": {
+        "today_revenue": 1000.0,
+        "today_profit": 150.0,
+        "today_orders": 20,
+        "discount_total": 80.0
+      }
+    }
+  },
+  "expected_risks": [
+    "low_margin"
+  ],
+  "expected_recommendation_topics": [
+    "margin_recovery"
+  ]
+}

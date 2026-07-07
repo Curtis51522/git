@@ -1,0 +1,24 @@
+[
+  {
+    "variant": "rule_only",
+    "num_cases": 3,
+    "evidence_coverage": 0.0,
+    "unsupported_recommendation_rate": 1.0,
+    "verification_pass_rate": 0.0,
+    "conflict_rate": 0.0,
+    "mean_agent_confidence": 0.4,
+    "decision_quality_score": 0.28,
+    "decision_quality_delta": 0.0
+  },
+  {
+    "variant": "proposed",
+    "num_cases": 3,
+    "evidence_coverage": 1.0,
+    "unsupported_recommendation_rate": 0.0,
+    "verification_pass_rate": 1.0,
+    "conflict_rate": 0.0,
+    "mean_agent_confidence": 0.7167,
+    "decision_quality_score": 0.9433,
+    "decision_quality_delta": 0.6633
+  }
+]

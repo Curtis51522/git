@@ -33,6 +33,10 @@ scikit-fuzzy==0.5.0
 matplotlib==3.10.9
 plotly==6.7.0
 
+# Agent Orchestration
+langgraph>=0.2.60
+PyYAML==6.0.2
+
 # Utils
 opencv-python==4.13.0.92
 openai==2.38.0

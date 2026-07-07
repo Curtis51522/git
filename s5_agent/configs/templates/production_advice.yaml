@@ -1,0 +1,14 @@
+id: production_advice
+purpose: Generate production planning advice using available S5 evidence.
+agents:
+  - ProductionPlanAgent
+outputs:
+  - summary
+  - recommendations
+  - evidence_graph
+  - verification_report
+failure_policy:
+  missing_data: warn_and_continue
+  missing_agent: fail
+metadata:
+  graph_strategy: production_plan_graph

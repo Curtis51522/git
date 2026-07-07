@@ -4,6 +4,8 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+from s5_agent.schemas.agent_output import AgentOutput, DataQuality
+from s5_agent.schemas.evidence import EvidenceItem
 logger = logging.getLogger("s5.agent.forecast_uncertainty")
 
 class ForecastUncertaintyAgent(BaseAgent):
@@ -51,6 +53,63 @@ class ForecastUncertaintyAgent(BaseAgent):
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.75,
             attribution={"metric": "forecast_uncertainty", "deviation": round(avg_width, 1),
                          "avg_width": avg_width, "top_uncertain": [p["name"] for p in top_uncertain]})
+
+    def analyze_for_graph(self, raw: dict, params: dict) -> AgentOutput:
+        opinion = self.analyze(raw, params)
+        data = raw.get("data", {}) if isinstance(raw, dict) and "data" in raw else raw
+        if not isinstance(data, dict):
+            data = {}
+
+        products = data.get("products", []) or []
+        sorted_products = sorted(
+            products,
+            key=lambda product: float(product.get("avg_width", 0.0) or 0.0),
+            reverse=True,
+        )
+        top_uncertain = sorted_products[:5]
+        avg_width = (
+            sum(float(product.get("avg_width", 0.0) or 0.0) for product in products)
+            / max(len(products), 1)
+        )
+        widest_product = top_uncertain[0].get("name", "") if top_uncertain else ""
+        top_names = [str(product.get("name", "")) for product in top_uncertain if product.get("name")]
+
+        evidence_items = [
+            EvidenceItem(
+                id="forecast_avg_interval_width",
+                source="forecast_uncertainty",
+                description="Average forecast interval width across products",
+                value=round(avg_width, 2),
+                metadata={"date": params.get("date", ""), "product_count": len(products)},
+            ),
+            EvidenceItem(
+                id="forecast_uncertain_products",
+                source="forecast_uncertainty",
+                description="Products with the widest forecast intervals",
+                value=top_names,
+                metadata={"date": params.get("date", "")},
+            ),
+        ]
+
+        return AgentOutput(
+            agent_name="ForecastUncertaintyAgent",
+            claim=opinion.opinion,
+            confidence=float(opinion.confidence),
+            metrics={
+                "forecast_avg_interval_width": round(avg_width, 2),
+                "widest_uncertainty_product": widest_product,
+                "top_uncertain_products": top_names,
+            },
+            evidence_items=evidence_items,
+            risks=["forecast_uncertainty_hotspots"] if top_names else [],
+            recommendations=[],
+            data_quality=DataQuality(
+                freshness="fresh" if products else "missing",
+                completeness=1.0 if products else 0.0,
+                source_status={"forecast_uncertainty": "fresh" if products else "missing"},
+            ),
+            metadata={"top_uncertain_products": top_names},
+        )
 
 
 def _query_uncertainty(date_str=""):

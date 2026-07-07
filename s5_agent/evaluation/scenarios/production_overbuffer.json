@@ -1,0 +1,64 @@
+{
+  "id": "production_overbuffer",
+  "template": "production_advice",
+  "module": "forecast",
+  "params": {
+    "date": "2026-07-07",
+    "product": "all"
+  },
+  "raw_inputs": {
+    "production": {
+      "data": {
+        "grid": [
+          {
+            "date": "2026-07-07",
+            "bake_qty": 180
+          },
+          {
+            "date": "2026-07-08",
+            "bake_qty": 120
+          }
+        ],
+        "dates": [
+          "2026-07-07",
+          "2026-07-08"
+        ],
+        "buffer": 1.4,
+        "day1_stock_total": 25,
+        "weekly_summary": {
+          "total_bake": 420,
+          "total_revenue": 2600.0,
+          "total_profit": 780.0,
+          "scenarios": {
+            "q50": {
+              "profit": 780.0,
+              "waste": 20
+            },
+            "q10": {
+              "profit": 100.0,
+              "waste": 60
+            }
+          },
+          "top_products": [
+            [
+              "croissant",
+              180
+            ],
+            [
+              "bagel",
+              120
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "expected_risks": [
+    "overproduction_risk",
+    "forecast_volatility_risk"
+  ],
+  "expected_recommendation_topics": [
+    "buffer_reduction",
+    "hedged_production"
+  ]
+}

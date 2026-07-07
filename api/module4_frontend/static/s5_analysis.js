@@ -29,6 +29,122 @@ function formatS5TimeLabel(value) {
   return t(key) || key;
 }
 
+function escapeS5Html(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatS5Confidence(value) {
+  var score = Number(value);
+  if (!isFinite(score)) return 'N/A';
+  return Math.round(score * 100) + '%';
+}
+
+function labelS5Token(value) {
+  var labels = {
+    forecast_uncertainty_hotspots: 'Demand uncertainty hotspots',
+    forecast_volatility_risk: 'Large profit swing risk',
+    material_shortage_risk: 'Low-stock material risk',
+    overproduction_risk: 'Overproduction risk',
+    stockout_risk: 'Stockout risk',
+    scenario_profit_gap: 'Profit swing between downside and expected demand',
+    production_waste_rate_pct: 'Expected waste exposure',
+    material_low_count: 'Low-stock materials',
+    material_critical_count: 'Critical material blockers',
+    material_total_order: 'Material order requirement',
+    forecast_total_units: 'Forecast demand units',
+    forecast_total_revenue: 'Forecast revenue',
+    forecast_avg_interval_width: 'Demand uncertainty range',
+    forecast_wape: 'Recent forecast error',
+    forecast_coverage: 'Forecast coverage',
+    profit_margin_pct: 'Profit margin',
+    revenue: 'Revenue',
+    discount_total: 'Discount exposure',
+    order_volume: 'Order volume',
+    average_order_value: 'Average order value',
+    revenue_trend_pct: 'Revenue trend',
+    order_change_pct: 'Order change',
+    average_order_value_change_pct: 'Average order value change',
+    top_product_revenue_share_pct: 'Top product revenue share',
+    top3_product_revenue_share_pct: 'Top product concentration',
+    category_revenue_split: 'Category revenue split',
+    peak_revenue_hour: 'Peak revenue hour',
+    hourly_peak_revenue_share_pct: 'Peak-hour revenue share',
+    low_revenue_hours: 'Low revenue hours',
+    discount_rate_pct: 'Discount rate',
+    revenue_decline: 'Revenue decline risk',
+    order_value_shift: 'Order value shift risk',
+    low_sample_size: 'Low sample size',
+    possible_data_gap: 'Possible data gap',
+    product_concentration: 'Product concentration risk',
+    hourly_revenue_concentration: 'Hourly revenue concentration risk',
+    discount_margin_erosion: 'Discount margin erosion risk'
+  };
+  var key = String(value || '');
+  if (labels[key]) return labels[key];
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
+}
+
+function collectS5Details(data) {
+  var outputs = Array.isArray(data.agent_outputs) ? data.agent_outputs : [];
+  var confidenceTotal = 0;
+  var confidenceCount = 0;
+  var risks = [];
+  var agentEvidenceIds = [];
+  var recommendationEvidenceIds = [];
+
+  for (var i = 0; i < outputs.length; i++) {
+    var confidence = Number(outputs[i].confidence);
+    if (isFinite(confidence)) {
+      confidenceTotal += confidence;
+      confidenceCount += 1;
+    }
+    var outputRisks = Array.isArray(outputs[i].risks) ? outputs[i].risks : [];
+    for (var r = 0; r < outputRisks.length; r++) risks.push(outputRisks[r]);
+    var outputEvidence = Array.isArray(outputs[i].evidence_items) ? outputs[i].evidence_items : [];
+    for (var a = 0; a < outputEvidence.length; a++) {
+      if (outputEvidence[a] && outputEvidence[a].id) agentEvidenceIds.push(outputEvidence[a].id);
+    }
+  }
+
+  var recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
+  for (var j = 0; j < recommendations.length; j++) {
+    var ids = Array.isArray(recommendations[j].evidence_ids) ? recommendations[j].evidence_ids : [];
+    for (var e = 0; e < ids.length; e++) recommendationEvidenceIds.push(ids[e]);
+  }
+  var evidenceIds = recommendationEvidenceIds.length ? recommendationEvidenceIds : agentEvidenceIds;
+
+  return {
+    confidence: confidenceCount ? confidenceTotal / confidenceCount : null,
+    risks: Array.from(new Set(risks)).slice(0, 4),
+    evidenceIds: Array.from(new Set(evidenceIds)).slice(0, 6)
+  };
+}
+
+function renderS5Details(data) {
+  var verification = data.verification_report || {};
+  var details = collectS5Details(data || {});
+  var passed = verification.passed === true;
+  var statusText = passed ? 'Verified' : 'Needs review';
+  var statusColor = passed ? '#1e8449' : '#b03a2e';
+  var statusBg = passed ? '#eafaf1' : '#fdedec';
+  var risks = details.risks.length ? details.risks.map(labelS5Token).join(', ') : 'None flagged';
+  var evidence = details.evidenceIds.length ? details.evidenceIds.map(labelS5Token).join(', ') : 'Not linked';
+
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0 12px 0;font-size:12px;color:#3d322b">' +
+    '<div style="border:1px solid #eadfcc;background:#fffaf2;border-radius:6px;padding:8px"><div style="color:#7d6b5d;font-size:11px;margin-bottom:2px">' + t('Verification') + '</div><span style="display:inline-block;background:' + statusBg + ';color:' + statusColor + ';border-radius:3px;padding:2px 7px;font-weight:600">' + escapeS5Html(statusText) + '</span></div>' +
+    '<div style="border:1px solid #eadfcc;background:#fffaf2;border-radius:6px;padding:8px"><div style="color:#7d6b5d;font-size:11px;margin-bottom:2px">' + t('Confidence') + '</div><strong>' + escapeS5Html(formatS5Confidence(details.confidence)) + '</strong></div>' +
+    '<div style="border:1px solid #eadfcc;background:#fffaf2;border-radius:6px;padding:8px"><div style="color:#7d6b5d;font-size:11px;margin-bottom:2px">' + t('Risks') + '</div><span>' + escapeS5Html(risks) + '</span></div>' +
+    '<div style="border:1px solid #eadfcc;background:#fffaf2;border-radius:6px;padding:8px"><div style="color:#7d6b5d;font-size:11px;margin-bottom:2px">' + t('Evidence') + '</div><span>' + escapeS5Html(evidence) + '</span></div>' +
+    '</div>';
+}
+
 async function runModuleS5Analysis(moduleId, dateSelector, resultDivId) {
   var resDiv = document.getElementById(resultDivId);
   if (!resDiv) return;
@@ -48,23 +164,24 @@ async function runModuleS5Analysis(moduleId, dateSelector, resultDivId) {
     var d = await r.json();
     var refreshBtn = forceRefresh ? '' : '<button onclick="runModuleS5Analysis(\'' + moduleId + '\', \'' + dateSelector + '\', \'' + resultDivId + '\', true)" title="' + t('Regenerate') + '" style="background:none;border:none;color:#8b6914;cursor:pointer;font-size:16px;margin-right:6px">&#x21bb;</button>';
     var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e0d5c7"><h4 style="margin:0;color:#5d4037;font-size:15px">\uD83E\uDDE0 ' + t('AI Analysis') + (forceRefresh ? ' <span style="font-size:11px;color:#e67e22">(' + t('refreshed') + ')</span>' : '') + '</h4><div>' + refreshBtn + '<button onclick="document.getElementById(\'' + resultDivId + '\').style.display=\'none\'" style="background:none;border:none;color:#999;cursor:pointer;font-size:18px">&times;</button></div></div>';
-    var summaryHtml = d.summary
+    var summaryHtml = escapeS5Html(d.summary)
       .replace(/\n\n/g, '</p><p style="font-size:14px;color:#3d322b;line-height:1.8;margin-bottom:6px">')
       .replace(/\n/g, '<br>')
       .replace(/^(BOTTOM LINE|WHY THIS HAPPENED|WHAT TO DO)/gm, '<strong style="color:#5d4037;font-size:15px"></strong>');
     html += '<div style="margin-bottom:12px"><p style="font-size:14px;color:#3d322b;line-height:1.8;margin-bottom:6px">' + summaryHtml + '</p></div>';
+    html += renderS5Details(d);
     if (d.recommendations && d.recommendations.length > 0) {
       html += '<div><strong style="font-size:13px;color:#5d4037">' + t('Recommendations') + '</strong><div style="margin-top:6px">';
       for (var i = 0; i < Math.min(d.recommendations.length, 4); i++) {
         var rec = d.recommendations[i];
         var urgColor = rec.urgency === 'high' ? '#c0392b' : rec.urgency === 'medium' ? '#e67e22' : '#27ae60';
         var urgBg = rec.urgency === 'high' ? '#fdedec' : rec.urgency === 'medium' ? '#fef5e7' : '#eafaf1';
-        html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:#3d322b"><span style="background:' + urgBg + ';color:' + urgColor + ';border-radius:3px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0">' + formatS5TimeLabel(rec.time_horizon || rec.urgency || 'medium').toUpperCase() + '</span><div><div>' + rec.action + '</div>' + (rec.rationale ? '<div style="color:#6b5b4f;font-size:11px;margin-top:2px">' + rec.rationale + '</div>' : '') + (rec.expected_impact ? '<div style="color:#27ae60;font-size:11px;margin-top:1px">' + rec.expected_impact + '</div>' : '') + '</div></div>';
+        html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:#3d322b"><span style="background:' + urgBg + ';color:' + urgColor + ';border-radius:3px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0">' + escapeS5Html(formatS5TimeLabel(rec.time_horizon || rec.urgency || 'medium').toUpperCase()) + '</span><div><div>' + escapeS5Html(rec.action) + '</div>' + (rec.rationale ? '<div style="color:#6b5b4f;font-size:11px;margin-top:2px">' + escapeS5Html(rec.rationale) + '</div>' : '') + (rec.expected_impact ? '<div style="color:#27ae60;font-size:11px;margin-top:1px">' + escapeS5Html(rec.expected_impact) + '</div>' : '') + '</div></div>';
       }
       html += '</div></div>';
     }
     resDiv.innerHTML = html;
   } catch (ex) {
-    resDiv.innerHTML = '<div style="color:#c0392b;text-align:center;padding:12px">' + t('Analysis failed') + ': ' + ex.message + '</div>';
+    resDiv.innerHTML = '<div style="color:#c0392b;text-align:center;padding:12px">' + escapeS5Html(t('Analysis failed')) + ': ' + escapeS5Html(ex.message) + '</div>';
   }
 }
