@@ -153,6 +153,7 @@ async def get_combo(order: dict):
     
     # Cart context: which breads does the customer already have?
     order_items = order.get("items", [])
+    business_events = order.get("business_events", [])
     cart_breads = set()
     cart_coffee_keys = set()
     for item in order_items:
@@ -279,6 +280,23 @@ async def get_combo(order: dict):
                     s["priority_boost"] = add_bonus
                     break
 
+    def business_event_context_for(product_name):
+        for event in business_events:
+            if not event or not event.get("active", True):
+                continue
+            products = event.get("products") or []
+            if product_name not in products:
+                continue
+            return {
+                "id": event.get("id"),
+                "event_type": event.get("event_type"),
+                "label": event.get("label"),
+                "discount_pct": event.get("discount_pct"),
+                "start_date": event.get("start_date"),
+                "end_date": event.get("end_date"),
+            }
+        return None
+
     # Sort by score descending
     # Sort by savings when cart has only coffee (different bread discounts matter), otherwise by total_score
     if cart_coffee_keys and not cart_breads:
@@ -313,6 +331,10 @@ async def get_combo(order: dict):
                 break
 
     top3 = top3[:3]
+    for s in top3:
+        event_context = business_event_context_for(s["product_name"])
+        if event_context:
+            s["business_event_context"] = event_context
 
     freshness_breakdown = {}
     for pn, inv_data in inventory.items():

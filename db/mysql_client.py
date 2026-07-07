@@ -117,6 +117,18 @@ def init_db():
             total FLOAT NOT NULL DEFAULT 0,
             savings FLOAT NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS business_events (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_type VARCHAR(40) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            products JSON,
+            discount_pct FLOAT,
+            note TEXT,
+            active TINYINT NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )""",]
     
     for t in tables:

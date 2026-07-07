@@ -13,8 +13,6 @@ FEATURE_LABELS = {
     "is_member_day": "member day",
     "is_day1": "day-1 product launch promo",
     "is_top3": "top-3 bestseller",
-    "is_new_product": "new product launch",
-    "is_competitor": "competitor activity",
     "discount_pct": "discount percentage",
     "daily_tickets": "daily footfall (ticket count)",
     "lag_1": "yesterday sales",
@@ -26,8 +24,13 @@ FEATURE_LABELS = {
 }
 
 HIGH_IMPACT_FEATURES = {"is_rainy", "is_weekend", "is_holiday",
-                        "is_member_day", "is_new_product", "is_competitor",
-                        "discount_pct", "daily_tickets", "lag_7_avg", "lag_1", "is_day1"}
+                        "is_member_day", "discount_pct", "daily_tickets",
+                        "lag_7_avg", "lag_1", "is_day1"}
+
+RESERVED_SCENARIO_LABELS = {
+    "is_new_product": "new product launch",
+    "is_competitor": "competitor activity",
+}
 
 class FeatureSensitivityAgent(BaseAgent):
     def _setup_tools(self):
@@ -89,11 +92,12 @@ class FeatureSensitivityAgent(BaseAgent):
 
         # Get today's features from the second tool result
         today = {}
-        interpretations = {}
+        reserved_scenarios = {}
         if isinstance(raw, dict):
-            today_raw = raw.get("get_today_features", {})
+            raw_data = raw.get("data", {}) if isinstance(raw.get("data", {}), dict) else {}
+            today_raw = raw.get("get_today_features", {}) or raw_data.get("get_today_features", {})
             today = today_raw.get("features", {})
-            interpretations = today_raw.get("interpretations", {})
+            reserved_scenarios = today_raw.get("reserved_scenario_features", {})
 
         # Build importance lookup
         imp_map = {item["feature"]: item["importance"] for item in ranked}
@@ -108,6 +112,16 @@ class FeatureSensitivityAgent(BaseAgent):
                 activated.append({"feature": feat, "label": label, "importance": imp, "value": feat_val})
 
         activated.sort(key=lambda x: x["importance"], reverse=True)
+        scenario_context = []
+        for feat, meta in reserved_scenarios.items():
+            if isinstance(meta, dict) and (meta.get("active") or meta.get("value")):
+                scenario_context.append({
+                    "feature": feat,
+                    "label": RESERVED_SCENARIO_LABELS.get(feat, meta.get("label", feat)),
+                    "importance": None,
+                    "value": meta.get("value", 1),
+                    "description": meta.get("description", ""),
+                })
 
         # Top 5 features by importance
         top5 = [{"feature": item["feature"], "label": FEATURE_LABELS.get(item["feature"], item["feature"]),
@@ -137,27 +151,34 @@ class FeatureSensitivityAgent(BaseAgent):
                 + ". No high-impact external features are active today; "
                 + "demand is primarily driven by temporal and lag patterns."
             )
+        if scenario_context:
+            scenario_str = "; ".join(f"{s['label']} active" for s in scenario_context)
+            opinion += (
+                f" Reserved scenario context is also active: {scenario_str}. "
+                "This is a business event context, not a deployed model feature weight."
+            )
 
         # Recommendations based on active features
         recs = []
+        for scenario in scenario_context:
+            if scenario["feature"] == "is_new_product":
+                recs.append({
+                    "action": "For the next 2 weeks: Monitor new product sales daily and compare demand against the forecast window.",
+                    "urgency": "medium",
+                    "rationale": "New product launch is active as business scenario context, not as a deployed model feature weight."
+                })
+            elif scenario["feature"] == "is_competitor":
+                recs.append({
+                    "action": "For this week: Review competitor-response bundles or targeted discounts before changing broad production levels.",
+                    "urgency": "high",
+                    "rationale": "Competitor activity is active as business scenario context, not as a deployed model feature weight."
+                })
         for a in activated[:3]:
             if a["feature"] == "is_rainy" and a["value"]:
                 recs.append({
                     "action": "For tomorrow: Increase hot items and promote delivery options",
                     "urgency": "medium",
                     "rationale": f"Rain is a {a['importance']*100:.1f}%-weighted demand driver active today"
-                })
-            elif a["feature"] == "is_new_product" and a["value"]:
-                recs.append({
-                    "action": "For the next 2 weeks: Monitor new product sales daily, adjust production by demand",
-                    "urgency": "medium",
-                    "rationale": f"New product launch at {a['importance']*100:.1f}% importance is active"
-                })
-            elif a["feature"] == "is_competitor" and a["value"]:
-                recs.append({
-                    "action": "For this week: Consider promotional response to competitor activity",
-                    "urgency": "high",
-                    "rationale": f"Competitor activity at {a['importance']*100:.1f}% importance is active"
                 })
             elif a["feature"] == "is_weekend" and a["value"]:
                 recs.append({
@@ -175,5 +196,6 @@ class FeatureSensitivityAgent(BaseAgent):
         return AgentOpinion(agent=self.name, opinion=opinion, confidence=0.75,
             attribution={"metric": "feature_sensitivity", "root_cause": "model_drivers",
                          "deviation": sum(a["importance"] for a in activated) * 100 if activated else 0,
-                         "top_features": top5, "activated": activated},
+                         "top_features": top5, "activated": activated,
+                         "scenario_context": scenario_context},
             recommendations=recs)

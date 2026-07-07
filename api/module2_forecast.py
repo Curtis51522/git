@@ -15,6 +15,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import PRODUCT_TYPES, FORECAST_FEATURE_COLS
 from db.mysql_client import get_db, q
 from models.schemas import SalesForecast
+from s2_forecasting.feature_contract import (
+    FEATURE_GROUPS,
+    FEATURE_METADATA,
+    FORECAST_FEATURES,
+    RESERVED_SCENARIO_FEATURES,
+)
 
 logger = logging.getLogger("s2.forecast")
 
@@ -22,6 +28,17 @@ router = APIRouter(prefix="/s2", tags=["Module 2 - Sales Forecast"])
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR = os.path.join(ROOT, "s2_forecasting", "outputs")
+
+BUSINESS_EVENT_TYPES = {
+    "new_product_launch": {
+        "label": "New product launch",
+        "reserved_feature": "is_new_product",
+    },
+    "competitor_activity": {
+        "label": "Competitor activity",
+        "reserved_feature": "is_competitor",
+    },
+}
 
 # Frozen training data metadata (lag features + weather monthly averages)
 # Used when live DB has insufficient recent sales data.
@@ -197,12 +214,126 @@ def _get_product_bounds():
     return _product_bounds
 
 def get_available_products() -> list:
-    path = os.path.join(MODEL_DIR, "xgboost_model.pkl")
+    path = os.path.join(MODEL_DIR, "quantile_model_q50.pkl")
     if os.path.exists(path):
         return list(_get_product_id_map().keys())
     return []
 
-    return [p for p in PRODUCT_TYPES if os.path.exists(_model_path(p))]
+
+def _parse_products(value):
+    if value in (None, ""):
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+        return parsed if isinstance(parsed, list) else []
+    return []
+
+
+def _format_date_value(value):
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d")
+    return str(value)
+
+
+def _serialize_business_event(row):
+    event_type = row.get("event_type", "")
+    config = BUSINESS_EVENT_TYPES.get(event_type, {})
+    return {
+        "id": row.get("id"),
+        "event_type": event_type,
+        "label": config.get("label", event_type),
+        "start_date": _format_date_value(row.get("start_date")),
+        "end_date": _format_date_value(row.get("end_date")),
+        "products": _parse_products(row.get("products")),
+        "discount_pct": row.get("discount_pct"),
+        "note": row.get("note") or "",
+        "active": bool(row.get("active")),
+    }
+
+
+def _build_reserved_scenario_summary(events):
+    summary = {
+        name: {
+            **meta,
+            "active": False,
+            "value": 0,
+            "model_input": False,
+        }
+        for name, meta in RESERVED_SCENARIO_FEATURES.items()
+    }
+    for event in events:
+        if not event.get("active", True):
+            continue
+        event_config = BUSINESS_EVENT_TYPES.get(event.get("event_type"))
+        if not event_config:
+            continue
+        feature = event_config["reserved_feature"]
+        if feature not in summary:
+            continue
+        summary[feature]["active"] = True
+        summary[feature]["value"] = 1
+        summary[feature]["events"] = [
+            *summary[feature].get("events", []),
+            event,
+        ]
+    return summary
+
+
+def _list_business_events(date: str = ""):
+    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, event_type, start_date, end_date, products, discount_pct, note, active
+        FROM business_events
+        WHERE active = 1 AND start_date <= %s AND end_date >= %s
+        ORDER BY start_date ASC, id ASC
+        """,
+        (selected_date, selected_date),
+    )
+    return [_serialize_business_event(row) for row in cursor.fetchall()]
+
+
+def _validate_business_event_payload(payload):
+    event_type = payload.get("event_type")
+    if event_type not in BUSINESS_EVENT_TYPES:
+        raise ValueError("Unsupported business event type")
+    start_date = payload.get("start_date")
+    end_date = payload.get("end_date")
+    if not start_date or not end_date:
+        raise ValueError("start_date and end_date are required")
+    try:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("start_date and end_date must use YYYY-MM-DD") from exc
+    if end_dt < start_dt:
+        raise ValueError("end_date must be on or after start_date")
+    products = payload.get("products") or []
+    if not isinstance(products, list):
+        raise ValueError("products must be a list")
+    discount_pct = payload.get("discount_pct")
+    if discount_pct in ("", None):
+        discount_pct = None
+    else:
+        discount_pct = float(discount_pct)
+        if discount_pct < 0 or discount_pct > 100:
+            raise ValueError("discount_pct must be between 0 and 100")
+    return {
+        "event_type": event_type,
+        "start_date": start_date,
+        "end_date": end_date,
+        "products": json.dumps(products),
+        "discount_pct": discount_pct,
+        "note": payload.get("note") or "",
+        "active": 1 if payload.get("active", True) else 0,
+    }
 
 
 # --- Lag feature helpers (DB-backed) ---
@@ -341,16 +472,8 @@ def _get_is_day1(product_name: str) -> int:
 
 
 
-# Feature order matching train_quantile.py (17 features)
-FORECAST_FEATURE_ORDER = [
-    "product_id", "category", "daily_tickets", "day_of_week", "month",
-    "is_weekend", "is_holiday",
-    "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7",
-    "is_day1", "is_top3", "discount_pct",
-    "is_member_day", "is_rainy",
-    "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
-    "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio",
-]
+# Feature order matching the deployed S2 Q50 forecast model.
+FORECAST_FEATURE_ORDER = FORECAST_FEATURE_COLS
 
 def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     _init_frozen_meta()
@@ -392,8 +515,6 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     is_top3 = 1 if pid in _frozen_meta.get("top3_products", []) else 0
     discount_pct = 0.0
     is_member_day = 0
-    is_new_product = 0
-    is_competitor = 0
 
     # is_rainy: check weather data from frozen training mapping
     ds = dt_date.strftime("%Y-%m-%d")
@@ -409,7 +530,7 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     ice_avg = 1.6
     temp_hot_ratio = 0.15 + 0.70 / (1 + np.exp((temp_mean - 22) / 4)) if temp_mean else 0.5
 
-    return {
+    features = {
         "product_id": pid,
         "category": category,
         "daily_tickets": daily_tickets,
@@ -438,6 +559,7 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
         "ice_avg": ice_avg,
         "temp_hot_ratio": temp_hot_ratio,
     }
+    return {name: features.get(name, 0) for name in FORECAST_FEATURE_ORDER}
 
 
 def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, start_date: Optional[str] = None) -> dict:
@@ -577,52 +699,127 @@ async def get_accuracy():
         return {"status": "ok", "metrics": _sanitize(metrics)}
     return {"status": "no_data", "message": "test_metrics.json not found"}
 
-
-
-# Training feature list matching train_xgboost.py (16 features)
-_TRAINING_FEATURES = [
-    "product_id", "daily_tickets", "day_of_week", "month",
-    "is_weekend", "is_holiday",
-    "lag_1", "lag_7_avg", "lag_30_avg",
-    "is_day1", "is_top3", "discount_pct",
-    "is_member_day", "is_new_product", "is_competitor", "is_rainy",
-]
-
 @router.get("/features/importance")
 async def get_feature_importance():
-    """Return XGBoost feature importance scores for S2-S5 cross-analysis."""
+    """Return deployed S2 Q50 feature importance scores for S2-S5 analysis."""
     try:
-        model = _get_unified_model()
+        model = _get_unified_quantile("q50")
         importances = model.feature_importances_
-        features = _TRAINING_FEATURES
+        features = FORECAST_FEATURES
         if len(importances) != len(features):
             return {"status": "mismatch", "message": f"Model has {len(importances)} features, expected {len(features)}"}
 
-        # Pair feature name with importance, sorted by importance desc
         pairs = sorted(
-            [{"feature": f, "importance": round(float(v), 5)} for f, v in zip(features, importances)],
+            [
+                {
+                    "feature": f,
+                    "importance": round(float(v), 5),
+                    "group": FEATURE_METADATA[f]["group"],
+                    "availability": FEATURE_METADATA[f]["availability"],
+                }
+                for f, v in zip(features, importances)
+            ],
             key=lambda x: x["importance"], reverse=True
         )
-        # Group by category for easier consumption
-        categories = {
-            "temporal": ["day_of_week", "month", "is_weekend", "is_holiday"],
-            "lag": ["lag_1", "lag_7_avg", "lag_30_avg"],
-            "product": ["product_id", "is_day1", "is_top3", "discount_pct"],
-            "event": ["is_member_day", "is_new_product", "is_competitor", "is_rainy"],
-            "demand": ["daily_tickets"],
-        }
         grouped = {}
-        for cat, cols in categories.items():
-            grouped[cat] = [p for p in pairs if p["feature"] in cols]
+        for group, cols in FEATURE_GROUPS.items():
+            grouped[group] = [p for p in pairs if p["feature"] in cols]
 
         return {
             "status": "ok",
+            "model": "quantile_model_q50",
             "total_features": len(pairs),
             "ranked": pairs,
             "grouped": grouped,
         }
     except Exception as e:
         logger.warning("Feature importance failed: %s", e)
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/business-events")
+async def get_business_events(date: str = ""):
+    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    try:
+        events = _list_business_events(selected_date)
+        return {
+            "status": "ok",
+            "date": selected_date,
+            "events": events,
+            "reserved_scenario_features": _build_reserved_scenario_summary(events),
+        }
+    except Exception as e:
+        logger.warning("Business events query failed: %s", e)
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/business-events")
+async def create_business_event(payload: dict):
+    try:
+        data = _validate_business_event_payload(payload)
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute(
+            """
+            INSERT INTO business_events
+            (event_type, start_date, end_date, products, discount_pct, note, active)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                data["event_type"],
+                data["start_date"],
+                data["end_date"],
+                data["products"],
+                data["discount_pct"],
+                data["note"],
+                data["active"],
+            ),
+        )
+        return {"status": "ok", "id": cursor.lastrowid}
+    except Exception as e:
+        logger.warning("Business event create failed: %s", e)
+        return {"status": "error", "message": str(e)}
+
+
+@router.put("/business-events/{event_id}")
+async def update_business_event(event_id: int, payload: dict):
+    try:
+        data = _validate_business_event_payload(payload)
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute(
+            """
+            UPDATE business_events
+            SET event_type = %s, start_date = %s, end_date = %s,
+                products = %s, discount_pct = %s, note = %s, active = %s
+            WHERE id = %s
+            """,
+            (
+                data["event_type"],
+                data["start_date"],
+                data["end_date"],
+                data["products"],
+                data["discount_pct"],
+                data["note"],
+                data["active"],
+                event_id,
+            ),
+        )
+        return {"status": "ok", "id": event_id}
+    except Exception as e:
+        logger.warning("Business event update failed: %s", e)
+        return {"status": "error", "message": str(e)}
+
+
+@router.delete("/business-events/{event_id}")
+async def delete_business_event(event_id: int):
+    try:
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("UPDATE business_events SET active = 0 WHERE id = %s", (event_id,))
+        return {"status": "ok", "id": event_id}
+    except Exception as e:
+        logger.warning("Business event delete failed: %s", e)
         return {"status": "error", "message": str(e)}
 
 
@@ -636,17 +833,14 @@ async def get_today_features(date: str = ""):
         else:
             forecast_date = _dt.datetime.now()
 
-        # Build full features then extract training subset + weather context
         feats = build_forecast_features(forecast_date, "")
-        readable = {k: feats.get(k, 0) for k in _TRAINING_FEATURES}
-        # Weather features not in training model but provide context
+        readable = {k: feats.get(k, 0) for k in FORECAST_FEATURE_ORDER}
         weather_context = {
             "temp_mean": feats.get("temp_mean", 0),
             "temp_range": feats.get("temp_range", 0),
             "is_cold_day": feats.get("is_cold_day", 0),
             "is_hot_day": feats.get("is_hot_day", 0),
         }
-        # Add human-readable interpretations (training features + weather)
         interpretations = {
             "is_weekend": "weekend" if readable.get("is_weekend") else "weekday",
             "is_holiday": "holiday" if readable.get("is_holiday") else "non-holiday",
@@ -654,8 +848,6 @@ async def get_today_features(date: str = ""):
             "is_member_day": "member_day" if readable.get("is_member_day") else "non_member_day",
             "is_day1": "day1_promo" if readable.get("is_day1") else "non_promo",
             "is_top3": "top3_product" if readable.get("is_top3") else "non_top3",
-            "is_new_product": "new_product" if readable.get("is_new_product") else "existing_product",
-            "is_competitor": "competitor_active" if readable.get("is_competitor") else "no_competitor_event",
         }
         if weather_context.get("is_cold_day"):
             interpretations["weather"] = "cold_day"
@@ -663,10 +855,24 @@ async def get_today_features(date: str = ""):
             interpretations["weather"] = "hot_day"
         else:
             interpretations["weather"] = "mild"
+        active_events = []
+        selected_date = forecast_date.strftime("%Y-%m-%d")
+        try:
+            active_events = _list_business_events(selected_date)
+        except Exception as event_error:
+            logger.warning("Business event context unavailable for %s: %s", selected_date, event_error)
+        reserved_scenario_features = _build_reserved_scenario_summary(active_events)
         return {
             "status": "ok",
-            "date": forecast_date.strftime("%Y-%m-%d"),
+            "date": selected_date,
             "features": readable,
+            "feature_contract": {
+                "source": "s2_forecasting.feature_contract",
+                "total_features": len(FORECAST_FEATURE_ORDER),
+                "groups": FEATURE_GROUPS,
+            },
+            "business_events": active_events,
+            "reserved_scenario_features": reserved_scenario_features,
             "weather_context": weather_context,
             "interpretations": {k: v for k, v in interpretations.items()},
         }

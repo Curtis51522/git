@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from s2_forecasting.feature_contract import FORECAST_FEATURES
 load_dotenv()
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
@@ -22,16 +23,7 @@ PRODUCT_TYPES = [
     "latte", "lemonade", "matcha_latte", "milk_tea", "mocha",
 ]
 
-FORECAST_FEATURE_COLS = [
-    "product_id", "category", "daily_tickets", "day_of_week", "month",
-    "is_weekend", "is_holiday",
-    "lag_1", "lag_7_avg", "lag_30_avg",
-    "roll_std_7", "roll_std_14", "trend_7",
-    "is_day1", "is_top3", "discount_pct",
-    "is_member_day", "is_rainy",
-    "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
-    "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio",
-]
+FORECAST_FEATURE_COLS = FORECAST_FEATURES
 
 INTENT_CONFIDENCE_THRESHOLD = 0.75
 MAX_RETRIES = 2

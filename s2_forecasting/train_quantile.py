@@ -2,7 +2,8 @@ import os, json, joblib, warnings
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
+from s2_forecasting.feature_contract import FORECAST_FEATURES
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
@@ -11,17 +12,12 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-FEATURES = [
-    "product_id", "category", "daily_tickets", "day_of_week", "month",
-    "is_weekend", "is_holiday",
-    "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7",
-    "is_day1", "is_top3", "discount_pct",
-    "is_member_day", "is_rainy",
-    "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
-    "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio",
-]
+FEATURES = FORECAST_FEATURES
 TARGET = "quantity"
 QUANTILES = [0.10, 0.50, 0.90]
+CV_SPLITS = 3
+EXPERIMENT_ROLE = "proposed_probabilistic_forecast"
+VALIDATION_DESIGN = "date-aware rolling-origin cross-validation"
 
 PARAM_GRID_Q50 = {
     "n_estimators": [200, 500],
@@ -59,15 +55,37 @@ def get_xy(df):
     return df[FEATURES].copy(), df[TARGET].copy()
 
 
+def build_date_aware_cv(df, n_splits=CV_SPLITS, date_col="date"):
+    """Build rolling-origin CV folds using complete forecast dates as units."""
+    if date_col not in df.columns:
+        raise ValueError(f"Missing date column: {date_col}")
+    dates = pd.to_datetime(df[date_col])
+    unique_dates = pd.Series(dates.dropna().unique()).sort_values().reset_index(drop=True)
+    if len(unique_dates) <= n_splits:
+        raise ValueError(
+            f"Need more than {n_splits} unique dates for date-aware cross-validation"
+        )
+
+    splitter = TimeSeriesSplit(n_splits=n_splits)
+    date_values = dates.reset_index(drop=True)
+    for train_date_idx, val_date_idx in splitter.split(unique_dates):
+        train_dates = set(pd.to_datetime(unique_dates.iloc[train_date_idx]))
+        val_dates = set(pd.to_datetime(unique_dates.iloc[val_date_idx]))
+        train_idx = np.flatnonzero(date_values.isin(train_dates).to_numpy())
+        val_idx = np.flatnonzero(date_values.isin(val_dates).to_numpy())
+        yield train_idx, val_idx
+
+
 def tune_q50(train_df, val_df):
-    print("\n--- Tuning Q50 (Tweedie, 3-fold CV) ---")
+    print("\n--- Tuning Q50 (Tweedie, date-aware rolling CV) ---")
     combined = pd.concat([train_df, val_df], ignore_index=True)
     X, y = get_xy(combined)
+    cv_splits = list(build_date_aware_cv(combined, n_splits=CV_SPLITS))
     grid = GridSearchCV(
         xgb.XGBRegressor(objective="reg:tweedie",
                          enable_categorical=True, tree_method="hist",
                          random_state=42, n_jobs=-1, verbosity=0),
-        PARAM_GRID_Q50, cv=3, scoring="neg_mean_absolute_error",
+        PARAM_GRID_Q50, cv=cv_splits, scoring="neg_mean_absolute_error",
         n_jobs=-1, verbose=1,
     )
     grid.fit(X, y)
@@ -188,7 +206,10 @@ def evaluate(test_df, models, calibration):
 
     metrics = {
         "model": "XGBoost Tweedie Q50 + Quantile Q10/Q90",
+        "experiment_role": EXPERIMENT_ROLE,
+        "validation_design": VALIDATION_DESIGN,
         "features": len(FEATURES),
+        "feature_contract": "s2_forecasting.feature_contract.FORECAST_FEATURES",
         "test_period": f"{test_df['date'].min()} to {test_df['date'].max()}",
         "interval_method": "Conformal 80%",
         "overall": {
@@ -244,14 +265,15 @@ def main():
         json.dump(best_q50, f, indent=2, default=str)
 
     # Q10/Q90 use quantile params from simpler grid
-    print("\n--- Tuning Q10 (Quantile, 3-fold CV) ---")
+    print("\n--- Tuning Q10 (Quantile, date-aware rolling CV) ---")
     combined = pd.concat([train, val], ignore_index=True)
     X_all, y_all = get_xy(combined)
+    cv_splits = list(build_date_aware_cv(combined, n_splits=CV_SPLITS))
     qt_grid = GridSearchCV(
         xgb.XGBRegressor(objective="reg:quantileerror", quantile_alpha=0.10,
                          enable_categorical=True, tree_method="hist",
                          random_state=42, n_jobs=-1, verbosity=0),
-        PARAM_GRID_QUANTILE, cv=3, scoring="neg_mean_absolute_error",
+        PARAM_GRID_QUANTILE, cv=cv_splits, scoring="neg_mean_absolute_error",
         n_jobs=-1, verbose=1,
     )
     qt_grid.fit(X_all, y_all)

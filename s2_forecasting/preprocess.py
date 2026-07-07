@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 """S2 Preprocessing Module — Clean Rewrite (2026-06-30)
 =========================================================
-Feature set (17 features):
-  product_id, category, daily_tickets, day_of_week, month,
-  is_weekend, is_holiday (pure public holiday, not weekend),
-  lag_1, lag_7_avg, lag_30_avg, is_day1, is_top3, discount_pct,
-  is_member_day, is_new_product, is_competitor, is_rainy
+Feature set (27 forecast-time contract features):
+  See s2_forecasting.feature_contract.FORECAST_FEATURES.
 
 Data split (time-series, no shuffle):
   Train: 2023-01-01 to 2024-12-31
@@ -16,6 +13,7 @@ Data split (time-series, no shuffle):
 import os, warnings
 import numpy as np
 import pandas as pd
+from s2_forecasting.feature_contract import FORECAST_FEATURES
 
 warnings.filterwarnings("ignore")
 
@@ -26,15 +24,7 @@ RAW_CSV = os.path.join(DATA_DIR, "bakery_sales_raw.csv")
 SPLIT_DATE = "2025-01-01"
 SPLIT_DATE_2 = "2025-07-01"
 
-FEATURE_COLS = [
-    "product_id", "category", "daily_tickets", "day_of_week", "month",
-    "is_weekend", "is_holiday",
-    "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7",
-    "is_day1", "is_top3", "discount_pct",
-    "is_member_day", "is_new_product", "is_competitor", "is_rainy",
-    "temp_mean", "temp_range", "is_cold_day", "is_hot_day",
-    "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio",
-]
+FEATURE_COLS = FORECAST_FEATURES
 TARGET_COL = "quantity"
 
 
