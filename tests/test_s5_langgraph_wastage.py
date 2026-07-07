@@ -167,7 +167,7 @@ def test_wastage_summary_reads_like_business_analysis_when_loss_is_small(monkeyp
         "Butter": {"qty": 0.010, "cost_per_unit": 60.0},
         "Coffee Beans": {"qty": 0.006, "cost_per_unit": 80.0},
         "Bread Flour": {"qty": 0.010, "cost_per_unit": 8.0, "consumed": 50.0},
-        "Sugar": {"qty": 0.004, "cost_per_unit": 20.0},
+        "Eggs": {"qty": 0.007, "cost_per_unit": 12.0},
         "Baking Powder": {"consumed": 100.0},
         "Box": {"consumed": 80.0},
         "Milk": {"consumed": 40.0},
@@ -207,6 +207,7 @@ def test_wastage_summary_reads_like_business_analysis_when_loss_is_small(monkeyp
     assert "This is not a major financial loss yet" in summary
     assert "repeated small losses in the same materials could become a process issue" in summary
     assert "The main items to review are Butter, Coffee Beans, and Bread Flour." in summary
+    assert f"Eggs also logged a small waste entry at {currency}0.08, but it is lower priority than the top three losses." in summary
     assert f"Butter caused the largest recorded loss at {currency}0.60, followed by Coffee Beans at {currency}0.48 and Bread Flour at {currency}0.08." in summary
     assert "Their wastage rates cannot be calculated reliably because theoretical consumption is recorded as zero" in summary
     assert "Production-yield data is available for this day, with 261 units and 10 consumed-material rows." in summary

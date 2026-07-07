@@ -94,7 +94,16 @@ function labelS5Token(value) {
     possible_data_gap: 'Possible data gap',
     product_concentration: 'Product concentration risk',
     hourly_revenue_concentration: 'Hourly revenue concentration risk',
-    discount_margin_erosion: 'Discount margin erosion risk'
+    discount_margin_erosion: 'Discount margin erosion risk',
+    promotionsignalagent_claim: 'Promotion signal',
+    promotionproductmixagent_claim: 'Product mix signal',
+    promotion_decision_basis: 'Promotion decision basis',
+    top3_bread_revenue_share_pct: 'Top 3 bread concentration',
+    bread_revenue_share_pct: 'Bread revenue share',
+    beverage_revenue_share_pct: 'Beverage revenue share',
+    top_product_name: 'Top product',
+    promotion_no_broad_discount: 'No broad discount decision',
+    promotion_mid_tier_bundle: 'Targeted bundle opportunity'
   };
   var key = String(value || '');
   if (labels[key]) return labels[key];

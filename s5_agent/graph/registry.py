@@ -6,6 +6,7 @@ _MODULE_TO_TEMPLATE = {
     "forecast": "production_advice",
     "schedule": "staffing_diagnosis",
     "wastage": "wastage_root_cause",
+    "promotion_mix": "promotion_mix_analysis",
     "kpi": "full_diagnosis",
 }
 

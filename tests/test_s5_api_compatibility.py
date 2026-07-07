@@ -15,6 +15,14 @@ def test_inventory_module_maps_to_inventory_diagnosis():
     assert module_to_template("inventory") == "inventory_diagnosis"
 
 
+def test_promotion_mix_module_uses_langgraph_route():
+    from s5_agent.server import LANGGRAPH_MODULES
+    from s5_agent.graph.registry import module_to_template
+
+    assert "promotion_mix" in LANGGRAPH_MODULES
+    assert module_to_template("promotion_mix") == "promotion_mix_analysis"
+
+
 def test_supported_templates_contains_inventory_diagnosis():
     assert "inventory_diagnosis" in supported_templates()
 
@@ -106,6 +114,44 @@ def test_inventory_module_uses_langgraph_runner(monkeypatch):
     assert body["summary"] == "Inventory graph summary"
     assert body["metadata"]["template"] == "inventory_diagnosis"
     assert "verification_report" in body
+
+
+def test_analyze_module_routes_promotion_mix_to_langgraph(monkeypatch):
+    captured = {}
+
+    async def fake_run_s5_graph(template_id, request, raw_inputs=None):
+        captured["template_id"] = template_id
+        captured["module"] = request.module
+        captured["raw_inputs"] = raw_inputs
+        return S5AnalysisResponse(
+            summary="Promotion mix response",
+            verification_report=VerificationReport(passed=True),
+            metadata={"template": template_id},
+        )
+
+    monkeypatch.setattr("s5_agent.server.run_s5_graph", fake_run_s5_graph)
+
+    client = TestClient(app)
+    response = client.post(
+        "/analyze/module",
+        json={
+            "module": "promotion_mix",
+            "date": "2026-06-30",
+            "lang": "en",
+            "force_refresh": True,
+            "params": {},
+        },
+    )
+
+    body = response.json()
+    assert response.status_code == 200
+    assert captured == {
+        "template_id": "promotion_mix_analysis",
+        "module": "promotion_mix",
+        "raw_inputs": None,
+    }
+    assert body["summary"] == "Promotion mix response"
+    assert body["metadata"]["template"] == "promotion_mix_analysis"
 
 
 def test_declared_modules_use_langgraph_runner(monkeypatch):

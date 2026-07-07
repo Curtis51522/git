@@ -31,15 +31,20 @@ class PromoAgent(BaseAgent):
         return await self._get_promos(date)
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
-        api_data = raw.get("data", {}) if "data" in raw else raw
-        data = api_data.get("data", api_data) if isinstance(api_data, dict) else api_data
-        disc_rate = data.get("discount_rate", 0)
-        if disc_rate > THRESHOLDS["promo_high_discount_rate"]:
+        api_data = raw.get("data", {}) if isinstance(raw, dict) and "data" in raw else raw
+        data = api_data.get("data", api_data) if isinstance(api_data, dict) else {}
+        discount_total = float(data.get("today_discount", data.get("discount_total", 0)) or 0)
+        revenue = float(data.get("today_revenue", data.get("revenue", 0)) or 0)
+        discount_rate = float(data.get("discount_rate", 0) or 0)
+        if not discount_rate and revenue > 0:
+            discount_rate = discount_total / revenue
+        deviation = discount_rate * 100
+        if discount_rate > THRESHOLDS["promo_high_discount_rate"]:
             return AgentOpinion(agent=self.name,
-                opinion=f"High discount rate: {disc_rate*100:.1f}%",
+                opinion=f"High discount rate: {deviation:.1f}%",
                 confidence=0.8,
-                attribution={"metric": "discount_rate", "root_cause": "high_discount", "deviation": disc_rate*100})
+                attribution={"metric": "discount_rate", "root_cause": "high_discount", "deviation": deviation})
         return AgentOpinion(agent=self.name,
             opinion="Normal discount levels",
             confidence=0.8,
-            attribution={"metric": "discount_rate", "root_cause": "normal_discount", "deviation": 0})
+            attribution={"metric": "discount_rate", "root_cause": "normal_discount", "deviation": deviation})

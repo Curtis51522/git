@@ -90,7 +90,13 @@ migration.sql
 schema.sql
 start.bat
 =
-docs/
+docs/*
+!docs/s5_promotion_mix_design.md
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/plans/
+docs/superpowers/plans/*
+!docs/superpowers/plans/2026-07-08-s5-promotion-mix-implementation.md
 
 # Remaining temp
 _js_dump.js

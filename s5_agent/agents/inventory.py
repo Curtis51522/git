@@ -130,7 +130,16 @@ class InventoryAgent(BaseAgent):
 
         fresh = freshness_counts.get("Fresh", 0)
         day1 = freshness_counts.get("Day-1", 0)
-        waste_risk = "high" if (total_qty > THRESHOLDS["inventory_total_high"] and fresh < THRESHOLDS["inventory_fresh_low"]) else "low" if day1 == 0 else "medium"
+        zero_stock_products = sorted(name for name, value in per_product.items() if int(value.get("qty", 0) or 0) <= 0)
+        day1_products = sorted(name for name, value in per_product.items() if int(value.get("day1", 0) or 0) > 0)
+        if per_product and total_qty == 0:
+            waste_risk = "stockout_risk"
+        elif total_qty > THRESHOLDS["inventory_total_high"] and fresh < THRESHOLDS["inventory_fresh_low"]:
+            waste_risk = "high"
+        elif day1 == 0:
+            waste_risk = "low"
+        else:
+            waste_risk = "medium"
 
         # Confidence: DB direct query is authoritative (0.95)
         matched = len(per_product) > 0
@@ -155,6 +164,9 @@ class InventoryAgent(BaseAgent):
                 "inventory": total_qty, "fresh": fresh, "day1_available": day1,
                 "waste_risk": waste_risk, "freshness_breakdown": freshness_counts,
                 "per_product": per_product,
+                "product_count": len(per_product),
+                "zero_stock_products": zero_stock_products,
+                "day1_products": day1_products,
                 "unit_price": per_product.get(product, {}).get("selling_price", THRESHOLDS["inventory_default_price"]) if target_products and len(target_products) == 1 else 5.90,
             },
         }
@@ -166,6 +178,9 @@ class InventoryAgent(BaseAgent):
         fresh = data.get("fresh", 0)
         day1_available = data.get("day1_available", 0)
         waste_risk = data.get("waste_risk")
+        product_count = int(data.get("product_count", 0) or 0)
+        zero_stock_products = data.get("zero_stock_products", []) or []
+        day1_products = data.get("day1_products", []) or []
         product = params.get("product", "croissant")
         confidence = float(result.get("confidence", 0.0))
         freshness_value = "fresh" if confidence >= 0.75 else "unknown"
@@ -192,6 +207,11 @@ class InventoryAgent(BaseAgent):
                 "inventory": inventory,
                 "fresh": fresh,
                 "day1_available": day1_available,
+                "product_count": product_count,
+                "zero_stock_product_count": len(zero_stock_products),
+                "zero_stock_products": zero_stock_products,
+                "day1_product_count": len(day1_products),
+                "day1_products": day1_products,
             },
             evidence_items=[
                 EvidenceItem(
@@ -202,11 +222,29 @@ class InventoryAgent(BaseAgent):
                     metadata={"product": product},
                 )
             ],
-            risks=[waste_risk] if waste_risk else [],
+            risks=(
+                ["inventory_data_gap"]
+                if product_count == 0
+                else ["stockout_risk", "inventory_data_gap"]
+                if inventory == 0 and product_count > 0
+                else ([waste_risk] if waste_risk else [])
+            ),
             recommendations=recommendations,
             data_quality=DataQuality(
                 freshness=freshness_value,
                 completeness=1.0 if inventory > 0 else 0.5,
+                limitations=[
+                    "Zero finished-product stock may reflect a real stockout or a batch inventory synchronization gap."
+                ] if inventory == 0 and product_count > 0 else (
+                    ["No finished-product records were available for the selected scope."]
+                    if product_count == 0 else []
+                ),
                 source_status={"inventory": freshness_value},
+            ),
+            limitations=[
+                "Zero finished-product stock may reflect a real stockout or a batch inventory synchronization gap."
+            ] if inventory == 0 and product_count > 0 else (
+                ["No finished-product records were available for the selected scope."]
+                if product_count == 0 else []
             ),
         )

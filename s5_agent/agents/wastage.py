@@ -350,6 +350,7 @@ class WastageAgent(BaseAgent):
             ),
         ]
 
+        sorted_wasted_materials = sorted(wasted_materials, key=lambda item: item["waste_cost"], reverse=True)
         top_wasted_materials = [
             {
                 "name": material["name"],
@@ -359,7 +360,18 @@ class WastageAgent(BaseAgent):
                 "wastage_rate": material["wastage_rate"],
                 "rate_available": material["wastage_rate"] > 0,
             }
-            for material in sorted(wasted_materials, key=lambda item: item["waste_cost"], reverse=True)[:3]
+            for material in sorted_wasted_materials[:3]
+        ]
+        additional_wasted_materials = [
+            {
+                "name": material["name"],
+                "wastage_qty": material["wastage_qty"],
+                "unit": material["unit"],
+                "waste_cost": material["waste_cost"],
+                "wastage_rate": material["wastage_rate"],
+                "rate_available": material["wastage_rate"] > 0,
+            }
+            for material in sorted_wasted_materials[3:]
         ]
 
         recommendations = []
@@ -375,7 +387,7 @@ class WastageAgent(BaseAgent):
                     evidence_ids=["material_count_checked", "wasted_material_count", "total_waste_cost"],
                 )
             )
-        for material in sorted(wasted_materials, key=lambda item: item["waste_cost"], reverse=True)[:3]:
+        for material in sorted_wasted_materials[:3]:
             if material["wastage_rate"] > 0:
                 waste_detail = (
                     f"material waste at {material['wastage_rate'] * 100:.1f}% "
@@ -409,6 +421,7 @@ class WastageAgent(BaseAgent):
                 "total_waste_cost": total_waste_cost,
                 "top_consumed_materials": top_consumed,
                 "top_wasted_materials": top_wasted_materials,
+                "additional_wasted_materials": additional_wasted_materials,
                 "requested_date": query_date,
                 "latest_wastage_record_date": latest_record_date,
                 "has_selected_date_wastage_check": has_selected_date_check,

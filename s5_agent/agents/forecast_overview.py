@@ -142,6 +142,11 @@ class ForecastOverviewAgent(BaseAgent):
             reverse=True,
         )[:5]
         top_product_names = [name for name, _ in top_products if name]
+        business_events = [
+            event for event in (data.get("business_events", []) or [])
+            if isinstance(event, dict) and event.get("active", True)
+        ]
+        reserved_scenario_features = data.get("reserved_scenario_features", {}) or {}
 
         evidence_items = [
             EvidenceItem(
@@ -166,6 +171,20 @@ class ForecastOverviewAgent(BaseAgent):
                 metadata={"date": params.get("date", "")},
             ),
         ]
+        if business_events:
+            evidence_items.append(
+                EvidenceItem(
+                    id="business_events_active",
+                    source="business_events",
+                    description="Active planned business events attached to the selected forecast date",
+                    value=len(business_events),
+                    metadata={
+                        "date": params.get("date", ""),
+                        "events": business_events,
+                        "reserved_scenario_features": reserved_scenario_features,
+                    },
+                )
+            )
 
         return AgentOutput(
             agent_name="ForecastOverviewAgent",
@@ -177,6 +196,7 @@ class ForecastOverviewAgent(BaseAgent):
                 "forecast_trend": trend,
                 "forecast_peak_day": peak_day,
                 "top_forecast_products": top_product_names,
+                "business_event_count": len(business_events),
             },
             evidence_items=evidence_items,
             risks=[],
@@ -184,9 +204,16 @@ class ForecastOverviewAgent(BaseAgent):
             data_quality=DataQuality(
                 freshness="fresh" if entries else "missing",
                 completeness=1.0 if entries else 0.0,
-                source_status={"forecast_overview": "fresh" if entries else "missing"},
+                source_status={
+                    "forecast_overview": "fresh" if entries else "missing",
+                    "business_events": "fresh" if business_events else "unknown",
+                },
             ),
-            metadata={"top_products": top_product_names},
+            metadata={
+                "top_products": top_product_names,
+                "business_events": business_events,
+                "reserved_scenario_features": reserved_scenario_features,
+            },
         )
 
 
@@ -220,7 +247,21 @@ def _query_forecast_overview(date_str=""):
                 "upper_bound": float(fc.get("upper_bound", 0)),
                 "unit_price": prices.get(pn, 0),
             })
-        return {"entries": entries, "cached": f.get("cached", False)}
+        business_events = []
+        reserved_scenario_features = {}
+        try:
+            from api.module2_forecast import _build_reserved_scenario_summary, _list_business_events
+            business_events = _list_business_events(date_str)
+            reserved_scenario_features = _build_reserved_scenario_summary(business_events)
+        except Exception as event_error:
+            logger.warning("Business event context fetch failed: %s", event_error)
+
+        return {
+            "entries": entries,
+            "cached": f.get("cached", False),
+            "business_events": business_events,
+            "reserved_scenario_features": reserved_scenario_features,
+        }
     except Exception as e:
         logger.warning("ForecastOverview fetch failed: %s", e)
         return {"entries": []}

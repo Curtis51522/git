@@ -85,7 +85,7 @@ AGENTS = {
     "RecommendationAgent": RecommendationAgent("RecommendationAgent"),
 }
 dag_executor = DAGExecutor(AGENTS, memory=memory)
-LANGGRAPH_MODULES = {"inventory", "revenue", "forecast", "wastage"}
+LANGGRAPH_MODULES = {"inventory", "revenue", "forecast", "wastage", "promotion_mix"}
 
 class AnalyzeRequest(BaseModel):
     query: str = ""

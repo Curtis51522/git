@@ -321,3 +321,111 @@ def test_forecast_summary_translates_accuracy_into_production_strategy():
     assert "30.0% recent error means the week should not be locked in at once" in result.summary
     assert "78.5% coverage is useful for release guardrails" in result.summary
     assert "staged production and material readiness checks should guide extra bake releases" in result.summary
+
+
+def test_forecast_summary_includes_reserved_business_events():
+    raw = {
+        "forecast_overview": {
+            "data": {
+                "entries": [
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "bread_roll",
+                        "predicted_qty": 120.0,
+                        "lower_bound": 90.0,
+                        "upper_bound": 150.0,
+                        "unit_price": 8.0,
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "stickbread",
+                        "predicted_qty": 80.0,
+                        "lower_bound": 60.0,
+                        "upper_bound": 110.0,
+                        "unit_price": 7.0,
+                    },
+                ],
+                "business_events": [
+                    {
+                        "id": 6,
+                        "event_type": "new_product_launch",
+                        "label": "New product launch",
+                        "start_date": "2026-07-07",
+                        "end_date": "2026-07-07",
+                        "products": ["bread_roll"],
+                        "discount_pct": 25.0,
+                        "note": "Launch campaign",
+                        "active": True,
+                    },
+                    {
+                        "id": 7,
+                        "event_type": "competitor_activity",
+                        "label": "Competitor activity",
+                        "start_date": "2026-07-07",
+                        "end_date": "2026-07-07",
+                        "products": ["stickbread"],
+                        "discount_pct": 25.0,
+                        "note": "Competitor response",
+                        "active": True,
+                    },
+                ],
+                "reserved_scenario_features": {
+                    "is_new_product": {
+                        "active": True,
+                        "value": 1,
+                        "model_input": False,
+                    },
+                    "is_competitor": {
+                        "active": True,
+                        "value": 1,
+                        "model_input": False,
+                    },
+                },
+            }
+        },
+        "production": {
+            "data": {
+                "grid": [{"date": "2026-07-07", "bake_qty": 140}],
+                "dates": ["2026-07-07"],
+                "buffer": 1.05,
+                "day1_stock_total": 20,
+                "weekly_summary": {
+                    "total_bake": 160,
+                    "total_revenue": 1200.0,
+                    "total_profit": 700.0,
+                    "scenarios": {
+                        "q50": {"profit": 700.0, "waste": 10},
+                        "q10": {"profit": 200.0, "waste": 30},
+                    },
+                    "top_products": [("bread_roll", 90), ("stickbread", 70)],
+                },
+            }
+        },
+    }
+    request = S5Request(
+        query="Generate production advice",
+        module="forecast",
+        params={"date": "2026-07-07", "product": "all"},
+    )
+
+    result = asyncio.run(run_s5_graph("production_advice", request, raw_inputs=raw))
+    metrics_by_agent = {output.agent_name: output.metrics for output in result.agent_outputs}
+    overview_metrics = metrics_by_agent["ForecastOverviewAgent"]
+
+    assert overview_metrics["business_event_count"] == 2
+    assert "Two planned business events are active" in result.summary
+    assert "New Product Launch" in result.summary
+    assert "Bread Roll" in result.summary
+    assert "Competitor Activity" in result.summary
+    assert "Stickbread" in result.summary
+    assert "25% planned discount" in result.summary
+    assert "reserved scenario inputs" in result.summary
+    assert "not part of the deployed 27-feature forecast model" in result.summary
+    event_recommendation = next(
+        recommendation
+        for recommendation in result.recommendations
+        if recommendation.id == "business_event_monitoring"
+    )
+    assert "Bread Roll and Stickbread" in event_recommendation.action
+    assert "first 1-2 trading days" in event_recommendation.action
+    assert event_recommendation.evidence_ids == ["business_events_active"]

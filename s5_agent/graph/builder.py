@@ -9,10 +9,13 @@ from s5_agent.agents.forecast_overview import ForecastOverviewAgent
 from s5_agent.agents.forecast_uncertainty import ForecastUncertaintyAgent
 from s5_agent.agents.inventory import InventoryAgent
 from s5_agent.agents.material_procurement import MaterialProcurementAgent
+from s5_agent.agents.product_mix import ProductMixAgent
 from s5_agent.agents.profit import ProfitAgent
 from s5_agent.agents.production_plan import ProductionPlanAgent
+from s5_agent.agents.promo import PromoAgent
 from s5_agent.agents.wastage import WastageAgent
 from s5_agent.agents.yield_agent import YieldAgent
+from s5_agent.core.base import AgentOpinion
 from s5_agent.agents.revenue_analysis import (
     CategoryMixAgent,
     DiscountImpactAgent,
@@ -35,6 +38,7 @@ SUPPORTED_GRAPH_TEMPLATES = frozenset(
         "profit_root_cause",
         "production_advice",
         "wastage_root_cause",
+        "promotion_mix_analysis",
     }
 )
 
@@ -45,6 +49,47 @@ def _normalize_state(state: S5GraphState | dict[str, Any]) -> S5GraphState:
     return S5GraphState.model_validate(state)
 
 
+def _agent_output_from_opinion(agent_name: str, opinion: AgentOpinion) -> AgentOutput:
+    attribution = opinion.attribution if isinstance(opinion.attribution, dict) else {}
+    evidence_source = opinion.evidence if isinstance(opinion.evidence, dict) else {}
+    evidence_items = [
+        EvidenceItem(
+            id=f"{agent_name.lower()}_claim",
+            source=agent_name,
+            description=f"{agent_name} claim",
+            value=opinion.opinion,
+            metadata={key: value for key, value in attribution.items()},
+        )
+    ]
+    for key, value in evidence_source.items():
+        evidence_items.append(
+            EvidenceItem(
+                id=f"{agent_name.lower()}_{key}",
+                source=agent_name,
+                description=str(key).replace("_", " "),
+                value=value,
+            )
+        )
+
+    return AgentOutput(
+        agent_name=agent_name,
+        claim=opinion.opinion or f"{agent_name} completed analysis.",
+        confidence=float(opinion.confidence),
+        metrics={key: value for key, value in attribution.items()},
+        evidence_items=evidence_items,
+        risks=list(opinion.constraints),
+        recommendations=[],
+        data_quality=DataQuality(
+            freshness="fresh",
+            completeness=1.0,
+            source_status={agent_name: "fresh"},
+        ),
+        limitations=[],
+        errors=[],
+        metadata={"source_agent": opinion.agent, "elapsed_ms": opinion.elapsed_ms},
+    )
+
+
 async def _inventory_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
     graph_state = _normalize_state(state)
     raw = graph_state.raw_inputs.get("inventory", {})
@@ -52,19 +97,144 @@ async def _inventory_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any
     if not raw:
         raw = await agent.fetch(graph_state.request.params)
     output = agent.analyze_for_graph(raw, graph_state.request.params)
+    output = output.model_copy(update={"agent_name": "FinishedStockAgent"})
     if graph_state.template_id == "wastage_root_cause":
         output = output.model_copy(
             update={
                 "risks": [
                     risk
                     for risk in output.risks
-                    if str(risk).lower() not in {"low"}
-                ]
+                    if str(risk).lower() not in {"low", "stockout_risk", "inventory_data_gap"}
+                ],
+                "recommendations": [],
             }
         )
 
     agent_outputs = dict(graph_state.agent_outputs)
     agent_outputs["inventory"] = output
+    return {"agent_outputs": agent_outputs}
+
+
+async def _stock_data_quality_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
+    graph_state = _normalize_state(state)
+    inventory = graph_state.agent_outputs.get("inventory")
+    metrics = inventory.metrics if inventory else {}
+    total_units = _int_value(metrics.get("inventory"))
+    product_count = _int_value(metrics.get("product_count"))
+    zero_count = _int_value(metrics.get("zero_stock_product_count"))
+
+    if not inventory or product_count == 0:
+        status = "missing"
+        claim = "Finished-product inventory records are missing for the selected scope."
+        confidence = 0.3
+        risks = ["inventory_data_gap"]
+    elif total_units == 0 and zero_count == product_count:
+        status = "all_zero"
+        claim = "Finished-product inventory records show all-zero stock, so the result must be treated as stockout risk or inventory sync gap."
+        confidence = 0.82
+        risks = ["inventory_data_gap"]
+    elif zero_count:
+        status = "partial_zero"
+        claim = f"Finished-product inventory records are available, but {zero_count} products have zero recorded stock."
+        confidence = 0.86
+        risks = ["stockout_risk"]
+    else:
+        status = "usable"
+        claim = "Finished-product inventory records are usable for stock-risk review."
+        confidence = 0.9
+        risks = []
+
+    output = AgentOutput(
+        agent_name="StockDataQualityAgent",
+        claim=claim,
+        confidence=confidence,
+        metrics={
+            "inventory_record_status": status,
+            "zero_stock_product_count": zero_count,
+        },
+        evidence_items=[
+            EvidenceItem(
+                id="inventory_record_status",
+                source="inventory_quality",
+                description="Finished-product inventory record status",
+                value=status,
+                metadata={"product_count": product_count, "total_units": total_units},
+            ),
+            EvidenceItem(
+                id="zero_stock_product_count",
+                source="inventory_quality",
+                description="Number of products with zero recorded finished stock",
+                value=zero_count,
+                metadata={"product_count": product_count},
+            ),
+        ],
+        risks=risks,
+        data_quality=DataQuality(
+            freshness="fresh" if status != "missing" else "missing",
+            completeness=0.5 if status in {"missing", "all_zero"} else 1.0,
+            limitations=[
+                "All-zero finished stock must be verified against batch records before operational decisions."
+            ] if status == "all_zero" else [],
+            source_status={"inventory_quality": "fresh" if status != "missing" else "missing"},
+        ),
+        limitations=[
+            "All-zero finished stock must be verified against batch records before operational decisions."
+        ] if status == "all_zero" else [],
+    )
+
+    agent_outputs = dict(graph_state.agent_outputs)
+    agent_outputs["stock_data_quality"] = output
+    return {"agent_outputs": agent_outputs}
+
+
+async def _inventory_recommendation_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
+    graph_state = _normalize_state(state)
+    quality = graph_state.agent_outputs.get("stock_data_quality")
+    quality_metrics = quality.metrics if quality else {}
+    status = str(quality_metrics.get("inventory_record_status") or "missing")
+    recommendations = []
+    if status in {"all_zero", "missing"}:
+        recommendations.append(
+            Recommendation(
+                id="inventory_stock_record_audit",
+                action="Verify finished-product inventory records before treating the selected scope as truly out of stock.",
+                urgency="high",
+                time_horizon="today",
+                rationale="Finished-product stock records are missing or all zero, which may indicate either a real stockout or an inventory sync gap.",
+                expected_impact="Prevents production or sales decisions from being made on a potentially incomplete stock record.",
+                evidence_ids=["inventory_total", "inventory_record_status"],
+            )
+        )
+        claim = "Inventory action priority is to verify finished-product stock records before making production or sales decisions."
+        confidence = 0.86
+    else:
+        claim = "Inventory action priority does not require an immediate stock-record audit."
+        confidence = 0.75
+
+    output = AgentOutput(
+        agent_name="InventoryRecommendationAgent",
+        claim=claim,
+        confidence=confidence,
+        metrics={"inventory_recommendation_count": len(recommendations)},
+        evidence_items=[
+            EvidenceItem(
+                id="inventory_recommendation_basis",
+                source="inventory_recommendation",
+                description="Inventory recommendation trigger status",
+                value=status,
+                metadata={"recommendation_count": len(recommendations)},
+            )
+        ],
+        recommendations=recommendations,
+        data_quality=DataQuality(
+            freshness="fresh",
+            completeness=1.0,
+            source_status={"inventory_recommendation": "fresh"},
+        ),
+    )
+
+    agent_outputs = dict(graph_state.agent_outputs)
+    agent_outputs["inventory_recommendation"] = output
     return {"agent_outputs": agent_outputs}
 
 
@@ -262,6 +432,83 @@ async def _discount_impact_node(state: S5GraphState | dict[str, Any]) -> dict[st
     return {"agent_outputs": agent_outputs}
 
 
+async def _promotion_signal_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
+    graph_state = _normalize_state(state)
+    raw = graph_state.raw_inputs.get("promotion_signal", {})
+    agent = PromoAgent("PromotionSignalAgent")
+    if not raw:
+        raw = await agent.fetch(graph_state.request.params)
+    output = _agent_output_from_opinion(
+        "PromotionSignalAgent",
+        agent.analyze(raw, graph_state.request.params),
+    )
+    output = _attach_promotion_signal_metrics(output, raw)
+
+    agent_outputs = dict(graph_state.agent_outputs)
+    agent_outputs["promotion_signal"] = output
+    return {"agent_outputs": agent_outputs}
+
+
+async def _promotion_product_mix_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
+    graph_state = _normalize_state(state)
+    raw = graph_state.raw_inputs.get("product_mix", {})
+    agent = ProductMixAgent("PromotionProductMixAgent")
+    if not raw:
+        raw = await agent.fetch(graph_state.request.params)
+    output = _agent_output_from_opinion(
+        "PromotionProductMixAgent",
+        agent.analyze(raw, graph_state.request.params),
+    )
+    output = _attach_promotion_product_mix_metrics(output, raw)
+
+    agent_outputs = dict(graph_state.agent_outputs)
+    agent_outputs["promotion_product_mix"] = output
+    return {"agent_outputs": agent_outputs}
+
+
+def _promotion_decision_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
+    graph_state = _normalize_state(state)
+    recommendations = _promotion_mix_recommendations(graph_state.agent_outputs)
+    evidence_ids = sorted(
+        {
+            evidence_id
+            for recommendation in recommendations
+            for evidence_id in recommendation.evidence_ids
+        }
+    )
+    claim = (
+        "Promotion decisions are ready for verifier review with evidence-backed recommendations."
+        if recommendations
+        else "Promotion data does not support a verified promotion recommendation."
+    )
+    output = AgentOutput(
+        agent_name="PromotionDecisionAgent",
+        claim=claim,
+        confidence=0.75,
+        metrics={"recommendation_count": len(recommendations)},
+        evidence_items=[
+            EvidenceItem(
+                id="promotion_decision_basis",
+                source="promotion_decision",
+                description="Promotion decision evidence references",
+                value=evidence_ids,
+                metadata={"recommendation_count": len(recommendations)},
+            )
+        ],
+        risks=[],
+        recommendations=recommendations,
+        data_quality=DataQuality(
+            freshness="fresh",
+            completeness=1.0,
+            source_status={"promotion_decision": "fresh"},
+        ),
+    )
+
+    agent_outputs = dict(graph_state.agent_outputs)
+    agent_outputs["promotion_decision"] = output
+    return {"agent_outputs": agent_outputs}
+
+
 async def _production_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
     graph_state = _normalize_state(state)
     raw = graph_state.raw_inputs.get("production", {})
@@ -409,6 +656,21 @@ def _synthesize_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
                 recommendations=_merge_wastage_recommendations(graph_state.agent_outputs),
             )
         }
+    if graph_state.template_id == "inventory_diagnosis":
+        return {
+            "synthesis": S5Synthesis(
+                summary=_synthesize_inventory_summary(graph_state.agent_outputs),
+                recommendations=_merge_wastage_recommendations(graph_state.agent_outputs),
+            )
+        }
+    if graph_state.template_id == "promotion_mix_analysis":
+        decision = graph_state.agent_outputs.get("promotion_decision")
+        return {
+            "synthesis": S5Synthesis(
+                summary=_synthesize_promotion_mix_summary(graph_state.agent_outputs),
+                recommendations=list(decision.recommendations) if decision else [],
+            )
+        }
 
     return {
         "synthesis": S5Synthesis(
@@ -458,6 +720,73 @@ def _natural_names(values: Any) -> str:
     return ", ".join(names[:-1]) + ", and " + names[-1]
 
 
+def _display_name(value: Any) -> str:
+    return str(value).replace("_", " ").title()
+
+
+def _format_percent(value: Any) -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if number.is_integer():
+        return f"{int(number)}%"
+    return f"{number:.1f}%"
+
+
+def _event_label(event_type: Any) -> str:
+    labels = {
+        "new_product_launch": "New Product Launch",
+        "competitor_activity": "Competitor Activity",
+    }
+    return labels.get(str(event_type), _display_name(event_type))
+
+
+def _business_event_products(events: list[dict[str, Any]]) -> list[str]:
+    products = []
+    seen = set()
+    for event in events:
+        for product in event.get("products", []) or []:
+            name = _display_name(product)
+            if name and name not in seen:
+                seen.add(name)
+                products.append(name)
+    return products
+
+
+def _business_event_summary_sentence(events: list[dict[str, Any]]) -> str:
+    if not events:
+        return ""
+    count_labels = {1: "One", 2: "Two", 3: "Three", 4: "Four"}
+    if len(events) == 1:
+        count_word = "One planned business event is"
+    else:
+        count_word = f"{count_labels.get(len(events), str(len(events)))} planned business events are"
+    clauses = []
+    for event in events[:4]:
+        label = _event_label(event.get("event_type"))
+        products = _natural_names([_display_name(product) for product in event.get("products", []) or []])
+        discount = _format_percent(event.get("discount_pct"))
+        discount_text = f" with a {discount} planned discount" if discount else ""
+        if event.get("event_type") == "new_product_launch":
+            clauses.append(
+                f"{label} applies to {products or 'selected products'}{discount_text}, so its demand should be monitored as a launch scenario with a weaker historical baseline"
+            )
+        elif event.get("event_type") == "competitor_activity":
+            clauses.append(
+                f"{label} applies to {products or 'selected products'}{discount_text}, so its demand should be treated as scenario-sensitive to competitor response"
+            )
+        else:
+            clauses.append(
+                f"{label} applies to {products or 'selected products'}{discount_text}"
+            )
+    return (
+        f"{count_word} active in this forecast window. "
+        + ". ".join(clauses)
+        + ". These business events are reserved scenario inputs, not part of the deployed 27-feature forecast model, so they should guide monitoring and staged release decisions rather than directly changing the forecast output."
+    )
+
+
 def _int_value(value: Any) -> int:
     try:
         return int(float(value))
@@ -470,6 +799,315 @@ def _float_value(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _optional_float_value(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _mapping_data(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {}
+    data = raw.get("data")
+    if isinstance(data, dict):
+        return data
+    return raw
+
+
+def _first_optional_float(mapping: dict[str, Any], *keys: str) -> float | None:
+    for key in keys:
+        value = _optional_float_value(mapping.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+def _normalize_rate_pct(value: Any) -> float | None:
+    rate = _optional_float_value(value)
+    if rate is None:
+        return None
+    if 0 <= rate <= 1:
+        return round(rate * 100, 4)
+    return round(rate, 4)
+
+
+def _revenue_from_rows(rows: Any) -> float:
+    if not isinstance(rows, list):
+        return 0.0
+    return sum(_float_value(row.get("revenue")) for row in rows if isinstance(row, dict))
+
+
+def _category_value(category: dict[str, Any], *keys: str) -> float:
+    lowered = {str(key).lower(): value for key, value in category.items()}
+    return sum(_float_value(lowered.get(key.lower())) for key in keys)
+
+
+def _attach_promotion_signal_metrics(output: AgentOutput, raw: Any) -> AgentOutput:
+    data = _mapping_data(raw)
+    metrics = dict(output.metrics)
+    evidence_items = list(output.evidence_items)
+
+    discount_total = _first_optional_float(data, "today_discount", "discount_total", "discount")
+    revenue = _first_optional_float(data, "today_revenue", "revenue")
+    discount_rate_pct = _normalize_rate_pct(data.get("discount_rate"))
+
+    if discount_rate_pct is None and revenue and discount_total is not None:
+        discount_rate_pct = round(discount_total / revenue * 100, 4)
+    if discount_rate_pct is None:
+        discount_rate_pct = _normalize_rate_pct(metrics.get("discount_rate_pct"))
+    if discount_rate_pct is None:
+        discount_rate_pct = _normalize_rate_pct(metrics.get("deviation"))
+
+    if discount_total is not None:
+        metrics["discount_total"] = discount_total
+        evidence_items.append(
+            EvidenceItem(
+                id="discount_total",
+                source="promotion_signal",
+                description="Total discount amount tracked for the promotion period",
+                value=discount_total,
+                metadata={"revenue": revenue},
+            )
+        )
+    if discount_rate_pct is not None:
+        metrics["discount_rate_pct"] = discount_rate_pct
+        evidence_items.append(
+            EvidenceItem(
+                id="discount_rate_pct",
+                source="promotion_signal",
+                description="Discount amount as a share of tracked revenue",
+                value=discount_rate_pct,
+                metadata={"discount_total": discount_total, "revenue": revenue},
+            )
+        )
+
+    return output.model_copy(update={"metrics": metrics, "evidence_items": evidence_items})
+
+
+def _product_mix_metrics(raw: Any) -> dict[str, Any]:
+    data = _mapping_data(raw)
+    bread_rows = data.get("bread_ranking", [])
+    beverage_rows = data.get("beverage_ranking", [])
+    category = data.get("category", {})
+    category = category if isinstance(category, dict) else {}
+
+    bread_revenue = _category_value(category, "Bread")
+    beverage_revenue = _category_value(category, "Beverages", "Coffee")
+    if bread_revenue <= 0:
+        bread_revenue = _revenue_from_rows(bread_rows)
+    if beverage_revenue <= 0:
+        beverage_revenue = _revenue_from_rows(beverage_rows)
+
+    total_tracked_revenue = bread_revenue + beverage_revenue
+    bread_top3_revenue = 0.0
+    top_product_name = None
+    top_product_revenue = None
+    top_product_units = None
+    if isinstance(bread_rows, list) and bread_rows:
+        bread_top3_revenue = sum(
+            _float_value(row.get("revenue"))
+            for row in bread_rows[:3]
+            if isinstance(row, dict)
+        )
+        first_bread = bread_rows[0]
+        if isinstance(first_bread, dict):
+            top_product_name = first_bread.get("name")
+            top_product_revenue = _optional_float_value(first_bread.get("revenue"))
+            top_product_units = _optional_float_value(first_bread.get("qty"))
+
+    metrics: dict[str, Any] = {}
+    if top_product_name:
+        metrics["top_product_name"] = top_product_name
+    if top_product_units is not None:
+        metrics["top_product_units"] = top_product_units
+    if bread_revenue > 0:
+        metrics["bread_revenue"] = round(bread_revenue, 4)
+        metrics["top3_bread_revenue_share_pct"] = round(bread_top3_revenue / bread_revenue * 100, 4)
+    if beverage_revenue > 0:
+        metrics["beverage_revenue"] = round(beverage_revenue, 4)
+    if isinstance(bread_rows, list):
+        metrics["sold_bread_sku_count"] = len(bread_rows)
+    total_bread_sku = _int_value(data.get("total_bread_sku"))
+    if total_bread_sku:
+        metrics["total_bread_sku"] = total_bread_sku
+    if isinstance(beverage_rows, list) and beverage_rows:
+        first_beverage = beverage_rows[0]
+        if isinstance(first_beverage, dict):
+            metrics["top_beverage_name"] = first_beverage.get("name")
+            units = _optional_float_value(first_beverage.get("qty"))
+            if units is not None:
+                metrics["top_beverage_units"] = units
+    if total_tracked_revenue > 0:
+        if top_product_revenue is not None:
+            metrics["top_product_revenue_share_pct"] = round(top_product_revenue / total_tracked_revenue * 100, 4)
+        metrics["top3_product_revenue_share_pct"] = round(bread_top3_revenue / total_tracked_revenue * 100, 4)
+        metrics["bread_revenue_share_pct"] = round(bread_revenue / total_tracked_revenue * 100, 4)
+        metrics["beverage_revenue_share_pct"] = round(beverage_revenue / total_tracked_revenue * 100, 4)
+    return metrics
+
+
+def _attach_promotion_product_mix_metrics(output: AgentOutput, raw: Any) -> AgentOutput:
+    metrics = {**output.metrics, **_product_mix_metrics(raw)}
+    evidence_items = list(output.evidence_items)
+    descriptions = {
+        "top_product_revenue_share_pct": "Top bread product revenue as a share of total tracked product revenue",
+        "top3_product_revenue_share_pct": "Top three bread products revenue as a share of total tracked product revenue",
+        "top3_bread_revenue_share_pct": "Top three bread products revenue as a share of bread revenue",
+        "bread_revenue_share_pct": "Bread revenue as a share of total tracked product revenue",
+        "beverage_revenue_share_pct": "Beverage revenue as a share of total tracked product revenue",
+        "top_product_name": "Top bread product name",
+        "top_product_units": "Top bread product units sold",
+        "bread_revenue": "Bread revenue",
+        "beverage_revenue": "Beverage revenue",
+        "sold_bread_sku_count": "Number of bread SKUs sold",
+        "total_bread_sku": "Number of bread SKUs tracked",
+        "top_beverage_name": "Top beverage product name",
+        "top_beverage_units": "Top beverage units sold",
+    }
+    for metric_id, description in descriptions.items():
+        if metric_id in metrics:
+            evidence_items.append(
+                EvidenceItem(
+                    id=metric_id,
+                    source="promotion_product_mix",
+                    description=description,
+                    value=metrics[metric_id],
+                )
+            )
+    risks = list(output.risks)
+    bread_share = _optional_float_value(metrics.get("bread_revenue_share_pct"))
+    bread_top3_share = _optional_float_value(metrics.get("top3_bread_revenue_share_pct"))
+    total_top3_share = _optional_float_value(metrics.get("top3_product_revenue_share_pct"))
+    if (
+        (bread_share is not None and bread_top3_share is not None and bread_share >= 60 and bread_top3_share >= 50)
+        or (total_top3_share is not None and total_top3_share >= 50)
+    ):
+        risks.append("product_concentration")
+    return output.model_copy(
+        update={
+            "metrics": metrics,
+            "evidence_items": evidence_items,
+            "risks": list(dict.fromkeys(risks)),
+        }
+    )
+
+
+def _promotion_discount_rate_pct(promo: Any) -> float | None:
+    if not promo:
+        return None
+    metrics = promo.metrics if isinstance(promo.metrics, dict) else {}
+    discount_rate = _optional_float_value(metrics.get("discount_rate_pct"))
+    if discount_rate is not None:
+        return discount_rate
+    return None
+
+
+def _product_mix_top3_share_pct(product_mix: Any) -> float | None:
+    if not product_mix:
+        return None
+    metrics = product_mix.metrics
+    return _optional_float_value(metrics.get("top3_product_revenue_share_pct"))
+
+
+def _synthesize_promotion_mix_summary(outputs: dict[str, Any]) -> str:
+    promo = outputs.get("promotion_signal")
+    product_mix = outputs.get("promotion_product_mix")
+    sentences = []
+    if promo:
+        discount_rate = _promotion_discount_rate_pct(promo)
+        if discount_rate is None:
+            sentences.append("Discount exposure is not available in the promotion signal, so promotion decisions should not assume that pricing pressure is controlled.")
+        elif discount_rate <= 5:
+            sentences.append(f"Discount exposure is controlled at {discount_rate:.1f}%, so the current evidence does not justify a broad price cut.")
+        else:
+            sentences.append(f"Discount exposure is elevated at {discount_rate:.1f}%, so promotion impact should be checked before repeating the same campaign.")
+    if product_mix:
+        metrics = product_mix.metrics
+        bread_revenue = _float_value(metrics.get("bread_revenue"))
+        beverage_revenue = _float_value(metrics.get("beverage_revenue"))
+        beverage_share = _float_value(metrics.get("beverage_revenue_share_pct"))
+        top_product = str(metrics.get("top_product_name") or "").replace("_", " ")
+        top_product_units = _int_value(metrics.get("top_product_units"))
+        top3_bread_share = _float_value(metrics.get("top3_bread_revenue_share_pct"))
+        top3_total_share = _float_value(metrics.get("top3_product_revenue_share_pct"))
+        sold_skus = _int_value(metrics.get("sold_bread_sku_count"))
+        total_skus = _int_value(metrics.get("total_bread_sku"))
+        top_beverage = str(metrics.get("top_beverage_name") or "").replace("_", " ")
+        top_beverage_units = _int_value(metrics.get("top_beverage_units"))
+        if bread_revenue or beverage_revenue:
+            sentences.append(
+                f"Bread generated {_money(bread_revenue)} and beverages generated {_money(beverage_revenue)}, with beverages contributing {beverage_share:.1f}% of tracked product revenue."
+            )
+        if top_product:
+            sku_text = f" across {sold_skus} of {total_skus} tracked bread SKUs" if sold_skus and total_skus else ""
+            sentences.append(
+                f"Within bread, {top_product} led the mix with {_number(top_product_units)} units sold{sku_text}."
+            )
+        if top3_bread_share:
+            sentences.append(
+                f"Bread revenue is concentrated: the top three bread products account for {top3_bread_share:.1f}% of bread revenue and {top3_total_share:.1f}% of total tracked product revenue."
+            )
+        if top_beverage:
+            sentences.append(
+                f"The beverage side is led by {top_beverage} at {_number(top_beverage_units)} units, so beverage pairing can support targeted promotions without discounting the full bread range."
+            )
+    if not sentences:
+        return "Promotion and product-mix analysis could not be completed because supporting dashboard data is missing."
+    sentences.append(
+        "The practical decision is to keep broad discounts evidence-led while using product-level actions to reduce dependence on a small group of bread items."
+    )
+    return " ".join(sentences)
+
+
+def _promotion_mix_recommendations(outputs: dict[str, Any]) -> list[Any]:
+    recommendations = []
+    promo = outputs.get("promotion_signal")
+    product_mix = outputs.get("promotion_product_mix")
+    discount_rate = _promotion_discount_rate_pct(promo)
+    top3_share = _product_mix_top3_share_pct(product_mix)
+    product_metrics = product_mix.metrics if product_mix else {}
+    bread_share = _optional_float_value(product_metrics.get("bread_revenue_share_pct"))
+    bread_top3_share = _optional_float_value(product_metrics.get("top3_bread_revenue_share_pct"))
+    bread_concentration = (
+        bread_share is not None
+        and bread_top3_share is not None
+        and bread_share >= 60
+        and bread_top3_share >= 50
+    )
+
+    if discount_rate is not None and discount_rate <= 5:
+        recommendations.append(
+            Recommendation(
+                id="promotion_no_broad_discount",
+                action="Do not launch a broad discount unless traffic weakness persists.",
+                urgency="low",
+                time_horizon="ongoing",
+                rationale="Discount exposure is controlled, so a broad price cut is not justified by the current evidence.",
+                expected_impact="Protects margin while keeping promotion decisions evidence-led.",
+                evidence_ids=["discount_rate_pct"],
+            )
+        )
+    if (top3_share is not None and top3_share >= 50) or bread_concentration:
+        evidence_ids = ["top3_product_revenue_share_pct"]
+        if bread_concentration:
+            evidence_ids = ["top3_bread_revenue_share_pct", "bread_revenue_share_pct"]
+        recommendations.append(
+            Recommendation(
+                id="promotion_mid_tier_bundle",
+                action="Use targeted bundles or small rotation promotions to support mid-tier bread items instead of discounting the full menu.",
+                urgency="medium",
+                time_horizon="this_week",
+                rationale="Revenue is concentrated in the leading bread products, so targeted bundles are an opportunity to support mid-tier items.",
+                expected_impact="Improves product-mix balance while protecting margin from broad discount erosion.",
+                evidence_ids=evidence_ids,
+            )
+        )
+    return recommendations
 
 
 def _plural(count: int, singular: str, plural: str | None = None) -> str:
@@ -581,6 +1219,58 @@ def _merge_wastage_recommendations(outputs: dict[str, Any]) -> list[Any]:
     return recommendations
 
 
+def _synthesize_inventory_summary(outputs: dict[str, Any]) -> str:
+    inventory = outputs.get("inventory")
+    if not inventory:
+        return "No finished-product inventory analysis was produced."
+
+    metrics = inventory.metrics
+    total_units = _int_value(metrics.get("inventory"))
+    fresh_units = _int_value(metrics.get("fresh"))
+    day1_units = _int_value(metrics.get("day1_available"))
+    product_count = _int_value(metrics.get("product_count"))
+    zero_count = _int_value(metrics.get("zero_stock_product_count"))
+    zero_products = metrics.get("zero_stock_products", [])
+    day1_count = _int_value(metrics.get("day1_product_count"))
+    day1_products = metrics.get("day1_products", [])
+
+    sentences = []
+    if product_count == 0:
+        sentences.append(
+            "No finished-product inventory records are available for the selected scope."
+        )
+        sentences.append(
+            "This is an inventory data gap, so stockout or clearance decisions should wait until batch records or the inventory feed are verified."
+        )
+    elif product_count and total_units == 0:
+        sentences.append(
+            f"No finished-product stock is recorded for the selected scope: {product_count} products show 0 units, with 0 fresh units and 0 day-1 units."
+        )
+        if zero_products:
+            sentences.append(
+                f"The zero-stock products include {_natural_names(zero_products)}."
+            )
+        sentences.append(
+            "This should be treated as a stockout risk or inventory sync gap until batch records are verified, not as proof that every shelf is physically empty."
+        )
+    else:
+        sentences.append(
+            f"Finished-product inventory shows {total_units} units across {product_count} products, including {fresh_units} fresh units and {day1_units} day-1 units."
+        )
+        if zero_count:
+            sentences.append(
+                f"{zero_count} products have no recorded finished stock, including {_natural_names(zero_products)}."
+            )
+        if day1_count:
+            sentences.append(
+                f"{day1_count} products carry day-1 stock, including {_natural_names(day1_products)}, so clearance risk should be checked before adding more bake volume."
+            )
+        elif product_count:
+            sentences.append("No day-1 stock is recorded, so expiry pressure is not visible in the current finished-stock data.")
+
+    return " ".join(sentences)
+
+
 def _synthesize_wastage_summary(outputs: dict[str, Any]) -> str:
     wastage = outputs.get("wastage")
     yield_output = outputs.get("yield")
@@ -594,6 +1284,7 @@ def _synthesize_wastage_summary(outputs: dict[str, Any]) -> str:
     waste_cost = _float_value(waste_metrics.get("total_waste_cost"))
     top_materials = _natural_names(waste_metrics.get("top_consumed_materials", []))
     top_wasted_materials = waste_metrics.get("top_wasted_materials", [])
+    additional_wasted_materials = waste_metrics.get("additional_wasted_materials", [])
     requested_date = str(waste_metrics.get("requested_date") or "")
     latest_record_date = str(waste_metrics.get("latest_wastage_record_date") or "")
     has_selected_date_check = bool(waste_metrics.get("has_selected_date_wastage_check"))
@@ -628,6 +1319,12 @@ def _synthesize_wastage_summary(outputs: dict[str, Any]) -> str:
         cost_sentence = _wasted_material_cost_sentence(top_wasted_materials)
         if cost_sentence:
             sentences.append(cost_sentence)
+        if isinstance(additional_wasted_materials, list) and additional_wasted_materials:
+            extra = next((item for item in additional_wasted_materials if isinstance(item, dict) and item.get("name")), None)
+            if extra:
+                sentences.append(
+                    f"{extra.get('name')} also logged a small waste entry at {_money_precise(extra.get('waste_cost'))}, but it is lower priority than the top three losses."
+                )
         if any(isinstance(item, dict) and not item.get("rate_available") for item in top_wasted_materials):
             sentences.append(
                 "Their wastage rates cannot be calculated reliably because theoretical consumption is recorded as zero, so the issue may be either real handling waste or an incomplete production-consumption baseline."
@@ -864,6 +1561,31 @@ def _forecast_recommendations(outputs: dict[str, Any]) -> list[Any]:
                 )
             else:
                 recommendations.append(recommendation)
+    business_events = []
+    if overview:
+        business_events = [
+            event for event in overview.metadata.get("business_events", [])
+            if isinstance(event, dict) and event.get("active", True)
+        ]
+    event_products = _business_event_products(business_events)
+    if event_products:
+        recommendations.append(
+            Recommendation(
+                id="business_event_monitoring",
+                action=(
+                    f"Track {_natural_names(event_products)} separately during the first 1-2 trading days before releasing extra bake capacity."
+                ),
+                urgency="medium",
+                time_horizon="this_week",
+                rationale=(
+                    "Active business events can change launch demand or competitor-response sensitivity without directly changing the deployed forecast model output."
+                ),
+                expected_impact=(
+                    "Keeps scenario-driven products visible while preserving the baseline forecast and staged production discipline."
+                ),
+                evidence_ids=["business_events_active"],
+            )
+        )
     return recommendations
 
 
@@ -895,6 +1617,13 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
         if top_products:
             sentence += f"; the main demand drivers are {top_products}"
         sentences.append(sentence + ".")
+        business_events = [
+            event for event in overview.metadata.get("business_events", [])
+            if isinstance(event, dict) and event.get("active", True)
+        ]
+        event_sentence = _business_event_summary_sentence(business_events)
+        if event_sentence:
+            sentences.append(event_sentence)
 
     if production:
         metrics = production.metrics
@@ -978,12 +1707,16 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
 def build_inventory_graph():
     graph = StateGraph(S5GraphState)
     graph.add_node("inventory", _inventory_node)
+    graph.add_node("stock_data_quality", _stock_data_quality_node)
+    graph.add_node("inventory_recommendation", _inventory_recommendation_node)
     graph.add_node("evidence", _evidence_node)
     graph.add_node("verify", _verify_node)
     graph.add_node("synthesize", _synthesize_node)
 
     graph.set_entry_point("inventory")
-    graph.add_edge("inventory", "evidence")
+    graph.add_edge("inventory", "stock_data_quality")
+    graph.add_edge("stock_data_quality", "inventory_recommendation")
+    graph.add_edge("inventory_recommendation", "evidence")
     graph.add_edge("evidence", "verify")
     graph.add_edge("verify", "synthesize")
     graph.add_edge("synthesize", END)
@@ -1076,10 +1809,31 @@ def build_forecast_graph():
     return graph.compile()
 
 
+def build_promotion_mix_graph():
+    graph = StateGraph(S5GraphState)
+    graph.add_node("promotion_signal", _promotion_signal_node)
+    graph.add_node("promotion_product_mix", _promotion_product_mix_node)
+    graph.add_node("promotion_decision", _promotion_decision_node)
+    graph.add_node("evidence", _evidence_node)
+    graph.add_node("verify", _verify_node)
+    graph.add_node("synthesize", _synthesize_node)
+
+    graph.set_entry_point("promotion_signal")
+    graph.add_edge("promotion_signal", "promotion_product_mix")
+    graph.add_edge("promotion_product_mix", "promotion_decision")
+    graph.add_edge("promotion_decision", "evidence")
+    graph.add_edge("evidence", "verify")
+    graph.add_edge("verify", "synthesize")
+    graph.add_edge("synthesize", END)
+    return graph.compile()
+
+
 def build_s5_graph(template_id: str):
     if template_id not in SUPPORTED_GRAPH_TEMPLATES:
         supported = ", ".join(sorted(SUPPORTED_GRAPH_TEMPLATES))
         raise ValueError(f"Unsupported S5 graph template: {template_id}. Supported: {supported}")
+    if template_id == "promotion_mix_analysis":
+        return build_promotion_mix_graph()
     if template_id == "profit_root_cause":
         return build_profit_graph()
     if template_id == "production_advice":
