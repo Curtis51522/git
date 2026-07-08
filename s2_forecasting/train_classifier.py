@@ -1,15 +1,15 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """
-XGBoost Binary Classifier -- Experiment 2: High-Demand Prediction
-===================================================================
+XGBoost Binary Classifier -- Auxiliary High-Demand Risk Experiment
+=================================================================
 Predicts whether tomorrow exceeds the product-specific 70th percentile
-of historical demand, following the M5 competition classification paradigm.
+of historical demand. This is an auxiliary risk-classification task for S2
+decision support, not a direct competitor to WAPE/MAE/RMSE point forecasts.
 
 Problem Formulation
 -------------------
-Given feature vector x_t (same 13 features as regression baseline):
-  x_t = [product_id, temp_mean, temp_max, temp_min, humidity, precipitation,
-         day_of_week, month, is_weekend, is_holiday, lag_1, lag_7_avg, lag_30_avg]
+Given feature vector x_t from the shared 27-feature forecast-time contract,
+predict whether product-level demand enters a high-demand regime.
 
 Binary label construction (no data leakage):
   threshold_i = P70({y_t : product_id = i, t in train})
@@ -23,16 +23,16 @@ Model: XGBoost Classifier with objective = binary:logistic
   Class imbalance handled via scale_pos_weight = n_neg / n_pos.
   Default probability threshold = 0.5 for hard predictions.
 
-Data Split (identical to regression baseline)
-----------------------------------------------
-  Train: 2021-01-01 to 2022-12-31  (2 years)
-  Val:   2023-01-01 to 2023-06-30  (6 months, used for tuning)
-  Test:  2023-07-01 to 2023-12-31  (6 months, final evaluation)
+Data Split (identical to the daily forecast contract)
+-----------------------------------------------------
+  Train: 2023-01-01 to 2024-12-31
+  Val:   2025-01-01 to 2025-06-30
+  Test:  2025-07-01 to 2026-06-29
 
   Label thresholds computed from TRAIN SET ONLY to prevent data leakage.
 
-Hyperparameter Tuning (5-fold CV on Train+Val, scoring=roc_auc)
------------------------------------------------------------------
+Hyperparameter Tuning (date-aware rolling CV on Train+Val, scoring=roc_auc)
+---------------------------------------------------------------------------
   Parameter         | Range              | Rationale
   ------------------|--------------------|-------------------------
   n_estimators      | [100, 200, 300]    | Prevent overfit on weak signal
@@ -75,7 +75,7 @@ Outputs
   outputs/classifier_confusion.png     : confusion matrix heatmap
 
 Author: Bakery AI System
-""";
+"""
 
 import os, warnings, json, joblib
 import numpy as np
@@ -88,6 +88,8 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              f1_score, roc_auc_score, confusion_matrix)
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
+from s2_forecasting.feature_contract import FORECAST_FEATURES
+from s2_forecasting.train_quantile import build_date_aware_cv
 
 warnings.filterwarnings("ignore")
 np.random.seed(42)
@@ -101,15 +103,13 @@ DATA_DIR = _os.path.join(BASE_DIR, "data")
 OUT_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "outputs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-FEATURES = [
-    "product_id", "daily_tickets", "day_of_week", "month",
-    "is_weekend", "is_holiday", "days_to_next_holiday",
-    "lag_1", "lag_7_avg", "lag_30_avg",
-    "roll_std_7", "roll_std_14", "trend_7", "category",
-]
+EXPERIMENT_ROLE = "auxiliary_high_demand_risk_classifier"
+MODEL_SCOPE = "auxiliary_risk_signal"
+VALIDATION_DESIGN = "date-aware rolling-origin cross-validation"
+FEATURES = FORECAST_FEATURES
 TARGET = "quantity"
 
-CV_FOLDS = 5
+CV_SPLITS = 3
 N_JOBS = -1
 
 # ============================================================
@@ -200,10 +200,11 @@ PARAM_GRID_CLS = {
 
 
 def tune(train_df, val_df):
-    print("\n--- Tuning (5-fold CV) ---")
+    print("\n--- Tuning (date-aware rolling CV) ---")
     combined = pd.concat([train_df, val_df], ignore_index=True)
     X, _ = get_xy(combined)
     y_label = combined["label"].values
+    cv_splits = list(build_date_aware_cv(combined, n_splits=CV_SPLITS))
 
     n_neg = (y_label == 0).sum()
     n_pos = (y_label == 1).sum()
@@ -220,7 +221,7 @@ def tune(train_df, val_df):
 
     grid = GridSearchCV(
         base, PARAM_GRID_CLS,
-        cv=CV_FOLDS,
+        cv=cv_splits,
         scoring="roc_auc",
         n_jobs=N_JOBS,
         verbose=1,
@@ -322,7 +323,7 @@ def plot_confusion(y_true, y_pred):
 # ============================================================
 def main():
     print("=" * 60)
-    print("  XGBoost Binary Classifier -- High-Demand Prediction")
+    print("  XGBoost Binary Classifier - Auxiliary High-Demand Risk")
     print("=" * 60)
 
     train, val, test = load_data()
@@ -330,8 +331,21 @@ def main():
 
     train, val, test, thresholds = build_labels(train, val, test, percentile=70)
     best_params = tune(train, val)
-    with open(os.path.join(OUT_DIR, "classifier_best_params.json"), "w") as f:
-        json.dump({"params": best_params, "percentile": 70, "thresholds": thresholds}, f, indent=2, default=str)
+    with open(os.path.join(OUT_DIR, "classifier_best_params.json"), "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "params": best_params,
+                "percentile": 70,
+                "thresholds": thresholds,
+                "experiment_role": EXPERIMENT_ROLE,
+                "model_scope": MODEL_SCOPE,
+                "validation_design": VALIDATION_DESIGN,
+                "features": len(FEATURES),
+            },
+            f,
+            indent=2,
+            default=str,
+        )
 
     model = train_final(train, best_params)
 
@@ -360,8 +374,18 @@ def main():
     per_product_metrics(test, y_test_pred, y_test_proba)
     plot_confusion(y_test_label, y_test_pred)
 
-    all_metrics = {**train_metrics, **test_metrics, **gap, "best_params": str(best_params)}
-    with open(os.path.join(OUT_DIR, "classifier_metrics.json"), "w") as f:
+    all_metrics = {
+        "experiment_role": EXPERIMENT_ROLE,
+        "model_scope": MODEL_SCOPE,
+        "validation_design": VALIDATION_DESIGN,
+        "features": len(FEATURES),
+        "feature_contract": "s2_forecasting.feature_contract.FORECAST_FEATURES",
+        **train_metrics,
+        **test_metrics,
+        **gap,
+        "best_params": best_params,
+    }
+    with open(os.path.join(OUT_DIR, "classifier_metrics.json"), "w", encoding="utf-8") as f:
         json.dump(all_metrics, f, indent=2, default=str)
 
     print(f"\n{'='*60}")

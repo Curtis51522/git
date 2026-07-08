@@ -1,4 +1,12 @@
 {
+  "experiment_role": "supplementary_weekly_event_aware_forecast",
+  "model_scope": "weekly_supplementary",
+  "validation_design": "chronological weekly holdout",
+  "features": 16,
+  "reserved_event_features": [
+    "is_new_product_w",
+    "is_competitor_w"
+  ],
   "baseline": {
     "WAPE": 16.92,
     "MAE": 7.96,

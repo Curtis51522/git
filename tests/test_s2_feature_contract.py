@@ -11,6 +11,7 @@ def test_forecast_feature_contract_is_canonical():
         FEATURE_GROUPS,
         FEATURE_METADATA,
         RESERVED_SCENARIO_FEATURES,
+        WEEKLY_RESERVED_SCENARIO_FEATURES,
     )
     from s2_forecasting import train_quantile
     from api import module2_forecast
@@ -24,6 +25,14 @@ def test_forecast_feature_contract_is_canonical():
     assert "beverage_behavior_proxy" in FEATURE_GROUPS
     assert set(RESERVED_SCENARIO_FEATURES) == {"is_new_product", "is_competitor"}
     assert not set(RESERVED_SCENARIO_FEATURES).intersection(FORECAST_FEATURES)
+    assert set(WEEKLY_RESERVED_SCENARIO_FEATURES) == {
+        "is_new_product_w",
+        "is_competitor_w",
+    }
+    assert {
+        meta["source_feature"]
+        for meta in WEEKLY_RESERVED_SCENARIO_FEATURES.values()
+    } == set(RESERVED_SCENARIO_FEATURES)
 
 
 def test_feature_importance_uses_deployed_q50_model(monkeypatch):

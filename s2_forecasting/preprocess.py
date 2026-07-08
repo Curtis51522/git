@@ -1,8 +1,12 @@
 #!/usr/bin/env python
-"""S2 Preprocessing Module — Clean Rewrite (2026-06-30)
-=========================================================
+"""S2 Preprocessing Module - Clean Rewrite (2026-06-30)
+=======================================================
 Feature set (27 forecast-time contract features):
   See s2_forecasting.feature_contract.FORECAST_FEATURES.
+
+Reserved business event fields such as is_new_product and is_competitor are
+read from the raw data for scenario continuity, but they are not exported into
+the deployed daily 27-feature training CSVs.
 
 Data split (time-series, no shuffle):
   Train: 2023-01-01 to 2024-12-31
@@ -26,6 +30,19 @@ SPLIT_DATE_2 = "2025-07-01"
 
 FEATURE_COLS = FORECAST_FEATURES
 TARGET_COL = "quantity"
+BEVERAGE_DETAIL_COLS = [
+    "beverage_size",
+    "beverage_temp",
+    "beverage_sweetness",
+    "beverage_ice",
+]
+BEVERAGE_FEATURE_COLS = [
+    "large_ratio",
+    "cold_ratio",
+    "sweetness_avg",
+    "ice_avg",
+    "temp_hot_ratio",
+]
 
 
 def run_preprocessing(verbose=True):
@@ -43,6 +60,8 @@ def run_preprocessing(verbose=True):
     p(f"  Rows: {len(df_raw):,}  |  Tickets: {df_raw['ticket_id'].nunique():,}")
     p(f"  Products: {df_raw['product_name'].nunique()}  |  Date: {df_raw['date'].min().date()} to {df_raw['date'].max().date()}")
     p(f"  Day-1 rows: {(df_raw['is_day1']==1).sum():,}  |  Top-3 rows: {(df_raw['is_top3']==1).sum():,}")
+    has_beverage_details = all(col in df_raw.columns for col in BEVERAGE_DETAIL_COLS)
+    has_precomputed_beverage = all(col in df_raw.columns for col in BEVERAGE_FEATURE_COLS)
 
     # ---- Stage 2: EDA ----
     p()
@@ -57,23 +76,32 @@ def run_preprocessing(verbose=True):
     p("=" * 50)
     p("  STAGE 3: Daily Aggregation")
     p("=" * 50)
-    daily = df_raw.groupby(["date", "product_name"]).agg(
-        quantity=("quantity", "sum"),
-        is_day1=("is_day1", "max"),
-        is_top3=("is_top3", "max"),
-        discount_pct=("discount_pct", "max"),
-        is_member_day=("is_member_day", "max"),
-        is_new_product=("is_new_product", "max"),
-        is_competitor=("is_competitor", "max"),
-        is_rainy=("is_rainy", "max"),
-        large_cnt=("beverage_size", lambda x: (x == 'large').sum()),
-        bev_cnt=("beverage_size", lambda x: (x != '').sum()),
-        cold_cnt=("beverage_temp", lambda x: (x == 'cold').sum()),
-        sugar_sum=("beverage_sweetness", lambda x: x.map({'normal':3,'less':2,'slight':1,'none':0}).sum()),
-        sugar_cnt=("beverage_sweetness", lambda x: (x != '').sum()),
-        ice_sum=("beverage_ice", lambda x: x.map({'normal':2,'less':1,'none':0}).sum()),
-        ice_cnt=("beverage_ice", lambda x: (x != '').sum()),
-    ).reset_index()
+    agg_spec = {
+        "quantity": ("quantity", "sum"),
+        "is_day1": ("is_day1", "max"),
+        "is_top3": ("is_top3", "max"),
+        "discount_pct": ("discount_pct", "max"),
+        "is_member_day": ("is_member_day", "max"),
+        "is_new_product": ("is_new_product", "max"),
+        "is_competitor": ("is_competitor", "max"),
+        "is_rainy": ("is_rainy", "max"),
+    }
+    if has_beverage_details:
+        agg_spec.update({
+            "large_cnt": ("beverage_size", lambda x: (x == 'large').sum()),
+            "bev_cnt": ("beverage_size", lambda x: (x != '').sum()),
+            "cold_cnt": ("beverage_temp", lambda x: (x == 'cold').sum()),
+            "sugar_sum": ("beverage_sweetness", lambda x: x.map({'normal':3,'less':2,'slight':1,'none':0}).sum()),
+            "sugar_cnt": ("beverage_sweetness", lambda x: (x != '').sum()),
+            "ice_sum": ("beverage_ice", lambda x: x.map({'normal':2,'less':1,'none':0}).sum()),
+            "ice_cnt": ("beverage_ice", lambda x: (x != '').sum()),
+        })
+    elif has_precomputed_beverage:
+        agg_spec.update({
+            feature: (feature, "mean")
+            for feature in BEVERAGE_FEATURE_COLS
+        })
+    daily = df_raw.groupby(["date", "product_name"]).agg(**agg_spec).reset_index()
 
     all_dates = pd.date_range(daily["date"].min(), daily["date"].max(), freq="D")
     all_products = sorted(daily["product_name"].unique())
@@ -83,16 +111,25 @@ def run_preprocessing(verbose=True):
     daily_full["quantity"] = daily_full["quantity"].fillna(0).astype(int)
     for col in ["is_day1", "is_top3", "discount_pct", "is_member_day", "is_new_product", "is_competitor", "is_rainy"]:
         daily_full[col] = daily_full[col].fillna(0)
-    for col in ["large_cnt", "bev_cnt", "cold_cnt", "sugar_sum", "sugar_cnt", "ice_sum", "ice_cnt"]:
-        daily_full[col] = daily_full[col].fillna(0)
+    if has_beverage_details:
+        for col in ["large_cnt", "bev_cnt", "cold_cnt", "sugar_sum", "sugar_cnt", "ice_sum", "ice_cnt"]:
+            daily_full[col] = daily_full[col].fillna(0)
+    else:
+        for col in BEVERAGE_FEATURE_COLS:
+            if col not in daily_full.columns:
+                daily_full[col] = 0
+            daily_full[col] = daily_full[col].fillna(0)
 
     pid_map = {p: i for i, p in enumerate(all_products)}
     daily_full["product_id"] = daily_full["product_name"].map(pid_map)
     daily_full["category"] = (daily_full["product_id"] >= 30).astype(int)
 
     # Daily ticket count (traffic proxy)
-    daily_tickets = df_raw.groupby("date")["ticket_id"].nunique().reset_index()
-    daily_tickets.columns = ["date", "daily_tickets"]
+    if "daily_tickets" in df_raw.columns:
+        daily_tickets = df_raw.groupby("date")["daily_tickets"].max().reset_index()
+    else:
+        daily_tickets = df_raw.groupby("date")["ticket_id"].nunique().reset_index()
+        daily_tickets.columns = ["date", "daily_tickets"]
     daily_full = daily_full.merge(daily_tickets, on="date", how="left")
     daily_full["daily_tickets"] = daily_full["daily_tickets"].fillna(0).astype(int)
 
@@ -117,10 +154,11 @@ def run_preprocessing(verbose=True):
         p(f"  Weather merged: temp_mean {daily_full['temp_mean'].mean():.1f}C, cold days {(daily_full['is_cold_day']==1).mean()*100:.1f}%, hot days {(daily_full['is_hot_day']==1).mean()*100:.1f}%")
     
         # Derived beverage aggregate features
-        daily_full['large_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['large_cnt'] / daily_full['bev_cnt'], 0)
-        daily_full['cold_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['cold_cnt'] / daily_full['bev_cnt'], 0)
-        daily_full['sweetness_avg'] = np.where(daily_full['sugar_cnt'] > 0, daily_full['sugar_sum'] / daily_full['sugar_cnt'], 0)
-        daily_full['ice_avg'] = np.where(daily_full['ice_cnt'] > 0, daily_full['ice_sum'] / daily_full['ice_cnt'], 0)
+        if has_beverage_details:
+            daily_full['large_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['large_cnt'] / daily_full['bev_cnt'], 0)
+            daily_full['cold_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['cold_cnt'] / daily_full['bev_cnt'], 0)
+            daily_full['sweetness_avg'] = np.where(daily_full['sugar_cnt'] > 0, daily_full['sugar_sum'] / daily_full['sugar_cnt'], 0)
+            daily_full['ice_avg'] = np.where(daily_full['ice_cnt'] > 0, daily_full['ice_sum'] / daily_full['ice_cnt'], 0)
         # temp_hot_ratio: continuous sigmoid for hot-drink tendency
         daily_full['temp_hot_ratio'] = 0.15 + 0.70 / (1 + np.exp((daily_full['temp_mean'] - 22) / 4))
         p(f"  Beverage features: large_ratio mean={daily_full['large_ratio'].mean():.2f}, cold_ratio mean={daily_full['cold_ratio'].mean():.2f}")
@@ -131,6 +169,12 @@ def run_preprocessing(verbose=True):
         daily_full["temp_range"] = 6
         daily_full["is_cold_day"] = 0
         daily_full["is_hot_day"] = 0
+        if has_beverage_details:
+            daily_full['large_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['large_cnt'] / daily_full['bev_cnt'], 0)
+            daily_full['cold_ratio'] = np.where(daily_full['bev_cnt'] > 0, daily_full['cold_cnt'] / daily_full['bev_cnt'], 0)
+            daily_full['sweetness_avg'] = np.where(daily_full['sugar_cnt'] > 0, daily_full['sugar_sum'] / daily_full['sugar_cnt'], 0)
+            daily_full['ice_avg'] = np.where(daily_full['ice_cnt'] > 0, daily_full['ice_sum'] / daily_full['ice_cnt'], 0)
+        daily_full['temp_hot_ratio'] = 0.15 + 0.70 / (1 + np.exp((daily_full['temp_mean'] - 22) / 4))
 
     # ---- Stage 4: Holidays ----
     p()

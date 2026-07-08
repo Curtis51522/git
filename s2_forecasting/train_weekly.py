@@ -5,12 +5,17 @@ Predicts weekly total quantity per product.
 Compares:
   - Naive baseline: lag_1w (last week's value)
   - Quantile Q50 / Q90 models
+
+Weekly reserved event fields are kept as event-aware experiment inputs for
+new-product launch and competitor activity scenarios. They do not change the
+deployed daily 27-feature forecast contract.
 """
 
 import os, json, joblib, warnings
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from s2_forecasting.feature_contract import WEEKLY_RESERVED_SCENARIO_FEATURES
 
 warnings.filterwarnings("ignore")
 np.random.seed(42)
@@ -20,12 +25,15 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
+EXPERIMENT_ROLE = "supplementary_weekly_event_aware_forecast"
+MODEL_SCOPE = "weekly_supplementary"
+VALIDATION_DESIGN = "chronological weekly holdout"
 WEEKLY_FEATURES = [
     "product_id", "category", "weekly_tickets", "week_of_year", "month",
     "is_holiday_week",
     "lag_1w", "lag_4w_avg", "lag_8w_avg",
     "is_day1_w", "is_top3_w", "discount_pct_w",
-    "is_member_week", "is_new_product_w", "is_competitor_w", "is_rainy_w",
+    "is_member_week", *WEEKLY_RESERVED_SCENARIO_FEATURES.keys(), "is_rainy_w",
 ]
 TARGET = "quantity_w"
 QUANTILES = [0.10, 0.50, 0.90]
@@ -185,7 +193,15 @@ def main():
     results, y_test = evaluate(test, models)
     per_product_wape(test, models)
 
-    with open(os.path.join(OUT_DIR, "weekly_metrics.json"), "w") as f:
+    results = {
+        "experiment_role": EXPERIMENT_ROLE,
+        "model_scope": MODEL_SCOPE,
+        "validation_design": VALIDATION_DESIGN,
+        "features": len(WEEKLY_FEATURES),
+        "reserved_event_features": list(WEEKLY_RESERVED_SCENARIO_FEATURES.keys()),
+        **results,
+    }
+    with open(os.path.join(OUT_DIR, "weekly_metrics.json"), "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
     print(f"\n{'='*60}")

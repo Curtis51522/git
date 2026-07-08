@@ -379,7 +379,7 @@ def per_product_metrics(test_df, y_pred):
 # ============================================================
 def main():
     print("=" * 60)
-    print("  XGBoost Sales Forecasting — 45 Products")
+    print("  XGBoost Sales Forecasting - 45 Products")
     print("=" * 60)
 
     # ----- Load -----

@@ -40,6 +40,28 @@ def test_xgboost_script_is_explicit_baseline_experiment():
     assert "lag_7_avg" in train_xgboost.BASELINE_DESCRIPTION
 
 
+def test_classifier_is_auxiliary_risk_experiment_on_forecast_contract():
+    from s2_forecasting import train_classifier
+    from s2_forecasting.feature_contract import FORECAST_FEATURES
+
+    assert train_classifier.EXPERIMENT_ROLE == "auxiliary_high_demand_risk_classifier"
+    assert train_classifier.VALIDATION_DESIGN == "date-aware rolling-origin cross-validation"
+    assert train_classifier.FEATURES == FORECAST_FEATURES
+    assert train_classifier.CV_SPLITS == 3
+
+
+def test_weekly_model_is_supplementary_event_aware_experiment():
+    from s2_forecasting import train_weekly
+    from s2_forecasting.feature_contract import WEEKLY_RESERVED_SCENARIO_FEATURES
+
+    assert train_weekly.EXPERIMENT_ROLE == "supplementary_weekly_event_aware_forecast"
+    assert train_weekly.MODEL_SCOPE == "weekly_supplementary"
+    assert all(
+        feature in train_weekly.WEEKLY_FEATURES
+        for feature in WEEKLY_RESERVED_SCENARIO_FEATURES
+    )
+
+
 def test_experiment_summary_builds_b0_b1_proposed_closure(tmp_path):
     from s2_forecasting.evaluate_experiments import build_experiment_summary
 
@@ -74,6 +96,32 @@ def test_experiment_summary_builds_b0_b1_proposed_closure(tmp_path):
         ),
         encoding="utf-8",
     )
+    (output_dir / "classifier_metrics.json").write_text(
+        json.dumps(
+            {
+                "experiment_role": "auxiliary_high_demand_risk_classifier",
+                "validation_design": "date-aware rolling-origin cross-validation",
+                "features": 27,
+                "test_Accuracy": 0.75,
+                "test_F1": 0.52,
+                "test_ROC_AUC": 0.84,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "weekly_metrics.json").write_text(
+        json.dumps(
+            {
+                "experiment_role": "supplementary_weekly_event_aware_forecast",
+                "model_scope": "weekly_supplementary",
+                "baseline": {"WAPE": 40.0, "MAE": 4.5, "RMSE": 7.0},
+                "Q50": {"WAPE": 35.0, "MAE": 4.0, "RMSE": 6.5},
+                "coverage_Q50_Q90": 0.45,
+                "interval_width": 2.2,
+            }
+        ),
+        encoding="utf-8",
+    )
 
     summary = build_experiment_summary(output_dir)
 
@@ -84,4 +132,14 @@ def test_experiment_summary_builds_b0_b1_proposed_closure(tmp_path):
     assert summary["experiments"][1]["name"] == "Deterministic XGBoost baseline"
     assert summary["experiments"][2]["name"] == "Tweedie Q50 with conformal interval"
     assert summary["experiments"][2]["metrics"]["coverage_80"] == 78.5
+    assert [item["id"] for item in summary["supplementary_experiments"]] == [
+        "AuxClassifier",
+        "WeeklyEventAware",
+    ]
+    assert summary["supplementary_experiments"][0]["metrics"]["ROC_AUC"] == 0.84
+    assert summary["supplementary_experiments"][1]["metrics"]["Q50_WAPE"] == 35.0
     assert summary["paper_claim"]["primary_model"] == "Proposed"
+    assert summary["paper_claim"]["supplementary_chain"] == [
+        "AuxClassifier",
+        "WeeklyEventAware",
+    ]

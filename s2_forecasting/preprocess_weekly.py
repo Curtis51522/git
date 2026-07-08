@@ -8,6 +8,10 @@ Features adapted for weekly prediction:
   is_day1_w, is_top3_w, discount_pct_w,
   is_member_week, is_new_product_w, is_competitor_w, is_rainy_w, quantity_w
 
+The weekly event fields are intentional. They preserve new-product launch and
+competitor activity context for event-aware weekly experiments, while the
+deployed daily forecast keeps those fields outside its 27-feature model input.
+
 Split (time-series):
   Train: 2023-01-01 to 2024-12-31
   Val:   2025-01-01 to 2025-06-30 (26 weeks)
@@ -17,6 +21,7 @@ Split (time-series):
 import os, warnings
 import numpy as np
 import pandas as pd
+from s2_forecasting.feature_contract import WEEKLY_RESERVED_SCENARIO_FEATURES
 
 warnings.filterwarnings("ignore")
 
@@ -32,7 +37,7 @@ WEEKLY_FEATURES = [
     "is_holiday_week",
     "lag_1w", "lag_4w_avg", "lag_8w_avg",
     "is_day1_w", "is_top3_w", "discount_pct_w",
-    "is_member_week", "is_new_product_w", "is_competitor_w", "is_rainy_w",
+    "is_member_week", *WEEKLY_RESERVED_SCENARIO_FEATURES.keys(), "is_rainy_w",
 ]
 TARGET_COL = "quantity_w"
 

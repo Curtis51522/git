@@ -1,11 +1,11 @@
 {
-  "colsample_bytree": 0.7,
+  "colsample_bytree": 0.8,
   "learning_rate": 0.05,
   "max_depth": 4,
   "min_child_weight": 20,
-  "n_estimators": 500,
+  "n_estimators": 200,
   "reg_alpha": 0.1,
-  "reg_lambda": 1.5,
-  "subsample": 0.7,
-  "tweedie_variance_power": 1.5
+  "reg_lambda": 1,
+  "subsample": 0.8,
+  "tweedie_variance_power": 1.2
 }

@@ -3,6 +3,11 @@
 This module owns the feature order used by S2 preprocessing, model training,
 runtime inference, and API explanations. Keep this contract in sync with the
 deployed Q50 conformal forecast model.
+
+Business event fields are intentionally separated from the deployed daily
+forecast input contract. They remain available as reserved scenario context for
+new-product launches, competitor activity, promotion analysis, S5 reasoning,
+and weekly event-aware experiments.
 """
 
 FORECAST_FEATURES = [
@@ -89,6 +94,27 @@ RESERVED_SCENARIO_FEATURES = {
         ),
         "availability": "reserved_scenario_input",
         "requires_model_retraining": True,
+    },
+}
+
+WEEKLY_RESERVED_SCENARIO_FEATURES = {
+    "is_new_product_w": {
+        "source_feature": "is_new_product",
+        "label": "Weekly new product launch window",
+        "description": (
+            "Weekly aggregation of the reserved new-product launch context. "
+            "It is kept for event-aware weekly experiments and is not part of "
+            "the deployed daily 27-feature forecast contract."
+        ),
+    },
+    "is_competitor_w": {
+        "source_feature": "is_competitor",
+        "label": "Weekly competitor activity window",
+        "description": (
+            "Weekly aggregation of the reserved competitor activity context. "
+            "It is kept for event-aware weekly experiments and is not part of "
+            "the deployed daily 27-feature forecast contract."
+        ),
     },
 }
 

@@ -29,11 +29,77 @@ def _pick_metrics(source: Mapping[str, Any], mapping: Mapping[str, str]) -> dict
     return metrics
 
 
+def _build_supplementary_experiments(output_path: Path) -> list[dict]:
+    classifier_metrics = _load_json(output_path / "classifier_metrics.json")
+    weekly_metrics = _load_json(output_path / "weekly_metrics.json")
+    experiments = []
+
+    if classifier_metrics:
+        experiments.append(
+            {
+                "id": "AuxClassifier",
+                "name": "Auxiliary high-demand risk classifier",
+                "role": classifier_metrics.get(
+                    "experiment_role",
+                    "auxiliary_high_demand_risk_classifier",
+                ),
+                "scope": classifier_metrics.get("model_scope", "auxiliary_risk_signal"),
+                "description": (
+                    "Classifies product-day high-demand risk using the shared "
+                    "27-feature forecast-time contract. Metrics are classification "
+                    "signals and are not directly comparable with WAPE."
+                ),
+                "validation_design": classifier_metrics.get("validation_design"),
+                "metrics": _pick_metrics(
+                    classifier_metrics,
+                    {
+                        "Accuracy": "test_Accuracy",
+                        "Precision": "test_Precision",
+                        "Recall": "test_Recall",
+                        "F1": "test_F1",
+                        "ROC_AUC": "test_ROC_AUC",
+                    },
+                ),
+            }
+        )
+
+    if weekly_metrics:
+        q50_metrics = weekly_metrics.get("Q50", {})
+        baseline_metrics = weekly_metrics.get("baseline", {})
+        experiments.append(
+            {
+                "id": "WeeklyEventAware",
+                "name": "Weekly event-aware supplementary forecast",
+                "role": weekly_metrics.get(
+                    "experiment_role",
+                    "supplementary_weekly_event_aware_forecast",
+                ),
+                "scope": weekly_metrics.get("model_scope", "weekly_supplementary"),
+                "description": (
+                    "Forecasts weekly product demand with reserved new-product and "
+                    "competitor event fields for supplementary scenario analysis."
+                ),
+                "validation_design": weekly_metrics.get("validation_design"),
+                "metrics": {
+                    "baseline_WAPE": baseline_metrics.get("WAPE"),
+                    "Q50_WAPE": q50_metrics.get("WAPE"),
+                    "Q50_MAE": q50_metrics.get("MAE"),
+                    "Q50_RMSE": q50_metrics.get("RMSE"),
+                    "coverage_Q50_Q90": weekly_metrics.get("coverage_Q50_Q90"),
+                    "interval_width": weekly_metrics.get("interval_width"),
+                },
+            }
+        )
+
+    return experiments
+
+
 def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
     output_path = Path(output_dir)
     baseline_metrics = _load_json(output_path / "metrics.json")
     proposed_metrics = _load_json(output_path / "test_metrics.json")
     proposed_overall = proposed_metrics.get("overall", {})
+    supplementary_experiments = _build_supplementary_experiments(output_path)
 
     experiments = [
         {
@@ -100,6 +166,7 @@ def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
             "final_evaluation": "chronological holdout test set",
         },
         "experiments": experiments,
+        "supplementary_experiments": supplementary_experiments,
         "ablation_plan": [
             {
                 "group": group,
@@ -111,6 +178,9 @@ def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
         "paper_claim": {
             "primary_model": "Proposed",
             "baseline_chain": ["B0", "B1", "Proposed"],
+            "supplementary_chain": [
+                item["id"] for item in supplementary_experiments
+            ],
             "claim": (
                 "S2 improves from a simple historical baseline to a deterministic "
                 "machine-learning baseline, then adds calibrated uncertainty for "
