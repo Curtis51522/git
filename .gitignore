@@ -147,3 +147,9 @@ auto_label/
 models/schedule_baseline_*.json
 s1_recognition/ablation_log.txt
 data/s5_memory.json
+
+# S2 generated experiment artifacts
+s2_forecasting/outputs/log_quantile_model_q*.pkl
+s2_forecasting/outputs/log_quantile_predictions.csv
+s2_forecasting/outputs/relative_conformal_predictions.csv
+s2_forecasting/outputs/scale_conformal_predictions.csv
