@@ -211,3 +211,37 @@ def test_declared_modules_use_langgraph_runner(monkeypatch):
     }
     assert calls[1][1].lang == "en"
     assert calls[1][2] is None
+
+
+def test_unsupported_module_does_not_fall_back_to_legacy_dag(monkeypatch):
+    async def fake_run_s5_graph(template_id, request, raw_inputs=None):
+        raise AssertionError("unsupported modules must not call LangGraph")
+
+    monkeypatch.setattr("s5_agent.server.run_s5_graph", fake_run_s5_graph)
+
+    client = TestClient(app)
+    response = client.post(
+        "/analyze/module",
+        json={
+            "module": "schedule",
+            "date": "2026-07-07",
+            "lang": "en",
+            "force_refresh": True,
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Unsupported S5 module" in response.json()["detail"]
+
+
+def test_legacy_analyze_and_template_routes_are_not_exposed():
+    client = TestClient(app)
+
+    analyze_response = client.post(
+        "/analyze",
+        json={"intent": "staffing_diagnosis", "params": {"date": "2026-07-07"}},
+    )
+    templates_response = client.get("/templates")
+
+    assert analyze_response.status_code == 404
+    assert templates_response.status_code == 404

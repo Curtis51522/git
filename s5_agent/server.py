@@ -1,5 +1,5 @@
 # s5_agent/server.py - S5 dashboard analysis server (port 8001)
-import asyncio, logging, time, sys, os
+import asyncio, logging, sys, os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
@@ -15,84 +15,26 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from s5_agent.core.dag import DAGExecutor
-from s5_agent.core.deliberator import Deliberator
-from s5_agent.core.synthesizer import Synthesizer
-from s5_agent.core.memory import StructuredMemory
 from s5_agent.graph.registry import module_to_template
 from s5_agent.graph.runner import run_s5_graph
 from s5_agent.graph.state import S5Request
-from s5_agent.router.templates import TEMPLATES, get_template
-from s5_agent.router.intent_router import route_intent
-from s5_agent.agents import (
-    ExternalFactorsAgent, DemandAgent, MaterialStockAgent, ProductStockAgent,
-    WastageAgent, ProductionAgent, YieldAgent, StaffingAgent,
-    PricingAgent, ProfitAgent, PromoAgent, AttendanceAgent,
-    TrendAgent, HourlyPatternAgent, ProductMixAgent,
-    FeatureSensitivityAgent, MetricConflictAgent, CausalChainAgent, CrossRiskAgent,
-    ForecastOverviewAgent, ForecastUncertaintyAgent, ProductionPlanAgent,
-    MaterialProcurementAgent, ForecastAccuracyAgent,
-    PlanFeasibilityAgent, DemandRiskAgent, EfficiencyAgent, WastageRiskAgent,
-    RecommendationAgent,
-)
+from s5_agent.agents.recommendation import RecommendationAgent
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("s5.server")
 
 @asynccontextmanager
 async def lifespan(app):
-    logger.info("S5 dashboard analysis starting with %d agents, 7 templates...", len(AGENTS))
+    logger.info("S5 LangGraph analysis starting with modules: %s", ", ".join(sorted(LANGGRAPH_MODULES)))
     yield
 
 app = FastAPI(title="S5 Dashboard Analysis - Multi-Agent Bakery Intelligence", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-memory = StructuredMemory()
 _response_cache: dict = {}
 _response_cache_max = 100
-deliberator = Deliberator(memory=memory)
-synthesizer = Synthesizer()
-
-AGENTS = {
-    "ExternalFactorsAgent": ExternalFactorsAgent("ExternalFactorsAgent"),
-    "DemandAgent": DemandAgent("DemandAgent"),
-    "MaterialStockAgent": MaterialStockAgent("MaterialStockAgent"),
-    "ProductStockAgent": ProductStockAgent("ProductStockAgent"),
-    "WastageAgent": WastageAgent("WastageAgent"),
-    "ProductionAgent": ProductionAgent("ProductionAgent"),
-    "YieldAgent": YieldAgent("YieldAgent"),
-    "StaffingAgent": StaffingAgent("StaffingAgent"),
-    "PricingAgent": PricingAgent("PricingAgent"),
-    "ProfitAgent": ProfitAgent("ProfitAgent"),
-    "PromoAgent": PromoAgent("PromoAgent"),
-    "AttendanceAgent": AttendanceAgent("AttendanceAgent"),
-    "TrendAgent": TrendAgent("TrendAgent"),
-    "HourlyPatternAgent": HourlyPatternAgent("HourlyPatternAgent"),
-    "ProductMixAgent": ProductMixAgent("ProductMixAgent"),
-    "FeatureSensitivityAgent": FeatureSensitivityAgent("FeatureSensitivityAgent"),
-    "MetricConflictAgent": MetricConflictAgent("MetricConflictAgent"),
-    "CausalChainAgent": CausalChainAgent("CausalChainAgent"),
-    "CrossRiskAgent": CrossRiskAgent("CrossRiskAgent"),
-    "ForecastOverviewAgent": ForecastOverviewAgent("ForecastOverviewAgent"),
-    "ForecastUncertaintyAgent": ForecastUncertaintyAgent("ForecastUncertaintyAgent"),
-    "ProductionPlanAgent": ProductionPlanAgent("ProductionPlanAgent"),
-    "MaterialProcurementAgent": MaterialProcurementAgent("MaterialProcurementAgent"),
-    "ForecastAccuracyAgent": ForecastAccuracyAgent("ForecastAccuracyAgent"),
-    "PlanFeasibilityAgent": PlanFeasibilityAgent("PlanFeasibilityAgent"),
-    "DemandRiskAgent": DemandRiskAgent("DemandRiskAgent"),
-    "EfficiencyAgent": EfficiencyAgent("EfficiencyAgent"),
-    "WastageRiskAgent": WastageRiskAgent("WastageRiskAgent"),
-    "RecommendationAgent": RecommendationAgent("RecommendationAgent"),
-}
-dag_executor = DAGExecutor(AGENTS, memory=memory)
-LANGGRAPH_MODULES = {"inventory", "revenue", "forecast", "wastage", "promotion_mix"}
-
-class AnalyzeRequest(BaseModel):
-    query: str = ""
-    intent: str = ""
-    params: dict = {}
-    session_id: str = "default"
-    lang: str = "en"
+recommendation_agent = RecommendationAgent("RecommendationAgent")
+LANGGRAPH_MODULES = frozenset({"inventory", "revenue", "forecast", "wastage", "promotion_mix"})
 
 class ModuleAnalyzeRequest(BaseModel):
     module: str
@@ -103,14 +45,7 @@ class ModuleAnalyzeRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "agents": len(AGENTS), "templates": len(TEMPLATES)}
-
-@app.get("/templates")
-async def list_templates():
-    return {
-        key: {"intent": value.intent, "description": value.description, "nodes": len(value.nodes)}
-        for key, value in TEMPLATES.items()
-    }
+    return {"status": "ok", "architecture": "langgraph", "modules": sorted(LANGGRAPH_MODULES)}
 
 def _normalize_lang(lang: str) -> str:
     value = (lang or "en").strip().lower()
@@ -127,9 +62,6 @@ def _latest_cached_synthesis(intent: str) -> dict:
     for value in reversed(list(_response_cache.values())):
         if value.get("intent") == intent:
             return value
-    for entry in reversed(memory.data.get("query_history", [])):
-        if entry.get("intent") == intent:
-            return {"summary": entry.get("summary", ""), "recommendations": []}
     return {}
 
 def _priority_context(cached: dict) -> str:
@@ -145,7 +77,7 @@ def _priority_context(cached: dict) -> str:
 def _build_priority_recommendations(context: str) -> list:
     if not context:
         return []
-    agent = AGENTS["RecommendationAgent"]
+    agent = recommendation_agent
     try:
         result = agent.analyze(None, {}, context=context)
         metadata = getattr(result, "metadata", {}) or {}
@@ -202,86 +134,36 @@ def _build_priority_recommendations(context: str) -> list:
         )
     return priorities[:3]
 
-@app.post("/analyze")
-async def analyze(req: AnalyzeRequest):
-    t0 = time.perf_counter()
-    req.lang = _normalize_lang(req.lang)
-    intent = req.intent or route_intent(req.query)[0]
-    template = get_template(intent)
-    if not template:
-        raise HTTPException(400, f"Unknown intent: {intent}")
-    
-    # Check response cache (skip if force_refresh)
-    force_refresh = req.params.get("force_refresh", False) if req.params else False
-    cache_key = _response_cache_key(intent, req.params, req.lang)
-    if not force_refresh and cache_key in _response_cache:
-        logger.info("Response cache HIT for %s", cache_key)
-        cached = dict(_response_cache[cache_key])
-        cached["cache_hit"] = True
-        cached["total_elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
-        return cached
-    if force_refresh:
-        logger.info("Force refresh requested, bypassing cache for %s", cache_key)
-
-    logger.info("Analyze: intent=%s query=%s", intent, req.query)
-    dag_result = await dag_executor.execute(template, req.params, req.query, intent)
-    deliberation = None
-    if len(dag_result["results"]) >= 2:
-        conflicts = deliberator.detect_conflict(dag_result["results"])
-        if conflicts:
-            a, b, op_a, op_b = conflicts[0]
-            classification = await deliberator.classify_agreement(a, b, op_a, op_b)
-            if classification == "conflict":
-                conflict_type = f"{op_a.get('attribution',{}).get('metric','')}"
-                deliberation = await deliberator.deliberate(a, b, op_a, op_b, conflict_type)
-    output = await synthesizer.synthesize(dag_result, deliberation, memory, lang=req.lang)
-    memory.add_query(req.query or intent, intent, output.get("summary", ""),
-                     {"significant": output.get("significance", {}).get("significant", False)})
-    result = {
-        **output, "intent": intent,
-        "total_elapsed_ms": round((time.perf_counter() - t0) * 1000, 1),
-        "agents_executed": len(dag_result["results"]),
-        "cache_hit": False,
-    }
-    # Write to response cache
-    _response_cache[cache_key] = result
-    if len(_response_cache) > _response_cache_max:
-        oldest = next(iter(_response_cache))
-        del _response_cache[oldest]
-    return result
-
 @app.post("/analyze/module")
 async def analyze_module(req: ModuleAnalyzeRequest):
     lang = _normalize_lang(req.lang)
-    if req.module in LANGGRAPH_MODULES:
-        template_id = module_to_template(req.module)
-        graph_params = {
-            "date": req.date,
-            "module": req.module,
-            "product": "all",
-            **(req.params or {}),
-        }
-        graph_request = S5Request(
-            query=req.module,
-            module=req.module,
-            params=graph_params,
-            lang=lang,
-            force_refresh=req.force_refresh,
-        )
-        graph_response = await run_s5_graph(template_id, graph_request)
-        return graph_response.model_dump()
+    module = (req.module or "").strip().lower()
+    if module not in LANGGRAPH_MODULES:
+        supported = ", ".join(sorted(LANGGRAPH_MODULES))
+        raise HTTPException(400, f"Unsupported S5 module: {req.module}. Supported modules: {supported}")
 
-    module_intent_map = {
-        "revenue": "profit_root_cause",
-        "wastage": "wastage_root_cause",
-        "forecast": "production_advice",
-        "inventory": "inventory_diagnosis",
-        "schedule": "staffing_diagnosis",
-        "kpi": "full_diagnosis",
+    template_id = module_to_template(module)
+    graph_params = {
+        "date": req.date,
+        "module": module,
+        "product": "all",
+        **(req.params or {}),
     }
-    intent = module_intent_map.get(req.module, "full_diagnosis")
-    params = {"date": req.date, "module": req.module, "force_refresh": req.force_refresh, **(req.params or {})}
-    return await analyze(AnalyzeRequest(intent=intent, params=params, lang=lang))
+    graph_request = S5Request(
+        query=module,
+        module=module,
+        params=graph_params,
+        lang=lang,
+        force_refresh=req.force_refresh,
+    )
+    graph_response = await run_s5_graph(template_id, graph_request)
+    response_payload = graph_response.model_dump()
+    cache_key = _response_cache_key(template_id, graph_params, lang)
+    _response_cache[cache_key] = {"intent": template_id, **response_payload}
+    if len(_response_cache) > _response_cache_max:
+        oldest = next(iter(_response_cache))
+        del _response_cache[oldest]
+    return response_payload
 
 
 
