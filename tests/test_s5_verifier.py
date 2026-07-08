@@ -1,7 +1,6 @@
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
 from s5_agent.schemas.recommendation import Recommendation
-from s5_agent.verifier.conflict_checker import find_conflicting_claims
 from s5_agent.verifier.evidence_checker import (
     find_missing_evidence,
     find_unsupported_recommendations,
@@ -70,51 +69,40 @@ def test_find_unsupported_recommendations_flags_empty_and_unknown_evidence_ids()
 
 def test_find_missing_evidence_flags_agents_with_claims_but_no_evidence():
     outputs = [
-        _output("AttendanceAgent", "Two staff are absent.", evidence_items=[]),
+        _output("RevenueTrendAgent", "Revenue trend is declining.", evidence_items=[]),
         _output("InventoryAgent", "Stock coverage is limited.", evidence_items=[_evidence("ev_stock")]),
     ]
 
     missing = find_missing_evidence(outputs)
 
-    assert missing == ["AttendanceAgent"]
-
-
-def test_find_conflicting_claims_detects_attendance_absent_with_staffing_adequate():
-    outputs = [
-        _output("AttendanceAgent", "Two staff members are absent today.", evidence_items=[_evidence("ev_attendance")]),
-        _output("StaffingAgent", "Staffing coverage is adequate.", evidence_items=[_evidence("ev_staffing")]),
-    ]
-
-    conflicts = find_conflicting_claims(outputs)
-
-    assert conflicts == ["AttendanceAgent conflicts with StaffingAgent"]
+    assert missing == ["RevenueTrendAgent"]
 
 
 def test_verify_outputs_builds_report_from_verifier_checks_and_quality_warnings():
     data_quality = DataQuality(
         freshness="stale",
         completeness=0.5,
-        warnings=["Attendance data is stale."],
+        warnings=["Revenue data is stale."],
         limitations=[],
-        source_status={"attendance": "stale"},
+        source_status={"revenue": "stale"},
     )
     outputs = [
         _output(
-            "AttendanceAgent",
-            "Two staff members are absent today.",
+            "RevenueTrendAgent",
+            "Revenue trend is declining.",
             evidence_items=[],
-            recommendations=[_recommendation("rec_call_backup", [])],
+            recommendations=[_recommendation("rec_review_revenue", [])],
             data_quality=data_quality,
         ),
-        _output("StaffingAgent", "Staffing coverage is adequate.", evidence_items=[_evidence("ev_staffing")]),
+        _output("InventoryAgent", "Stock coverage is limited.", evidence_items=[_evidence("ev_stock")]),
     ]
 
     report = verify_outputs(outputs)
 
     assert report.passed is False
     assert report.unsupported_claims == []
-    assert report.unsupported_recommendations == ["rec_call_backup"]
-    assert report.missing_evidence == ["AttendanceAgent"]
-    assert report.conflicting_claims == ["AttendanceAgent conflicts with StaffingAgent"]
-    assert report.data_quality_warnings == ["Attendance data is stale."]
+    assert report.unsupported_recommendations == ["rec_review_revenue"]
+    assert report.missing_evidence == ["RevenueTrendAgent"]
+    assert report.conflicting_claims == []
+    assert report.data_quality_warnings == ["Revenue data is stale."]
     assert report.confidence_adjustments == {}

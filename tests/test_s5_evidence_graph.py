@@ -93,7 +93,7 @@ def test_build_evidence_graph_creates_one_data_source_node_per_unique_source():
         ],
     )
     second = AgentOutput(
-        agent_name="DemandAgent",
+        agent_name="ForecastOverviewAgent",
         claim="Demand remains elevated.",
         confidence=0.76,
         evidence_items=[
@@ -107,7 +107,7 @@ def test_build_evidence_graph_creates_one_data_source_node_per_unique_source():
     )
 
     graph = build_evidence_graph(
-        {"InventoryAgent": first, "DemandAgent": second}
+        {"InventoryAgent": first, "ForecastOverviewAgent": second}
     )
 
     source_nodes = [
@@ -121,7 +121,7 @@ def test_build_evidence_graph_creates_one_data_source_node_per_unique_source():
 
 def test_serialize_evidence_graph_returns_model_dump_dict():
     output = AgentOutput(
-        agent_name="DemandAgent",
+        agent_name="ForecastOverviewAgent",
         claim="Demand is stable.",
         confidence=0.72,
         evidence_items=[
@@ -135,11 +135,11 @@ def test_serialize_evidence_graph_returns_model_dump_dict():
     )
 
     serialized = serialize_evidence_graph(
-        build_evidence_graph({"DemandAgent": output})
+        build_evidence_graph({"ForecastOverviewAgent": output})
     )
 
     assert isinstance(serialized, dict)
-    assert serialized["nodes"][0]["id"] == "claim:DemandAgent"
+    assert serialized["nodes"][0]["id"] == "claim:ForecastOverviewAgent"
     assert {
         "source_id": "source:forecast_model",
         "target_id": "metric:ev_demand_index",

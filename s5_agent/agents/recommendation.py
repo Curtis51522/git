@@ -8,7 +8,7 @@ class RecommendationAgent(BaseAgent):
     """Synthesizes upstream agent findings into actionable Top-3 bundle priorities.
     
     Reads: ProductMixAgent (concentration), WastageAgent (Day-1 stock), 
-           TrendAgent (momentum), ProfitAgent (margins), ExternalFactorsAgent (context).
+           RevenueTrendAgent (momentum), ProfitAgent (margins), and module context.
     Outputs: Priority product+coffee pairs with boost multipliers for /s4/combo.
     """
     
@@ -112,7 +112,7 @@ class RecommendationAgent(BaseAgent):
             pn = match[0].lower().replace(" ", "_")
             signals["day1_products"].append(pn)
         
-        # Parse rising products from TrendAgent/ProductMixAgent
+        # Parse rising products from upstream module context
         rising_match = re.findall(r"(\w+).*?\+(\d+)%.*?quantit", context, re.IGNORECASE)
         for match in rising_match:
             pct = int(match[1])

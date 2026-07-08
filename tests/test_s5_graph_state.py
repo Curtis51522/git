@@ -7,7 +7,7 @@ from s5_agent.graph.state import S5GraphState, S5Request
 def test_agent_output_accepts_structured_schema_fields():
     evidence = EvidenceItem(
         id="ev_revenue_trend",
-        source="TrendAgent",
+        source="RevenueTrendAgent",
         description="Revenue increased compared with the previous period.",
         value="up",
         metadata={"period": "7d", "change": 12.5},
@@ -31,7 +31,7 @@ def test_agent_output_accepts_structured_schema_fields():
     )
 
     output = AgentOutput(
-        agent_name="TrendAgent",
+        agent_name="RevenueTrendAgent",
         claim="Revenue momentum is positive.",
         confidence=0.86,
         metrics={

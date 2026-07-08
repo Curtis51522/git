@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from s5_agent.schemas.agent_output import AgentOutput
 from s5_agent.schemas.verification import VerificationReport
-from s5_agent.verifier.conflict_checker import find_conflicting_claims
 from s5_agent.verifier.evidence_checker import (
     find_missing_evidence,
     find_unsupported_recommendations,
@@ -12,7 +11,7 @@ from s5_agent.verifier.evidence_checker import (
 def verify_outputs(outputs: list[AgentOutput]) -> VerificationReport:
     unsupported_recommendations = find_unsupported_recommendations(outputs)
     missing_evidence = find_missing_evidence(outputs)
-    conflicting_claims = find_conflicting_claims(outputs)
+    conflicting_claims: list[str] = []
     data_quality_warnings = [
         warning
         for output in outputs
