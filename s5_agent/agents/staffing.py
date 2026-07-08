@@ -51,12 +51,17 @@ class StaffingAgent(BaseAgent):
     async def _get_attendance(self, date: str = ""):
         try:
             async with httpx.AsyncClient(timeout=10) as c:
-                url = f"http://127.0.0.1:8002/attendance"
+                url = f"http://127.0.0.1:8002/s3/attendance"
                 if date: url += f"?date={date}"
                 r = await c.get(url)
                 if r.status_code == 200:
                     d = r.json()
-                    records = d.get("attendance", []) or d.get("data", []) or d.get("records", [])
+                    records = (
+                        d.get("attendance", [])
+                        or d.get("data", [])
+                        or d.get("records", [])
+                        or d.get("today_attendance", {}).get("employees", [])
+                    )
                     if isinstance(records, list):
                         present = sum(1 for r2 in records if r2.get("punch_in"))
                         return {"records": records, "present": present, "total": len(records), "raw": d}

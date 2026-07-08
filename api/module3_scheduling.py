@@ -14,6 +14,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 import json
+import hashlib
 from ortools.sat.python import cp_model
 import logging
 from datetime import datetime, timedelta
@@ -66,7 +67,7 @@ DEFAULT_EMPLOYEES = [
     Employee(id="E004", name="Liu Yang",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E005", name="Chen Hao",   role="baker",    min_hours_per_week=14, max_hours_per_week=56, is_deputy=True),
     Employee(id="E006", name="Zhao Min",   role="baker",    min_hours_per_week=14, max_hours_per_week=56),
-    Employee(id="E007", name="Huang Jian", role="baker",    min_hours_per_week=14, max_hours_per_week=56),
+    Employee(id="E007", name="Huang Jian", role="cashier",  min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E008", name="Wu Tao",     role="baker",    min_hours_per_week=14, max_hours_per_week=56),
     Employee(id="E009", name="Lin Yue",    role="barista",  min_hours_per_week=14, max_hours_per_week=56, secondary_roles=["cashier"]),
     Employee(id="E010", name="Sun Jie",    role="manager",  min_hours_per_week=14, max_hours_per_week=42),
@@ -78,6 +79,11 @@ SLOT_HOURS = {"06:00-13:00": 7, "12:00-19:00": 7}
 def _baseline_path(week_start):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models", f"schedule_baseline_{week_start}.json")
 
+
+def _stable_seed(value: str) -> int:
+    """Return a process-stable integer seed for CP-SAT."""
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % (2**31)
 
 
 # ======================================================================
@@ -446,8 +452,8 @@ def solve_shift_schedule(
     # ---- Solve ----
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 60
-    # Deterministic: seed = hash of start_date so same week always produces same schedule
-    solver.parameters.random_seed = hash(start_date) % (2**31)
+    # Deterministic: same week should produce the same schedule across processes.
+    solver.parameters.random_seed = _stable_seed(start_date)
     solver.parameters.num_search_workers = 1
     solver.parameters.log_search_progress = False
 
@@ -639,7 +645,6 @@ def _rebuild_from_employees(start_date, num_days, employees):
     except Exception:
         logger.error("Failed to persist schedule: %s", sys.exc_info())
         raise
-    pass  # KPI saved by _compute_kpi
     return results
 def _build_schedule_response(results):
     all_emps = {e.id: e for e in load_employees()}
@@ -745,16 +750,6 @@ async def swap_employees(payload: dict):
     from_emp = employees[from_id]
     to_emp = employees[to_id]
 
-    # Skill-based swap check: each must be able to do the other's assigned role
-    from_skills = {from_emp.role} | set(getattr(from_emp, "secondary_roles", []) or [])
-    to_skills = {to_emp.role} | set(getattr(to_emp, "secondary_roles", []) or [])
-    from_role = from_shift.get("role", "")
-    to_role = to_shift.get("role", "")
-    if to_role not in from_skills:
-        return {"status": "rejected", "reason": f"{from_emp.name} cannot take {to_emp.name}'s {to_role} shift (skills: {sorted(from_skills)})"}
-    if from_role not in to_skills:
-        return {"status": "rejected", "reason": f"{to_emp.name} cannot take {from_emp.name}'s {from_role} shift (skills: {sorted(to_skills)})"}
-
     try:
         db = get_db()
         r1 = q(db, "shift_schedule").select("*").eq("schedule_date", date).execute()
@@ -772,6 +767,16 @@ async def swap_employees(payload: dict):
     to_shift = next((s for s in all_shifts if s.get("employee_id") == to_id and _date_str(s.get("schedule_date","")) == to_date and (not to_time_slot or str(s.get("time_slot","")) == to_time_slot)), None)
     if not to_shift:
         return {"status": "error", "message": f"{to_emp.name} has no shift on {to_date}" + (f" {to_time_slot}" if to_time_slot else "")}
+
+    # Skill-based swap check: each employee must be able to cover the other's assigned role.
+    from_skills = {from_emp.role} | set(getattr(from_emp, "secondary_roles", []) or [])
+    to_skills = {to_emp.role} | set(getattr(to_emp, "secondary_roles", []) or [])
+    from_role = from_shift.get("role", "")
+    to_role = to_shift.get("role", "")
+    if to_role not in from_skills:
+        return {"status": "rejected", "reason": f"{from_emp.name} cannot take {to_emp.name}'s {to_role} shift (skills: {sorted(from_skills)})"}
+    if from_role not in to_skills:
+        return {"status": "rejected", "reason": f"{to_emp.name} cannot take {from_emp.name}'s {from_role} shift (skills: {sorted(to_skills)})"}
 
     if to_date in to_emp.unavailable_dates:
         return {"status": "rejected", "reason": f"{to_emp.name} is unavailable on {to_date}"}
@@ -889,7 +894,6 @@ def _resync_impl(payload: dict) -> dict:
             demand_level=row.get("demand_level", "normal"),
             production_target=row.get("production_target"),
         ))
-    pass  # KPI saved by _compute_kpi
     return _build_schedule_response(schedule_list)
 
 
@@ -1002,7 +1006,6 @@ def _sick_impl(payload: dict) -> dict:
             demand_level=row.get("demand_level", "normal"),
             production_target=row.get("production_target"),
         ))
-    pass  # KPI saved by _compute_kpi
     return _build_schedule_response(schedule_list)
 
 
@@ -1495,8 +1498,11 @@ async def get_attendance_dashboard(date: str = ""):
 @router.post("/attendance/punch")
 async def punch_attendance(emp_id: str = "", pin: str = ""):
     """Record a punch-in or punch-out for an employee."""
+    global _kpi_cache
     att = _get_attendance()
     success, msg, record = att.punch(emp_id, pin)
+    if success:
+        _kpi_cache = None
     return {"status": "ok" if success else "error", "message": msg, "record": record}
 
 

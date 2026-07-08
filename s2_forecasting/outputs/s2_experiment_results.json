@@ -93,6 +93,56 @@
       }
     }
   ],
+  "candidate_experiments": [
+    {
+      "id": "CandidateA_LogQuantile",
+      "name": "Log-scale quantile candidate",
+      "role": "candidate_probabilistic_forecast",
+      "scope": "candidate_not_deployed",
+      "description": "Trains Q10/Q50/Q90 quantile models on log1p quantity and evaluates outputs in demand units.",
+      "validation_design": "chronological train/validation fit with chronological holdout test set",
+      "metrics": {
+        "WAPE": 37.4,
+        "MAE": 2.4,
+        "RMSE": 9.4,
+        "raw_Q10Q90_coverage": 79.1,
+        "avg_raw_relative_width": 0.9928,
+        "quantile_crossing_count": 0
+      }
+    },
+    {
+      "id": "CandidateB_ScaleConformal",
+      "name": "Demand-scale conformal candidate",
+      "role": "candidate_uncertainty_calibration",
+      "scope": "candidate_not_deployed",
+      "description": "Calibrates conformal half-width by predicted demand scale while keeping the deployed Q50 model fixed.",
+      "validation_design": "validation residual calibration with chronological holdout test set",
+      "metrics": {
+        "WAPE": 29.9,
+        "MAE": 1.9,
+        "RMSE": 6.5,
+        "coverage_80": 81.3,
+        "avg_width": 5.2,
+        "avg_relative_width": 0.979
+      }
+    },
+    {
+      "id": "CandidateC_RelativeConformal",
+      "name": "Relative conformal candidate",
+      "role": "candidate_uncertainty_calibration",
+      "scope": "candidate_not_deployed",
+      "description": "Calibrates interval width using normalized residuals while keeping the deployed Q50 model fixed.",
+      "validation_design": "validation normalized-residual calibration with chronological holdout test set",
+      "metrics": {
+        "WAPE": 29.9,
+        "MAE": 1.9,
+        "RMSE": 6.5,
+        "coverage_80": 79.6,
+        "avg_width": 5.8,
+        "avg_relative_width": 0.9784
+      }
+    }
+  ],
   "supplementary_experiments": [
     {
       "id": "AuxClassifier",

@@ -120,7 +120,7 @@ class KPIDataCollector:
             db = self._get_db()
             cur = db.cursor(dictionary=True)
             cur.execute(
-                "SELECT emp_id, status, date FROM attendance_records WHERE date LIKE %s",
+                "SELECT emp_id, status, date, punch_in, punch_out FROM attendance_records WHERE date LIKE %s",
                 (month_str + "%",)
             )
             records = cur.fetchall()
@@ -154,18 +154,43 @@ class KPIDataCollector:
                 total_present = len(present_recs)
                 punct = round(on_time_count / max(total_present, 1) * 100, 1)
 
-                # Work hours: 8h per present day
-                work_hours = len(date_strs) * 8.0
+                work_hours = round(sum(self._record_work_hours(r) for r in present_recs), 2)
 
                 emp_working_days = sched_days_map.get(eid, calendar_days)
+                attendance_rate = round(days_present / max(emp_working_days, 1) * 100, 1)
                 kpis[eid] = {
-                    "attendance_rate": round(days_present / max(emp_working_days, 1) * 100, 1),
+                    "attendance_rate": min(100.0, attendance_rate),
                     "punctuality": punct,
                     "work_hours": work_hours,
                 }
         except Exception as e:
             logger.warning('Attendance collection failed: %s', e)
         return kpis
+
+    def _record_work_hours(self, record):
+        punch_in = self._time_to_minutes(record.get("punch_in"))
+        punch_out = self._time_to_minutes(record.get("punch_out"))
+        if punch_in is None or punch_out is None:
+            return 8.0
+        if punch_out < punch_in:
+            punch_out += 24 * 60
+        return max(0.0, (punch_out - punch_in) / 60.0)
+
+    def _time_to_minutes(self, value):
+        if value is None:
+            return None
+        if isinstance(value, timedelta):
+            return value.total_seconds() / 60.0
+        if hasattr(value, "hour") and hasattr(value, "minute"):
+            return value.hour * 60 + value.minute + getattr(value, "second", 0) / 60.0
+        text = str(value)
+        if not text:
+            return None
+        try:
+            parts = text.split(":")
+            return int(parts[0]) * 60 + int(parts[1]) + (int(parts[2]) / 60.0 if len(parts) > 2 else 0.0)
+        except (ValueError, IndexError):
+            return None
 
     # ==================================================================
     # Metric 1: Revenue Contribution  +  Metric 2: Revenue Growth

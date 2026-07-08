@@ -4,8 +4,8 @@ KPI Configuration - 7-Metric System with BSC Dimensions
 7 objective metrics, no manager ratings needed.
 
 Metrics:
-  1. revenue_hr     - Personal attributed revenue per work hour
-  2. revenue_growth - Revenue/hr change vs previous month
+  1. revenue_contribution - Personal attributed revenue
+  2. revenue_growth       - Attributed revenue change vs previous month
   3. work_hours     - Total work hours this month
   4. hours_vs_avg   - Work hours vs 9-person average
   5. attendance_rate - Actual / expected working days
@@ -13,7 +13,7 @@ Metrics:
   7. punctuality    - On-time punch rate (cross-role shared)
 
 BSC Framework:
-  Financial (25%)   - revenue_hr, revenue_growth
+  Financial (25%)   - revenue_contribution, revenue_growth
   Internal (35%)    - work_hours, hours_vs_avg, attendance_rate, punctuality, waste_rate
   Customer (20%)    - (reserved for future kpi_ratings)
   Learning (20%)    - (reserved for future kpi_ratings)

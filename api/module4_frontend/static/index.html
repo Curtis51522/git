@@ -527,6 +527,13 @@ en:{
 'Avg':'Avg',
 'Score':'Score',
 'Pctl':'Pctl',
+'Band':'Band',
+'Strength':'Strength',
+'Watch':'Watch',
+'Excellent':'Excellent',
+'Strong':'Strong',
+'Stable':'Stable',
+'Needs Attention':'Needs Attention',
 'Present':'Present',
 'Late':'Late',
 'Absent':'Absent',
@@ -949,6 +956,13 @@ zh:{
 'Avg':'\u5E73\u5747',
 'Score':'\u5F97\u5206',
 'Pctl':'\u767E\u5206\u4F4D',
+'Band':'\u7B49\u7EA7',
+'Strength':'\u4F18\u52BF',
+'Watch':'\u5173\u6CE8',
+'Excellent':'\u4F18\u79C0',
+'Strong':'\u8F83\u5F3A',
+'Stable':'\u7A33\u5B9A',
+'Needs Attention':'\u9700\u5173\u6CE8',
 'Present':'\u51FA\u52E4',
 'Late':'\u8FDF\u5230',
 'Absent':'\u7F3A\u52E4',
@@ -2441,11 +2455,15 @@ async function loadKPIRanking(month){
     
     // Ranking table
     h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">';
-    h+='<th style="padding:6px 8px;text-align:center;width:40px">#</th><th style="padding:6px 8px;text-align:left">'+t('Employee')+'</th><th style="padding:6px 8px;text-align:left">'+t('Role')+'</th><th style="padding:6px 8px;text-align:center">'+t('Score')+'</th><th style="padding:6px 8px;text-align:center">'+t('Pctl')+'</th></tr></thead><tbody>';
+    h+='<th style="padding:6px 8px;text-align:center;width:40px">#</th><th style="padding:6px 8px;text-align:left">'+t('Employee')+'</th><th style="padding:6px 8px;text-align:left">'+t('Role')+'</th><th style="padding:6px 8px;text-align:center">'+t('Score')+'</th><th style="padding:6px 8px;text-align:center">'+t('Band')+'</th><th style="padding:6px 8px;text-align:left">'+t('Strength')+'</th><th style="padding:6px 8px;text-align:left">'+t('Watch')+'</th></tr></thead><tbody>';
     var ranking=s.ranking||[];
     for(var i=0;i<ranking.length;i++){
       var e=ranking[i];
       var bg=i===0?'#fff8e1':(i%2===0?'#fdfaf5':'#fff');
+      var pctVal=e.percentile!=null?e.percentile:0;
+      var band=pctVal>=80?'Excellent':(pctVal>=60?'Strong':(pctVal>=35?'Stable':'Needs Attention'));
+      var strength=(e.highlights&&e.highlights.strengths&&e.highlights.strengths[0])?e.highlights.strengths[0].kpi:'-';
+      var watch=(e.highlights&&e.highlights.weaknesses&&e.highlights.weaknesses[0])?e.highlights.weaknesses[0].kpi:'-';
       h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
       h+='<td style="padding:5px 8px;text-align:center;font-weight:700;color:#4a3728">'+e.rank+'</td>';
       h+='<td style="padding:5px 8px;font-weight:600;color:#4a3728">'+e.name+'</td>';
@@ -2453,8 +2471,9 @@ async function loadKPIRanking(month){
       h+='<td style="padding:5px 8px;color:#6b5b4f;font-size:11px;text-transform:capitalize">'+roleStr+'</td>';
       var sc=e.score!=null?e.score.toFixed(1):'-';
       h+='<td style="padding:5px 8px;text-align:center;font-weight:700;color:#8b6914">'+sc+'</td>';
-      var pct=e.percentile!=null?e.percentile.toFixed(0)+'%':'-';
-      h+='<td style="padding:5px 8px;text-align:center;color:#6b5b4f;font-size:11px">'+pct+'</td></tr>';
+      h+='<td style="padding:5px 8px;text-align:center;color:#4a3728;font-size:11px;font-weight:700">'+t(band)+'</td>';
+      h+='<td style="padding:5px 8px;color:#2d6a4f;font-size:11px">'+strength+'</td>';
+      h+='<td style="padding:5px 8px;color:#8b6914;font-size:11px">'+watch+'</td></tr>';
     }
     h+='</tbody></table>';el.innerHTML=h;
   setTimeout(function(){

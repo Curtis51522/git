@@ -21,6 +21,7 @@ from s2_forecasting.feature_contract import (
     FORECAST_FEATURES,
     RESERVED_SCENARIO_FEATURES,
 )
+from s2_forecasting.quantile_utils import enforce_quantile_monotonicity
 
 logger = logging.getLogger("s2.forecast")
 
@@ -587,7 +588,11 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
     forecasts = []
     model_errors = []
 
-    q50_model = _get_unified_quantile("q50")
+    quantile_models = {
+        "q10": _get_unified_quantile("q10"),
+        "q50": _get_unified_quantile("q50"),
+        "q90": _get_unified_quantile("q90"),
+    }
     pid_map = _get_product_id_map()
     unit_prices = {}
     try:
@@ -609,8 +614,16 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
             features = build_forecast_features(forecast_date, prod)
             X = pd.DataFrame([features])[FORECAST_FEATURE_ORDER].fillna(0).values
             try:
-                q50_pred = float(q50_model.predict(X)[0])
-                pred = max(0.0, q50_pred)
+                raw_quantiles = {
+                    name: np.maximum(model.predict(X), 0)
+                    for name, model in quantile_models.items()
+                }
+                corrected = enforce_quantile_monotonicity(
+                    raw_quantiles["q10"],
+                    raw_quantiles["q50"],
+                    raw_quantiles["q90"],
+                )
+                pred = float(corrected["q50"][0])
                 lower_bound = max(0, round(pred - half_width))
                 upper_bound = max(lower_bound, round(pred + half_width))
             except Exception as e:

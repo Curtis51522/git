@@ -94,12 +94,99 @@ def _build_supplementary_experiments(output_path: Path) -> list[dict]:
     return experiments
 
 
+def _build_candidate_experiments(output_path: Path) -> list[dict]:
+    log_quantile_metrics = _load_json(output_path / "log_quantile_metrics.json")
+    scale_conformal_metrics = _load_json(output_path / "scale_conformal_metrics.json")
+    relative_conformal_metrics = _load_json(output_path / "relative_conformal_metrics.json")
+    experiments = []
+
+    candidate_sources = [
+        (
+            log_quantile_metrics,
+            {
+                "id": "CandidateA_LogQuantile",
+                "name": "Log-scale quantile candidate",
+                "role": "candidate_probabilistic_forecast",
+                "scope": "candidate_not_deployed",
+                "description": "Trains Q10/Q50/Q90 quantile models on log1p quantity.",
+                "metric_keys": {
+                    "WAPE": "WAPE",
+                    "MAE": "MAE",
+                    "RMSE": "RMSE",
+                    "raw_Q10Q90_coverage": "raw_Q10Q90_coverage",
+                    "avg_raw_relative_width": "avg_raw_relative_width",
+                    "quantile_crossing_count": "quantile_crossing_count",
+                },
+            },
+        ),
+        (
+            scale_conformal_metrics,
+            {
+                "id": "CandidateB_ScaleConformal",
+                "name": "Demand-scale conformal candidate",
+                "role": "candidate_uncertainty_calibration",
+                "scope": "candidate_not_deployed",
+                "description": "Calibrates conformal width by predicted demand scale.",
+                "metric_keys": {
+                    "WAPE": "WAPE",
+                    "MAE": "MAE",
+                    "RMSE": "RMSE",
+                    "coverage_80": "coverage_80",
+                    "avg_width": "avg_width",
+                    "avg_relative_width": "avg_relative_width",
+                },
+            },
+        ),
+        (
+            relative_conformal_metrics,
+            {
+                "id": "CandidateC_RelativeConformal",
+                "name": "Relative conformal candidate",
+                "role": "candidate_uncertainty_calibration",
+                "scope": "candidate_not_deployed",
+                "description": "Calibrates interval width using normalized residuals.",
+                "metric_keys": {
+                    "WAPE": "WAPE",
+                    "MAE": "MAE",
+                    "RMSE": "RMSE",
+                    "coverage_80": "coverage_80",
+                    "avg_width": "avg_width",
+                    "avg_relative_width": "avg_relative_width",
+                },
+            },
+        ),
+    ]
+
+    for source, defaults in candidate_sources:
+        if not source:
+            continue
+        overall = source.get("overall", {})
+        metric_keys = defaults["metric_keys"]
+        experiments.append(
+            {
+                "id": source.get("id", defaults["id"]),
+                "name": source.get("name", defaults["name"]),
+                "role": source.get("role", defaults["role"]),
+                "scope": source.get("scope", defaults["scope"]),
+                "description": source.get("description", defaults["description"]),
+                "validation_design": source.get("validation_design"),
+                "metrics": {
+                    output_key: overall.get(source_key)
+                    for output_key, source_key in metric_keys.items()
+                },
+            }
+        )
+
+    return experiments
+
+
 def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
     output_path = Path(output_dir)
     baseline_metrics = _load_json(output_path / "metrics.json")
     proposed_metrics = _load_json(output_path / "test_metrics.json")
     proposed_overall = proposed_metrics.get("overall", {})
     supplementary_experiments = _build_supplementary_experiments(output_path)
+    candidate_experiments = _build_candidate_experiments(output_path)
 
     experiments = [
         {
@@ -166,6 +253,7 @@ def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
             "final_evaluation": "chronological holdout test set",
         },
         "experiments": experiments,
+        "candidate_experiments": candidate_experiments,
         "supplementary_experiments": supplementary_experiments,
         "ablation_plan": [
             {

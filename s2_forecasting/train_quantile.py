@@ -4,6 +4,7 @@ import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from s2_forecasting.feature_contract import FORECAST_FEATURES
+from s2_forecasting.quantile_utils import enforce_quantile_monotonicity
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
@@ -179,6 +180,11 @@ def evaluate(test_df, models, calibration):
     q50_preds = np.maximum(models[0.50].predict(X_test), 0)
     q10_preds = np.maximum(models[0.10].predict(X_test), 0)
     q90_preds = np.maximum(models[0.90].predict(X_test), 0)
+    corrected = enforce_quantile_monotonicity(q10_preds, q50_preds, q90_preds)
+    pre_correction_crossing_count = corrected["crossing_count"]
+    q10_preds = corrected["q10"]
+    q50_preds = corrected["q50"]
+    q90_preds = corrected["q90"]
 
     print("\n--- Evaluation on Test Set (Conformal 80% intervals) ---")
     covered = 0
@@ -220,6 +226,8 @@ def evaluate(test_df, models, calibration):
             "conformal_avg_width": round(avg_width, 1),
             "raw_Q10Q90_coverage": round(cov_raw * 100, 1),
             "raw_Q10Q90_width": round(w_raw, 1),
+            "pre_correction_crossing_count": pre_correction_crossing_count,
+            "quantile_crossing_count": 0,
         },
         "per_product_coverage": per_prod_cov,
         "best_params": str(models[0.50].get_params()),

@@ -19,10 +19,15 @@ from datetime import datetime
 from collections import defaultdict
 from kpi.config import ROLES, BSC_WEIGHTS
 
+Z_SCORE_CLIP = 5.0
+
 
 class KPICalculator:
     def __init__(self):
         self.roles = ROLES
+
+    def _clip_z(self, value):
+        return max(-Z_SCORE_CLIP, min(Z_SCORE_CLIP, float(value)))
 
     # ==================================================================
     # PHASE 1: Robust Z-Score within each role
@@ -68,7 +73,7 @@ class KPICalculator:
                     z = (raw - median) / mad
                     if kpi_config["direction"] == "lower_better":
                         z = -z
-                    emp["z_scores"][kpi_name] = round(float(z), 4)
+                    emp["z_scores"][kpi_name] = round(self._clip_z(z), 4)
 
         # Cross-role normalization for shared KPIs (punctuality)
         cross_kpis = {}
@@ -105,7 +110,7 @@ class KPICalculator:
                         break
                 if direction == "lower_better":
                     z = -z
-                emp["z_scores"][kpi_name] = round(float(z), 4)
+                emp["z_scores"][kpi_name] = round(self._clip_z(z), 4)
 
         return employees_data
 

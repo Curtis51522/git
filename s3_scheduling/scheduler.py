@@ -10,7 +10,7 @@ Features:
   - Freshness: sell Day-1 first (50% price), then Fresh (full price)
   - Multi-scenario: Q10 / Q50 / Q90 demand levels
   - Raw material estimation from product recipes
-  - 7-day rolling plan (placeholder for multi-period extension)
+  - 7-day rolling plan with fresh-to-Day-1 stock carryover
   - Output: JSON bake plan + dashboard-ready summary
 
 Formulation:
@@ -384,6 +384,7 @@ class Scheduler:
             fresh_sold[p] = model.NewIntVar(0, max_sell, f"fresh_sold_{p}")
             day1_sold[p] = model.NewIntVar(0, min(s, d), f"day1_sold_{p}")
             model.Add(day1_sold[p] <= s)
+            model.Add(day1_sold[p] == min(s, d))
             model.Add(fresh_sold[p] <= bake[p])
             model.Add(day1_sold[p] + fresh_sold[p] <= d)
         model.Add(sum(bake.values()) <= capacity)
@@ -493,6 +494,106 @@ class Scheduler:
             "sales_units": sales_total,
         }
 
+    def replay_actual_outcome(self, bake_plan, day1_stock, actual_demand):
+        """
+        Replay a fixed bake plan against actual sales.
+
+        Day-1 stock is sold first at discount. Unsold Day-1 stock expires at the
+        end of the day, while unsold fresh bake becomes the next day's Day-1 stock.
+        """
+        profit = 0.0
+        revenue = 0.0
+        waste_total = 0
+        shortage_total = 0
+        sales_total = 0
+        demand_total = 0
+        day1_sold = {}
+        fresh_sold = {}
+        waste = {}
+        shortage = {}
+        next_day1_stock = {}
+
+        product_names = set(self.breads) | set(bake_plan) | set(day1_stock) | set(actual_demand)
+        for product in sorted(product_names):
+            if product not in self.products or self.products[product].get("is_drink"):
+                continue
+
+            price = self.products[product]["price"]
+            bake_units = int(bake_plan.get(product, 0))
+            stock_units = int(day1_stock.get(product, 0))
+            demand_units = int(actual_demand.get(product, 0))
+
+            sold_day1 = min(stock_units, demand_units)
+            remaining_demand = max(0, demand_units - sold_day1)
+            sold_fresh = min(bake_units, remaining_demand)
+            expired_day1 = max(0, stock_units - sold_day1)
+            unsold_fresh = max(0, bake_units - sold_fresh)
+            unmet_demand = max(0, demand_units - sold_day1 - sold_fresh)
+
+            product_revenue = price * DAY1_DISCOUNT * sold_day1 + price * sold_fresh
+            product_profit = (
+                product_revenue
+                - price * PRODUCTION_COST_RATIO * bake_units
+                - price * PRODUCTION_COST_RATIO * WASTE_COST_RATIO * expired_day1
+                - price * STOCKOUT_COST_RATIO * unmet_demand
+            )
+
+            day1_sold[product] = sold_day1
+            fresh_sold[product] = sold_fresh
+            waste[product] = expired_day1
+            shortage[product] = unmet_demand
+            next_day1_stock[product] = unsold_fresh
+            revenue += product_revenue
+            profit += product_profit
+            waste_total += expired_day1
+            shortage_total += unmet_demand
+            sales_total += sold_day1 + sold_fresh
+            demand_total += demand_units
+
+        fill_rate = sales_total / demand_total if demand_total else 1.0
+        return {
+            "profit": round(profit, 2),
+            "revenue": round(revenue, 2),
+            "waste_units": waste_total,
+            "shortage_units": shortage_total,
+            "sales_units": sales_total,
+            "demand_units": demand_total,
+            "fill_rate": round(fill_rate, 3),
+            "day1_sold": day1_sold,
+            "fresh_sold": fresh_sold,
+            "waste": waste,
+            "shortage": shortage,
+            "next_day1_stock": next_day1_stock,
+        }
+
+    def build_q50_baseline_plan(self, day_forecast, capacity=None):
+        """Build a simple buffered Q50 policy for paper baseline comparison."""
+        if capacity is None:
+            capacity = BREAD_CAPACITY
+
+        plan = {}
+        for product, forecast in day_forecast.items():
+            if product not in self.breads:
+                continue
+            q50 = forecast.get("q50", 0)
+            plan[product] = max(0, int(q50 * DEMAND_BUFFER))
+
+        total_units = sum(plan.values())
+        if total_units <= capacity or total_units == 0:
+            return plan
+
+        scaled = {}
+        remaining_capacity = capacity
+        ordered_items = sorted(plan.items(), key=lambda item: item[1], reverse=True)
+        for idx, (product, units) in enumerate(ordered_items):
+            if idx == len(ordered_items) - 1:
+                scaled[product] = max(0, remaining_capacity)
+                break
+            scaled_units = int(units * capacity / total_units)
+            scaled[product] = max(0, scaled_units)
+            remaining_capacity -= scaled[product]
+        return scaled
+
 
 
     def generate_7day_plan(self, start_date, day1_stock, demand_forecast_7day):
@@ -527,10 +628,7 @@ class Scheduler:
                 b = result["bake_plan"].get(p, 0)
                 fs = result["fresh_sold"].get(p, 0)
                 unsold_fresh = max(0, b - fs)
-                prev_d1 = stock.get(p, 0)
-                ds = result["day1_sold"].get(p, 0)
-                unsold_d1 = max(0, prev_d1 - ds)
-                next_stock[p] = unsold_fresh + unsold_d1
+                next_stock[p] = unsold_fresh
             stock = next_stock
             date += timedelta(days=1)
         weekly = self._aggregate_weekly(plans)
@@ -743,14 +841,15 @@ def run_paper_evaluation(save_path=None):
     weekly_results = []
     all_actual_sales = {}
     all_predicted_sales = {}
+    scheduler_day1_stock = {p: 0 for p in s.breads}
+    baseline_day1_stock = {p: 0 for p in s.breads}
 
-    for week_idx, (week_start, week_end) in enumerate(weeks):
+    for week_start, week_end in weeks:
         start_str = week_start.strftime("%Y-%m-%d")
         end_str = week_end.strftime("%Y-%m-%d")
 
         # Build 7-day forecast with real lag features from test data
         forecast = {}
-        day1_stock = {}
         actual_demand = {}
 
         for day_offset in range(7):
@@ -822,64 +921,145 @@ def run_paper_evaluation(save_path=None):
                 forecast[day_str] = day_forecast
                 actual_demand[day_str] = day_actual
 
-        if week_idx == 0:
-            day1_stock = {p: 0 for p in s.breads}
-
         if not forecast:
             continue
 
-        result = s.generate_7day_plan(start_str, day1_stock, forecast)
+        result = s.generate_7day_plan(start_str, scheduler_day1_stock, forecast)
 
         # Compare with actual (breads only)
         total_actual_bread_sales = 0
         total_planned_bake = result["weekly_summary"]["total_bake"]
+        scheduler_actual_profit = 0.0
+        scheduler_actual_waste = 0
+        scheduler_actual_shortage = 0
+        scheduler_actual_sales = 0
+        scheduler_actual_demand = 0
+        baseline_total_bake = 0
+        baseline_actual_profit = 0.0
+        baseline_actual_waste = 0
+        baseline_actual_shortage = 0
+        baseline_actual_sales = 0
+        baseline_actual_demand = 0
+        week_scheduler_stock = dict(scheduler_day1_stock)
+        week_baseline_stock = dict(baseline_day1_stock)
         daily_comparison = []
 
         for plan in result["plans"]:
             d = plan["date"]
             if d in actual_demand:
-                act = sum(v for k, v in actual_demand[d].items() if k not in DRINK_NAMES)
+                actual_bread_demand = {
+                    k: v for k, v in actual_demand[d].items() if k not in DRINK_NAMES
+                }
+                act = sum(actual_bread_demand.values())
+                scheduler_outcome = s.replay_actual_outcome(
+                    plan["bake_plan"],
+                    week_scheduler_stock,
+                    actual_bread_demand,
+                )
+                baseline_plan = s.build_q50_baseline_plan(forecast.get(d, {}))
+                baseline_outcome = s.replay_actual_outcome(
+                    baseline_plan,
+                    week_baseline_stock,
+                    actual_bread_demand,
+                )
+
                 daily_comparison.append({
                     "date": d,
                     "planned_bake": plan["total_bake"],
+                    "baseline_bake": sum(baseline_plan.values()),
                     "actual_bread_sales": act,
-                    "profit": plan["profit"],
+                    "planned_profit": plan["profit"],
+                    "actual_replay_profit": scheduler_outcome["profit"],
+                    "actual_replay_waste": scheduler_outcome["waste_units"],
+                    "actual_replay_shortage": scheduler_outcome["shortage_units"],
+                    "actual_replay_fill_rate": scheduler_outcome["fill_rate"],
+                    "baseline_profit": baseline_outcome["profit"],
+                    "baseline_waste": baseline_outcome["waste_units"],
+                    "baseline_shortage": baseline_outcome["shortage_units"],
+                    "baseline_fill_rate": baseline_outcome["fill_rate"],
                 })
                 total_actual_bread_sales += act
+                scheduler_actual_profit += scheduler_outcome["profit"]
+                scheduler_actual_waste += scheduler_outcome["waste_units"]
+                scheduler_actual_shortage += scheduler_outcome["shortage_units"]
+                scheduler_actual_sales += scheduler_outcome["sales_units"]
+                scheduler_actual_demand += scheduler_outcome["demand_units"]
+                baseline_total_bake += sum(baseline_plan.values())
+                baseline_actual_profit += baseline_outcome["profit"]
+                baseline_actual_waste += baseline_outcome["waste_units"]
+                baseline_actual_shortage += baseline_outcome["shortage_units"]
+                baseline_actual_sales += baseline_outcome["sales_units"]
+                baseline_actual_demand += baseline_outcome["demand_units"]
+                week_scheduler_stock = scheduler_outcome["next_day1_stock"]
+                week_baseline_stock = baseline_outcome["next_day1_stock"]
+
+        scheduler_fill_rate = (
+            scheduler_actual_sales / scheduler_actual_demand
+            if scheduler_actual_demand else 1.0
+        )
+        baseline_fill_rate = (
+            baseline_actual_sales / baseline_actual_demand
+            if baseline_actual_demand else 1.0
+        )
 
         weekly_results.append({
             "week_start": start_str,
             "week_end": end_str,
             "total_bake": total_planned_bake,
+            "baseline_total_bake": baseline_total_bake,
             "total_actual_bread_sales": total_actual_bread_sales,
             "bake_actual_ratio": round(total_planned_bake / max(total_actual_bread_sales, 1), 3),
-            "profit": result["weekly_summary"]["total_profit"],
+            "profit": round(scheduler_actual_profit, 2),
+            "planned_profit": result["weekly_summary"]["total_profit"],
+            "baseline_profit": round(baseline_actual_profit, 2),
+            "profit_lift_vs_baseline": round(scheduler_actual_profit - baseline_actual_profit, 2),
             "waste": result["weekly_summary"]["total_waste"],
             "shortage": result["weekly_summary"]["total_shortage"],
+            "actual_replay_waste": scheduler_actual_waste,
+            "actual_replay_shortage": scheduler_actual_shortage,
+            "actual_replay_fill_rate": round(scheduler_fill_rate, 3),
+            "baseline_waste": baseline_actual_waste,
+            "baseline_shortage": baseline_actual_shortage,
+            "baseline_fill_rate": round(baseline_fill_rate, 3),
             "daily": daily_comparison,
         })
 
-        # Update carryover for next week (from this week's last day)
-        last_plan = result["plans"][-1]
-        for p in s.breads:
-            b = last_plan["bake_plan"].get(p, 0)
-            fs = last_plan["fresh_sold"].get(p, 0)
-            unsold = max(0, b - fs)
-            day1_stock[p] = unsold
+        scheduler_day1_stock = week_scheduler_stock
+        baseline_day1_stock = week_baseline_stock
 
     # Aggregate evaluation metrics
     total_bake = sum(w["total_bake"] for w in weekly_results)
+    baseline_total_bake = sum(w["baseline_total_bake"] for w in weekly_results)
     total_actual = sum(w["total_actual_bread_sales"] for w in weekly_results)
     total_profit = sum(w["profit"] for w in weekly_results)
+    total_planned_profit = sum(w["planned_profit"] for w in weekly_results)
+    baseline_profit = sum(w["baseline_profit"] for w in weekly_results)
+    actual_waste = sum(w["actual_replay_waste"] for w in weekly_results)
+    actual_shortage = sum(w["actual_replay_shortage"] for w in weekly_results)
+    baseline_waste = sum(w["baseline_waste"] for w in weekly_results)
+    baseline_shortage = sum(w["baseline_shortage"] for w in weekly_results)
+    actual_sales_served = max(total_actual - actual_shortage, 0)
+    baseline_sales_served = max(total_actual - baseline_shortage, 0)
 
     eval_report = {
         "evaluation_period": f"{test_dates[0].date()} to {test_dates[-1].date()}",
         "total_weeks": len(weekly_results),
         "aggregate": {
             "total_bake_planned": total_bake,
+            "baseline_total_bake": baseline_total_bake,
             "total_actual_bread_sales": total_actual,
             "bake_to_actual_ratio": round(total_bake / max(total_actual, 1), 3),
             "total_profit_cny": round(total_profit, 2),
+            "total_planned_profit_cny": round(total_planned_profit, 2),
+            "baseline_profit_cny": round(baseline_profit, 2),
+            "profit_lift_vs_baseline_cny": round(total_profit - baseline_profit, 2),
+            "actual_replay_waste_units": actual_waste,
+            "actual_replay_shortage_units": actual_shortage,
+            "actual_replay_fill_rate": round(actual_sales_served / max(total_actual, 1), 3),
+            "baseline_waste_units": baseline_waste,
+            "baseline_shortage_units": baseline_shortage,
+            "baseline_fill_rate": round(baseline_sales_served / max(total_actual, 1), 3),
+            "baseline_policy": "buffered_q50_capacity_scaled",
             "avg_weekly_profit": round(total_profit / max(len(weekly_results), 1), 2),
             "avg_capacity_pct": round(np.mean([w["total_bake"] for w in weekly_results]) / (BREAD_CAPACITY * 7) * 100, 1),
         },
@@ -907,6 +1087,11 @@ def run_paper_evaluation(save_path=None):
     print(f"  Total actual bread sales:{agg['total_actual_bread_sales']:>6d} units")
     print(f"  Bake/Actual ratio:   {agg['bake_to_actual_ratio']:>6.3f}")
     print(f"  Total profit:        CNY {agg['total_profit_cny']:>10,.2f}")
+    print(f"  Baseline profit:     CNY {agg['baseline_profit_cny']:>10,.2f}")
+    print(f"  Profit lift:         CNY {agg['profit_lift_vs_baseline_cny']:>10,.2f}")
+    print(f"  Actual replay waste: {agg['actual_replay_waste_units']:>6d} units")
+    print(f"  Actual replay shortage:{agg['actual_replay_shortage_units']:>4d} units")
+    print(f"  Actual fill rate:    {agg['actual_replay_fill_rate']:>6.3f}")
     print(f"  Avg weekly profit:   CNY {agg['avg_weekly_profit']:>10,.2f}")
     print(f"  Avg capacity usage:  {agg['avg_capacity_pct']:>6.1f}%")
 

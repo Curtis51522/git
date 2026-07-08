@@ -12,12 +12,14 @@
     "RMSE": 6.5,
     "conformal_coverage_80": 78.9,
     "conformal_avg_width": 5.3,
-    "raw_Q10Q90_coverage": 77.5,
-    "raw_Q10Q90_width": "5.3"
+    "raw_Q10Q90_coverage": 78.1,
+    "raw_Q10Q90_width": 5.3,
+    "pre_correction_crossing_count": 1245,
+    "quantile_crossing_count": 0
   },
   "per_product_coverage": {
     "0": 81.3,
-    "1": 80.5,
+    "1": 80.8,
     "2": 71.7,
     "3": 72.8,
     "4": 74.7,
@@ -41,7 +43,7 @@
     "22": 86.0,
     "23": 76.6,
     "24": 74.7,
-    "25": 85.2,
+    "25": 85.4,
     "26": 77.5,
     "27": 80.8,
     "28": 83.0,
@@ -52,9 +54,9 @@
     "33": 76.1,
     "34": 84.6,
     "35": 70.1,
-    "36": 86.3,
+    "36": 86.0,
     "37": 76.6,
-    "38": 84.1,
+    "38": 84.9,
     "39": 85.4,
     "40": 85.2,
     "41": 81.6,
@@ -67,7 +69,7 @@
     "0": {
       "MAE": 0.4,
       "RMSE": 0.5,
-      "WAPE": 39.2,
+      "WAPE": 37.9,
       "conformal_half": 0.7,
       "conformal_coverage": 81.3,
       "samples": 364,
@@ -78,7 +80,7 @@
       "RMSE": 2.6,
       "WAPE": 17.6,
       "conformal_half": 2.9,
-      "conformal_coverage": 80.5,
+      "conformal_coverage": 80.8,
       "samples": 364,
       "mean_daily": 10.5
     },
@@ -94,7 +96,7 @@
     "3": {
       "MAE": 0.3,
       "RMSE": 0.4,
-      "WAPE": 43.0,
+      "WAPE": 40.6,
       "conformal_half": 0.5,
       "conformal_coverage": 72.8,
       "samples": 364,
@@ -112,7 +114,7 @@
     "5": {
       "MAE": 0.3,
       "RMSE": 0.4,
-      "WAPE": 31.7,
+      "WAPE": 30.3,
       "conformal_half": 0.5,
       "conformal_coverage": 81.0,
       "samples": 364,
@@ -139,7 +141,7 @@
     "8": {
       "MAE": 1.0,
       "RMSE": 1.4,
-      "WAPE": 20.4,
+      "WAPE": 20.3,
       "conformal_half": 1.4,
       "conformal_coverage": 74.5,
       "samples": 364,
@@ -157,7 +159,7 @@
     "10": {
       "MAE": 0.3,
       "RMSE": 0.4,
-      "WAPE": 32.9,
+      "WAPE": 31.0,
       "conformal_half": 0.5,
       "conformal_coverage": 80.5,
       "samples": 364,
@@ -166,7 +168,7 @@
     "11": {
       "MAE": 0.3,
       "RMSE": 0.4,
-      "WAPE": 42.2,
+      "WAPE": 40.1,
       "conformal_half": 0.6,
       "conformal_coverage": 76.9,
       "samples": 364,
@@ -184,7 +186,7 @@
     "13": {
       "MAE": 0.6,
       "RMSE": 0.8,
-      "WAPE": 26.2,
+      "WAPE": 26.1,
       "conformal_half": 1.1,
       "conformal_coverage": 84.1,
       "samples": 364,
@@ -211,7 +213,7 @@
     "16": {
       "MAE": 0.5,
       "RMSE": 0.8,
-      "WAPE": 45.4,
+      "WAPE": 45.1,
       "conformal_half": 0.8,
       "conformal_coverage": 79.7,
       "samples": 364,
@@ -220,7 +222,7 @@
     "17": {
       "MAE": 0.8,
       "RMSE": 1.1,
-      "WAPE": 58.6,
+      "WAPE": 58.2,
       "conformal_half": 1.3,
       "conformal_coverage": 83.2,
       "samples": 364,
@@ -238,7 +240,7 @@
     "19": {
       "MAE": 1.2,
       "RMSE": 1.5,
-      "WAPE": 21.5,
+      "WAPE": 21.6,
       "conformal_half": 1.5,
       "conformal_coverage": 73.6,
       "samples": 364,
@@ -265,7 +267,7 @@
     "22": {
       "MAE": 0.2,
       "RMSE": 0.4,
-      "WAPE": 26.6,
+      "WAPE": 24.4,
       "conformal_half": 0.5,
       "conformal_coverage": 86.0,
       "samples": 364,
@@ -294,7 +296,7 @@
       "RMSE": 1.3,
       "WAPE": 19.6,
       "conformal_half": 1.7,
-      "conformal_coverage": 85.2,
+      "conformal_coverage": 85.4,
       "samples": 364,
       "mean_daily": 4.8
     },
@@ -319,25 +321,25 @@
     "28": {
       "MAE": 0.3,
       "RMSE": 0.4,
-      "WAPE": 36.0,
+      "WAPE": 32.6,
       "conformal_half": 0.6,
       "conformal_coverage": 83.0,
       "samples": 364,
       "mean_daily": 0.8
     },
     "29": {
-      "MAE": 0.3,
-      "RMSE": 0.4,
-      "WAPE": 30.7,
+      "MAE": 0.2,
+      "RMSE": 0.3,
+      "WAPE": 27.8,
       "conformal_half": 0.5,
       "conformal_coverage": 84.1,
       "samples": 364,
       "mean_daily": 0.8
     },
     "30": {
-      "MAE": 16.8,
+      "MAE": 16.9,
       "RMSE": 29.2,
-      "WAPE": 29.4,
+      "WAPE": 29.5,
       "conformal_half": 22.4,
       "conformal_coverage": 78.0,
       "samples": 364,
@@ -346,7 +348,7 @@
     "31": {
       "MAE": 14.4,
       "RMSE": 23.7,
-      "WAPE": 31.7,
+      "WAPE": 31.8,
       "conformal_half": 17.4,
       "conformal_coverage": 73.4,
       "samples": 364,
@@ -355,7 +357,7 @@
     "32": {
       "MAE": 0.4,
       "RMSE": 0.6,
-      "WAPE": 37.8,
+      "WAPE": 37.5,
       "conformal_half": 0.8,
       "conformal_coverage": 82.1,
       "samples": 364,
@@ -371,9 +373,9 @@
       "mean_daily": 15.2
     },
     "34": {
-      "MAE": 0.3,
+      "MAE": 0.2,
       "RMSE": 0.4,
-      "WAPE": 26.2,
+      "WAPE": 25.1,
       "conformal_half": 0.5,
       "conformal_coverage": 84.6,
       "samples": 364,
@@ -382,7 +384,7 @@
     "35": {
       "MAE": 0.4,
       "RMSE": 0.5,
-      "WAPE": 42.9,
+      "WAPE": 41.3,
       "conformal_half": 0.5,
       "conformal_coverage": 70.1,
       "samples": 364,
@@ -391,9 +393,9 @@
     "36": {
       "MAE": 0.6,
       "RMSE": 0.8,
-      "WAPE": 23.3,
+      "WAPE": 23.4,
       "conformal_half": 1.1,
-      "conformal_coverage": 86.3,
+      "conformal_coverage": 86.0,
       "samples": 364,
       "mean_daily": 2.5
     },
@@ -409,9 +411,9 @@
     "38": {
       "MAE": 0.6,
       "RMSE": 0.8,
-      "WAPE": 24.5,
+      "WAPE": 24.3,
       "conformal_half": 1.1,
-      "conformal_coverage": 84.1,
+      "conformal_coverage": 84.9,
       "samples": 364,
       "mean_daily": 2.5
     },
@@ -427,16 +429,16 @@
     "40": {
       "MAE": 0.6,
       "RMSE": 0.8,
-      "WAPE": 23.8,
+      "WAPE": 23.7,
       "conformal_half": 1.1,
       "conformal_coverage": 85.2,
       "samples": 364,
       "mean_daily": 2.5
     },
     "41": {
-      "MAE": 0.3,
+      "MAE": 0.2,
       "RMSE": 0.4,
-      "WAPE": 32.9,
+      "WAPE": 30.3,
       "conformal_half": 0.5,
       "conformal_coverage": 81.6,
       "samples": 364,

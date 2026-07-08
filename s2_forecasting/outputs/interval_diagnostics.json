@@ -1,0 +1,30 @@
+{
+  "module": "S2 interval diagnostics",
+  "purpose": "Evaluate prediction interval usefulness by demand scale.",
+  "intervals": {
+    "raw": "Q10 to Q90",
+    "conformal": "Q50 plus or minus product-level conformal half-width"
+  },
+  "overall": {
+    "sample_count": 16380,
+    "product_count": 45,
+    "raw_interval_coverage_pct": 78.1197,
+    "conformal_interval_coverage_pct": 78.9316,
+    "avg_q50": 5.8667,
+    "avg_raw_interval_width": 5.3142,
+    "avg_raw_relative_width": 0.9083,
+    "avg_conformal_interval_width": 5.2143,
+    "avg_conformal_relative_width": 1.0745,
+    "wape_pct": 29.8543,
+    "bias_q50_minus_actual": -0.5617,
+    "pre_correction_crossing_count": 1245,
+    "quantile_crossing_count": 0,
+    "high_uncertainty_threshold": 0.6,
+    "high_uncertainty_product_count": 41,
+    "widest_relative_product": "pancake"
+  },
+  "outputs": {
+    "by_product": "interval_by_product.csv",
+    "by_demand_decile": "interval_by_demand_decile.csv"
+  }
+}
