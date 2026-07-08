@@ -23,8 +23,23 @@ def test_promotion_mix_module_uses_langgraph_route():
     assert module_to_template("promotion_mix") == "promotion_mix_analysis"
 
 
-def test_supported_templates_contains_inventory_diagnosis():
-    assert "inventory_diagnosis" in supported_templates()
+def test_supported_templates_match_current_langgraph_modules():
+    assert supported_templates() == [
+        "inventory_diagnosis",
+        "production_advice",
+        "profit_root_cause",
+        "promotion_mix_analysis",
+        "wastage_root_cause",
+    ]
+
+
+def test_registry_rejects_non_langgraph_modules():
+    try:
+        module_to_template("schedule")
+    except ValueError as exc:
+        assert "Unsupported S5 module" in str(exc)
+    else:
+        raise AssertionError("schedule must not map to a legacy S5 template")
 
 
 def test_load_inventory_diagnosis_template_returns_id_and_agents():
@@ -239,7 +254,7 @@ def test_legacy_analyze_and_template_routes_are_not_exposed():
 
     analyze_response = client.post(
         "/analyze",
-        json={"intent": "staffing_diagnosis", "params": {"date": "2026-07-07"}},
+        json={"query": "legacy route should not be exposed", "params": {"date": "2026-07-07"}},
     )
     templates_response = client.get("/templates")
 

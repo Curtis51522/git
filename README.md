@@ -12,7 +12,7 @@ Scope: 30 bread and pastry products, 15 beverage menu items, 10 employees, and 2
 | S2 | Seven-day demand forecasting with weather and calendar features | XGBoost, pandas, VisualCrossing | Integrated |
 | S3 | Demand-aware staff scheduling and production capacity estimation | OR-Tools CP-SAT, FastAPI | Integrated |
 | S4 | Unified web POS and manager dashboard | FastAPI, HTML, CSS, JavaScript, JWT | Integrated |
-| S5 | Module-based multi-agent analysis and decision support | FastAPI, DAGExecutor, DeepSeek synthesis, DistilBERT/keyword routing | Integrated |
+| S5 | Dashboard-embedded multi-agent analysis and decision support | FastAPI, LangGraph, evidence-grounded rule synthesis | Integrated |
 
 ## Quick Start
 
@@ -59,10 +59,8 @@ S5 endpoints:
 
 | Endpoint | Method | Purpose |
 | --- | --- | --- |
-| `/health` | GET | Returns service status, registered agent count, and template count |
-| `/templates` | GET | Lists configured DAG templates |
-| `/analyze` | POST | Runs free-text or intent-based S5 analysis |
-| `/analyze/module` | POST | Runs dashboard module analysis for revenue, wastage, forecast, inventory, schedule, or KPI |
+| `/health` | GET | Returns service status and supported LangGraph modules |
+| `/analyze/module` | POST | Runs dashboard module analysis for revenue, wastage, forecast, inventory, or promotion mix |
 | `/priorities` | GET | Returns cached bundle priority recommendations |
 | `/discounts` | POST | Returns freshness-aware and S5-priority-aware discount rates |
 
@@ -75,29 +73,29 @@ S5 is a module-based analysis service used by the manager dashboard and POS reco
 ```text
 Dashboard or POS request
 -> FastAPI S5 endpoint
--> intent routing or module-to-intent mapping
--> predefined DAG template
--> DAGExecutor phase validation and execution
--> deterministic agent analysis
--> optional cross-agent deliberation
--> Synthesizer summary and recommendations
+-> module-to-template mapping
+-> LangGraph workflow
+-> deterministic specialist agents
+-> evidence graph and verification checks
+-> constrained summary and recommendations
 -> structured JSON response
 ```
 
-### Module Intent Map
+### Module Template Map
 
-| Dashboard Module | S5 Intent |
+| Dashboard Module | LangGraph Template |
 | --- | --- |
 | revenue | `profit_root_cause` |
 | wastage | `wastage_root_cause` |
 | forecast | `production_advice` |
 | inventory | `inventory_diagnosis` |
-| schedule | `staffing_diagnosis` |
-| kpi | `full_diagnosis` |
+| promotion_mix | `promotion_mix_analysis` |
 
-### DAG Templates
+Schedule, attendance, and KPI ranking remain S3 dashboard functions. They do not currently expose S5 AI analysis endpoints.
 
-S5 currently ships these predefined templates:
+### LangGraph Templates
+
+S5 currently ships these module workflows:
 
 | Template | Purpose |
 | --- | --- |
@@ -105,9 +103,7 @@ S5 currently ships these predefined templates:
 | `wastage_root_cause` | Wastage and spoilage analysis |
 | `production_advice` | Seven-day forecast, production, and material planning |
 | `inventory_diagnosis` | Product and material stock assessment |
-| `staffing_diagnosis` | Schedule and staffing issue analysis |
-| `full_diagnosis` | Comprehensive cross-module store health check |
-| `promo_evaluation` | Promotion and pricing impact analysis |
+| `promotion_mix_analysis` | Promotion signal, product mix, and bundle decision analysis |
 
 ### Registered Agent Areas
 
@@ -115,31 +111,27 @@ S5 uses registered Python agents rather than a single monolithic planner. The ac
 
 - Revenue, profit, pricing, and promotion analysis
 - Forecast overview, uncertainty, accuracy, and production planning
-- Material stock, material procurement, and product stock diagnosis
+- Material procurement and finished-product inventory diagnosis
 - Wastage, yield, production, and operational risk analysis
-- Attendance, staffing, and schedule diagnosis
-- Product mix, hourly pattern, trend, feature sensitivity, and external factor analysis
-- Cross-card risk, causal chain, metric conflict, and recommendation synthesis
+- Product mix and bundle recommendation synthesis
 
 ### Safety Checks
 
-The DAG executor validates every template before execution:
+The LangGraph runtime keeps module execution constrained:
 
-- Template must contain nodes.
-- Agent names must be registered.
-- Agent names cannot be duplicated within one template.
-- Phase numbers must be within the configured range.
-- Dependencies must exist in the same template.
-- Dependencies must run in an earlier phase than the dependent agent.
+- Only explicitly supported dashboard modules can call `/analyze/module`.
+- Each workflow produces structured agent outputs.
+- Recommendations must link back to evidence IDs.
+- Verification reports expose missing evidence, unsupported recommendations, and data-quality warnings.
+- Unsupported modules fail fast instead of falling back to legacy routes.
 
-This prevents silent execution of malformed templates.
+This prevents silent execution of stale analysis paths.
 
 ## Frontend Integration
 
 The frontend uses:
 
 - `S5_API + "/analyze/module"` for module analysis buttons.
-- `S5_API + "/analyze"` for the free-text manager query panel.
 - `S5_API + "/priorities"` and `S5_API + "/discounts"` for bundle and discount support.
 
 S5 analysis text is escaped before being inserted into HTML in the dashboard analysis component.
@@ -156,6 +148,6 @@ S5 analysis text is escaped before being inserted into HTML in the dashboard ana
 - The browser UI is the single frontend surface for POS and manager workflows.
 - S4 owns the visible dashboard and POS experience.
 - S5 owns backend analysis and decision support, exposed through structured JSON APIs.
-- Common dashboard tasks use predefined DAG templates instead of open-ended planning.
-- LLM usage is limited to synthesis and language generation when an API key is available.
-- Deterministic agent outputs remain available when the LLM path is unavailable.
+- Common dashboard tasks use predefined LangGraph workflows instead of open-ended chat planning.
+- Current S5 summaries are constrained to verified metrics, evidence, and module-specific rules.
+- Deterministic agent outputs keep the dashboard usable without a live LLM dependency.
