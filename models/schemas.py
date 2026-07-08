@@ -92,8 +92,13 @@ class SalesForecast(BaseModel):
     product_name: str
     freshness_status: str
     predicted_demand: int
+    q50: float = 0.0
     lower_bound: int = 0
     upper_bound: int = 0
+    interval_width: int = 0
+    relative_width: float = 0.0
+    uncertainty_level: str = "low"
+    interval_method: str = "Conformal 80%"
     confidence: str
     unit_price: float = 0.0
 class ComboScore(BaseModel):

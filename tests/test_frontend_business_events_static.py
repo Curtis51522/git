@@ -39,6 +39,26 @@ def test_forecast_initial_render_loads_business_events():
     assert "loadBusinessEvents();" in render_body
 
 
+def test_forecast_table_uses_business_friendly_uncertainty_cells():
+    html = _html()
+
+    assert "function renderForecastDemandCell" in html
+    assert "uncertainty_level" in html
+    assert "relative_width" in html
+    assert "var labels={low:'Stable',medium:'Stable',high:'Flexible'}" in html
+    assert "var labels={low:'Low',medium:'Medium',high:'High'}" not in html
+    assert "medium:'Review'" not in html
+    assert "renderForecastDemandCell(v)" in html
+    assert "txt=lo+'-'+hi" not in html
+
+
+def test_forecast_accuracy_bar_uses_range_hit_label():
+    html = _html()
+
+    assert "'Range Hit':'Range Hit'" in html
+    assert "+t('Range Hit')+" in html
+
+
 def test_business_event_chip_uses_english_separator():
     html = _html()
 

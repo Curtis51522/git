@@ -754,16 +754,36 @@ def _business_event_products(events: list[dict[str, Any]]) -> list[str]:
     return products
 
 
+def _unique_business_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique_events = []
+    seen = set()
+    for event in events:
+        products = tuple(sorted(str(product) for product in (event.get("products", []) or [])))
+        key = (
+            str(event.get("event_type") or ""),
+            str(event.get("start_date") or ""),
+            str(event.get("end_date") or ""),
+            products,
+            str(event.get("discount_pct") or ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_events.append(event)
+    return unique_events
+
+
 def _business_event_summary_sentence(events: list[dict[str, Any]]) -> str:
-    if not events:
+    unique_events = _unique_business_events(events)
+    if not unique_events:
         return ""
     count_labels = {1: "One", 2: "Two", 3: "Three", 4: "Four"}
-    if len(events) == 1:
+    if len(unique_events) == 1:
         count_word = "One planned business event is"
     else:
-        count_word = f"{count_labels.get(len(events), str(len(events)))} planned business events are"
+        count_word = f"{count_labels.get(len(unique_events), str(len(unique_events)))} planned business events are"
     clauses = []
-    for event in events[:4]:
+    for event in unique_events[:4]:
         label = _event_label(event.get("event_type"))
         products = _natural_names([_display_name(product) for product in event.get("products", []) or []])
         discount = _format_percent(event.get("discount_pct"))
@@ -780,11 +800,17 @@ def _business_event_summary_sentence(events: list[dict[str, Any]]) -> str:
             clauses.append(
                 f"{label} applies to {products or 'selected products'}{discount_text}"
             )
-    return (
-        f"{count_word} active in this forecast window. "
-        + ". ".join(clauses)
-        + ". These business events are reserved scenario inputs, not part of the deployed 27-feature forecast model, so they should guide monitoring and staged release decisions rather than directly changing the forecast output."
-    )
+    if len(unique_events) == 1:
+        scenario_sentence = (
+            "This business event is a reserved scenario input, not part of the deployed 27-feature forecast model, "
+            "so it should guide monitoring and staged release decisions rather than directly changing the forecast output."
+        )
+    else:
+        scenario_sentence = (
+            "These business events are reserved scenario inputs, not part of the deployed 27-feature forecast model, "
+            "so they should guide monitoring and staged release decisions rather than directly changing the forecast output."
+        )
+    return f"{count_word} active in this forecast window. " + ". ".join(clauses) + f". {scenario_sentence}"
 
 
 def _int_value(value: Any) -> int:
@@ -1545,9 +1571,9 @@ def _forecast_recommendations(outputs: dict[str, Any]) -> list[Any]:
                 )
                 action = (
                     f"Start with an 85% base bake of {base_units} units. Keep the remaining "
-                    f"planned bake flexible, and treat the +{contingency_units} contingency units "
-                    f"as capacity reserve toward the {forecast_units}-unit demand forecast, not an "
-                    f"automatic bake. Use the first 1-2 trading days as the release gate: if actual "
+                    f"planned bake flexible, and use the +{contingency_units} figure only as a "
+                    f"risk-adjusted capacity signal toward the {forecast_units}-unit demand forecast, "
+                    f"not as an automatic bake target. Use the first 1-2 trading days as the release gate: if actual "
                     f"sales track close to forecast, release extra capacity; if sales are weak, do not "
                     f"release the contingency bake automatically.{priority_sentence}"
                 )

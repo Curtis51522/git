@@ -510,7 +510,7 @@ en:{
 'Accuracy':'Accuracy',
 'Avg Dev':'Avg Dev',
 'units':'units',
-'Interval Hit':'Interval Hit',
+'Range Hit':'Range Hit',
 'Shift Schedule Grid':'Shift Schedule Grid',
 'Monthly KPI Ranking':'Monthly KPI Ranking',
 'Loading schedule...':'Loading schedule...',
@@ -939,7 +939,7 @@ zh:{
 'Accuracy':'\u51C6\u786E\u7387',
 'Avg Dev':'\u5E73\u5747\u504F\u5DEE',
 'units':'\u4EF6',
-'Interval Hit':'\u533A\u95F4\u547D\u4E2D\u7387',
+'Range Hit':'\u8303\u56F4\u547D\u4E2D\u7387',
 'Shift Schedule Grid':'\u6392\u73ED\u7F51\u683C',
 'Monthly KPI Ranking':'\u6708\u5EA6 KPI \u6392\u540D',
 'Loading schedule...':'\u52A0\u8F7D\u6392\u73ED\u4E2D...',
@@ -2322,6 +2322,20 @@ function updateForecastCoverageKpis(){
   if(coverageEl)coverageEl.textContent=(available/demand*100).toFixed(1)+'%';
   if(gapEl)gapEl.textContent=Math.max(Math.round(demand-available),0);
 }
+function renderForecastDemandCell(v){
+  if(!v||typeof v!=='object')return '-';
+  var predicted=Number(v.predicted||0);
+  var low=Number(v.low||0);
+  var high=Number(v.high||0);
+  var level=(v.uncertainty_level||'medium').toLowerCase();
+  var rel=Number(v.relative_width||0);
+  var colors={low:'#2e7d32',medium:'#2e7d32',high:'#8b6914'};
+  var labels={low:'Stable',medium:'Stable',high:'Flexible'};
+  var color=colors[level]||colors.medium;
+  var label=labels[level]||labels.medium;
+  var relText=rel?Math.round(rel*100)+'%':'';
+  return '<div style="min-width:78px;line-height:1.25"><div style="font-weight:700;color:#3d322b">'+Math.round(predicted)+'</div><div style="font-size:11px;color:#6b5b4f">'+Math.round(low)+'-'+Math.round(high)+'</div><div style="font-size:10px;color:'+color+';font-weight:700">'+label+(relText?' '+relText:'')+'</div></div>';
+}
 async function loadForecast(force){
 var selectedDate=getForecastPanelDate();var dateParam=selectedDate?'&date='+selectedDate:'';
 var url=(force?'/s2/forecast/refresh?days=7':'/s2/forecast?days=7')+dateParam;
@@ -2333,7 +2347,7 @@ var r=await api(url);
 var t1=Date.now();
 var f=r.forecasts||[], byDay={};
 var forecastDemand=0,forecastRevenue=0,forecastPrices=Object.assign({},PRODUCT_PRICES,COFFEE_PRICES);
-for(var i=0;i<f.length;i++){var fd=f[i].forecast_date;var pn=f[i].product_name;if(!byDay[fd])byDay[fd]={};byDay[fd][pn]={predicted:f[i].predicted_demand,low:f[i].lower_bound,high:f[i].upper_bound};var qty=Number(f[i].predicted_demand||0);forecastDemand+=qty;forecastRevenue+=qty*Number(f[i].unit_price||forecastPrices[pn]||0);}
+for(var i=0;i<f.length;i++){var fd=f[i].forecast_date;var pn=f[i].product_name;if(!byDay[fd])byDay[fd]={};byDay[fd][pn]={predicted:f[i].predicted_demand,low:f[i].lower_bound,high:f[i].upper_bound,interval_width:f[i].interval_width,relative_width:f[i].relative_width,uncertainty_level:f[i].uncertainty_level};var qty=Number(f[i].predicted_demand||0);forecastDemand+=qty;forecastRevenue+=qty*Number(f[i].unit_price||forecastPrices[pn]||0);}
 window._forecastDemandUnits=forecastDemand;
 updateForecastCoverageKpis();
 var dates=Object.keys(byDay).sort();
@@ -2347,7 +2361,7 @@ tbl+='<tr style="border-bottom:1px solid #e0d5c5">';
 tbl+='<td style="padding:8px;font-weight:600">'+dates[d]+'</td>';
 for(var p=0;p<prods.length;p++){
 var v=byDay[dates[d]][prods[p]]||'-';
-var txt='-';if(v&&typeof v==='object'){var lo=v.low,hi=v.high;if(typeof lo==='number'&&typeof hi==='number')txt=lo+'-'+hi;}tbl+='<td style="padding:8px;text-align:right">'+txt+'</td>';
+tbl+='<td style="padding:8px;text-align:right;vertical-align:top">'+renderForecastDemandCell(v)+'</td>';
 }
 tbl+='</tr>';
 }
@@ -2361,7 +2375,7 @@ el.innerHTML=tbl;
       if(bar)bar.innerHTML='<span style="margin-right:16px;color:#5d4037">'+t('Model Accuracy')+'</span>'+
         '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:4px;font-weight:600;margin-right:8px">'+t('Accuracy')+' '+(100-o.WAPE).toFixed(1)+'%</span>'+
         '<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:4px;font-weight:600;margin-right:8px">'+t('Avg Dev')+' &plusmn;'+o.MAE+' '+t('units')+'</span>'+
-        '<span style="background:#fce4ec;color:#c62828;padding:3px 10px;border-radius:4px;font-weight:600">'+t('Interval Hit')+' '+o.conformal_coverage_80+'%</span>';
+        '<span style="background:#fce4ec;color:#c62828;padding:3px 10px;border-radius:4px;font-weight:600">'+t('Range Hit')+' '+o.conformal_coverage_80+'%</span>';
     }
   }).catch(function(){});
 }catch(e){el.innerHTML='<span class="status-dot dot-err"></span> '+t('Error')+': '+e.message;}

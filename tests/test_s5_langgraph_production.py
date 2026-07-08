@@ -248,6 +248,8 @@ def test_forecast_graph_fetches_data_when_raw_inputs_missing(monkeypatch):
     assert "100-unit demand forecast" in hedge.action
     assert "Use the first 1-2 trading days as the release gate" in hedge.action
     assert "do not release the contingency bake automatically" in hedge.action
+    assert "risk-adjusted capacity signal" in hedge.action
+    assert "contingency units" not in hedge.action
     assert "Prioritize the top forecast driver first" in hedge.action
     assert hedge.evidence_ids == [
         "scenario_profit_gap",
@@ -368,6 +370,17 @@ def test_forecast_summary_includes_reserved_business_events():
                         "note": "Competitor response",
                         "active": True,
                     },
+                    {
+                        "id": 8,
+                        "event_type": "competitor_activity",
+                        "label": "Competitor activity",
+                        "start_date": "2026-07-07",
+                        "end_date": "2026-07-07",
+                        "products": ["stickbread"],
+                        "discount_pct": 25.0,
+                        "note": "Duplicate competitor response",
+                        "active": True,
+                    },
                 ],
                 "reserved_scenario_features": {
                     "is_new_product": {
@@ -412,13 +425,14 @@ def test_forecast_summary_includes_reserved_business_events():
     metrics_by_agent = {output.agent_name: output.metrics for output in result.agent_outputs}
     overview_metrics = metrics_by_agent["ForecastOverviewAgent"]
 
-    assert overview_metrics["business_event_count"] == 2
+    assert overview_metrics["business_event_count"] == 3
     assert "Two planned business events are active" in result.summary
     assert "New Product Launch" in result.summary
     assert "Bread Roll" in result.summary
     assert "Competitor Activity" in result.summary
     assert "Stickbread" in result.summary
     assert "25% planned discount" in result.summary
+    assert result.summary.count("Competitor Activity applies to Stickbread with a 25% planned discount") == 1
     assert "reserved scenario inputs" in result.summary
     assert "not part of the deployed 27-feature forecast model" in result.summary
     event_recommendation = next(
@@ -429,3 +443,24 @@ def test_forecast_summary_includes_reserved_business_events():
     assert "Bread Roll and Stickbread" in event_recommendation.action
     assert "first 1-2 trading days" in event_recommendation.action
     assert event_recommendation.evidence_ids == ["business_events_active"]
+
+
+def test_single_business_event_summary_uses_singular_reserved_scenario_wording():
+    from s5_agent.graph.builder import _business_event_summary_sentence
+
+    summary = _business_event_summary_sentence(
+        [
+            {
+                "event_type": "competitor_activity",
+                "start_date": "2026-07-08",
+                "end_date": "2026-07-10",
+                "products": ["sourdough"],
+                "discount_pct": 25.0,
+                "active": True,
+            }
+        ]
+    )
+
+    assert "One planned business event is active" in summary
+    assert "This business event is a reserved scenario input" in summary
+    assert "These business events are reserved scenario inputs" not in summary

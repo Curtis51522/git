@@ -214,6 +214,24 @@ def _get_product_bounds():
             logger.warning("product_bounds.json not found")
     return _product_bounds
 
+
+def _build_interval_context(prediction: float, lower_bound: int, upper_bound: int) -> dict:
+    interval_width = max(upper_bound - lower_bound, 0)
+    rounded_prediction = max(float(round(prediction)), 1.0)
+    relative_width = round(interval_width / rounded_prediction, 3)
+    if interval_width <= 1 or relative_width <= 0.5 or (rounded_prediction <= 3 and interval_width <= 2):
+        uncertainty_level = "low"
+    else:
+        uncertainty_level = "high"
+    return {
+        "q50": round(float(prediction), 3),
+        "interval_width": interval_width,
+        "relative_width": relative_width,
+        "uncertainty_level": uncertainty_level,
+        "interval_method": "Conformal 80%",
+    }
+
+
 def get_available_products() -> list:
     path = os.path.join(MODEL_DIR, "quantile_model_q50.pkl")
     if os.path.exists(path):
@@ -626,6 +644,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 pred = float(corrected["q50"][0])
                 lower_bound = max(0, round(pred - half_width))
                 upper_bound = max(lower_bound, round(pred + half_width))
+                interval_context = _build_interval_context(pred, lower_bound, upper_bound)
             except Exception as e:
                 err_msg = f"Prediction failed for {prod} on {forecast_date.strftime('%Y-%m-%d')}: {e}"
                 logger.warning(err_msg)
@@ -633,6 +652,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 pred = 0.0
                 lower_bound = 0
                 upper_bound = 0
+                interval_context = _build_interval_context(pred, lower_bound, upper_bound)
 
             forecasts.append(SalesForecast(
                 forecast_date=forecast_date.strftime("%Y-%m-%d"),
@@ -641,6 +661,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 predicted_demand=round(pred),
                 lower_bound=lower_bound,
                 upper_bound=upper_bound,
+                **interval_context,
                 confidence="Conformal 80%",
                 unit_price=unit_prices.get(prod, 0.0),
             ))
@@ -671,11 +692,12 @@ async def get_forecast(
 async def refresh_forecast(
     product: Optional[str] = Query(None),
     days: int = Query(7, ge=1, le=7),
+    date: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
 ):
     """Force-refresh forecast, bypassing cache."""
 
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_executor, _do_forecast, product, days, False)
+    return await loop.run_in_executor(_executor, _do_forecast, product, days, False, date)
 
 @router.get("/sales_history")
 async def get_sales_history(days: int = Query(30, ge=1, le=90)):
