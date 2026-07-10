@@ -1,6 +1,7 @@
 # Secrets & environment
 .env
 .venv/
+.worktrees/
 
 # Python cache
 __pycache__/
