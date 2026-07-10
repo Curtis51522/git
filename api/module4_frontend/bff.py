@@ -2,7 +2,12 @@
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
+import json
+import logging
 import sys, os
+
+import httpx
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config import settings as cfg
 from db.mysql_client import get_db, q
@@ -13,6 +18,7 @@ from models.schemas import (
 
 router = APIRouter(prefix="/s4", tags=["Module 4 - BFF"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger("s4.bff")
 
 COFFEE_BREAD_PAIRS = {
     "Latte": ["Croissant","Danish"],
@@ -23,6 +29,53 @@ COFFEE_BREAD_PAIRS = {
     "Flat White": ["Croissant","Muffin"],
     "Mocha": ["Donut","Cinnamon Roll"],
 }
+
+
+def _discount_rate(value):
+    try:
+        return min(max(float(value), 0.0), 0.5)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _resolve_checkout_discount(item, allowed_dynamic, freshness_rate):
+    requested_rate = _discount_rate(item.get("discount_rate"))
+    allowed_rate = _discount_rate((allowed_dynamic or {}).get("discount_pct", 0) / 100)
+    dynamic_rate = min(requested_rate, allowed_rate)
+    freshness_rate = _discount_rate(freshness_rate)
+    if dynamic_rate > freshness_rate:
+        return {
+            "rate": dynamic_rate,
+            "source": str((allowed_dynamic or {}).get("source") or "s5_dynamic"),
+            "strategy": str((allowed_dynamic or {}).get("strategy") or ""),
+            "reason": str((allowed_dynamic or {}).get("reason") or "Validated S5 discount"),
+        }
+    if freshness_rate > 0:
+        return {
+            "rate": freshness_rate,
+            "source": "freshness",
+            "strategy": "clearance",
+            "reason": "Freshness-based discount",
+        }
+    return {"rate": 0.0, "source": "none", "strategy": "", "reason": ""}
+
+
+async def _fetch_validated_dynamic_discounts(items):
+    products = list(dict.fromkeys(
+        item.get("product_name", "")
+        for item in items
+        if item.get("product_name") and _discount_rate(item.get("discount_rate")) > 0
+    ))
+    if not products:
+        return {}
+    try:
+        async with httpx.AsyncClient(timeout=cfg.S5_DISCOUNT_TIMEOUT_SECONDS) as client:
+            response = await client.post(cfg.S5_DISCOUNT_URL, json={"products": products})
+            response.raise_for_status()
+            return response.json().get("discounts", {})
+    except Exception as exc:
+        logger.warning("Dynamic discount validation failed: %s", exc)
+        raise HTTPException(503, "Dynamic discount validation unavailable") from exc
 
 
 # ======================================================================
@@ -487,6 +540,20 @@ async def checkout_complete(payload: dict):
             "receipt": None,
             "message": f"Checkout rejected: unknown products {unknown_items}",
         }
+
+    from api.freshness_service import get_discount_rate
+
+    validated_dynamic_discounts = await _fetch_validated_dynamic_discounts(items)
+    resolved_discounts = []
+    for item in items:
+        freshness = item.get("freshness", "Fresh")
+        freshness_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+        resolved_discounts.append(_resolve_checkout_discount(
+            item=item,
+            allowed_dynamic=validated_dynamic_discounts.get(item.get("product_name", ""), {}),
+            freshness_rate=freshness_rate,
+        ))
+
     # Deduct bakery items via FIFO
     result = None
     if bakery_items:
@@ -536,14 +603,12 @@ async def checkout_complete(payload: dict):
 
     # ---- Build receipt ----
     prices = get_product_prices()
-    costs = get_product_costs()
-    from api.freshness_service import get_discount_rate
     
     receipt_items = []
     subtotal = 0.0
     discount_total = 0.0
     
-    for item in items:
+    for item_index, item in enumerate(items):
         pn = item.get("product_name", "")
         qty = item.get("quantity", 1)
         freshness = item.get("freshness", "Fresh")
@@ -551,7 +616,8 @@ async def checkout_complete(payload: dict):
         size = item.get("size", "Regular")
         if size == "Large" and pn in COFFEE_KEYS:
             unit_price += 3.0
-        discount_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+        resolved_discount = resolved_discounts[item_index]
+        discount_rate = resolved_discount["rate"]
         line_total = unit_price * qty
         line_discount = line_total * discount_rate
         line_final = line_total - line_discount
@@ -563,6 +629,9 @@ async def checkout_complete(payload: dict):
             "discount_pct": int(discount_rate * 100),
             "discount_amount": round(line_discount, 2),
             "line_total": round(line_final, 2),
+            "discount_source": resolved_discount["source"],
+            "discount_strategy": resolved_discount["strategy"],
+            "discount_reason": resolved_discount["reason"],
         })
         subtotal += line_total
         discount_total += line_discount
@@ -599,15 +668,14 @@ async def checkout_complete(payload: dict):
         order_cost = 0.0
         order_item_count = 0
     
-        for item in items:
+        for item_index, item in enumerate(items):
             pn = item.get("product_name","")
             qty = item.get("quantity", 1)
             uprice = prices.get(pn, 5.0)
             mat_cost = cost_map.get(pn, uprice * 0.30)
             wastage_pct = wastage_map.get(pn, 0.03)
             actual_cost = mat_cost * (1 + wastage_pct)
-            freshness = item.get("freshness", "Fresh")
-            disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+            disc_rate = resolved_discounts[item_index]["rate"]
             line_total = uprice * qty
             line_disc = line_total * disc_rate
             line_final = line_total - line_disc
@@ -633,7 +701,7 @@ async def checkout_complete(payload: dict):
         order_id = cur.lastrowid
     
         # INSERT order_items
-        for item in items:
+        for item_index, item in enumerate(items):
             pn = item.get("product_name","")
             qty = item.get("quantity", 1)
             uprice = prices.get(pn, 5.0)
@@ -641,7 +709,7 @@ async def checkout_complete(payload: dict):
             wastage_pct = wastage_map.get(pn, 0.03)
             actual_cost = mat_cost * (1 + wastage_pct)
             freshness = item.get("freshness", "Fresh")
-            disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+            disc_rate = resolved_discounts[item_index]["rate"]
             line_total = uprice * qty
             line_disc = line_total * disc_rate
             line_final = line_total - line_disc
@@ -658,20 +726,32 @@ async def checkout_complete(payload: dict):
 
             # Deduct raw materials
             cur.execute(
-                "SELECT material_name, quantity_per_unit FROM product_recipes WHERE product_name = %s",
+                """
+                SELECT pr.material_name, pr.quantity_per_unit, rm.unit, rm.category
+                FROM product_recipes pr
+                LEFT JOIN raw_materials rm ON rm.material_name = pr.material_name
+                WHERE pr.product_name = %s
+                """,
                 (pn,)
             )
             for mat_row in cur.fetchall():
                 mat_name = mat_row[0]
                 used_qty = round(float(mat_row[1]) * qty, 6)
-                actual_used_qty = round(used_qty * (1 + wastage_pct), 6)
+                material_unit = mat_row[2]
+                material_category = mat_row[3] or ""
+                if not material_unit:
+                    raise HTTPException(status_code=500, detail=f"Missing raw material unit for {mat_name}")
+                if material_unit == "pcs" or material_category == "packaging":
+                    actual_used_qty = used_qty
+                else:
+                    actual_used_qty = round(used_qty * (1 + wastage_pct), 6)
                 cur.execute(
                     "UPDATE raw_materials SET stock_quantity = stock_quantity - %s WHERE material_name = %s",
                     (actual_used_qty, mat_name)
                 )
                 cur.execute(
                     "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                    (mat_name, 'outflow', actual_used_qty, 'kg', receipt_id)
+                    (mat_name, "outflow", actual_used_qty, material_unit, receipt_id)
                 )
 
         # Deduct packaging materials for takeaway
@@ -737,6 +817,19 @@ async def checkout_complete(payload: dict):
             "savings": round(savings, 2),
             "order_id": order_id,
         }
+
+        cur.execute(
+            "INSERT INTO receipts (receipt_id, items, subtotal, discount_total, total, savings) VALUES (%s,%s,%s,%s,%s,%s)",
+            (
+                receipt_id,
+                json.dumps(receipt_items, separators=(",", ":")),
+                round(subtotal, 2),
+                round(discount_total, 2),
+                round(total, 2),
+                round(savings, 2),
+            ),
+        )
+        db.commit()
 
         return {
             "status": status,
@@ -1441,12 +1534,27 @@ async def inventory_check_history(material_name: str = None, limit: int = 30):
     cur = db.cursor()
     if material_name:
         cur.execute(
-            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log WHERE material_name = %s ORDER BY id DESC LIMIT %s",
+            """
+            SELECT mw.id, mw.material_name, mw.check_date, mw.theoretical_stock, mw.actual_stock,
+                   mw.theoretical_consumed, mw.actual_consumed, mw.wastage_qty, mw.wastage_rate,
+                   mw.created_at, rm.unit
+            FROM material_wastage_log mw
+            JOIN raw_materials rm ON rm.material_name = mw.material_name
+            WHERE mw.material_name = %s
+            ORDER BY mw.id DESC LIMIT %s
+            """,
             (material_name, limit)
         )
     else:
         cur.execute(
-            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log ORDER BY id DESC LIMIT %s",
+            """
+            SELECT mw.id, mw.material_name, mw.check_date, mw.theoretical_stock, mw.actual_stock,
+                   mw.theoretical_consumed, mw.actual_consumed, mw.wastage_qty, mw.wastage_rate,
+                   mw.created_at, rm.unit
+            FROM material_wastage_log mw
+            JOIN raw_materials rm ON rm.material_name = mw.material_name
+            ORDER BY mw.id DESC LIMIT %s
+            """,
             (limit,)
         )
     rows = cur.fetchall()
@@ -1463,6 +1571,7 @@ async def inventory_check_history(material_name: str = None, limit: int = 30):
             "wastage_qty": float(r[7]),
             "wastage_rate": float(r[8]),
             "created_at": str(r[9]) if r[9] else "",
+            "unit": r[10],
         })
     return {"status": "ok", "history": history}
 
@@ -1731,8 +1840,9 @@ async def wastage_summary(date: str = ""):
     cur = db.cursor()
     if date:
         cur.execute("""
-            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
+            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date, rm.unit
             FROM material_wastage_log m1
+            JOIN raw_materials rm ON rm.material_name = m1.material_name
             INNER JOIN (
                 SELECT mw.material_name, MAX(mw.id) as max_id
                 FROM material_wastage_log mw
@@ -1747,8 +1857,9 @@ async def wastage_summary(date: str = ""):
         """, (date,))
     else:
         cur.execute("""
-            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
+            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date, rm.unit
             FROM material_wastage_log m1
+            JOIN raw_materials rm ON rm.material_name = m1.material_name
             INNER JOIN (
                 SELECT material_name, MAX(id) as max_id
                 FROM material_wastage_log
@@ -1764,6 +1875,7 @@ async def wastage_summary(date: str = ""):
             "wastage_qty": float(r[2]),
             "wastage_rate": float(r[3]),
             "check_date": str(r[4]),
+            "unit": r[5],
         })
     return {"status": "ok", "date": date, "summary": summary}
 @router.post("/inventory/restock")

@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date, timedelta
 
 from api import module3_scheduling as s3
 
@@ -69,6 +70,7 @@ def test_seed_for_start_date_is_stable_across_calls():
 
 
 def test_swap_fetches_shifts_before_skill_validation(monkeypatch):
+    future_date = (date.today() + timedelta(days=1)).isoformat()
     employees = [
         s3.Employee(id="E001", name="Alice", role="baker"),
         s3.Employee(id="E002", name="Bob", role="baker"),
@@ -76,7 +78,7 @@ def test_swap_fetches_shifts_before_skill_validation(monkeypatch):
     rows = [
         {
             "id": 1,
-            "schedule_date": "2026-07-09",
+            "schedule_date": future_date,
             "time_slot": "06:00-13:00",
             "employee_id": "E001",
             "employee_name": "Alice",
@@ -84,7 +86,7 @@ def test_swap_fetches_shifts_before_skill_validation(monkeypatch):
         },
         {
             "id": 2,
-            "schedule_date": "2026-07-09",
+            "schedule_date": future_date,
             "time_slot": "12:00-19:00",
             "employee_id": "E002",
             "employee_name": "Bob",
@@ -97,12 +99,30 @@ def test_swap_fetches_shifts_before_skill_validation(monkeypatch):
     monkeypatch.setattr(s3, "q", lambda *_args, **_kwargs: FakeQuery(rows))
 
     result = asyncio.run(s3.swap_employees({
-        "date": "2026-07-09",
+        "date": future_date,
         "time_slot": "06:00-13:00",
         "from_employee_id": "E001",
         "to_employee_id": "E002",
-        "to_date": "2026-07-09",
+        "to_date": future_date,
         "to_time_slot": "12:00-19:00",
     }))
 
     assert result["status"] == "ok"
+
+
+def test_swap_rejects_past_schedule_date():
+    past_date = (date.today() - timedelta(days=1)).isoformat()
+
+    result = asyncio.run(s3.swap_employees({
+        "date": past_date,
+        "time_slot": "06:00-13:00",
+        "from_employee_id": "E001",
+        "to_employee_id": "E002",
+        "to_date": past_date,
+        "to_time_slot": "12:00-19:00",
+    }))
+
+    assert result == {
+        "status": "error",
+        "message": "Cannot modify past schedules. Select today or a future date.",
+    }

@@ -14,7 +14,7 @@ class FakeCursor:
 
     def fetchall(self):
         return [
-            ("Bread Flour", 1.25, 0.02, 0.016, "2026-07-02"),
+            ("Bread Flour", 1.25, 0.02, 0.016, "2026-07-02", "kg"),
         ]
 
 
@@ -37,4 +37,6 @@ def test_wastage_summary_uses_selected_date(monkeypatch):
     assert fake_db.cursor_instance.executed_params == ("2026-07-02",)
     assert "check_date <= %s" in fake_db.cursor_instance.executed_sql
     assert "MAX(mw.id)" in fake_db.cursor_instance.executed_sql
+    assert "JOIN raw_materials rm ON rm.material_name = m1.material_name" in fake_db.cursor_instance.executed_sql
     assert result["summary"][0]["check_date"] == "2026-07-02"
+    assert result["summary"][0]["unit"] == "kg"

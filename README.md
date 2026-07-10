@@ -24,35 +24,46 @@ Scope: 30 bread and pastry products, 15 beverage menu items, 10 employees, and 2
 
 ### Setup
 
-```bash
+```powershell
 git clone https://github.com/Curtis51522/git.git
 cd git
-pip install -r requirements.txt
-cp .env.example .env
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+copy .env.example .env
 ```
 
 Edit `.env` with database credentials and API keys.
 
-Start the main server:
+Start the full local system:
 
-```bash
-python main.py
+```powershell
+.\start_all.bat
 ```
 
 Open:
 
 ```text
-http://localhost:8002
+http://127.0.0.1:8002
 ```
 
 The main server proxies S5 requests from `/s5/*` to the S5 analysis service on port `8001`.
 
 ### S5 Service
 
-Start S5 separately when running the full dashboard analysis flow:
+The full dashboard analysis flow requires both servers:
 
-```bash
-python -m s5_agent.server
+| Script | Purpose |
+| --- | --- |
+| `start_all.bat` | Starts the S5 service on `127.0.0.1:8001` and the main server on `127.0.0.1:8002` |
+| `start.bat` | Starts only the main server from `.venv` |
+| `start_s5.bat` | Starts only the S5 LangGraph service from `.venv` |
+
+For manual startup, use the same project virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m s5_agent.server
+.\.venv\Scripts\python.exe main.py
 ```
 
 S5 endpoints:

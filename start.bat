@@ -10,5 +10,5 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-echo Starting S5 LangGraph service on 127.0.0.1:8001...
-".venv\Scripts\python.exe" -m s5_agent.server
+echo Starting Bakery AI main server on 127.0.0.1:8002...
+".venv\Scripts\python.exe" main.py

@@ -1,0 +1,78 @@
+from pathlib import Path
+
+
+INDEX_HTML = Path("api/module4_frontend/static/index.html")
+BFF_SOURCE = Path("api/module4_frontend/bff.py")
+
+
+def _function_source(html, name, next_name):
+    start = html.index(name)
+    end = html.index(next_name, start)
+    return html[start:end]
+
+
+def test_checkout_discount_is_clamped_to_server_validated_rate():
+    from api.module4_frontend.bff import _resolve_checkout_discount
+
+    resolved = _resolve_checkout_discount(
+        item={"discount_rate": 0.25},
+        allowed_dynamic={
+            "discount_pct": 12,
+            "source": "live_policy",
+            "strategy": "diversify",
+            "reason": "Live inventory pressure",
+        },
+        freshness_rate=0.0,
+    )
+
+    assert resolved == {
+        "rate": 0.12,
+        "source": "live_policy",
+        "strategy": "diversify",
+        "reason": "Live inventory pressure",
+    }
+
+
+def test_freshness_discount_wins_when_dynamic_rate_is_lower():
+    from api.module4_frontend.bff import _resolve_checkout_discount
+
+    resolved = _resolve_checkout_discount(
+        item={"discount_rate": 0.12},
+        allowed_dynamic={"discount_pct": 12, "source": "live_policy"},
+        freshness_rate=0.2,
+    )
+
+    assert resolved["rate"] == 0.2
+    assert resolved["source"] == "freshness"
+
+
+def test_frontend_carries_dynamic_discount_metadata_to_checkout():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    confirm_payment = _function_source(html, "async function confirmPayment()", "function showReceipt")
+    legacy_checkout = _function_source(html, "async function checkout()", "async function generateBundle")
+
+    for source in (confirm_payment, legacy_checkout):
+        assert "discount_rate:ci.discount_rate||0" in source
+        assert "discount_source:ci.discount_source||''" in source
+        assert "discount_strategy:ci.discount_strategy||''" in source
+        assert "discount_reason:ci.discount_reason||''" in source
+
+
+def test_checkout_persists_applied_discount_in_order_items_and_receipt_json():
+    source = BFF_SOURCE.read_text(encoding="utf-8")
+
+    assert "_fetch_validated_dynamic_discounts" in source
+    assert "_resolve_checkout_discount" in source
+    assert '"discount_source": resolved_discount["source"]' in source
+    assert '"discount_strategy": resolved_discount["strategy"]' in source
+    assert "INSERT INTO receipts" in source
+    assert "json.dumps(receipt_items" in source
+
+
+def test_receipt_renders_applied_discount_rate_and_source():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    show_receipt = _function_source(html, "function showReceipt", "function closePaymentModal")
+
+    assert "it.discount_pct>0" in show_receipt
+    assert "it.discount_source" in show_receipt
+    assert "t(\"Discount\")" in show_receipt

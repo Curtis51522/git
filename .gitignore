@@ -88,7 +88,6 @@ api/module4_frontend/static/test_*.html
 api/module4_frontend/static/_full.js
 migration.sql
 schema.sql
-start.bat
 =
 docs/*
 !docs/s5_promotion_mix_design.md

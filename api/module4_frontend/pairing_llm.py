@@ -9,7 +9,12 @@ Fallback: hardcoded matrix if DeepSeek unavailable.
 
 import json
 import logging
-import httpx, os
+import os
+
+import httpx
+
+
+PAIRING_LLM_TIMEOUT_SECONDS = 5
 
 def _call_deepseek(prompt: str, system: str = "", max_tokens: int = 2000) -> str:
     key = os.getenv("DEEPSEEK_API_KEY", "")
@@ -24,7 +29,7 @@ def _call_deepseek(prompt: str, system: str = "", max_tokens: int = 2000) -> str
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         json={"model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"), "messages": messages,
               "max_tokens": max_tokens, "temperature": 0.3},
-        timeout=30)
+        timeout=PAIRING_LLM_TIMEOUT_SECONDS)
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
 
@@ -56,8 +61,6 @@ def _get_bakery():
     if _BAKERY_CACHE is None:
         _BAKERY_CACHE = _load_bakery_products()
     return _BAKERY_CACHE
-BAKERY = None  # Use _get_bakery() instead
-
 def _load_coffee_products():
     """Load all beverage products from DB for pairing matrix generation."""
     import sys, os
@@ -81,8 +84,6 @@ def _get_coffee():
     if _COFFEE_CACHE is None:
         _COFFEE_CACHE = _load_coffee_products()
     return _COFFEE_CACHE
-COFFEE = None  # Use _get_coffee() instead
-
 # Hardcoded fallback matrix
 def _build_fallback_matrix():
     """Build a knowledge-based pairing matrix using real food pairing principles.
@@ -227,7 +228,7 @@ def _build_pairing_prompt() -> str:
     lines.append("\nReturn JSON like:")
     example = {}
     for b in _get_bakery()[:2]:
-        example[b["key"]] = {c["key"]: 0.5 for c in COFFEE[:2]}
+        example[b["key"]] = {c["key"]: 0.5 for c in _get_coffee()[:2]}
     lines.append(json.dumps(example, indent=2))
     lines.append("\nInclude ALL breads and ALL coffees listed above. Scores must be 0.0-1.0.")
     return "\n".join(lines)

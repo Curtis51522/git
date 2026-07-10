@@ -15,7 +15,7 @@ The key point is that the system does not treat AI as a black box. S1 to S4 hand
 Open the web application at:
 
 ```text
-http://localhost:8002
+http://127.0.0.1:8002
 ```
 
 Log in as the manager account to show the full dashboard. Explain that staff accounts focus on POS workflows, while manager accounts can access revenue, forecast, schedule, inventory, and S5 analysis features.
