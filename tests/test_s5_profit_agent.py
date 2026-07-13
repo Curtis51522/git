@@ -51,3 +51,24 @@ def test_profit_agent_healthy_day_explains_revenue_without_unsupported_waste_cla
         "order_volume",
         "average_order_value",
     }
+
+
+def test_profit_agent_exposes_non_sellable_return_cost_in_profit_evidence():
+    agent = ProfitAgent("ProfitAgent")
+    raw = {
+        "data": {
+            "today_revenue": 1000.0,
+            "today_profit": 140.0,
+            "today_orders": 20,
+            "discount_total": 0.0,
+            "non_sellable_return_cost": 10.0,
+        }
+    }
+
+    output = agent.analyze_for_graph(raw, {"date": "2026-07-07", "product": "all"})
+    evidence_ids = {item.id for item in output.evidence_items}
+
+    assert output.metrics["non_sellable_return_cost"] == 10.0
+    assert "non_sellable_return_cost" in evidence_ids
+    assert "Non-sellable return cost of ¥10.00 is included in profit" in output.claim
+    assert "broader production waste is not included" in output.claim

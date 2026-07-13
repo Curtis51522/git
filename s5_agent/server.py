@@ -11,7 +11,7 @@ _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -136,7 +136,10 @@ def _build_priority_recommendations(context: str) -> list:
     return priorities[:3]
 
 @app.post("/analyze/module")
-async def analyze_module(req: ModuleAnalyzeRequest):
+async def analyze_module(
+    req: ModuleAnalyzeRequest,
+    authorization: str | None = Header(default=None),
+):
     lang = _normalize_lang(req.lang)
     module = (req.module or "").strip().lower()
     if module not in LANGGRAPH_MODULES:
@@ -150,6 +153,9 @@ async def analyze_module(req: ModuleAnalyzeRequest):
         "product": "all",
         **(req.params or {}),
     }
+    graph_params.pop("_authorization", None)
+    if authorization:
+        graph_params["_authorization"] = authorization
     graph_request = S5Request(
         query=module,
         module=module,

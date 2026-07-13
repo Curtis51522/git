@@ -18,8 +18,8 @@ Scope: 30 bread and pastry products, 15 beverage menu items, 10 employees, and 2
 
 ### Prerequisites
 
-- Python 3.11+
-- MySQL 8.0+
+- Python 3.13
+- MySQL Community Server 8.4 LTS
 - API keys for DeepSeek and VisualCrossing, if live LLM/weather paths are used
 
 ### Setup
@@ -27,13 +27,33 @@ Scope: 30 bread and pastry products, 15 beverage menu items, 10 employees, and 2
 ```powershell
 git clone https://github.com/Curtis51522/git.git
 cd git
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$venv = Join-Path $env:LOCALAPPDATA "BakeryAI\venv313"
+py -3.13 -m venv $venv
+& "$venv\Scripts\python.exe" -m pip install --upgrade pip
+& "$venv\Scripts\python.exe" -m pip install -r requirements.txt
 copy .env.example .env
 ```
 
 Edit `.env` with database credentials and API keys.
+
+Create the application database from the canonical structure-only schema before
+the first run. Import `schema.sql` through MySQL Workbench, or run this from
+Command Prompt when the MySQL client is available on `PATH`:
+
+```bat
+mysql --host=127.0.0.1 --port=3307 --user=root -p < schema.sql
+```
+
+The schema creates the `bakery_ai` database and its 19 runtime tables. It does
+not contain operational records or seed data.
+
+For development and test work, install the development manifest instead of the runtime-only manifest:
+
+```powershell
+& "$venv\Scripts\python.exe" -m pip install -r requirements-dev.txt
+```
+
+`requirements-s5.txt` remains a compatibility entry point and delegates to the same unified runtime manifest.
 
 Start the full local system:
 
@@ -56,14 +76,15 @@ The full dashboard analysis flow requires both servers:
 | Script | Purpose |
 | --- | --- |
 | `start_all.bat` | Starts the S5 service on `127.0.0.1:8001` and the main server on `127.0.0.1:8002` |
-| `start.bat` | Starts only the main server from `.venv` |
-| `start_s5.bat` | Starts only the S5 LangGraph service from `.venv` |
+| `start.bat` | Starts only the main server with the Python 3.13 project runtime |
+| `start_s5.bat` | Starts only the S5 LangGraph service with the Python 3.13 project runtime |
 
 For manual startup, use the same project virtual environment:
 
 ```powershell
-.\.venv\Scripts\python.exe -m s5_agent.server
-.\.venv\Scripts\python.exe main.py
+$venv = Join-Path $env:LOCALAPPDATA "BakeryAI\venv313"
+& "$venv\Scripts\python.exe" -m s5_agent.server
+& "$venv\Scripts\python.exe" main.py
 ```
 
 S5 endpoints:
@@ -147,12 +168,19 @@ The frontend uses:
 
 S5 analysis text is escaped before being inserted into HTML in the dashboard analysis component.
 
-## Default Accounts
+## Local Demo Accounts
 
-| Role | Username | Password |
+The runtime never creates tables or seed records during import. `schema.sql` is
+the only authoritative database structure, and operational data is restored
+separately. The final local database stores BCrypt password hashes for these
+demonstration accounts:
+
+| Username | Password | Role |
 | --- | --- | --- |
-| Manager | manager | hash123 |
-| Staff | staff1 | hash123 |
+| `manager` | `bakeryM123` | Manager |
+| `staff1` | `bakeryS123` | Staff |
+
+Production mode requires a non-empty `JWT_SECRET` containing at least 32 bytes.
 
 ## Key Design Decisions
 

@@ -1,7 +1,8 @@
-import os, sys, logging, httpx
+import os, sys, logging
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.core.tool import Tool
 from s5_agent.s5_config.settings import THRESHOLDS
 logger = logging.getLogger("s5.agent.promo")
@@ -13,19 +14,26 @@ class PromoAgent(BaseAgent):
         self.tools.register(Tool(name="get_discount_impact", description="Get discount impact on revenue",
             parameters={"date": "string"}, primary=False, _handler=self._get_discount))
 
-    async def _get_promos(self, date: str = ""):
+    async def _get_promos(self, date: str = "", authorization: str = ""):
         try:
-            async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get("http://127.0.0.1:8002/s4/revenue/daily" + (f"?date={date}" if date else ""))
-                if r.status_code == 200:
-                    d = r.json()
-                    data = d.get("data", {})
-                    disc = data.get("today_discount", 0)
-                    rev = data.get("today_revenue", 1)
-                    return {"active_promos": 1 if disc > 0 else 0, "total_discount": disc, "discount_rate": disc/max(rev,1)}
+            url = "http://127.0.0.1:8002/s4/revenue/daily" + (f"?date={date}" if date else "")
+            payload = fetch_dashboard_json(
+                url,
+                {"_authorization": authorization},
+            )
+            data = payload.get("data", {})
+            disc = data.get("today_discount", 0)
+            rev = data.get("today_revenue", 1)
+            return {"active_promos": 1 if disc > 0 else 0, "total_discount": disc, "discount_rate": disc/max(rev,1)}
         except Exception as e:
             logger.warning("Promo fetch failed: %s", e)
         return {"active_promos": 0, "total_discount": 0, "discount_rate": 0}
+
+    async def fetch(self, params):
+        date = str(params.get("date", "")) if isinstance(params, dict) else ""
+        authorization = str(params.get("_authorization", "")) if isinstance(params, dict) else ""
+        data = await self._get_promos(date, authorization)
+        return {"success": True, "data": data, "tool": "revenue_dashboard"}
 
     async def _get_discount(self, date: str = ""):
         return await self._get_promos(date)

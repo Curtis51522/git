@@ -1,7 +1,4 @@
-import json
 import os, sys, logging
-from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
 
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
@@ -9,6 +6,7 @@ from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 logger = logging.getLogger("s5.agent.forecast_accuracy")
 
 
@@ -23,7 +21,7 @@ class ForecastAccuracyAgent(BaseAgent):
         return _query_accuracy()
 
     async def fetch(self, params):
-        data = _query_accuracy()
+        data = _query_accuracy(params)
         return {"success": True, "data": data, "tool": "forecast_accuracy"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
@@ -103,13 +101,13 @@ class ForecastAccuracyAgent(BaseAgent):
         )
 
 
-def _query_accuracy():
+def _query_accuracy(params=None):
     try:
-        with urlopen("http://127.0.0.1:8002/s2/accuracy", timeout=10) as response:
-            if response.status != 200:
-                return {"overall": {}}
-            payload = json.loads(response.read().decode("utf-8"))
-            return payload.get("metrics", {})
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as e:
+        payload = fetch_dashboard_json(
+            "http://127.0.0.1:8002/s2/accuracy",
+            params or {},
+        )
+        return payload.get("metrics", {})
+    except (OSError, TimeoutError, ValueError) as e:
         logger.warning("ForecastAccuracy fetch failed: %s", e)
         return {"overall": {}}

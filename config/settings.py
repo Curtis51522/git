@@ -1,12 +1,20 @@
 import os
+import secrets
 from dotenv import load_dotenv
 from s2_forecasting.feature_contract import FORECAST_FEATURES
 load_dotenv()
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
+BAKERY_ENV = os.getenv("BAKERY_ENV", "development").strip().lower()
+_JWT_SECRET_FROM_ENV = os.getenv("JWT_SECRET", "").strip()
+JWT_SECRET_IS_EPHEMERAL = not bool(_JWT_SECRET_FROM_ENV)
+JWT_SECRET = _JWT_SECRET_FROM_ENV or secrets.token_urlsafe(48)
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 480
+ALLOW_LEGACY_PLAINTEXT_LOGIN = os.getenv(
+    "BAKERY_ALLOW_LEGACY_PLAINTEXT_LOGIN",
+    "0",
+) == "1"
 S5_DISCOUNT_URL = os.getenv("S5_DISCOUNT_URL", "http://127.0.0.1:8001/discounts")
 S5_DISCOUNT_TIMEOUT_SECONDS = float(os.getenv("S5_DISCOUNT_TIMEOUT_SECONDS", "5"))
 YOLO_MODEL_PATH = "models/yolo/best.pt"

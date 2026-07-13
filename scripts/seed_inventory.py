@@ -1,33 +1,150 @@
-﻿import sys, os
-SCRIPT_DIR = os.path.dirname(os.path.abspath(r"C:\Users\Curtis\Desktop\learningmaterials\SEMESTER3\bakery-ai-system\scripts\seed_inventory.py"))
-sys.path.insert(0, os.path.dirname(SCRIPT_DIR))
-from db.mysql_client import get_db
+"""Explicit, transaction-safe inventory seed command."""
+
+from __future__ import annotations
+
+import argparse
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
-db = get_db(); cur = db.cursor()
-cur.execute("DELETE FROM batch_inventory")
-cur.execute("DELETE FROM inventory_transactions")
-print("Cleared")
 
-cur.execute("SELECT product_name FROM products WHERE category='bakery'")
-breads = [r[0] for r in cur.fetchall()]
-print(f"Seeding {len(breads)} breads")
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
-today = datetime.now().strftime("%Y%m%d")
+from db.mysql_client import DB_CONFIG, get_db
 
-for b in breads:
-    fid = f"BATCH-{b}-F-{today}"
-    cur.execute("INSERT INTO batch_inventory (batch_id,product_name,quantity,production_time,tray_color,freshness_status,quantity_initial,quantity_remaining,sales_area) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(fid,b,20,now,"green","Fresh",20,20,"Fresh Area"))
-    cur.execute("INSERT INTO inventory_transactions (batch_id,product_name,quantity,transaction_type,freshness_status,unit_price) VALUES (%s,%s,%s,%s,%s,%s)",(fid,b,20,"inflow","Fresh",0))
-    did = f"BATCH-{b}-D1-{today}"
-    cur.execute("INSERT INTO batch_inventory (batch_id,product_name,quantity,production_time,tray_color,freshness_status,quantity_initial,quantity_remaining,sales_area) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",(did,b,5,yesterday,"orange","Day-1",5,5,"Day-1 Area"))
-    cur.execute("INSERT INTO inventory_transactions (batch_id,product_name,quantity,transaction_type,freshness_status,unit_price) VALUES (%s,%s,%s,%s,%s,%s)",(did,b,5,"inflow","Day-1",0))
 
-db.commit()
-cur.execute("SELECT COUNT(*) FROM batch_inventory")
-print(f"Rows: {cur.fetchone()[0]}")
-cur.execute("SELECT freshness_status,SUM(quantity_remaining) FROM batch_inventory GROUP BY freshness_status")
-for r in cur.fetchall(): print(f"  {r[0]}: {r[1]}")
-print("Done")
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Replace finished-goods inventory with explicit demo seed data."
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply the destructive inventory replacement.",
+    )
+    parser.add_argument(
+        "--confirm-database",
+        default="",
+        help="Database name that must exactly match the configured target.",
+    )
+    parser.add_argument("--fresh-quantity", type=int, default=20)
+    parser.add_argument("--day1-quantity", type=int, default=5)
+    return parser, parser.parse_args(argv)
+
+
+def seed_inventory(db, fresh_quantity=20, day1_quantity=5):
+    if fresh_quantity < 0 or day1_quantity < 0:
+        raise ValueError("Seed quantities must be non-negative")
+
+    cursor = db.cursor()
+    try:
+        cursor.execute("DELETE FROM batch_inventory")
+        cursor.execute("DELETE FROM inventory_transactions")
+        cursor.execute(
+            "SELECT product_name FROM products WHERE category = 'bakery' "
+            "ORDER BY product_name"
+        )
+        products = [row[0] for row in cursor.fetchall()]
+
+        current = datetime.now()
+        current_text = current.strftime("%Y-%m-%d %H:%M:%S")
+        previous_text = (current - timedelta(days=1)).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        date_key = current.strftime("%Y%m%d")
+
+        for product_name in products:
+            rows = (
+                (
+                    f"BATCH-{product_name}-F-{date_key}",
+                    fresh_quantity,
+                    current_text,
+                    "green",
+                    "Fresh",
+                    "Fresh Area",
+                ),
+                (
+                    f"BATCH-{product_name}-D1-{date_key}",
+                    day1_quantity,
+                    previous_text,
+                    "orange",
+                    "Day-1",
+                    "Day-1 Area",
+                ),
+            )
+            for batch_id, quantity, produced_at, color, freshness, area in rows:
+                cursor.execute(
+                    "INSERT INTO batch_inventory "
+                    "(batch_id, product_name, quantity, production_time, "
+                    "tray_color, freshness_status, quantity_initial, "
+                    "quantity_remaining, sales_area) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        batch_id,
+                        product_name,
+                        quantity,
+                        produced_at,
+                        color,
+                        freshness,
+                        quantity,
+                        quantity,
+                        area,
+                    ),
+                )
+                cursor.execute(
+                    "INSERT INTO inventory_transactions "
+                    "(batch_id, product_name, quantity, transaction_type, "
+                    "freshness_status, unit_price) VALUES (%s,%s,%s,%s,%s,%s)",
+                    (
+                        batch_id,
+                        product_name,
+                        quantity,
+                        "inflow",
+                        freshness,
+                        0,
+                    ),
+                )
+        db.commit()
+        return {
+            "products": len(products),
+            "batches": len(products) * 2,
+        }
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        cursor.close()
+
+
+def main(argv=None, connect=None):
+    parser, args = parse_args(argv)
+    if not args.apply:
+        print("Dry run only. No database changes were made.")
+        print(
+            "Use --apply --confirm-database "
+            f"{DB_CONFIG['database']} to replace inventory explicitly."
+        )
+        return 0
+    if args.confirm_database != DB_CONFIG["database"]:
+        parser.error("--confirm-database must match the configured database")
+
+    connector = connect or get_db
+    db = connector(autocommit=False)
+    try:
+        summary = seed_inventory(
+            db,
+            fresh_quantity=args.fresh_quantity,
+            day1_quantity=args.day1_quantity,
+        )
+    finally:
+        db.close()
+    print(
+        f"Seeded {summary['products']} products and {summary['batches']} batches."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

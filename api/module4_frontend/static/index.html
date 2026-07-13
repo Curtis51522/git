@@ -34,6 +34,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .role-badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin:8px 0}
 .role-manager{background:#e67e22;color:#fff}
 .role-staff{background:#27ae60;color:#fff}
+#dashboard[data-role="staff"] .manager-only{display:none!important}
 .panel{background:#fff;border-radius:10px;padding:8px 10px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
 .panel h4{font-size:16px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}
 .btn{display:inline-block;padding:8px 14px;border-radius:6px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
@@ -210,6 +211,17 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .chart-full{grid-column:1/-1}
 .table-panel{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #f0e8d8;margin-bottom:14px}
 .table-panel h4{font-size:14px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}.panel-container{display:none}
+@media (max-width:600px){
+  .topnav{flex-wrap:wrap;padding:6px 10px;gap:4px}
+  .topnav h2{font-size:16px;margin-right:auto}
+  .topnav nav{order:2;flex-basis:100%;width:100%;padding-top:2px}
+  .topnav nav button{padding:6px 10px}
+  .topnav .role-badge{margin:2px 0;padding:3px 8px}
+  #user-display{display:none}
+  .lang-toggle{margin:0}
+  .lang-toggle button{padding:3px 7px}
+  .topnav .logout-btn{padding:6px 9px}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 </head>
@@ -219,7 +231,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <h1 data-i18n="Bakery AI System">Bakery AI System</h1>
 <div class="sub" data-i18n="Bakery-Cafe Intelligent Operations">Bakery-Cafe Intelligent Operations</div>
 <input id="username" placeholder="Username" data-i18n-placeholder="Username" autocomplete="username" value="manager">
-<input id="password" type="password" placeholder="Password" data-i18n-placeholder="Password" autocomplete="current-password" value="hash123">
+<input id="password" type="password" placeholder="Password" data-i18n-placeholder="Password" autocomplete="current-password">
 <button onclick="doLogin()" id="signin-btn" data-i18n="Sign In">Sign In</button>
 <div id="error-msg"></div>
 </div>
@@ -250,7 +262,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 </div>
 
 
-<input type="file" accept="image/*" style="display:none" id="scan-file" onchange="console.log('onchange fired');handleScan(event)">
+<input type="file" accept="image/*" style="display:none" id="scan-file" onchange="handleScan(event)">
 
 <div id="edit-modal" class="modal-overlay" onclick="if(event.target===this)closeEditModal()">
 <div class="modal-box">
@@ -310,7 +322,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <span class="opt-label" data-i18n="Size">Size</span>
 <div class="coffee-option-row" id="coffee-size-options">
 <button class="coffee-opt-btn selected" onclick="selectCoffeeOption('size','regular')" data-val="regular" data-i18n="Regular">Regular</button>
-<button class="coffee-opt-btn" onclick="selectCoffeeOption('size','large')" data-val="large" data-i18n="Large +RM3">Large +RM3</button>
+<button class="coffee-opt-btn" onclick="selectCoffeeOption('size','large')" data-val="large" data-i18n="Large +&#165;3.0">Large +&#165;3.0</button>
 </div>
 </div>
 <div class="coffee-option-group">
@@ -397,7 +409,7 @@ en:{
 'Cart':'Cart','Scan items or use manual entry':'Scan items or use manual entry',
 'Generate Top-3':'Generate Top-3','Checkout':'Checkout','Total':'Total',
 'Click Generate Top-3 for bundle recommendations':'Click Generate Top-3 for bundle recommendations',
-'Generating...':'Generating...','Save RM':'Save RM',
+'Generating...':'Generating...',
 
 'Payment Complete':'Payment Complete','items deducted':'items deducted',
 'Refresh':'Refresh','Loading forecast...':'Loading forecast...',
@@ -411,7 +423,7 @@ en:{
 'AI Summary':'AI Summary','System Alerts':'System Alerts',
 'Username':'Username','Password':'Password','Sign In':'Sign In',
 'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token',
-'Request failed':'Request failed','Request timed out':'Request timed out','Manager only':'Manager only',
+'Request failed':'Request failed','Request timed out':'Request timed out','Beverage options unavailable':'Beverage options unavailable','Manager only':'Manager only',
 'Cannot modify past schedules. Select today or a future date.':'Cannot modify past schedules. Select today or a future date.',
 'OK':'OK','Cancel':'Cancel','Error':'Error',
 'Delete':'Delete','Edit':'Edit','Confirm':'Confirm',
@@ -432,7 +444,7 @@ en:{
 'Product:':'Product:','Qty:':'Qty:','Add Batch':'Add Batch',
 'Batches':'Batches','Details':'Details','Close':'Close',
 'Production Time':'Production Time','Status':'Status',
-'Shift':'Shift','Role':'Role','Employee':'Employee','Re-sync complete (fresh schedule)':'Re-sync complete (fresh schedule)','Day-1 stock:':'Day-1 stock:','Fresh stock:':'Freshly baked stock:','e.g. How many croissants tomorrow?':'e.g. How many croissants tomorrow?','Enter username and password':'Enter username and password','Signing in...':'Signing in...','Manager':'Manager','Staff':'Staff','Camera - Visual Recognition':'Camera - Visual Recognition','Click to scan / upload image':'Click to scan / upload image','Scanning tray...':'Scanning tray...','Fresh Batch Inflow':'Freshly Baked Batch Inflow','Scan fresh-baked goods to add to inventory':'Scan freshly baked goods to add to inventory','Scan Fresh Batch':'Scan Freshly Baked Batch','Confirm Inflow':'Confirm Inflow','HITL Correction Log':'HITL Correction Log','AI Store Manager':'AI Store Manager','Loading...':'Loading...','Loading shifts...':'Loading shifts...','Loading inventory...':'Loading inventory...','Top-3 Bundle':'Top-3 Bundle','batches | Click Refresh to update':'batches | Click Refresh to update','KPI error':'KPI error','Loading KPI...':'Loading KPI...','Batch ID':'Batch ID','Area':'Area','Freshness':'Freshness','Qty':'Qty','Batch Inventory':'Batch Inventory','KPI':'KPI','Fair':'Fair','Gap (hrs)':'Gap (hrs)','Employees':'Employees','Why These 3?':'Why These 3?','Generate':'Generate','Actual':'Actual','Expected (shifts)':'Expected (shifts)','Extra':'Extra','Rate':'Rate','Ask':'Ask','Restock':'Restock','Waste':'Waste','Schedule':'Schedule','Audit':'Audit','Type a question':'Type a question','Enter a question':'Enter a question','Processing...':'Processing...','restock_q':'How many croissants should I bake tomorrow?','waste_q':'Why is waste high this week?','schedule_q':'Check schedule for anomalies','audit_q':'Run full store health check','Stock:':'Stock:',
+'Shift':'Shift','Role':'Role','Employee':'Employee','Re-sync complete (fresh schedule)':'Re-sync complete (fresh schedule)','Day-1 stock:':'Day-1 stock:','Fresh stock:':'Freshly baked stock:','e.g. How many croissants tomorrow?':'e.g. How many croissants tomorrow?','Enter username and password':'Enter username and password','Signing in...':'Signing in...','Manager':'Manager','Staff':'Staff','Camera - Visual Recognition':'Camera - Visual Recognition','Click to scan / upload image':'Click to scan / upload image','Scanning tray...':'Scanning tray...','Fresh Batch Inflow':'Freshly Baked Batch Inflow','Scan fresh-baked goods to add to inventory':'Scan freshly baked goods to add to inventory','Scan Fresh Batch':'Scan Freshly Baked Batch','Confirm Inflow':'Confirm Inflow','HITL Correction Log':'HITL Correction Log','Loading...':'Loading...','Loading shifts...':'Loading shifts...','Loading inventory...':'Loading inventory...','Top-3 Bundle':'Top-3 Bundle','batches | Click Refresh to update':'batches | Click Refresh to update','KPI error':'KPI error','Loading KPI...':'Loading KPI...','Batch ID':'Batch ID','Area':'Area','Freshness':'Freshness','Qty':'Qty','Batch Inventory':'Batch Inventory','KPI':'KPI','Fair':'Fair','Gap (hrs)':'Gap (hrs)','Employees':'Employees','Why These 3?':'Why These 3?','Generate':'Generate','Actual':'Actual','Expected (shifts)':'Expected (shifts)','Extra':'Extra','Rate':'Rate','Ask':'Ask','Restock':'Restock','Waste':'Waste','Schedule':'Schedule','Audit':'Audit','Processing...':'Processing...','Stock:':'Stock:',
 'Attendance':'Attendance',
 'Wastage Log':'Wastage Log',
 'Bakery AI System':'Bakery AI System',
@@ -483,8 +495,10 @@ en:{
 'Refund':'Refund',
 'Receipt':'Receipt',
 'Failed to load':'Failed to load',
-'Refund order confirm':'Refund order {id}? This will restock all items.',
-'Order refunded. Items restocked.':'Order refunded. Items restocked.',
+'Refund order confirm':'Refund order {id}? Returned products will be recorded as non-sellable.',
+'Refund reason prompt':'Enter a refund reason:',
+'Refund reason required':'Refund reason is required.',
+'Return recorded as non-sellable.':'Refund recorded. Returned products remain non-sellable.',
 'Refund failed':'Refund failed',
 'Unknown error':'Unknown error',
 'Refund error':'Refund error',
@@ -602,7 +616,7 @@ en:{
 'Customize Beverage':'Customize Beverage',
 'Size':'Size',
 'Regular':'Regular',
-'Large +RM3':'Large +RM3',
+'Large +\u00A53.0':'Large +\u00A53.0',
 'Temperature':'Temperature',
 'Hot':'Hot',
 'Cold':'Cold',
@@ -731,9 +745,9 @@ en:{
 'Conflicts:':'Conflicts:',
 'Warnings:':'Warnings:',
 'Agent Errors:':'Agent Errors:',
-'Forecast Drivers':'Forecast Drivers',
-'Plan Options':'Plan Options',
-'Agent Deliberation':'Agent Deliberation',
+
+
+
 'Agents:':'Agents:',
 'Schedule Table:':'Schedule Table:',
 'no data':'no data',
@@ -825,7 +839,7 @@ zh:{
 'Cart':'\u8D2D\u7269\u8F66','Scan items or use manual entry':'\u626B\u63CF\u5546\u54C1\u6216\u624B\u52A8\u8F93\u5165',
 'Generate Top-3':'\u751F\u6210Top-3','Checkout':'\u7ED3\u8D26','Total':'\u603B\u8BA1',
 'Click Generate Top-3 for bundle recommendations':'\u6DFB\u52A0\u5546\u54C1\u5230\u8D2D\u7269\u8F66\u540E\u751F\u6210Top-3\u5957\u9910',
-'Generating...':'\u751F\u6210\u4E2D...','Save RM':'\u8282\u7701RM',
+'Generating...':'\u751F\u6210\u4E2D...',
 'Script generation failed. Try our combos!':'\u8BDD\u672F\u751F\u6210\u5931\u8D25\uFF0C\u8BD5\u8BD5\u6211\u4EEC\u7684\u7EC4\u5408\uFF01',
 'Payment Complete':'\u652F\u4ED8\u5B8C\u6210','items deducted':'\u5DF2\u6263\u51CF\u5546\u54C1',
 'Refresh':'\u5237\u65B0','Loading forecast...':'\u52A0\u8F7D\u9884\u6D4B\u4E2D...',
@@ -839,7 +853,7 @@ zh:{
 'AI Summary':'AI\u6458\u8981','System Alerts':'\u7CFB\u7EDF\u63D0\u9192',
 'Username':'\u7528\u6237\u540D','Password':'\u5BC6\u7801','Sign In':'\u767B\u5F55',
 'Invalid credentials':'\u51ED\u636E\u65E0\u6548','Missing token':'\u7F3A\u5C11\u4EE4\u724C','Invalid token':'\u4EE4\u724C\u65E0\u6548',
-'Request failed':'\u8BF7\u6C42\u5931\u8D25','Request timed out':'\u8BF7\u6C42\u8D85\u65F6','Manager only':'\u4EC5\u9650\u7ECF\u7406',
+'Request failed':'\u8BF7\u6C42\u5931\u8D25','Request timed out':'\u8BF7\u6C42\u8D85\u65F6','Beverage options unavailable':'\u996e\u54c1\u9009\u9879\u4e0d\u53ef\u7528','Manager only':'\u4EC5\u9650\u7ECF\u7406',
 'Cannot modify past schedules. Select today or a future date.':'\u65E0\u6CD5\u4FEE\u6539\u8FC7\u53BB\u7684\u6392\u73ED\u3002\u8BF7\u9009\u62E9\u4ECA\u5929\u6216\u672A\u6765\u65E5\u671F\u3002',
 'OK':'\u786E\u5B9A','Cancel':'\u53D6\u6D88','Error':'\u9519\u8BEF',
 'Delete':'\u5220\u9664','Edit':'\u7F16\u8F91','Confirm':'\u786E\u8BA4',
@@ -860,7 +874,7 @@ zh:{
 'Product:':'\u4EA7\u54C1\uFF1A','Qty:':'\u6570\u91CF\uFF1A','Add Batch':'\u6DFB\u52A0\u6279\u6B21',
 'Batches':'\u6279\u6B21','Details':'\u8BE6\u60C5','Close':'\u5173\u95ED',
 'Production Time':'\u751F\u4EA7\u65F6\u95F4','Status':'\u72B6\u6001',
-'Shift':'\u73ED\u6B21','Role':'\u89D2\u8272','Employee':'\u5458\u5DE5','Re-sync complete (fresh schedule)':'\u91CD\u65B0\u540C\u6B65\u5B8C\u6210\uFF08\u65B0\u6392\u73ED\uFF09','Day-1 stock:':'\u9694\u65E5\u5E93\u5B58\uFF1A','Fresh stock:':'\u65B0\u9C9C\u51FA\u7089\u5E93\u5B58\uFF1A','e.g. How many croissants tomorrow?':'\u4F8B\u5982\uFF1A\u660E\u5929\u9700\u8981\u591A\u5C11\u725B\u89D2\u5305\uFF1F','Enter username and password':'\u8F93\u5165\u7528\u6237\u540D\u548C\u5BC6\u7801','Signing in...':'\u767B\u5F55\u4E2D...','Manager':'\u7ECF\u7406','Staff':'\u5458\u5DE5','Camera - Visual Recognition':'\u6444\u50CF\u5934 - \u89C6\u89C9\u8BC6\u522B','Click to scan / upload image':'\u70B9\u51FB\u626B\u63CF/\u4E0A\u4F20\u56FE\u7247','Scanning tray...':'\u6B63\u5728\u626B\u63CF\u6258\u76D8...','Fresh Batch Inflow':'\u65B0\u9C9C\u51FA\u7089\u6279\u6B21\u5165\u5E93','Scan fresh-baked goods to add to inventory':'\u626B\u63CF\u65B0\u9C9C\u51FA\u7089\u70D8\u7119\u54C1\u4EE5\u6DFB\u52A0\u81F3\u5E93\u5B58','Scan Fresh Batch':'\u626B\u63CF\u65B0\u9C9C\u51FA\u7089\u6279\u6B21','Confirm Inflow':'\u786E\u8BA4\u5165\u5E93','HITL Correction Log':'\u4EBA\u5DE5\u590D\u6838\u4FEE\u6B63\u65E5\u5FD7','AI Store Manager':'AI\u95E8\u5E97\u7ECF\u7406','Loading...':'\u52A0\u8F7D\u4E2D...','Loading shifts...':'\u52A0\u8F7D\u6392\u73ED\u4E2D...','Loading inventory...':'\u52A0\u8F7D\u5E93\u5B58\u4E2D...','Top-3 Bundle':'\u524D\u4E09\u6346\u7ED1','batches | Click Refresh to update':'\u6279\u6B21 | \u70B9\u51FB\u5237\u65B0\u66F4\u65B0','KPI error':'KPI\u9519\u8BEF','Loading KPI...':'\u52A0\u8F7DKPI\u4E2D...','Batch ID':'\u6279\u6B21ID','Area':'\u533A\u57DF','Freshness':'\u65B0\u9C9C\u5EA6','Qty':'\u6570\u91CF','Batch Inventory':'\u6279\u6B21\u5E93\u5B58','KPI':'KPI','Fair':'\u4E00\u822C','Gap (hrs)':'\u5DEE\u8DDD\uFF08\u5C0F\u65F6\uFF09','Employees':'\u5458\u5DE5','Why These 3?':'\u4E3A\u4EC0\u4E48\u9009\u8FD9\u4E09\u4E2A\uFF1F','Generate':'\u751F\u6210','Actual':'\u5B9E\u9645','Expected (shifts)':'\u9884\u671F\uFF08\u73ED\u6B21\uFF09','Extra':'\u989D\u5916','Rate':'\u6BD4\u7387','Ask':'\u8BE2\u95EE','Restock':'\u8865\u8D27','Waste':'\u635F\u8017','Schedule':'\u6392\u73ED','Audit':'\u5BA1\u8BA1','Type a question':'\u8F93\u5165\u95EE\u9898','Enter a question':'\u8F93\u5165\u95EE\u9898','Processing...':'\u5904\u7406\u4E2D...','restock_q':'\u660E\u5929\u5E94\u8BE5\u70E4\u591A\u5C11\u725B\u89D2\u5305\uFF1F','waste_q':'\u672C\u5468\u635F\u8017\u4E3A\u4F55\u504F\u9AD8\uFF1F','schedule_q':'\u68C0\u67E5\u6392\u73ED\u5F02\u5E38','audit_q':'\u8FD0\u884C\u5168\u5E97\u5065\u5EB7\u68C0\u67E5','Stock:':'\u5E93\u5B58\uFF1A',
+'Shift':'\u73ED\u6B21','Role':'\u89D2\u8272','Employee':'\u5458\u5DE5','Re-sync complete (fresh schedule)':'\u91CD\u65B0\u540C\u6B65\u5B8C\u6210\uFF08\u65B0\u6392\u73ED\uFF09','Day-1 stock:':'\u9694\u65E5\u5E93\u5B58\uFF1A','Fresh stock:':'\u65B0\u9C9C\u51FA\u7089\u5E93\u5B58\uFF1A','e.g. How many croissants tomorrow?':'\u4F8B\u5982\uFF1A\u660E\u5929\u9700\u8981\u591A\u5C11\u725B\u89D2\u5305\uFF1F','Enter username and password':'\u8F93\u5165\u7528\u6237\u540D\u548C\u5BC6\u7801','Signing in...':'\u767B\u5F55\u4E2D...','Manager':'\u7ECF\u7406','Staff':'\u5458\u5DE5','Camera - Visual Recognition':'\u6444\u50CF\u5934 - \u89C6\u89C9\u8BC6\u522B','Click to scan / upload image':'\u70B9\u51FB\u626B\u63CF/\u4E0A\u4F20\u56FE\u7247','Scanning tray...':'\u6B63\u5728\u626B\u63CF\u6258\u76D8...','Fresh Batch Inflow':'\u65B0\u9C9C\u51FA\u7089\u6279\u6B21\u5165\u5E93','Scan fresh-baked goods to add to inventory':'\u626B\u63CF\u65B0\u9C9C\u51FA\u7089\u70D8\u7119\u54C1\u4EE5\u6DFB\u52A0\u81F3\u5E93\u5B58','Scan Fresh Batch':'\u626B\u63CF\u65B0\u9C9C\u51FA\u7089\u6279\u6B21','Confirm Inflow':'\u786E\u8BA4\u5165\u5E93','HITL Correction Log':'\u4EBA\u5DE5\u590D\u6838\u4FEE\u6B63\u65E5\u5FD7','Loading...':'\u52A0\u8F7D\u4E2D...','Loading shifts...':'\u52A0\u8F7D\u6392\u73ED\u4E2D...','Loading inventory...':'\u52A0\u8F7D\u5E93\u5B58\u4E2D...','Top-3 Bundle':'\u524D\u4E09\u6346\u7ED1','batches | Click Refresh to update':'\u6279\u6B21 | \u70B9\u51FB\u5237\u65B0\u66F4\u65B0','KPI error':'KPI\u9519\u8BEF','Loading KPI...':'\u52A0\u8F7DKPI\u4E2D...','Batch ID':'\u6279\u6B21ID','Area':'\u533A\u57DF','Freshness':'\u65B0\u9C9C\u5EA6','Qty':'\u6570\u91CF','Batch Inventory':'\u6279\u6B21\u5E93\u5B58','KPI':'KPI','Fair':'\u4E00\u822C','Gap (hrs)':'\u5DEE\u8DDD\uFF08\u5C0F\u65F6\uFF09','Employees':'\u5458\u5DE5','Why These 3?':'\u4E3A\u4EC0\u4E48\u9009\u8FD9\u4E09\u4E2A\uFF1F','Generate':'\u751F\u6210','Actual':'\u5B9E\u9645','Expected (shifts)':'\u9884\u671F\uFF08\u73ED\u6B21\uFF09','Extra':'\u989D\u5916','Rate':'\u6BD4\u7387','Ask':'\u8BE2\u95EE','Restock':'\u8865\u8D27','Waste':'\u635F\u8017','Schedule':'\u6392\u73ED','Audit':'\u5BA1\u8BA1','Processing...':'\u5904\u7406\u4E2D...','Stock:':'\u5E93\u5B58\uFF1A',
 'Attendance':'\u8003\u52E4',
 'Wastage Log':'\u635F\u8017\u65E5\u5FD7',
 'Bakery AI System':'\u70D8\u7119AI\u7CFB\u7EDF',
@@ -912,8 +926,10 @@ zh:{
 'Refund':'\u9000\u6B3E',
 'Receipt':'\u5C0F\u7968',
 'Failed to load':'\u52A0\u8F7D\u5931\u8D25',
-'Refund order confirm':'\u786E\u8BA4\u9000\u6B3E\u8BA2\u5355 {id}\uFF1F\u6240\u6709\u5546\u54C1\u5C06\u6062\u590D\u5E93\u5B58\u3002',
-'Order refunded. Items restocked.':'\u8BA2\u5355\u5DF2\u9000\u6B3E\uFF0C\u5546\u54C1\u5DF2\u6062\u590D\u5E93\u5B58\u3002',
+'Refund order confirm':'\u786E\u8BA4\u9000\u6B3E\u8BA2\u5355 {id}\uFF1F\u9000\u56DE\u5546\u54C1\u5C06\u8BB0\u5F55\u4E3A\u4E0D\u53EF\u518D\u552E\u3002',
+'Refund reason prompt':'\u8BF7\u8F93\u5165\u9000\u6B3E\u539F\u56E0\uFF1A',
+'Refund reason required':'\u5FC5\u987B\u586B\u5199\u9000\u6B3E\u539F\u56E0\u3002',
+'Return recorded as non-sellable.':'\u9000\u6B3E\u5DF2\u8BB0\u5F55\uFF0C\u9000\u56DE\u5546\u54C1\u4FDD\u6301\u4E0D\u53EF\u518D\u552E\u72B6\u6001\u3002',
 'Refund failed':'\u9000\u6B3E\u5931\u8D25',
 'Unknown error':'\u672A\u77E5\u9519\u8BEF',
 'Refund error':'\u9000\u6B3E\u9519\u8BEF',
@@ -1031,7 +1047,7 @@ zh:{
 'Customize Beverage':'\u81ea\u5b9a\u4e49\u996e\u54c1',
 'Size':'\u676f\u578b',
 'Regular':'\u6807\u51c6',
-'Large +RM3':'\u5927\u676f +RM3',
+'Large +\u00A53.0':'\u5927\u676f +\u00A53.0',
 'Temperature':'\u6e29\u5ea6',
 'Hot':'\u70ed',
 'Cold':'\u51b7',
@@ -1160,9 +1176,9 @@ zh:{
 'Conflicts:':'\u51b2\u7a81\uff1a',
 'Warnings:':'\u8b66\u544a\uff1a',
 'Agent Errors:':'Agent \u9519\u8bef\uff1a',
-'Forecast Drivers':'\u9884\u6d4b\u9a71\u52a8\u56e0\u7d20',
-'Plan Options':'\u65b9\u6848\u9009\u9879',
-'Agent Deliberation':'Agent \u534f\u5546',
+
+
+
 'Agents:':'Agents\uff1a',
 'Schedule Table:':'\u6392\u73ed\u8868\uff1a',
 'no data':'\u65e0\u6570\u636e',
@@ -1251,6 +1267,22 @@ function t(k){var m=T[LANG];if(m&&m[k])return m[k];if(LANG!=='en'&&T.en&&T.en[k]
 function tf(k,vars){var s=t(k);vars=vars||{};for(var key in vars){s=s.replace(new RegExp('\\{'+key+'\\}','g'),vars[key]);}return s;}
 function tx(k,fallback){var v=t(k);return v===k?fallback:v;}
 function formatWeekday(dateValue){return new Date(dateValue+'T00:00:00').toLocaleDateString(LANG==='zh'?'zh-CN':'en-US',{weekday:'short'});}
+function normalizeLegacyBeverageOption(value,defaultValue){
+return normalizeBeverageOption(value,defaultValue);
+}
+function normalizeReceiptBeverageDetails(item){
+if(COFFEE_PRICES[item.product_name]===undefined)return null;
+var config=beverageOptionMap[item.product_name];
+if(!beverageOptionsReady||!validateBeverageOptionConfig(config))return null;
+var receiptItem={
+size:item.size,
+temperature:item.temperature!==undefined?item.temperature:item.temp,
+sugar:item.sugar,
+ice_level:item.ice_level!==undefined?item.ice_level:item.ice
+};
+try{return normalizeBeverageOptions(item.product_name,receiptItem);}
+catch(e){return null;}
+}
 function formatCoffeeDetails(item){
 var parts=[];
 if(item.size==='large')parts.push(t('Large'));
@@ -1259,6 +1291,10 @@ var sugarMap={normal:'Normal Sweet',less:'Less Sweet',slight:'Slightly Sweet',no
 parts.push(t(sugarMap[item.sugar||'normal']||'Normal Sweet'));
 if(item.temperature==='cold'){var iceMap={normal:'Normal Ice',less:'Less Ice',none:'No Ice'};parts.push(t(iceMap[item.ice_level||'normal']||'Normal Ice'));}
 return parts.join(' / ');
+}
+function formatReceiptBeverageDetails(item){
+var receiptCoffee=normalizeReceiptBeverageDetails(item);
+return receiptCoffee?formatCoffeeDetails(receiptCoffee):'';
 }
 function applyI18n(root){
 root=root||document;
@@ -1302,19 +1338,27 @@ if(typeof currentPanel!=='undefined'&&currentPanel){showPanel(currentPanel);}
 }
 setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.documentElement.lang=LANG==='zh'?'zh-CN':'en';document.getElementById('lang-'+LANG).classList.add('active');applyI18n(document);},100);
 
-console.log("JS loaded v1783041503");
-
 var token=sessionStorage.getItem('bakery_token')||'', role=sessionStorage.getItem('bakery_role')||'', username=sessionStorage.getItem('bakery_username')||'', currentPanel='pos';
 var API='';
+function canAccessPanel(panel){return role==='manager'||panel==='pos'||panel==='attendance';}
+function applyRoleVisibility(){
+var dashboard=document.getElementById('dashboard');
+dashboard.setAttribute('data-role',role);
+var badge=document.getElementById('role-badge');
+badge.textContent=role==='manager'?t('Manager'):t('Staff');
+badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
+}
 if(token&&role){
 API=window.location.origin.replace('localhost','127.0.0.1');
 S5_API=API+'/s5';
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
 document.getElementById('user-display').textContent=username;
+applyRoleVisibility();
 var savedPanel=sessionStorage.getItem('bakery_panel')||'pos';
+if(!canAccessPanel(savedPanel))savedPanel='pos';
 document.getElementById('lang-'+LANG).classList.add('active');
-setTimeout(function(){showPanel(savedPanel);},50);
+setTimeout(function(){loadPrices();loadBeverageOptions().catch(function(e){console.log('Beverage options load failed',e);});showPanel(savedPanel);},50);
 }
 var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false, dineType='dine_in';
 var PRODUCT_PRICES={apple_pie:14.00,bagel:12.00,baguette:10.00,bread_coconut:10.00,bread_roll:8.00,brioche:18.00,brownie:18.00,chiffon:18.00,chocolate_cake:20.00,chocopie:10.00,cookie:9.00,cornbread:8.00,cream_horn:14.00,croissant:10.00,croissant_chocolate:12.00,donut:7.00,eggtart:7.00,flatbread:9.00,macaron:10.00,mantequilla:9.00,melon_bread:10.00,muffin:12.00,pancake:14.00,pandesal:6.00,pizza_bread:16.00,pullman:10.00,soboru_bread:13.00,sourdough:22.00,stickbread:7.00,tostada:10.00};
@@ -1322,24 +1366,26 @@ var PRODUCT_COSTS={apple_pie:1.90,bagel:0.66,baguette:0.48,bread_coconut:1.42,br
 var COFFEE_PRICES={latte:18.00,americano:14.00,cappuccino:18.00,mocha:22.00,espresso:12.00,flat_white:20.00,caramel_macchiato:22.00,cold_brew:18.00,hot_chocolate:16.00,matcha_latte:18.00,milk_tea:14.00,chai_latte:16.00,earl_grey:12.00,english_breakfast:12.00,lemonade:12.00};
 var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.py
 var s5DiscountCache={};
+var beverageOptionMap={};
+var beverageOptionsReady=false;
 window._activeBusinessEvents=[];
 
 var COFFEE_DRINKS=[
-{name:'Latte',desc:'Smooth espresso with steamed milk',price:'18.00',key:'latte',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
-{name:'Americano',desc:'Espresso with hot water',price:'14.00',key:'americano',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
-{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:'18.00',key:'cappuccino',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
-{name:'Mocha',desc:'Espresso with chocolate',price:'22.00',key:'mocha',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
-{name:'Espresso',desc:'Pure concentrated coffee shot',price:'12.00',key:'espresso',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
-{name:'Flat White',desc:'Velvety microfoam with espresso',price:'20.00',key:'flat_white',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
-{name:'Caramel Macchiato',desc:'Vanilla syrup with caramel drizzle',price:'22.00',key:'caramel_macchiato',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
-{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:'18.00',key:'cold_brew',default_size:'regular',default_temp:'cold',default_sugar:'slight',default_ice:'normal'},
-{name:'Hot Chocolate',desc:'Rich cocoa with steamed milk',price:'16.00',key:'hot_chocolate',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
-{name:'Matcha Latte',desc:'Japanese green tea with milk',price:'18.00',key:'matcha_latte',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
-{name:'Milk Tea',desc:'Classic black tea with milk',price:'14.00',key:'milk_tea',default_size:'regular',default_temp:'hot',default_sugar:'normal',default_ice:'normal'},
-{name:'Chai Latte',desc:'Spiced Indian tea with milk',price:'16.00',key:'chai_latte',default_size:'regular',default_temp:'hot',default_sugar:'less',default_ice:'normal'},
-{name:'Earl Grey',desc:'Bergamot-infused black tea',price:'12.00',key:'earl_grey',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
-{name:'English Breakfast',desc:'Full-bodied black tea',price:'12.00',key:'english_breakfast',default_size:'regular',default_temp:'hot',default_sugar:'none',default_ice:'normal'},
-{name:'Lemonade',desc:'Freshly squeezed lemon juice',price:'12.00',key:'lemonade',default_size:'regular',default_temp:'cold',default_sugar:'normal',default_ice:'normal'}
+{name:'Latte',desc:'Smooth espresso with steamed milk',price:18,key:'latte'},
+{name:'Americano',desc:'Espresso with hot water',price:14,key:'americano'},
+{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:18,key:'cappuccino'},
+{name:'Mocha',desc:'Espresso with chocolate',price:22,key:'mocha'},
+{name:'Espresso',desc:'Pure concentrated coffee shot',price:12,key:'espresso'},
+{name:'Flat White',desc:'Velvety microfoam with espresso',price:20,key:'flat_white'},
+{name:'Caramel Macchiato',desc:'Vanilla syrup with caramel drizzle',price:22,key:'caramel_macchiato'},
+{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:18,key:'cold_brew'},
+{name:'Hot Chocolate',desc:'Rich cocoa with steamed milk',price:16,key:'hot_chocolate'},
+{name:'Matcha Latte',desc:'Japanese green tea with milk',price:18,key:'matcha_latte'},
+{name:'Milk Tea',desc:'Classic black tea with milk',price:14,key:'milk_tea'},
+{name:'Chai Latte',desc:'Spiced Indian tea with milk',price:16,key:'chai_latte'},
+{name:'Earl Grey',desc:'Bergamot-infused black tea',price:12,key:'earl_grey'},
+{name:'English Breakfast',desc:'Full-bodied black tea',price:12,key:'english_breakfast'},
+{name:'Lemonade',desc:'Freshly squeezed lemon juice',price:12,key:'lemonade'}
 ];
 
 async function doLogin(){
@@ -1353,14 +1399,15 @@ var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'applic
 if(!r.ok){var txt=await r.text();throw new Error(txt||t('Request failed'))}
 var d=await r.json();
 token=d.access_token;role=d.role;username=d.username;API=window.location.origin.replace('localhost','127.0.0.1');S5_API=API+'/s5';
+sessionStorage.setItem('bakery_token',token);
+sessionStorage.setItem('bakery_role',role);
+sessionStorage.setItem('bakery_username',username);
+sessionStorage.setItem('bakery_panel','pos');
+loadBeverageOptions().catch(function(e){console.log('Beverage options load failed',e);});
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
 document.getElementById('user-display').textContent=username;
-var badge=document.getElementById('role-badge');
-badge.textContent=role==='manager'?t('Manager'):t('Staff');
-badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
-var mb=document.querySelectorAll('.manager-only');
-for(var i=0;i<mb.length;i++)mb[i].style.display=role==='manager'?'':'none';
+applyRoleVisibility();
 showPanel('pos');loadStock();loadPrices();
 }catch(e){
 document.getElementById('error-msg').textContent=t('Error')+': '+e.message;
@@ -1375,7 +1422,13 @@ setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}do
 
 function doLogout(){
 token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];
+sessionStorage.removeItem('bakery_token');
+sessionStorage.removeItem('bakery_role');
+sessionStorage.removeItem('bakery_username');
+sessionStorage.removeItem('bakery_panel');
+_apiCache={};
 document.getElementById('dashboard').classList.add('hidden');
+document.getElementById('dashboard').removeAttribute('data-role');
 document.getElementById('login-page').classList.remove('hidden');
 document.getElementById('signin-btn').disabled=false;
 document.getElementById('signin-btn').textContent=t('Sign In');
@@ -1408,6 +1461,7 @@ function clearPanelCache(panel){
 function fmtQty(v,unit){if(unit==='pcs')return Math.round(v);return v.toFixed(3);}
 function fmtMaterialQty(v,unit){var n=Number(v||0);return fmtQty(n,unit);}
 async function showPanel(panel){
+if(!canAccessPanel(panel))panel='pos';
 // Hide ALL panel containers first
 var allPanels=document.querySelectorAll('#content-area > .panel-container');
 for(var pi=0;pi<allPanels.length;pi++)allPanels[pi].style.display='none';
@@ -1459,15 +1513,89 @@ catch(e){if(e&&e.name==='AbortError')throw new Error(t('Request timed out'));thr
 finally{clearTimeout(timer);}
 }
 
-function getItemPrice(item){
-var base=PRODUCT_PRICES[item.product_name]||COFFEE_PRICES[item.product_name]||5.0;
-if(item.size==='large'&&COFFEE_PRICES[item.product_name])base+=3.0;
-var rate=item.discount_rate||0;
-if(!rate && item.tray_color){
-    var cmap={"green":0,"yellow":0.10,"orange":0.20,"red":0.30};
-    rate=cmap[item.tray_color]||0;
+async function loadBeverageOptions(){
+beverageOptionMap={};
+beverageOptionsReady=false;
+var payload=await api('/s4/beverages/options');
+var rows=payload.beverages||[];
+for(var i=0;i<rows.length;i++)beverageOptionMap[rows[i].product_name]=rows[i];
+beverageOptionsReady=rows.length>0;
+if(!beverageOptionsReady)throw new Error(t('Beverage options unavailable'));
 }
-return base*(1-rate);
+
+function getDefaultBeverageOptions(productName){
+var config=beverageOptionMap[productName];
+if(!beverageOptionsReady||!validateBeverageOptionConfig(config))throw new Error(t('Beverage options unavailable'));
+return {
+size:config.default_size,
+temperature:config.default_temperature,
+sugar:config.default_sugar,
+ice_level:config.default_ice
+};
+}
+
+function validateBeverageOptionConfig(config){
+var optionFields=[
+['default_size','allowed_sizes',['regular','large']],
+['default_temperature','allowed_temperatures',['hot','cold']],
+['default_sugar','allowed_sugar',['normal','less','slight','none']],
+['default_ice','allowed_ice',['normal','less','none']]
+];
+if(!config)return false;
+for(var i=0;i<optionFields.length;i++){
+var optionField=optionFields[i],defaultValue=config[optionField[0]],allowed=config[optionField[1]],canonical=optionField[2];
+if(!Array.isArray(allowed)||!allowed.length||typeof defaultValue!=='string'||canonical.indexOf(defaultValue)===-1||allowed.indexOf(defaultValue)===-1)return false;
+for(var j=0;j<allowed.length;j++)if(typeof allowed[j]!=='string'||canonical.indexOf(allowed[j])===-1)return false;
+}
+return true;
+}
+
+function normalizeBeverageOption(value,defaultValue){
+if(value===undefined||value===null){if(typeof defaultValue==='string')return defaultValue;throw new Error(t('Beverage options unavailable'));}
+if(typeof value!=='string')throw new Error(t('Beverage options unavailable'));
+var normalized=value.trim().toLowerCase();
+if(normalized)return normalized;
+if(typeof defaultValue==='string')return defaultValue;
+throw new Error(t('Beverage options unavailable'));
+}
+
+function normalizeBeverageOptions(productName,item){
+var config=beverageOptionMap[productName];
+var defaults=getDefaultBeverageOptions(productName);
+var options={
+size:normalizeBeverageOption(item.size,defaults.size),
+temperature:normalizeBeverageOption(item.temperature,defaults.temperature),
+sugar:normalizeBeverageOption(item.sugar,defaults.sugar),
+ice_level:normalizeBeverageOption(item.ice_level,defaults.ice_level)
+};
+if(!optionAllowed(config.allowed_sizes,options.size)||!optionAllowed(config.allowed_temperatures,options.temperature)||!optionAllowed(config.allowed_sugar,options.sugar)||!optionAllowed(config.allowed_ice,options.ice_level))throw new Error(t('Beverage options unavailable'));
+if(options.temperature==='hot')options.ice_level='none';
+return options;
+}
+
+function roundPosMoney(value){
+return Math.round((Number(value)+Number.EPSILON)*10)/10;
+}
+
+function isBeverageProduct(productName){
+return beverageOptionMap[productName]!==undefined||COFFEE_PRICES[productName]!==undefined;
+}
+
+function getItemPricing(item){
+var base=PRODUCT_PRICES[item.product_name]||COFFEE_PRICES[item.product_name]||5;
+if(normalizeLegacyBeverageOption(item.size,'regular')==='large'&&COFFEE_PRICES[item.product_name]!==undefined)base+=3;
+var isBeverage=isBeverageProduct(item.product_name);
+var rate=isBeverage?0:(item.discount_rate||0);
+if(!isBeverage&&!rate&&item.tray_color){
+var rates={green:0,yellow:DISCOUNT_RATE,orange:0.20,red:0.30};
+rate=rates[item.tray_color]||0;
+}
+var discount=roundPosMoney(base*rate);
+return {base:roundPosMoney(base),discount:discount,final:roundPosMoney(base-discount)};
+}
+
+function getItemPrice(item){
+return getItemPricing(item).final;
 }
 
 async function loadS5DiscountCache(){
@@ -1495,7 +1623,7 @@ var tc=d.tray_color==='green'?'detect-tag-fresh':(d.tray_color==='orange'?'detec
 var tl=d.tray_color==='green'?t('Fresh'):(d.tray_color==='orange'?'30% Off':t('Day-1'));
 var sc=d.status==='confirmed'?'detect-status-confirmed':(d.status==='review'?'detect-status-review':'detect-status-pending');
 var sl=d.status==='confirmed'?t('Confirmed'):(d.status==='review'?t('Needs Review'):t('Pending'));
-var pr=(PRODUCT_PRICES[d.product_name]||COFFEE_PRICES[d.product_name]||5).toFixed(2);
+var pr=roundPosMoney(PRODUCT_PRICES[d.product_name]||COFFEE_PRICES[d.product_name]||5).toFixed(1);
 detectHTML+='<div class="detect-card">';
 detectHTML+='<div class="detect-header"><span class="detect-name">'+d.product_name.replace(/_/g,' ')+'</span>';
 detectHTML+='<span class="detect-qty">x'+d.quantity+'</span></div>';
@@ -1515,7 +1643,7 @@ detectHTML+='</div></div>';
 var cartHTML='';
 for(var i=0;i<cartItems.length;i++){
 var item=cartItems[i];
-var nm=capName(item.product_name);if(item.size==='large'&&COFFEE_PRICES[item.product_name])nm=t('Large')+' '+nm;
+var nm=capName(item.product_name);if(normalizeLegacyBeverageOption(item.size,'regular')==='large'&&COFFEE_PRICES[item.product_name])nm=t('Large')+' '+nm;
 var pr=getItemPrice(item);
 var st=item.status||'pending';
 var stColors={confirmed:'detect-status-confirmed',review:'detect-status-review',pending:'detect-status-pending'};
@@ -1531,11 +1659,11 @@ cartHTML+='<div style="font-size:10px;color:#8b6914;margin-top:2px;line-height:1
 }
 cartHTML+='</div>';
 cartHTML+='<div class="detect-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">';
-var fullPrice=PRODUCT_PRICES[item.product_name]||COFFEE_PRICES[item.product_name]||5.0;
+var fullPrice=getItemPricing(item).base;
 if(item.discount_rate&&item.discount_rate>0){
-    cartHTML+='<span><s style="color:#999;font-size:12px">\u00A5'+(fullPrice*item.quantity).toFixed(2)+'</s> \u00A5'+(pr*item.quantity).toFixed(2)+'</span>';
+    cartHTML+='<span><s style="color:#999;font-size:12px">\u00A5'+roundPosMoney(fullPrice*item.quantity).toFixed(1)+'</s> \u00A5'+roundPosMoney(pr*item.quantity).toFixed(1)+'</span>';
 }else{
-    cartHTML+='<span>\u00A5'+(pr*item.quantity).toFixed(2)+'</span>';
+    cartHTML+='<span>\u00A5'+roundPosMoney(pr*item.quantity).toFixed(1)+'</span>';
 }
 cartHTML+='<span style="margin-left:auto;display:flex;align-items:center;gap:2px"><button onclick="decrQty('+i+')" style="background:none;border:1px solid #d4c5b2;border-radius:3px;color:#8b6914;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1;padding:0">&minus;</button><span style="font-size:15px;font-weight:600;min-width:18px;text-align:center">'+item.quantity+'</span><button onclick="incrQty('+i+')" style="background:none;border:1px solid #d4c5b2;border-radius:3px;color:#8b6914;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1;padding:0">+</button></span><span class="detect-status '+stColors[st]+'" style="font-size:10px;margin-left:4px">'+stLabels[st]+'</span></div>';
 cartHTML+='</div>';
@@ -1556,8 +1684,8 @@ var b=bundleRecs[i];
 bundleHTML+='<div class="bundle-card" onclick="addBundleToCart('+i+')">';
 bundleHTML+='<div class="bundle-rank">#'+(i+1)+' '+t('Top-3 Bundle')+'</div>';
 bundleHTML+='<div class="bundle-products">'+b.products+'</div>';
-bundleHTML+='<div class="bundle-price">\u00A5'+b.total_price.toFixed(2)+'</div>';
-bundleHTML+='<div class="bundle-save">'+t('Save RM')+' '+b.savings.toFixed(2)+'</div></div>';
+bundleHTML+='<div class="bundle-price">\u00A5'+roundPosMoney(b.total_price).toFixed(1)+'</div>';
+bundleHTML+='<div class="bundle-save">'+t('Save:')+' \u00A5'+roundPosMoney(b.savings).toFixed(1)+'</div></div>';
 }
 }
 }else{bundleHTML='<div class="bundle-hint">'+t('Click Generate Top-3 for bundle recommendations')+'</div>';}
@@ -1571,7 +1699,7 @@ var cd=COFFEE_DRINKS[i];
 coffeeBtns+='<button class="drink-btn" onclick="openCoffeeModal('+"'"+cd.key+"'"+')">';
 coffeeBtns+='<span class="drink-name">'+capName(cd.key)+'</span>';
 coffeeBtns+='<span class="drink-desc">'+tx('coffee_desc.'+cd.key,cd.desc)+'</span>';
-coffeeBtns+='<span class="drink-price">\u00A5'+cd.price+'</span></button>';
+coffeeBtns+='<span class="drink-price">\u00A5'+roundPosMoney(COFFEE_PRICES[cd.key]!==undefined?COFFEE_PRICES[cd.key]:cd.price).toFixed(1)+'</span></button>';
 }
 
 
@@ -1597,9 +1725,9 @@ bakeryBtns+='<span class="drink-name">'+capName(bk)+'</span>';
 bakeryBtns+='<span class="drink-desc">'+t('Stock:')+' '+stockInfo+'</span>';
 if(eventDiscount>0)bakeryBtns+='<span class="event-discount-tag" style="display:inline-block;margin-top:3px;font-size:10px;color:#6b5b4f;background:#fff3cd;border:1px solid #ead58f;border-radius:4px;padding:1px 5px">Event: '+Number(eventDiscount).toFixed(1).replace(/\.0$/,'')+'%</span>';
 if(discountRate>0){
-    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">\u00A5'+bp.toFixed(2)+'</s> \u00A5'+(bp*(1-discountRate)).toFixed(2)+'</span>';
+    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">\u00A5'+roundPosMoney(bp).toFixed(1)+'</s> \u00A5'+roundPosMoney(bp*(1-discountRate)).toFixed(1)+'</span>';
 }else{
-    bakeryBtns+='<span class="drink-price">\u00A5'+bp.toFixed(2)+'</span>';
+    bakeryBtns+='<span class="drink-price">\u00A5'+roundPosMoney(bp).toFixed(1)+'</span>';
 }
 bakeryBtns+='<div style="margin-top:4px;display:flex;gap:6px;align-items:center">';
                     if(freshQty>0){
@@ -1632,7 +1760,7 @@ h+='<div id="detect-list">';
 if(detections.length>0){h+=detectHTML;}else if(scanning){h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:20px"><span class="spinner"></span> '+t('Scanning tray...')+'</p>';}else{h+='<p style="color:#ccc;font-size:13px;text-align:center;padding:20px">Scan a tray to begin</p>';}
 h+='</div>';
 h+='';
-h+='<div class="panel" style="border:2px solid #8b6914"><h4>'+t('Fresh Batch Inflow')+'</h4>';
+h+='<div class="panel manager-only" style="border:2px solid #8b6914"><h4>'+t('Fresh Batch Inflow')+'</h4>';
 h+='<p style="font-size:12px;color:#8b6914;margin-bottom:8px">'+t('Scan fresh-baked goods to add to inventory')+'</p>';
 h+='<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:6px" onclick="startInflowScan()">'+t('Scan Fresh Batch')+'</button>';
 h+='<div id="inflow-preview" style="font-size:12px;color:#8b6914;margin-top:4px"></div>';
@@ -1641,7 +1769,7 @@ var infHTML='';
 for(var j=0;j<inflowDets.length;j++){
 var id=inflowDets[j];
 var cc=id.confidence>=0.9?'high':(id.confidence>=0.7?'mid':'low');
-var pr=(PRODUCT_PRICES[id.product_name]||COFFEE_PRICES[id.product_name]||5).toFixed(2);
+var pr=roundPosMoney(PRODUCT_PRICES[id.product_name]||COFFEE_PRICES[id.product_name]||5).toFixed(1);
 infHTML+='<div class="detect-card">';
 infHTML+='<div class="detect-header"><span class="detect-name">'+capName(id.product_name)+'</span>';
 infHTML+='<span class="detect-qty">x'+id.quantity+'</span></div>';
@@ -1678,10 +1806,10 @@ h+='<button class="dine-type-btn" id="takeaway-btn" onclick="setDineType(\'takea
 h+='</div>';
 h+='<div class="panel"><h4>'+t('Cart - Current Order')+'</h4>';
 h+='<div class="cart-summary">';
-if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>'+t('Total')+'</span><span>\u00A5'+total.toFixed(2)+'</span></div>';}
+if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>'+t('Total')+'</span><span>\u00A5'+roundPosMoney(total).toFixed(1)+'</span></div>';}
 else{h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px">'+t('No items in cart')+'</p>';}
 h+='</div>';
-if(cartItems.length>0){h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="clearCart()">'+t('Clear')+'</button><button class="checkout-btn" onclick="completePayment()" style="flex:1">'+t('Checkout')+' - \u00A5'+total.toFixed(2)+'</button></div>';}
+if(cartItems.length>0){h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="clearCart()">'+t('Clear')+'</button><button class="checkout-btn" onclick="completePayment()" style="flex:1">'+t('Checkout')+' - \u00A5'+roundPosMoney(total).toFixed(1)+'</button></div>';}
 h+='</div></div>';
 
 // RIGHT
@@ -1727,8 +1855,8 @@ function loadRecentOrders(){
       h+='<td style="padding:4px 6px">'+timeStr+'</td>';
       h+='<td style="padding:4px 6px;font-family:monospace">'+shortId+'</td>';
       h+='<td style="padding:4px 6px"><span style="color:'+typeColor+';font-weight:600">'+typeLabel+'</span></td>';
-      h+='<td style="padding:4px 6px;text-align:right;font-weight:600">'+o.total_amount.toFixed(2)+'</td>';
-      h+='<td style="padding:4px 6px;text-align:center">'+(refunded?'<span style="color:#e74c3c;font-size:10px">'+t('REFUNDED')+'</span>':'<button onclick="refundOrder(\''+o.ticket_id+'\')" style="background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">'+t('Refund')+'</button>')+' <button onclick="viewReceipt(\''+o.ticket_id+'\')" style="background:#3498db;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">'+t('Receipt')+'</button></td>';
+      h+='<td style="padding:4px 6px;text-align:right;font-weight:600">'+roundPosMoney(o.total_amount).toFixed(1)+'</td>';
+      h+='<td style="padding:4px 6px;text-align:center">'+(refunded?'<span style="color:#e74c3c;font-size:10px">'+t('REFUNDED')+'</span>':(role==='manager'?'<button class="manager-only" onclick="refundOrder(\''+o.ticket_id+'\')" style="background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">'+t('Refund')+'</button>':''))+' <button onclick="viewReceipt(\''+o.ticket_id+'\')" style="background:#3498db;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">'+t('Receipt')+'</button></td>';
       h+='</tr>';
     }
     h+='</table>';
@@ -1738,10 +1866,14 @@ function loadRecentOrders(){
 }
 function refundOrder(ticketId){
   if(!confirm(t('Refund order confirm').replace('{id}',ticketId)))return;
-  fetch(API+'/s4/orders/refund',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ticket_id:ticketId})})
+  var reason=prompt(t('Refund reason prompt'),'');
+  if(reason===null)return;
+  reason=reason.trim();
+  if(!reason){alert(t('Refund reason required'));return;}
+  fetch(API+'/s4/orders/refund',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ticket_id:ticketId,reason:reason})})
   .then(function(r){return r.json();})
   .then(function(d){
-    if(d.status==='ok'){alert(t('Order refunded. Items restocked.'));loadRecentOrders();clearPanelCache('revenue');clearPanelCache('inventory');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
+    if(d.status==='ok'){alert(t('Return recorded as non-sellable.'));loadRecentOrders();clearPanelCache('revenue');clearPanelCache('inventory');loadStock();}
     else{alert(t('Refund failed')+': '+(d.message||d.detail||t('Unknown error')));}
   })
   .catch(function(e){alert(t('Refund error')+': '+e.message);});
@@ -1760,20 +1892,15 @@ function viewReceipt(ticketId){
     h+='<table style="width:100%;font-size:13px;border-collapse:collapse">';
     for(var i=0;i<d.items.length;i++){
       var it=d.items[i];
-      var desc=it.product_name;
-      if(it.size)desc=it.size+' '+desc;
-      var exts=[];
-      if(it.temp)exts.push(it.temp);
-      if(it.sugar)exts.push(it.sugar);
-      if(it.ice&&it.ice!=='normal')exts.push('ice:'+it.ice);
-      if(exts.length)desc+=' ('+exts.join(', ')+')';
-      h+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:4px 0">'+desc+'</td><td style="padding:4px 0;text-align:center">x'+it.quantity+'</td><td style="padding:4px 0;text-align:right">'+it.line_total.toFixed(2)+'</td></tr>';
+      var optionText=formatReceiptBeverageDetails(it);
+      var desc=it.product_name+(optionText?'<div style="font-size:10px;color:#8b6914;margin-top:2px">'+optionText+'</div>':'');
+      h+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:4px 0">'+desc+'</td><td style="padding:4px 0;text-align:center">x'+it.quantity+'</td><td style="padding:4px 0;text-align:right">'+roundPosMoney(it.line_total).toFixed(1)+'</td></tr>';
     }
     h+='</table>';
     h+='<div style="border-top:2px dashed #e0d5c7;margin-top:12px;padding-top:8px">';
-    h+='<div style="display:flex;justify-content:space-between;font-size:12px;color:#666"><span>'+t('Subtotal')+'</span><span>'+d.subtotal.toFixed(2)+'</span></div>';
-    if(d.discount>0)h+='<div style="display:flex;justify-content:space-between;font-size:12px;color:#e74c3c"><span>'+t('Discount')+'</span><span>-'+d.discount.toFixed(2)+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#8b6914;margin-top:4px"><span>'+t('Total')+'</span><span>'+d.total.toFixed(2)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:12px;color:#666"><span>'+t('Subtotal')+'</span><span>'+roundPosMoney(d.subtotal).toFixed(1)+'</span></div>';
+    if(d.discount>0)h+='<div style="display:flex;justify-content:space-between;font-size:12px;color:#e74c3c"><span>'+t('Discount')+'</span><span>-'+roundPosMoney(d.discount).toFixed(1)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#8b6914;margin-top:4px"><span>'+t('Total')+'</span><span>'+roundPosMoney(d.total).toFixed(1)+'</span></div>';
     h+='</div>';
     h+='<button onclick="var m=document.getElementById(\'receipt-modal\');if(m)m.remove();" style="width:100%;margin-top:12px;padding:8px;background:#8b6914;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">'+t('Close')+'</button>';
     h+='</div>';
@@ -1816,74 +1943,153 @@ detections.splice(idx,1);
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }
 
-var _coffeeModalKey='',_coffeeModalSize='regular',_coffeeModalTemp='',_coffeeModalSugar='normal',_coffeeModalIce='normal';
+var _coffeeModalKey='',_coffeeModalSize='regular',_coffeeModalTemp='',_coffeeModalSugar='normal',_coffeeModalIce='normal',_coffeeModalEditIndex=-1;
 
-function openCoffeeModal(key){
+function optionAllowed(allowed,value){
+return (allowed||[]).indexOf(value)!==-1;
+}
+
+function applyBeverageCapabilities(config){
+var groups=[
+['#coffee-size-options .coffee-opt-btn',config.allowed_sizes],
+['#coffee-temp-options .coffee-opt-btn',config.allowed_temperatures],
+['#coffee-sugar-options .coffee-opt-btn',config.allowed_sugar],
+['#coffee-ice-options .coffee-opt-btn',config.allowed_ice]
+];
+for(var g=0;g<groups.length;g++){
+var buttons=document.querySelectorAll(groups[g][0]);
+for(var i=0;i<buttons.length;i++){
+var allowed=optionAllowed(groups[g][1],buttons[i].getAttribute('data-val'));
+buttons[i].style.display=allowed?'':'none';
+buttons[i].disabled=!allowed;
+}
+}
+}
+
+function openCoffeeModal(key,editIndex){
+var beverageOptions,config=beverageOptionMap[key];
+var editItem=typeof editIndex==='number'?cartItems[editIndex]:null;
+if(typeof editIndex==='number'&&!editItem)return;
+try{beverageOptions=normalizeBeverageOptions(key,editItem||{});}
+catch(e){alert(t('Beverage options unavailable'));return;}
+_coffeeModalEditIndex=typeof editIndex==='number'?editIndex:-1;
 _coffeeModalKey=key;
 var drink=null;
 for(var i=0;i<COFFEE_DRINKS.length;i++){if(COFFEE_DRINKS[i].key===key){drink=COFFEE_DRINKS[i];break;}}
 if(!drink)return;
-_coffeeModalSize=drink.default_size||'regular';
-_coffeeModalTemp=drink.default_temp||'hot';
-_coffeeModalSugar=drink.default_sugar||'normal';
-_coffeeModalIce=drink.default_ice||'normal';
+applyBeverageCapabilities(config);
+_coffeeModalSize=beverageOptions.size;
+_coffeeModalTemp=beverageOptions.temperature;
+_coffeeModalSugar=beverageOptions.sugar;
+_coffeeModalIce=beverageOptions.ice_level;
 document.getElementById('coffee-modal-title').textContent=drink.name;
-// Reset temp buttons
+document.querySelector('.coffee-modal-add').textContent=_coffeeModalEditIndex>=0?t('Save Changes'):t('Add to Cart');
+var zbtns=document.querySelectorAll('#coffee-size-options .coffee-opt-btn');
+for(var i=0;i<zbtns.length;i++){zbtns[i].classList.toggle('selected',zbtns[i].getAttribute('data-val')===_coffeeModalSize);}
 var tbtns=document.querySelectorAll('#coffee-temp-options .coffee-opt-btn');
 for(var i=0;i<tbtns.length;i++){tbtns[i].classList.toggle('selected',tbtns[i].getAttribute('data-val')===_coffeeModalTemp);}
-// Reset sugar buttons
 var sbtns=document.querySelectorAll('#coffee-sugar-options .coffee-opt-btn');
 for(var i=0;i<sbtns.length;i++){sbtns[i].classList.toggle('selected',sbtns[i].getAttribute('data-val')===_coffeeModalSugar);}
-// Reset ice buttons
 var ibtns=document.querySelectorAll('#coffee-ice-options .coffee-opt-btn');
 for(var i=0;i<ibtns.length;i++){ibtns[i].classList.toggle('selected',ibtns[i].getAttribute('data-val')===_coffeeModalIce);}
-// Show/hide ice group
 document.getElementById('coffee-ice-group').style.display=_coffeeModalTemp==='cold'?'block':'none';
 document.getElementById('coffee-modal').classList.add('show');
 }
 
 function selectCoffeeOption(type,val){
+var config=beverageOptionMap[_coffeeModalKey];
+if(!config)return;
 if(type==='size'){
+if(!optionAllowed(config.allowed_sizes,val))return;
 _coffeeModalSize=val;
 var zbtns=document.querySelectorAll('#coffee-size-options .coffee-opt-btn');
 for(var i=0;i<zbtns.length;i++){zbtns[i].classList.toggle('selected',zbtns[i].getAttribute('data-val')===val);}
 }else if(type==='temp'){
+if(!optionAllowed(config.allowed_temperatures,val))return;
 _coffeeModalTemp=val;
+if(val==='hot')_coffeeModalIce='none';
+if(val==='cold'&&!optionAllowed(config.allowed_ice,_coffeeModalIce))_coffeeModalIce=config.default_ice;
 var tbtns=document.querySelectorAll('#coffee-temp-options .coffee-opt-btn');
 for(var i=0;i<tbtns.length;i++){tbtns[i].classList.toggle('selected',tbtns[i].getAttribute('data-val')===val);}
+var ibtns=document.querySelectorAll('#coffee-ice-options .coffee-opt-btn');
+for(var i=0;i<ibtns.length;i++){ibtns[i].classList.toggle('selected',ibtns[i].getAttribute('data-val')===_coffeeModalIce);}
 document.getElementById('coffee-ice-group').style.display=val==='cold'?'block':'none';
 }else if(type==='sugar'){
+if(!optionAllowed(config.allowed_sugar,val))return;
 _coffeeModalSugar=val;
 var sbtns=document.querySelectorAll('#coffee-sugar-options .coffee-opt-btn');
 for(var i=0;i<sbtns.length;i++){sbtns[i].classList.toggle('selected',sbtns[i].getAttribute('data-val')===val);}
 }else if(type==='ice'){
+if(!optionAllowed(config.allowed_ice,val)||_coffeeModalTemp!=='cold')return;
 _coffeeModalIce=val;
 var ibtns=document.querySelectorAll('#coffee-ice-options .coffee-opt-btn');
 for(var i=0;i<ibtns.length;i++){ibtns[i].classList.toggle('selected',ibtns[i].getAttribute('data-val')===val);}
 }
 }
 
+function mergeMatchingBeverageLines(index){
+var item=cartItems[index];
+if(!item)return;
+item.discount_rate=0;
+delete item.discount_source;
+delete item.discount_strategy;
+delete item.discount_reason;
+for(var i=0;i<cartItems.length;i++){
+var candidate=cartItems[i];
+if(i!==index&&candidate.product_name===item.product_name&&candidate.size===item.size&&candidate.temperature===item.temperature&&candidate.sugar===item.sugar&&candidate.ice_level===item.ice_level){
+candidate.quantity+=item.quantity;
+candidate.discount_rate=0;
+delete candidate.discount_source;
+delete candidate.discount_strategy;
+delete candidate.discount_reason;
+cartItems.splice(index,1);
+return;
+}
+}
+}
+
 function confirmCoffeeAdd(){
 var name=_coffeeModalKey;
-var size=_coffeeModalSize||'regular';
-var temp=_coffeeModalTemp;
-var sugar=_coffeeModalSugar;
-var ice=_coffeeModalIce;
+var options;
+try{options=normalizeBeverageOptions(name,{size:_coffeeModalSize,temperature:_coffeeModalTemp,sugar:_coffeeModalSugar,ice_level:_coffeeModalIce});}
+catch(e){alert(t('Beverage options unavailable'));return;}
+var size=options.size,temp=options.temperature,sugar=options.sugar,ice=options.ice_level;
+if(_coffeeModalEditIndex>=0){
+var existing=cartItems[_coffeeModalEditIndex];
+if(!existing){alert(t('Beverage options unavailable'));return;}
+existing.size=size;
+existing.temperature=temp;
+existing.sugar=sugar;
+existing.ice_level=ice;
+existing.discount_rate=0;
+delete existing.discount_source;
+delete existing.discount_strategy;
+delete existing.discount_reason;
+mergeMatchingBeverageLines(_coffeeModalEditIndex);
+}else{
 var found=false;
 for(var i=0;i<cartItems.length;i++){
 var ci=cartItems[i];
-if(ci.product_name===name&&ci.size===size&&ci.temperature===temp&&ci.sugar===sugar&&(ci.ice_level||'normal')===ice){
-ci.quantity+=1;found=true;break;
+if(ci.product_name===name&&ci.size===size&&ci.temperature===temp&&ci.sugar===sugar&&ci.ice_level===ice){
+ci.quantity+=1;
+ci.discount_rate=0;
+delete ci.discount_source;
+delete ci.discount_strategy;
+delete ci.discount_reason;
+found=true;break;
 }
 }
-if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:'green',status:'confirmed',size:size,temperature:temp,sugar:sugar,ice_level:ice});
+if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:'green',status:'confirmed',discount_rate:0,size:size,temperature:temp,sugar:sugar,ice_level:ice});
+}
 closeCoffeeModal();
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }
 
 function closeCoffeeModal(){
 document.getElementById('coffee-modal').classList.remove('show');
+document.querySelector('.coffee-modal-add').textContent=t('Add to Cart');
 _coffeeModalKey='';
+_coffeeModalEditIndex=-1;
 }
 
 function quickAddCoffee(name){
@@ -1927,9 +2133,9 @@ var total=0;_payTotal=0;
 for(var i=0;i<cartItems.length;i++){var it=cartItems[i];var pr=getItemPrice(it);total+=pr*it.quantity;}
 var packagingFee=dineType==='takeaway'?0.30:0;
 total+=packagingFee;
-_payTotal=Math.round(total*100)/100;
+_payTotal=roundPosMoney(total);
 cartItemsRaw=cartItems.map(function(ci){return Object.assign({},ci);});
-document.getElementById("pay-total").textContent="\u00A5"+_payTotal.toFixed(2);
+document.getElementById("pay-total").textContent="\u00A5"+_payTotal.toFixed(1);
 document.getElementById("pay-cash-row").style.display="none";
 document.getElementById("pay-qr-msg").style.display="none";document.getElementById("pay-card-msg").style.display="none";
 document.getElementById("pay-cash").value="";
@@ -1946,38 +2152,56 @@ document.getElementById("pay-confirm-btn").disabled=m==="cash";document.getEleme
 function calcChange(){
 var rc=parseFloat(document.getElementById("pay-cash").value)||0;
 var ch=rc-_payTotal;
-document.getElementById("pay-change").textContent=ch>=0?t("Change")+": \u00A5"+ch.toFixed(2):"";
+document.getElementById("pay-change").textContent=ch>=0?t("Change")+": \u00A5"+roundPosMoney(ch).toFixed(1):"";
 document.getElementById("pay-confirm-btn").disabled=ch<0;
 _payCashInput=rc;
 }
-function exactCash(){document.getElementById('pay-cash').value=_payTotal.toFixed(2);calcChange();}
+function exactCash(){document.getElementById('pay-cash').value=_payTotal.toFixed(1);calcChange();}
+function buildCheckoutItems(items,detailsForItem){
+return items.map(function(ci){
+var details=detailsForItem(ci);
+var o={product_name:ci.product_name,quantity:ci.quantity,freshness:details.freshness,discount_rate:details.discount_rate,discount_source:details.discount_source,discount_strategy:details.discount_strategy,discount_reason:details.discount_reason};
+if(COFFEE_PRICES[ci.product_name]!==undefined){
+var options=normalizeBeverageOptions(ci.product_name,ci);
+o.size=options.size;
+o.temperature=options.temperature;
+o.sugar=options.sugar;
+o.ice_level=options.ice_level;
+}
+return o;
+});
+}
 async function confirmPayment(){
+var items;
+try{items=buildCheckoutItems(cartItems,function(ci){return {freshness:ci.freshness,discount_rate:ci.discount_rate||0,discount_source:ci.discount_source||'',discount_strategy:ci.discount_strategy||'',discount_reason:ci.discount_reason||''};});}
+catch(e){alert(t('Beverage options unavailable'));return;}
 try{
 var hdrs={"Content-Type":"application/json","Authorization":"Bearer "+token};
-var items=cartItems.map(function(ci){var o={product_name:ci.product_name,quantity:ci.quantity,freshness:ci.freshness,discount_rate:ci.discount_rate||0,discount_source:ci.discount_source||'',discount_strategy:ci.discount_strategy||'',discount_reason:ci.discount_reason||''};if(ci.size)o.size=ci.size;if(ci.temperature)o.temperature=ci.temperature;if(ci.sugar)o.sugar=ci.sugar;if(ci.ice_level)o.ice_level=ci.ice_level;return o;});
 var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod,dine_type:dineType})});
-if(!resp.ok)throw new Error(t("Checkout failed"));
 var d=await resp.json();
+if(!resp.ok)throw new Error(d.detail||d.message||t("Checkout failed"));
 clearPanelCache('revenue');clearPanelCache('inventory');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
 else if(d.errors&&d.errors.length>0){alert(t("Checkout errors")+": "+d.errors.join(", "));renderPOS(document.getElementById("panel-pos")||document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
-hitlLog.push({action:"Checkout: "+(_payReceipt?(_payReceipt.total||_payTotal).toFixed(2):_payTotal.toFixed(2))+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
+hitlLog.push({action:"Checkout: "+roundPosMoney(_payReceipt?(_payReceipt.total||_payTotal):_payTotal).toFixed(1)+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
 cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();
 }catch(e){alert(t("Payment Failed")+": "+e.message);}
 }
 function showReceipt(r){
 document.getElementById("payment-modal").classList.remove("show");document.getElementById("payment-modal").classList.add("hidden");
-if(!r){r={items:cartItemsRaw.map(function(ci){var nm=capName(ci.product_name);if(ci.size&&ci.size==='large')nm=t('Large')+' '+nm;if(ci.temperature)nm+=' ('+formatCoffeeDetails(ci)+')';return{product_name:nm,quantity:ci.quantity,line_total:getItemPrice(ci)*ci.quantity};}),total:_payTotal,payment_method:_payMethod};}
+if(!r){r={items:cartItemsRaw.map(function(ci){var receiptCoffee=normalizeReceiptBeverageDetails(ci);var receiptItem={product_name:ci.product_name,quantity:ci.quantity,line_total:getItemPrice(ci)*ci.quantity};if(receiptCoffee){receiptItem.size=receiptCoffee.size;receiptItem.temperature=receiptCoffee.temperature;receiptItem.sugar=receiptCoffee.sugar;receiptItem.ice_level=receiptCoffee.ice_level;}return receiptItem;}),total:_payTotal,payment_method:_payMethod};}
 document.getElementById("receipt-id-display").textContent=r.receipt_id||"";
 var h="";
 for(var i=0;i<r.items.length;i++){
 var it=r.items[i];
-h+="<div class=\"receipt-line\"><span class=\"item-name\">"+it.product_name+"</span><span class=\"item-qty\">x"+it.quantity+"</span><span>\u00A5"+(it.line_total||0).toFixed(2)+"</span></div>";
+var optionText=formatReceiptBeverageDetails(it);
+var itemName=it.product_name+(optionText?"<div style=\"font-size:10px;color:#8b6914;margin-top:2px\">"+optionText+"</div>":"");
+h+="<div class=\"receipt-line\"><span class=\"item-name\">"+itemName+"</span><span class=\"item-qty\">x"+it.quantity+"</span><span>\u00A5"+roundPosMoney(it.line_total||0).toFixed(1)+"</span></div>";
 if(it.discount_pct>0){var discountSource=(it.discount_source||'').replace(/_/g,' ');h+="<div class=\"item-discount\">"+t("Discount")+": "+it.discount_pct+"%"+(discountSource?" ("+discountSource+")":"")+"</div>";}
 }
-h+="<hr><div class=\"receipt-total\"><span>"+t("Total")+"</span><span>\u00A5"+(r.total||_payTotal).toFixed(2)+"</span></div>";
+h+="<hr><div class=\"receipt-total\"><span>"+t("Total")+"</span><span>\u00A5"+roundPosMoney(r.total||_payTotal).toFixed(1)+"</span></div>";
 if(r.payment_method){h+="<div style=\"font-size:11px;color:#666;margin-top:4px\">"+r.payment_method.toUpperCase()+"</div>";}
-if(r.cash_received&&r.cash_received>0){h+="<div style=\"font-size:11px;color:#666\">"+t("Received")+": \u00A5"+r.cash_received.toFixed(2)+"</div>";var ch2=r.cash_received-(r.total||_payTotal);h+="<div style=\"font-size:11px;color:#666\">"+t("Change")+": \u00A5"+ch2.toFixed(2)+"</div>";}
+if(r.cash_received&&r.cash_received>0){h+="<div style=\"font-size:11px;color:#666\">"+t("Received")+": \u00A5"+roundPosMoney(r.cash_received).toFixed(1)+"</div>";var ch2=r.cash_received-(r.total||_payTotal);h+="<div style=\"font-size:11px;color:#666\">"+t("Change")+": \u00A5"+roundPosMoney(ch2).toFixed(1)+"</div>";}
 document.getElementById("receipt-content").innerHTML=h;
 document.getElementById("receipt-overlay").classList.remove("hidden");document.getElementById("receipt-overlay").classList.add("show");
 }
@@ -1989,21 +2213,6 @@ renderPOS(document.getElementById('panel-pos')||document.getElementById('content
 }
 function printReceipt(){window.print();}
 function closeReceipt(){document.getElementById("receipt-overlay").classList.remove("show");document.getElementById("receipt-overlay").classList.add("hidden");renderPOS(document.getElementById("panel-pos")||document.getElementById("content-area"));}
-async function checkout(){
-if(!cartItems.length){alert(t('Cart is empty'));return}
-var COFFEE_KEYS={latte:1,americano:1,cappuccino:1,cold_brew:1,espresso:1,flat_white:1,mocha:1,iced_americano:1};
-for(var i=0;i<cartItems.length;i++){var ci=cartItems[i];if(!COFFEE_KEYS[ci.product_name]&&(!stockMap||!stockMap[ci.product_name]||stockMap[ci.product_name]<=0)){alert(t('No stock for')+' '+ci.product_name+'. '+t('Cannot checkout')+'.');return;}}
-var total=0;for(var i=0;i<cartItems.length;i++)total+=getItemPrice(cartItems[i])*cartItems[i].quantity;
-var items=[];for(var i=0;i<cartItems.length;i++){var ci=cartItems[i];var tc=ci.tray_color||"green";var fMap={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};var it={product_name:ci.product_name,quantity:ci.quantity,freshness:fMap[tc]||"Fresh",discount_rate:ci.discount_rate||0,discount_source:ci.discount_source||'',discount_strategy:ci.discount_strategy||'',discount_reason:ci.discount_reason||''};if(ci.size)it.size=ci.size;if(ci.temperature)it.temperature=ci.temperature;if(ci.sugar)it.sugar=ci.sugar;if(ci.ice_level)it.ice_level=ci.ice_level;items.push(it);}
-try{
-var hdrs={'Content-Type':'application/json','Authorization':'Bearer '+token};
-var r=await fetch(API+'/s4/checkout/complete',{method:'POST',headers:hdrs,body:JSON.stringify({items:items,unit_price:total,discount_applied:false})});
-if(!r.ok)throw new Error(t('Checkout failed'));
-var d=await r.json();
-if(d.status==='ok'){alert(t('Payment Complete')+' - \u00A5'+total.toFixed(2)+'\n'+d.deducted.length+' '+t('items deducted'));cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();loadStock();clearPanelCache('revenue');clearPanelCache('inventory');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
-else{alert(t('Partial')+': '+(d.errors||[]).join('; '));}
-}catch(e){alert(t('Payment failed')+': '+e.message);}
-}
 async function generateBundle(){
 
 bundleRecs=[{products:'Generating...',total_price:0,savings:0,items:[]}];
@@ -2062,6 +2271,16 @@ renderPOS(document.getElementById('panel-pos')||document.getElementById('content
 function addBundleToCart(idx){
 var b=bundleRecs[idx];if(!b)return;
 var ALL_BAKERY=Object.keys(PRODUCT_PRICES);var BAKERY_KEYS={};for(var k=0;k<ALL_BAKERY.length;k++)BAKERY_KEYS[ALL_BAKERY[k]]=1;
+var beverageOptionsByName={};
+for(var i=0;i<b.items.length;i++){
+    var preflightName=b.items[i];
+    if(!BAKERY_KEYS[preflightName]){
+        var preflightItem={};
+        for(var j=0;j<cartItems.length;j++){if(cartItems[j].product_name===preflightName){preflightItem=cartItems[j];break;}}
+        try{beverageOptionsByName[preflightName]=normalizeBeverageOptions(preflightName,preflightItem);}
+        catch(e){alert(t('Beverage options unavailable'));return;}
+    }
+}
 for(var i=0;i<b.items.length;i++){
     var name=b.items[i];
     var isBread=!!BAKERY_KEYS[name];
@@ -2090,7 +2309,32 @@ for(var i=0;i<b.items.length;i++){
         // Coffee: already in cart (it's what triggered the combo) - don't re-add
         var found2=false;
         for(var k=0;k<cartItems.length;k++){if(cartItems[k].product_name===name){found2=true;break;}}
-        if(!found2)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:'green',discount_rate:0,status:'confirmed'});
+        var beverageOptions=beverageOptionsByName[name];
+        if(found2){
+            var existingBeverage=cartItems[k];
+            existingBeverage.discount_rate=0;
+            delete existingBeverage.discount_source;
+            delete existingBeverage.discount_strategy;
+            delete existingBeverage.discount_reason;
+            existingBeverage.size=beverageOptions.size;
+            existingBeverage.temperature=beverageOptions.temperature;
+            existingBeverage.sugar=beverageOptions.sugar;
+            existingBeverage.ice_level=beverageOptions.ice_level;
+        }else{
+            cartItems.push({
+                product_name:name,
+                quantity:1,
+                confidence:1,
+                bbox:[],
+                tray_color:'green',
+                discount_rate:0,
+                status:'confirmed',
+                size:beverageOptions.size,
+                temperature:beverageOptions.temperature,
+                sugar:beverageOptions.sugar,
+                ice_level:beverageOptions.ice_level
+            });
+        }
     }
 }
 bundleRecs=[];renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
@@ -2101,20 +2345,20 @@ var html='';
 for(var i=0;i<bundleRecs.length;i++){
 var b=bundleRecs[i];
 var bd=b.scoring_breakdown;
-if(!bd){html+='<div style="background:#fdfaf5;border-radius:8px;padding:10px 12px;margin-bottom:8px;line-height:1.5;font-size:13px;color:#5d4037;border:1px solid #e8dcc8"><strong style="color:#8b6914">#'+(i+1)+' '+capName(b.product_name)+' + '+capName(b.coffee_key||'')+'</strong><br>'+t('Score')+': '+(b.total_score||0).toFixed(3)+' | '+t('Save:')+' \u00A5'+(b.savings||0).toFixed(2)+'</div>';continue;}
+if(!bd){html+='<div style="background:#fdfaf5;border-radius:8px;padding:10px 12px;margin-bottom:8px;line-height:1.5;font-size:13px;color:#5d4037;border:1px solid #e8dcc8"><strong style="color:#8b6914">#'+(i+1)+' '+capName(b.product_name)+' + '+capName(b.coffee_key||'')+'</strong><br>'+t('Score')+': '+(b.total_score||0).toFixed(3)+' | '+t('Save:')+' \u00A5'+roundPosMoney(b.savings||0).toFixed(1)+'</div>';continue;}
 var reasons=[];
 var pctMap={};
 for(var k in bd){if(typeof bd[k]==='number')pctMap[k]=Math.round(bd[k]*100);}
 if(pctMap.flavor_pairing>=20)reasons.push(t('Classic pairing'));else if(pctMap.flavor_pairing>=15)reasons.push(t('Good match'));
 var freshnessLabel=b.freshness_status||'';
 if(freshnessLabel==='Day-1')reasons.push(t('Flash sale'));
-if(b.savings>=2)reasons.push(t('Save:')+' \u00A5'+b.savings.toFixed(0));
+if(b.savings>=2)reasons.push(t('Save:')+' \u00A5'+roundPosMoney(b.savings).toFixed(1));
 if(pctMap.inventory>=15)reasons.push(t('In stock'));
 if(bd.cart_boost>0||bd.coffee_boost>0)reasons.push(t('Completes cart'));
 html+='<div style="background:#fdfaf5;border-radius:8px;padding:10px 12px;margin-bottom:8px;line-height:1.5;font-size:13px;color:#5d4037;border:1px solid #e8dcc8">';
 html+='<strong style="color:#8b6914;font-size:14px">#'+(i+1)+' '+capName(b.product_name)+' + '+capName(b.coffee_key||'')+'</strong>';
 html+='<div style="font-size:11px;color:#6b8e23;margin-top:2px;font-weight:500">'+reasons.join(' \u00B7 ')+'</div>';
-html+='<div style="font-size:10px;color:#8b6914;margin-top:2px">'+t('Score')+' '+(b.total_score||0).toFixed(3)+' | \u00A5'+(b.total_price||0).toFixed(2)+' | '+t('Save:')+' \u00A5'+(b.savings||0).toFixed(2)+'</div>';
+html+='<div style="font-size:10px;color:#8b6914;margin-top:2px">'+t('Score')+' '+(b.total_score||0).toFixed(3)+' | \u00A5'+roundPosMoney(b.total_price||0).toFixed(1)+' | '+t('Save:')+' \u00A5'+roundPosMoney(b.savings||0).toFixed(1)+'</div>';
 var dims=[
 {label:t('Flavor Pairing'),key:'flavor_pairing',icon:'\uD83C\uDF5E\u2615'},
 {label:t('Discount Value'),key:'discount',icon:'\uD83C\uDFC4'},
@@ -2405,7 +2649,7 @@ tbl+='</tr>';
 tbl+='</tbody></table>';
 tbl+='<div style="margin-top:8px;font-size:11px;color:#888">'+(r.cached===false?t('Generated in')+' '+((t1-t0)/1000).toFixed(1)+'s':t('Loaded from cache in')+' '+((t1-t0)/1000).toFixed(0)+'ms')+' | '+t('Auto-refreshes hourly')+'</div>';var demandEl=document.getElementById('fc-kpi-demand');if(demandEl)demandEl.textContent=Math.round(forecastDemand);var forecastRevEl=document.getElementById('fc-kpi-revenue');if(forecastRevEl)forecastRevEl.textContent=formatMoney(forecastRevenue);
 el.innerHTML=tbl;
-  fetch(API+'/s2/accuracy').then(function(r){return r.json()}).then(function(ad){
+  api('/s2/accuracy').then(function(ad){
     if(ad.status==='ok'&&ad.metrics){
       var o=ad.metrics.overall;
       var bar=document.getElementById('fc-accuracy-bar');
@@ -3063,6 +3307,16 @@ async function loadStockDaysHistory(date){
 
 
 function renderAttendance(c){
+  if(role!=='manager'){
+    c.innerHTML='<div class="panel" style="max-width:420px;margin:0 auto"><h4>'+t('Attendance')+'</h4>'
+      +'<label style="display:block;font-size:12px;color:#6b5b4f;margin:8px 0 4px">'+t('Employee')+' ID</label>'
+      +'<input id="staff-attendance-id" autocomplete="username" style="width:100%;padding:9px;border:1px solid #e0d5c7;border-radius:6px;font-size:14px">'
+      +'<label style="display:block;font-size:12px;color:#6b5b4f;margin:10px 0 4px">PIN</label>'
+      +'<input id="staff-attendance-pin" type="password" inputmode="numeric" autocomplete="current-password" style="width:100%;padding:9px;border:1px solid #e0d5c7;border-radius:6px;font-size:14px">'
+      +'<button class="btn btn-primary" onclick="punchStaffAttendance()" style="width:100%;margin-top:12px">'+t('Punch')+'</button>'
+      +'<div id="staff-attendance-result" style="margin-top:10px;font-size:12px;color:#6b5b4f"></div></div>';
+    return;
+  }
   var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="loadAttendance()" style="font-size:12px">'+t('Today')+'</button>'
@@ -3071,6 +3325,23 @@ function renderAttendance(c){
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('Attendance')+' <span id="kpi-att-date"></span></h4><div id="attendance-result"><span class="spinner"></span>'+t('Loading...')+'</div></div></div>'
     +'';
   loadAttendance();
+}
+
+
+async function punchStaffAttendance(){
+  var empId=document.getElementById('staff-attendance-id').value.trim();
+  var pin=document.getElementById('staff-attendance-pin').value;
+  var result=document.getElementById('staff-attendance-result');
+  if(!empId||!pin){result.textContent=t('Employee')+' ID / PIN';return;}
+  try{
+    var response=await api('/s3/attendance/punch?emp_id='+encodeURIComponent(empId)+'&pin='+encodeURIComponent(pin),{method:'POST'});
+    result.textContent=response.message||t('Request failed');
+    result.style.color=response.status==='ok'?'#27ae60':'#e74c3c';
+    if(response.status==='ok')document.getElementById('staff-attendance-pin').value='';
+  }catch(e){
+    result.textContent=t('Error')+': '+e.message;
+    result.style.color='#e74c3c';
+  }
 }
 
 
@@ -3177,7 +3448,7 @@ function renderRevenue(container){
 var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 loadRevenueData(today);
   setTimeout(function(){if(!document.getElementById('rev-s5-result')){var rdiv=document.createElement('div');rdiv.id='rev-s5-result';rdiv.style.cssText='display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-bottom:12px';var kpis=document.getElementById('rev-kpis');if(kpis)kpis.parentNode.insertBefore(rdiv,kpis);}var btn=document.getElementById('rev-s5-btn');if(btn)btn.onclick=function(){runModuleS5Analysis('revenue','rev-date','rev-s5-result');};btn.textContent='\uD83D\uDD0D '+t('AI Analysis');},100);
-  fetch(API+'/s4/revenue/daily').then(function(r){return r.json()}).then(function(dd){var defDate=dd.data?dd.data.date:today;if(defDate!==today){document.getElementById('rev-date').value=defDate;loadRevenueData(defDate);}}).catch(function(){});
+  api('/s4/revenue/daily').then(function(dd){var defDate=dd.data?dd.data.date:today;if(defDate!==today){document.getElementById('rev-date').value=defDate;loadRevenueData(defDate);}}).catch(function(){});
 
 container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap"><input type="date" id="rev-date" value="'+today+'" onchange="onRevenueDateChange(this.value)"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" id="rev-s5-btn" style="background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer"></button><button class="btn btn-sm" id="rev-promotion-mix-s5-btn" onclick="runModuleS5Analysis(\'promotion_mix\',\'rev-date\',\'rev-promotion-mix-s5-result\')" style="background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer">Promotion & Product Mix AI</button></div></div>'
 +'<div id="rev-promotion-mix-s5-result" style="display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-top:8px;max-height:50vh;overflow-y:auto"></div>'
@@ -3392,64 +3663,6 @@ function onHistSliderChange(){
   chart.resize();
 }
 
-function renderAgent(c){
-if(agentState){c.innerHTML=agentState.html;var qEl=document.getElementById('agent-query');if(qEl)qEl.value=agentState.query||'';return;}
-c.innerHTML='<div class="panel" style="flex:1"><h4>'+t('AI Store Manager')+'</h4>'
-+'<div style="margin-bottom:8px"><input id="agent-query" placeholder="'+t('e.g. How many croissants tomorrow?')+'" style="width:100%;padding:10px;border-radius:8px;border:2px solid #e0d5c7;font-size:14px" onkeydown="if(event.key==&quot;Enter&quot;)runAgentQuery()"></div>'
-+'<div class="btn-group" style="margin-bottom:12px;flex-wrap:wrap">'
-+'<button class="btn btn-primary btn-sm" onclick="runAgentQuery()">'+t('Ask')+'</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('restock_q')+'\')" >'+t('Restock')+'</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('waste_q')+'\')" >'+t('Waste')+'</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('schedule_q')+'\')" >'+t('Schedule')+'</button>'
-+'<button class="btn btn-outline btn-sm" onclick="runQuickAgent(\''+t('audit_q')+'\')" >'+t('Audit')+'</button>'
-+'</div><div id="agent-result" class="result-box" style="max-height:65vh;min-height:120px"><span class="status-dot dot-warn"></span>'+t('Type a question')+'</div>'
-+'</div>';
-}
-function runQuickAgent(q){document.getElementById('agent-query').value=q;runAgentQuery();}
-async function runAgentQuery(){
-var q=document.getElementById('agent-query').value.trim();
-if(!q){document.getElementById('agent-result').innerHTML='<span class="status-dot dot-warn"></span>'+t('Enter a question');return}
-document.getElementById('agent-result').innerHTML='<span class="spinner"></span>'+t('Processing...');
-try{var hdrs={'Content-Type':'application/json'};if(token)hdrs.Authorization='Bearer '+token;var r=await fetch(S5_API+'/analyze',{method:'POST',headers:hdrs,body:JSON.stringify({query:q,params:{},lang:(localStorage.getItem('bakery_lang')||'en')})}).then(function(x){if(!x.ok)throw new Error('S5 request failed');return x.json()});if(r.summary&&!r.decision){r.decision=r.summary;r.priority=(r.significance&&r.significance.significant)?'warning':'normal';r.elapsed_ms=r.total_elapsed_ms||0;r.llm_summary=r.summary;r.intent_confidence=1;r.product='all';r.agents={};var ev=r.evidence||{};Object.keys(ev).forEach(function(k){r.agents[k]={confidence:ev[k].confidence||0,opinion:ev[k].opinion||''};});}
-var out='<div style="font-size:13px;line-height:1.6">';
-if(r.rest_note){var rn=r.rest_note.replace('IMPORTANT: ','').replace('PENTING: ','').replace(/You MUST state this clearly at the start of your summary.?\s*/gi,'').replace(/Anda MESTI nyatakan ini pada permulaan ringkasan.?\s*/gi,'');out+='<div style="background:#fff3cd;border-left:3px solid #f39c12;padding:6px 10px;border-radius:0 6px 6px 0;margin:4px 0;font-size:12px;font-weight:600;color:#856404">'+rn+'</div>';}
-var prio=r.priority||'normal';var pc=prio==='critical'?'#e74c3c':prio==='warning'?'#e67e22':'#27ae60';
-out+='<strong>'+t('Intent:')+'</strong> '+r.intent+' ('+Math.round((r.intent_confidence||0)*100)+'%)<br>';
-out+='<strong>'+t('Product:')+'<strong> '+r.product+' | <strong>'+t('Decision:')+'</strong> <span style="color:'+pc+';font-weight:700">'+r.decision+'</span> ('+(r.elapsed_ms||0)+'ms)<br>';
-out+='<hr style="border:0;border-top:1px solid #e0d5c7;margin:8px 0">';
-if(r.audit&&r.audit.conflicts&&r.audit.conflicts.length>0){out+='<strong style="color:#e74c3c">'+t('Conflicts:')+'</strong><br>';for(var i=0;i<r.audit.conflicts.length;i++)out+='  <span style="color:#e74c3c">!</span> '+r.audit.conflicts[i]+'<br>';}
-if(r.audit&&r.audit.warnings&&r.audit.warnings.length>0){out+='<strong style="color:#e67e22">'+t('Warnings:')+'</strong><br>';for(var i=0;i<r.audit.warnings.length;i++)out+='  <span style="color:#e67e22">*</span> '+r.audit.warnings[i]+'<br>';}
-if(r.errors&&r.errors.length>0){out+='<strong style="color:#e74c3c">'+t('Agent Errors:')+'</strong><br>';for(var i=0;i<r.errors.length;i++)out+='  '+r.errors[i]+'<br>';}
-if(r.llm_summary){out+='<br><div style="background:#f0f4ff;border-left:3px solid #2980b9;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#2c3e50"><strong style="color:#2980b9">'+t('AI Summary')+'</strong><br>'+r.llm_summary+'</div>';}
-if(r.shap){out+='<br><div style="background:#f5f0ff;border-left:3px solid #8e44ad;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#4a235a"><strong style="color:#8e44ad">'+t('Forecast Drivers')+'</strong><br>';var spk=Object.keys(r.shap);for(var si=0;si<spk.length;si++){var sp=r.shap[spk[si]];out+='<strong>'+spk[si]+'</strong>: ';if(sp.top_features&&sp.top_features.length>0){for(var fi=0;fi<sp.top_features.length;fi++){var f=sp.top_features[fi];out+='<span style="background:#ede4f5;padding:1px 6px;border-radius:3px;margin:1px 2px;display:inline-block">'+f.feature+' <b>'+(f.contribution*100).toFixed(0)+'%</b></span> ';}out+='<br>';}else{out+=t('no data')+'<br>';}}out+='</div>';}
-if(r.pareto_plans&&r.pareto_plans.length>0){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">'+t('Plan Options')+'</strong><br>';for(var pi=0;pi<r.pareto_plans.length;pi++){var p=r.pareto_plans[pi];var sel=r.llm_choice&&r.llm_choice.selected_plan===p.label;var bg=sel?'#ffe0b2':'#fff';var bd=sel?'2px solid #e67e22':'1px solid #e8d5b0';out+='<div style="background:'+bg+';border:'+bd+';padding:4px 8px;margin:3px 0;border-radius:4px"><b>'+p.label+'</b>: '+t('bake')+' '+p.bake+', '+t('waste')+' '+p.waste+', '+t('shortage')+' '+p.shortage+', '+t('profit')+' RM'+p.profit_rm.toFixed(0)+(sel?' <b style="color:#e67e22">'+t('SELECTED')+'</b>':'')+'<br><small>'+p.desc+'</small></div>';}out+='</div>';}
-if(r.deliberation&&r.deliberation.consensus){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">'+t('Agent Deliberation')+'</strong><br>'+r.deliberation.consensus;if(r.pareto_plans&&r.pareto_plans.length>0){out+='<br><div style="background:#fef9e7;border-left:3px solid #e67e22;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px;line-height:1.5;color:#7d6608"><strong style="color:#e67e22">'+t('Plan Options')+'</strong><br>';for(var pi=0;pi<r.pareto_plans.length;pi++){var p=r.pareto_plans[pi];var sel=r.llm_choice&&r.llm_choice.selected_plan===p.label;var bg=sel?'#ffe0b2':'#fff';var bd=sel?'2px solid #e67e22':'1px solid #e8d5b0';out+='<div style="background:'+bg+';border:'+bd+';padding:4px 8px;margin:3px 0;border-radius:4px"><b>'+p.label+'</b>: '+t('bake')+' '+p.bake+', '+t('waste')+' '+p.waste+', '+t('shortage')+' '+p.shortage+', '+t('profit')+' RM'+p.profit_rm.toFixed(0)+(sel?' <b style="color:#e67e22">'+t('SELECTED')+'</b>':'')+'<br><small>'+p.desc+'</small></div>';}out+='</div>';}
-if(r.deliberation.votes){out+='<br><small>';var vk=Object.keys(r.deliberation.votes);for(var vi=0;vi<vk.length;vi++){out+=vk[vi]+': '+r.deliberation.votes[vk[vi]]+'<br>';}out+='</small>';}out+='</div>';}
-out+='<br><strong>'+t('Agents:')+'</strong><br>';
-var agents=r.agents||{};var anames=Object.keys(agents);
-for(var i=0;i<anames.length;i++){var a=agents[anames[i]];var icon=a.confidence>=0.9?'#27ae60':a.confidence>=0.7?'#f39c12':'#e74c3c';out+='<div style="margin:4px 0;padding:6px 8px;border-left:3px solid '+icon+';background:#fdfaf5;border-radius:0 6px 6px 0"><strong style="color:#8b6914">'+anames[i]+'</strong> <span style="font-size:11px;color:#999">('+Math.round(a.confidence*100)+'%)</span><br><span style="font-size:12px">'+a.opinion+'</span></div>';}
-var sched=r.result&&r.result.schedule;
-if(sched&&sched.length>0){
-out+='<br><strong>'+t('Schedule Table:')+'</strong><br>';
-var dates=[],seen={};for(var i=0;i<sched.length;i++){if(!seen[sched[i].date]){dates.push(sched[i].date);seen[sched[i].date]=true;}}dates.sort();
-var slots=['06:00-13:00','12:00-19:00'];
-out+='<table class="sched-table" style="font-size:13px;margin-top:6px"><thead><tr><th>'+t('Time')+'</th>';
-for(var i=0;i<dates.length;i++){out+='<th>'+dates[i].slice(5)+'<br><small>'+formatWeekday(dates[i])+'</small></th>';}
-out+='</tr></thead><tbody>';
-for(var si=0;si<slots.length;si++){out+='<tr><td><strong>'+slots[si]+'</strong></td>';
-for(var di=0;di<dates.length;di++){out+='<td>';var found=false;
-for(var i=0;i<sched.length;i++){if(sched[i].date===dates[di]&&sched[i].time_slot===slots[si]){
-var dl=sched[i].demand_level||'normal';var dc=dl==='high'?'#e74c3c':dl==='low'?'#27ae60':'#f39c12';
-out+='<div style="font-size:12px"><strong>'+sched[i].employee_name+'</strong><br>'+t(sched[i].role)+' <span style="font-size:9px;background:'+dc+';color:#fff;padding:1px 4px;border-radius:3px">'+t(dl)+'</span></div>';found=true;}}
-if(!found)out+='<span style="color:#ccc">-</span>';
-out+='</td>';}out+='</tr>';}
-out+='</tbody></table>';
-}
-out+='</div>';
-document.getElementById('agent-result').innerHTML=out;var ca=document.getElementById('content-area');agentState={html:ca.innerHTML,query:q};}
-catch(e){document.getElementById('agent-result').textContent=t('Error')+': '+e.message;}
-}
-var agentState=null;
 var inflowMode=false;
 var inflowDets=[];
 var pendingSick={}, pendingSwaps=[];
@@ -3497,7 +3710,9 @@ return;
 }
 var item=cartItems[EDITING_IDX];if(!item)return;
 var oldName=item.product_name;
-item.product_name=document.getElementById('edit-name').value;
+var selectedName=document.getElementById('edit-name').value;
+if(COFFEE_PRICES[selectedName]!==undefined){alert(t('Beverage options unavailable'));return;}
+item.product_name=selectedName;
 item.quantity=parseInt(document.getElementById('edit-qty').value)||1;
 var if2=document.getElementById("edit-freshness").value;
 var cMap2={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
@@ -3522,23 +3737,26 @@ alert(t('Inflow complete')+'!\n'+t('Added')+' '+d.batches.length+' '+t('batches 
 inflowDets=[];loadStock();clearPanelCache('inventory');renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }).catch(function(err){alert(t('Inflow failed')+': '+err.message);});
 }
-function triggerScan(){console.log("1.triggerScan");var inp=document.getElementById("scan-file");console.log("2.input:",inp);inp.click();console.log("3.clicked");}
+function triggerScan(){var inp=document.getElementById("scan-file");inp.click();}
 function capName(name){
 var pkey='product.'+name;var localized=tx(pkey,'');if(localized)return localized;
 return name.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}).replace(/\b\w/g,function(c){return c.toUpperCase();});
 }
 function loadPrices(){
-fetch(API+'/s4/products').then(function(r){return r.json();}).then(function(d){
+fetch(API+'/s4/products',{headers:{'Authorization':'Bearer '+(typeof token==='undefined'?'':token)}}).then(function(r){return r.json();}).then(function(d){
 var prods=d.products||[];
 for(var i=0;i<prods.length;i++){
 var p=prods[i];
 if(PRODUCT_PRICES[p.product_name]!==undefined)PRODUCT_PRICES[p.product_name]=p.unit_price||PRODUCT_PRICES[p.product_name];
-if(COFFEE_PRICES[p.product_name]!==undefined)COFFEE_PRICES[p.product_name]=p.unit_price||COFFEE_PRICES[p.product_name];
+if(COFFEE_PRICES[p.product_name]!==undefined){
+COFFEE_PRICES[p.product_name]=p.unit_price||COFFEE_PRICES[p.product_name];
+for(var j=0;j<COFFEE_DRINKS.length;j++){if(COFFEE_DRINKS[j].key===p.product_name){COFFEE_DRINKS[j].price=COFFEE_PRICES[p.product_name];break;}}
+}
 }
 if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }).catch(function(e){console.log('Price fetch err',e);});
 }
-function loadStock(){fetch(API+'/s1/batch_inventory').then(function(r){return r.json();}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}}if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadStock(){api('/s1/batch_inventory').then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}}if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;
@@ -3618,20 +3836,19 @@ document.getElementById('edit-modal').classList.remove('show');
 EDITING_IDX=-1;EDITING_DETECT=false;EDITING_INFLOW=false;
 }
 function editCartItem(idx){
-EDITING_IDX=idx;
 var item=cartItems[idx];if(!item)return;
+if(COFFEE_PRICES[item.product_name]!==undefined){
+openCoffeeModal(item.product_name,idx);
+return;
+}
+EDITING_IDX=idx;
 var bKeys=Object.keys(PRODUCT_PRICES).sort();
-var cKeys=Object.keys(COFFEE_PRICES).sort();
-var bOpts='',cOpts='';
+var bOpts='';
 for(var i=0;i<bKeys.length;i++){
 var sel=bKeys[i]===item.product_name?' selected':'';
 bOpts+='<option value="'+bKeys[i]+'"'+sel+'>'+capName(bKeys[i])+'</option>';
 }
-for(var i=0;i<cKeys.length;i++){
-var sel=cKeys[i]===item.product_name?' selected':'';
-cOpts+='<option value="'+cKeys[i]+'"'+sel+'>'+capName(cKeys[i])+'</option>';
-}
-document.getElementById('edit-name').innerHTML='<optgroup label="'+t('-- Bakery --')+'">'+bOpts+'</optgroup><optgroup label="'+t('-- Beverages --')+'">'+cOpts+'</optgroup>';
+document.getElementById('edit-name').innerHTML='<optgroup label="'+t('-- Bakery --')+'">'+bOpts+'</optgroup>';
 document.getElementById('edit-qty').value=item.quantity;
 var fMap2={"green":"Fresh","yellow":"Day-1","orange":"Day-2","red":"Near-Expired"};
 document.getElementById("edit-freshness").value=item.freshness||fMap2[item.tray_color]||"auto";

@@ -10,7 +10,7 @@ Connects to S2 forecast to determine required staff per shift.
 Model: 10 employees, each with exactly ONE role. 2 shifts/day (7h each).
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 import json
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import COFFEE_DEMAND_RATIO
 from db.mysql_client import get_db, q
+from api.auth import get_current_user, require_manager
 import asyncio, concurrent.futures
 
 router = APIRouter(prefix="/s3", tags=["Module 3 - Shift Scheduling"])
@@ -504,7 +505,7 @@ def solve_shift_schedule(
 # ======================================================================
 # GET /s3/schedule
 # ======================================================================
-@router.get("/schedule")
+@router.get("/schedule", dependencies=[Depends(require_manager)])
 async def get_schedule(
     date: str = Query(None),
     days: int = Query(7, ge=1, le=14),
@@ -708,7 +709,7 @@ def _solve_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/solve")
+@router.post("/solve", dependencies=[Depends(require_manager)])
 async def solve_schedule(payload: dict):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_s3_executor, _solve_impl, payload)
@@ -727,7 +728,7 @@ def _date_str(v):
 # ======================================================================
 # POST /s3/swap -- Same-role only, cross-date supported
 # ======================================================================
-@router.post("/swap")
+@router.post("/swap", dependencies=[Depends(require_manager)])
 async def swap_employees(payload: dict):
     date = payload.get("date", "")
     time_slot = payload.get("time_slot", "")
@@ -897,7 +898,7 @@ def _resync_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/resync")
+@router.post("/resync", dependencies=[Depends(require_manager)])
 async def resync_schedule(payload: dict):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_s3_executor, _resync_impl, payload)
@@ -1009,7 +1010,7 @@ def _sick_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/sick")
+@router.post("/sick", dependencies=[Depends(require_manager)])
 async def mark_sick(payload: dict):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_s3_executor, _sick_impl, payload)
@@ -1077,7 +1078,7 @@ def _unsick_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/unsick")
+@router.post("/unsick", dependencies=[Depends(require_manager)])
 async def unmark_sick(payload: dict):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_s3_executor, _unsick_impl, payload)
@@ -1086,7 +1087,7 @@ async def unmark_sick(payload: dict):
 # GET /s3/kpi -- Scheduling KPIs
 # ======================================================================
 
-@router.get("/kpi")
+@router.get("/kpi", dependencies=[Depends(require_manager)])
 async def get_kpi(
     start_date: str = Query(None),
     days: int = Query(7, ge=1, le=14),
@@ -1263,7 +1264,7 @@ async def get_kpi(
 # ======================================================================
 # GET /s3/prep_checklist -- Morning preparation checklist
 # ======================================================================
-@router.get("/prep_checklist")
+@router.get("/prep_checklist", dependencies=[Depends(require_manager)])
 async def get_prep_checklist():
     """Return Day-1 batches that still need to be moved from Fresh Area to Discount Area."""
     db = get_db()
@@ -1289,7 +1290,7 @@ async def get_prep_checklist():
 # ======================================================================
 # POST /s3/prep_acknowledge -- Acknowledge preparation checklist complete
 # ======================================================================
-@router.post("/prep_acknowledge")
+@router.post("/prep_acknowledge", dependencies=[Depends(require_manager)])
 async def acknowledge_prep():
     """Mark all Day-1 batches as moved to Discount Area."""
     db = get_db()
@@ -1311,7 +1312,7 @@ async def acknowledge_prep():
 # ======================================================================
 # S3 Production Scheduler endpoints (from s3_scheduling/scheduler.py)
 # ======================================================================
-@router.get("/plan/7day")
+@router.get("/plan/7day", dependencies=[Depends(require_manager)])
 async def get_7day_production_plan(date: str = None):
     """
     Forecasting Dashboard Panel 2: 7-day production plan grid.
@@ -1369,7 +1370,7 @@ async def get_7day_production_plan(date: str = None):
     }
 
 
-@router.get("/materials")
+@router.get("/materials", dependencies=[Depends(require_manager)])
 async def get_materials_procurement(date: str = None):
     """
     Forecasting Dashboard Panel 3: Raw material procurement list.
@@ -1414,7 +1415,7 @@ async def get_materials_procurement(date: str = None):
     }
 
 
-@router.get("/eval")
+@router.get("/eval", dependencies=[Depends(require_manager)])
 async def get_paper_evaluation():
     """
     Paper evaluation: S3 on test set with real lag features.
@@ -1457,7 +1458,7 @@ def _get_attendance():
     return _attendance_system
 
 
-@router.get("/attendance")
+@router.get("/attendance", dependencies=[Depends(require_manager)])
 async def get_attendance_dashboard(date: str = ""):
     """Shift+KPI Dashboard Panel 1: Today attendance + weekly grid + monthly summary.
     If date is provided and not today, returns historical attendance for that date."""
@@ -1495,7 +1496,7 @@ async def get_attendance_dashboard(date: str = ""):
     return {"status": "ok", **result}
 
 
-@router.post("/attendance/punch")
+@router.post("/attendance/punch", dependencies=[Depends(get_current_user)])
 async def punch_attendance(emp_id: str = "", pin: str = ""):
     """Record a punch-in or punch-out for an employee."""
     global _kpi_cache
@@ -1508,7 +1509,7 @@ async def punch_attendance(emp_id: str = "", pin: str = ""):
 
 # ======================================================================
 
-@router.get("/attendance/history")
+@router.get("/attendance/history", dependencies=[Depends(require_manager)])
 async def get_attendance_history(date: str = ""):
     """Get attendance for a specific historical date."""
     if not date:
@@ -1540,7 +1541,7 @@ async def get_attendance_history(date: str = ""):
 import numpy as _np_kpi
 _kpi_cache = None
 
-@router.get("/kpi/ranking")
+@router.get("/kpi/ranking", dependencies=[Depends(require_manager)])
 async def get_kpi_ranking(month: str = ""):
     """Shift+KPI Dashboard Panel 3: Cross-role KPI ranking with Z-Score + BSC."""
     global _kpi_cache

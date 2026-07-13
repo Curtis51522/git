@@ -131,6 +131,34 @@ def test_inventory_module_uses_langgraph_runner(monkeypatch):
     assert "verification_report" in body
 
 
+def test_module_analysis_forwards_the_manager_authorization_header(monkeypatch):
+    captured = {}
+
+    async def fake_run_s5_graph(template_id, request, raw_inputs=None):
+        captured["template_id"] = template_id
+        captured["authorization"] = request.params.get("_authorization")
+        return S5AnalysisResponse(
+            summary="Authorized dashboard response",
+            verification_report=VerificationReport(passed=True),
+            metadata={"template": template_id},
+        )
+
+    monkeypatch.setattr("s5_agent.server.run_s5_graph", fake_run_s5_graph)
+
+    client = TestClient(app)
+    response = client.post(
+        "/analyze/module",
+        headers={"Authorization": "Bearer manager-token"},
+        json={"module": "revenue", "date": "2026-06-30"},
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "template_id": "profit_root_cause",
+        "authorization": "Bearer manager-token",
+    }
+
+
 def test_analyze_module_routes_promotion_mix_to_langgraph(monkeypatch):
     captured = {}
 

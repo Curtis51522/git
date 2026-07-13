@@ -95,11 +95,11 @@ Explain:
 
 - S3 uses demand-aware scheduling logic.
 - The schedule panel shows staffing coverage and role allocation.
-- S5 schedule analysis uses the `staffing_diagnosis` template to check attendance, staffing, and demand context.
+- Schedule and attendance remain S3 operational functions and do not expose S5 analysis buttons.
 
 Main message:
 
-Scheduling is tied to demand. The manager can inspect whether staffing matches expected store activity.
+Scheduling is tied to demand. The manager can inspect whether staffing matches expected store activity without adding an unnecessary AI layer to routine attendance data.
 
 ## 8. Inventory And Wastage
 
@@ -128,20 +128,20 @@ Show daily revenue cards, charts, and the S5 analysis button.
 Explain:
 
 - Revenue analysis uses the `profit_root_cause` template.
-- KPI analysis uses the `full_diagnosis` template.
-- S5 runs multiple agents in phases, validates the DAG template, and returns a structured summary, evidence, and recommendations.
+- Monthly KPI ranking remains an S3 dashboard function and does not expose an S5 analysis endpoint.
+- S5 runs deterministic specialist agents through a LangGraph workflow and returns a structured summary, evidence, risks, and recommendations.
 
 Main message:
 
-The dashboard is not only reporting numbers. It asks why the numbers changed and which operational actions matter next.
+The revenue dashboard does more than report numbers. Its S5 workflow explains why results changed and which evidence-backed actions matter next, while KPI ranking remains a direct operational comparison.
 
 ## 10. S5 Architecture Explanation
 
 Use this short explanation when asked how S5 works:
 
-S5 is a backend analysis service. It exposes `/analyze` and `/analyze/module` endpoints. For common dashboard tasks, it maps each module to a predefined DAG template. The DAG executor validates the template before running agents. Agents produce deterministic findings from data sources and business rules. The synthesizer then turns those findings into a concise manager-facing summary and recommendation list.
+S5 is a backend analysis service. It exposes a constrained `/analyze/module` endpoint for the supported dashboard modules. Each module maps to a predefined LangGraph workflow. Deterministic specialist agents produce findings from dashboard-aligned data and business rules, the verifier checks evidence coverage, and the synthesizer returns a concise manager-facing summary and recommendation list.
 
-This design avoids relying on a free-form planner for every request. The system uses structured templates for common operations and keeps the LLM role focused on synthesis.
+This design avoids relying on a free-form planner for every request. The system uses structured workflows for common operations and remains usable without a live LLM dependency.
 
 ## 11. Current S5 Endpoints
 
@@ -150,8 +150,6 @@ Show these endpoints only if the audience is technical:
 | Endpoint | Purpose |
 | --- | --- |
 | `/s5/health` | Service status |
-| `/s5/templates` | Available analysis templates |
-| `/s5/analyze` | Free-text or intent-based analysis |
 | `/s5/analyze/module` | Dashboard module analysis |
 | `/s5/priorities` | Bundle priority signals |
 | `/s5/discounts` | Dynamic discount signals |

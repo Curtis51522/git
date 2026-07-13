@@ -88,8 +88,6 @@ api/module4_frontend/static/login_test.html
 api/module4_frontend/static/test_*.html
 api/module4_frontend/static/_full.js
 migration.sql
-schema.sql
-=
 docs/*
 !docs/s5_promotion_mix_design.md
 !docs/superpowers/

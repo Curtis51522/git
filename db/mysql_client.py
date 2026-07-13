@@ -3,162 +3,15 @@ MySQL database client -- drop-in replacement for Supabase / SQLite.
 All modules use the same q(db, table) API so switching databases
 only requires changing the import in each module.
 """
-import mysql.connector, threading, json, os
+import mysql.connector
 from datetime import datetime
 
-DB_CONFIG = {
-    "host": os.getenv("MYSQL_HOST", "localhost"),
-    "user": os.getenv("MYSQL_USER", "root"),
-    "password": os.getenv("MYSQL_PASSWORD", ""),
-    "database": os.getenv("MYSQL_DATABASE", "bakery_ai"),
-}
+from db.mysql_config import get_mysql_connection_config
 
-import asyncio as _asyncio
-_db_lock = _asyncio.Lock()
+DB_CONFIG = get_mysql_connection_config()
 
-def get_db():
-    return mysql.connector.connect(**DB_CONFIG, autocommit=True)
-
-class _LockedDB:
-    def __init__(self, db):
-        self._db = db
-    def cursor(self, **kw):
-        return self._db.cursor(**kw)
-    def __getattr__(self, name):
-        return getattr(self._db, name)
-
-class _DBGate:
-    async def __aenter__(self):
-        await _db_lock.acquire()
-        return _LockedDB(mysql.connector.connect(**DB_CONFIG, autocommit=True))
-    async def __aexit__(self, *args):
-        _db_lock.release()
-
-def async_db():
-    """Async-safe DB access. Use: async with async_db() as db: ..."""
-    return _DBGate()
-
-def init_db():
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("CREATE DATABASE IF NOT EXISTS " + DB_CONFIG["database"])
-    cursor.execute("USE " + DB_CONFIG["database"])
-    
-    tables = [
-        """CREATE TABLE IF NOT EXISTS users (
-            username VARCHAR(50) PRIMARY KEY,
-            password_hash VARCHAR(255) NOT NULL DEFAULT 'hash123',
-            role VARCHAR(20) NOT NULL DEFAULT 'staff'
-        )""",
-        """CREATE TABLE IF NOT EXISTS employees (
-            id VARCHAR(10) PRIMARY KEY,
-            name VARCHAR(50) NOT NULL,
-            skills JSON NOT NULL DEFAULT ('["bakery"]'),
-            min_hours_per_week FLOAT NOT NULL DEFAULT 15.0,
-            max_hours_per_week FLOAT NOT NULL DEFAULT 40.0,
-            available TINYINT NOT NULL DEFAULT 1,
-            rest_days_per_week INT NOT NULL DEFAULT 1,
-            unavailable_dates JSON NOT NULL DEFAULT ('[]')
-        )""",
-        """CREATE TABLE IF NOT EXISTS shift_schedule (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            schedule_date DATE NOT NULL,
-            time_slot VARCHAR(20) NOT NULL,
-            employee_id VARCHAR(10),
-            employee_name VARCHAR(50),
-            role VARCHAR(30) DEFAULT 'bakery',
-            staff_count INT NOT NULL DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )""",
-        """CREATE TABLE IF NOT EXISTS detection_log (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            model_version VARCHAR(30) NOT NULL,
-            image_id VARCHAR(100),
-            scenario VARCHAR(30) NOT NULL DEFAULT "checkout",
-            predicted_class VARCHAR(50),
-            bbox JSON,
-            confidence FLOAT,
-            inference_time FLOAT,
-            manual_check_required TINYINT DEFAULT 0,
-            final_class VARCHAR(50),
-            error_type VARCHAR(30) DEFAULT "none",
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )""",
-
-        """CREATE TABLE IF NOT EXISTS batch_inventory (
-            batch_id VARCHAR(50) PRIMARY KEY,
-            product_name VARCHAR(50) NOT NULL,
-            quantity INT NOT NULL DEFAULT 0,
-            production_time DATETIME NOT NULL,
-            tray_color VARCHAR(20) DEFAULT 'green',
-            freshness_status VARCHAR(30) DEFAULT 'Fresh',
-            quantity_initial INT,
-            quantity_remaining INT,
-            sales_area VARCHAR(30) DEFAULT 'Fresh Area'
-        )""",
-        """CREATE TABLE IF NOT EXISTS inventory_transactions (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            transaction_type VARCHAR(20) NOT NULL,
-            batch_id VARCHAR(50),
-            product_name VARCHAR(50) NOT NULL,
-            quantity INT NOT NULL,
-            unit_price FLOAT DEFAULT 0,
-            discount_applied FLOAT DEFAULT 0,
-            freshness_status VARCHAR(30),
-            transaction_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )""",
-    
-        """CREATE TABLE IF NOT EXISTS receipts (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            receipt_id VARCHAR(50) UNIQUE NOT NULL,
-            items JSON NOT NULL,
-            subtotal FLOAT NOT NULL DEFAULT 0,
-            discount_total FLOAT NOT NULL DEFAULT 0,
-            total FLOAT NOT NULL DEFAULT 0,
-            savings FLOAT NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )""",
-        """CREATE TABLE IF NOT EXISTS business_events (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            event_type VARCHAR(40) NOT NULL,
-            start_date DATE NOT NULL,
-            end_date DATE NOT NULL,
-            products JSON,
-            discount_pct FLOAT,
-            note TEXT,
-            active TINYINT NOT NULL DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )""",]
-    
-    for t in tables:
-        cursor.execute(t)
-    db.commit()
-
-def seed_defaults(db):
-    cursor = db.cursor()
-    cursor.execute("SELECT COUNT(*) FROM users")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO users(username,password_hash,role) VALUES(%s,%s,%s)", ("manager","hash123","manager"))
-        cursor.execute("INSERT INTO users(username,password_hash,role) VALUES(%s,%s,%s)", ("staff1","hash123","staff"))
-    
-    cursor.execute("SELECT COUNT(*) FROM employees")
-    if cursor.fetchone()[0] == 0:
-        emps = [
-            ("E001","Ali",    '["bakery","coffee","cashier"]',15,40,1,1,"[]"),
-            ("E002","Mei",    '["bakery","coffee","cashier"]',15,40,1,1,"[]"),
-            ("E003","Raj",    '["bakery","coffee","cashier"]',15,40,1,1,"[]"),
-            ("E004","Siti",   '["bakery","coffee","cashier"]',15,40,1,1,"[]"),
-            ("E005","Ahmad",  '["bakery","coffee","cashier"]',15,40,1,1,"[]"),
-            ("E006","Priya",  '["bakery","coffee","cashier"]',15,40,1,1,"[]"),
-        ]
-        cursor.executemany(
-            "INSERT INTO employees(id,name,skills,min_hours_per_week,max_hours_per_week,available,rest_days_per_week,unavailable_dates) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
-            emps
-        )
-    db.commit()
-
-
+def get_db(*, autocommit=True):
+    return mysql.connector.connect(**DB_CONFIG, autocommit=autocommit)
 
 class FakeResponse:
     def __init__(self, data):
@@ -183,7 +36,7 @@ class QueryBuilder:
     def select(self, columns="*"):
         self._select = columns; return self
     def eq(self, col, val):
-        self._where.append(f"{col} = %s" if not col.startswith('') else f"{col} = %s")
+        self._where.append(f"{col} = %s")
         self._params.append(val); return self
     def neq(self, col, val):
         self._where.append(f'{col} != %s'); self._params.append(val); return self
@@ -223,8 +76,11 @@ class QueryBuilder:
         limit = self._limit or ""
         sql = f"SELECT {self._select} FROM {self.table} {where} {order} {limit}"
         cursor = self.db.cursor(dictionary=True)
-        cursor.execute(sql, self._params)
-        rows = cursor.fetchall()
+        try:
+            cursor.execute(sql, self._params)
+            rows = cursor.fetchall()
+        finally:
+            cursor.close()
         # Convert non-serializable types
         result = []
         for r in rows:
@@ -245,17 +101,23 @@ class QueryBuilder:
         vals = list(self._insert_data.values())
         sql = f"INSERT INTO {self.table} ({cols}) VALUES ({ph})"
         cursor = self.db.cursor()
-        cursor.execute(sql, vals)
-        self.db.commit()
+        try:
+            cursor.execute(sql, vals)
+        finally:
+            cursor.close()
+        self._commit_if_autocommit()
         return FakeResponse([self._insert_data])
 
     def _exec_insert_many(self):
         cursor = self.db.cursor()
-        for row in self._insert_data:
-            cols = ", ".join(f"{k}" for k in row)
-            ph = ", ".join("%s" for _ in row)
-            cursor.execute(f"INSERT INTO {self.table} ({cols}) VALUES ({ph})", list(row.values()))
-        self.db.commit()
+        try:
+            for row in self._insert_data:
+                cols = ", ".join(f"{k}" for k in row)
+                ph = ", ".join("%s" for _ in row)
+                cursor.execute(f"INSERT INTO {self.table} ({cols}) VALUES ({ph})", list(row.values()))
+        finally:
+            cursor.close()
+        self._commit_if_autocommit()
         return FakeResponse(self._insert_data)
 
     def _exec_update(self):
@@ -264,19 +126,24 @@ class QueryBuilder:
         vals = list(self._update_data.values()) + self._params
         sql = f"UPDATE {self.table} SET {sets} {where}"
         cursor = self.db.cursor()
-        cursor.execute(sql, vals)
-        self.db.commit()
+        try:
+            cursor.execute(sql, vals)
+        finally:
+            cursor.close()
+        self._commit_if_autocommit()
         return FakeResponse([self._update_data])
 
     def _exec_delete(self):
         where = ("WHERE " + " AND ".join(self._where)) if self._where else ""
         sql = f"DELETE FROM {self.table} {where}"
         cursor = self.db.cursor()
-        cursor.execute(sql, self._params)
-        self.db.commit()
+        try:
+            cursor.execute(sql, self._params)
+        finally:
+            cursor.close()
+        self._commit_if_autocommit()
         return FakeResponse([])
 
-# Auto-init
-init_db()
-seed_defaults(get_db())
-print("MySQL ready:", DB_CONFIG["database"])
+    def _commit_if_autocommit(self):
+        if getattr(self.db, "autocommit", True):
+            self.db.commit()

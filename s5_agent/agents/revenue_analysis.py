@@ -4,8 +4,8 @@ import json
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import urlopen
 
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.s5_config.settings import THRESHOLDS
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
@@ -85,9 +85,9 @@ async def _fetch_revenue_dashboard(params: dict[str, Any]) -> dict[str, Any]:
     try:
         base_url = "http://127.0.0.1:8002/s4/revenue/daily"
         url = f"{base_url}?{urlencode({'date': date})}" if date else base_url
-        with urlopen(url, timeout=10) as response:
-            if response.status == 200:
-                return json.loads(response.read().decode("utf-8"))
+        payload = fetch_dashboard_json(url, params)
+        if payload:
+            return payload
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
         pass
     return {"success": True, "data": {}, "tool": "revenue_dashboard_fallback"}
@@ -612,9 +612,9 @@ class HourlyRevenueAgent:
         try:
             base_url = "http://127.0.0.1:8002/s4/revenue/hourly"
             url = f"{base_url}?{urlencode({'date': date})}" if date else base_url
-            with urlopen(url, timeout=10) as response:
-                if response.status == 200:
-                    return json.loads(response.read().decode("utf-8"))
+            payload = fetch_dashboard_json(url, params)
+            if payload:
+                return payload
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
             pass
         return {"success": True, "data": {"hours": [], "bread": [], "beverages": []}, "tool": "hourly_revenue_fallback"}

@@ -7,13 +7,14 @@ import threading
 from collections import OrderedDict
 import pandas as pd
 import xgboost as xgb
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import PRODUCT_TYPES, FORECAST_FEATURE_COLS
 from db.mysql_client import get_db, q
+from api.auth import require_manager
 from models.schemas import SalesForecast
 from s2_forecasting.feature_contract import (
     FEATURE_GROUPS,
@@ -679,7 +680,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
     logger.info("Forecast complete: %d products, %d forecasts", len(products_to_forecast), len(forecasts))
     return response
 
-@router.get("/forecast")
+@router.get("/forecast", dependencies=[Depends(require_manager)])
 async def get_forecast(
     product: Optional[str] = Query(None, description="Product name or empty for all"),
     days: int = Query(7, ge=1, le=7),
@@ -688,7 +689,7 @@ async def get_forecast(
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, _do_forecast, product, days, True, date)
 
-@router.get("/forecast/refresh")
+@router.get("/forecast/refresh", dependencies=[Depends(require_manager)])
 async def refresh_forecast(
     product: Optional[str] = Query(None),
     days: int = Query(7, ge=1, le=7),
@@ -699,7 +700,7 @@ async def refresh_forecast(
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, _do_forecast, product, days, False, date)
 
-@router.get("/sales_history")
+@router.get("/sales_history", dependencies=[Depends(require_manager)])
 async def get_sales_history(days: int = Query(30, ge=1, le=90)):
     db = get_db()
     c = db.cursor(dictionary=True)
@@ -715,7 +716,7 @@ async def get_sales_history(days: int = Query(30, ge=1, le=90)):
     return {"status": "ok", "count": len(rows), "transactions": rows}
 
 
-@router.get("/accuracy")
+@router.get("/accuracy", dependencies=[Depends(require_manager)])
 async def get_accuracy():
     """Return per-product test MAE for prediction intervals."""
     path = os.path.join(MODEL_DIR, "test_metrics.json")
@@ -734,7 +735,7 @@ async def get_accuracy():
         return {"status": "ok", "metrics": _sanitize(metrics)}
     return {"status": "no_data", "message": "test_metrics.json not found"}
 
-@router.get("/features/importance")
+@router.get("/features/importance", dependencies=[Depends(require_manager)])
 async def get_feature_importance():
     """Return deployed S2 Q50 feature importance scores for S2-S5 analysis."""
     try:
@@ -772,7 +773,7 @@ async def get_feature_importance():
         return {"status": "error", "message": str(e)}
 
 
-@router.get("/business-events")
+@router.get("/business-events", dependencies=[Depends(require_manager)])
 async def get_business_events(date: str = ""):
     selected_date = date or datetime.now().strftime("%Y-%m-%d")
     try:
@@ -788,7 +789,7 @@ async def get_business_events(date: str = ""):
         return {"status": "error", "message": str(e)}
 
 
-@router.post("/business-events")
+@router.post("/business-events", dependencies=[Depends(require_manager)])
 async def create_business_event(payload: dict):
     try:
         data = _validate_business_event_payload(payload)
@@ -816,7 +817,10 @@ async def create_business_event(payload: dict):
         return {"status": "error", "message": str(e)}
 
 
-@router.put("/business-events/{event_id}")
+@router.put(
+    "/business-events/{event_id}",
+    dependencies=[Depends(require_manager)],
+)
 async def update_business_event(event_id: int, payload: dict):
     try:
         data = _validate_business_event_payload(payload)
@@ -846,7 +850,10 @@ async def update_business_event(event_id: int, payload: dict):
         return {"status": "error", "message": str(e)}
 
 
-@router.delete("/business-events/{event_id}")
+@router.delete(
+    "/business-events/{event_id}",
+    dependencies=[Depends(require_manager)],
+)
 async def delete_business_event(event_id: int):
     try:
         db = get_db()
@@ -858,7 +865,7 @@ async def delete_business_event(event_id: int):
         return {"status": "error", "message": str(e)}
 
 
-@router.get("/features/today")
+@router.get("/features/today", dependencies=[Depends(require_manager)])
 async def get_today_features(date: str = ""):
     """Return today's actual feature values for S5 cross-referencing."""
     import datetime as _dt
