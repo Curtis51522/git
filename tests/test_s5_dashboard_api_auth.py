@@ -1,7 +1,9 @@
 import asyncio
 import json
 
+import s5_agent.agents.inventory as inventory_module
 from s5_agent.agents.forecast_accuracy import ForecastAccuracyAgent
+from s5_agent.agents.inventory import InventoryAgent
 from s5_agent.agents.promo import PromoAgent
 from s5_agent.core import dashboard_api
 
@@ -41,6 +43,45 @@ def test_dashboard_api_forwards_authorization_with_standard_library(monkeypatch)
     assert result == {"data": {"today_revenue": 2984.0}}
     assert captured == {
         "url": "http://127.0.0.1:8002/s4/revenue/daily?date=2026-06-30",
+        "authorization": "Bearer manager-token",
+        "timeout": 10,
+    }
+
+
+def test_inventory_agent_uses_dashboard_auth(monkeypatch):
+    captured = {}
+
+    def fake_fetch(url, params, timeout=10):
+        captured["url"] = url
+        captured["authorization"] = params.get("_authorization")
+        captured["timeout"] = timeout
+        return {"inventory": []}
+
+    monkeypatch.setattr(
+        inventory_module,
+        "fetch_dashboard_json",
+        fake_fetch,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        inventory_module,
+        "S1_INVENTORY_URL",
+        "http://127.0.0.1:9/s1/inventory",
+    )
+
+    result = asyncio.run(
+        InventoryAgent().fetch(
+            {
+                "module": "inventory",
+                "product": "all",
+                "_authorization": "Bearer manager-token",
+            }
+        )
+    )
+
+    assert result == {"inventory": []}
+    assert captured == {
+        "url": "http://127.0.0.1:9/s1/inventory",
         "authorization": "Bearer manager-token",
         "timeout": 10,
     }

@@ -1403,6 +1403,8 @@ sessionStorage.setItem('bakery_token',token);
 sessionStorage.setItem('bakery_role',role);
 sessionStorage.setItem('bakery_username',username);
 sessionStorage.setItem('bakery_panel','pos');
+document.getElementById('password').value='';
+document.getElementById('error-msg').textContent='';
 loadBeverageOptions().catch(function(e){console.log('Beverage options load failed',e);});
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
@@ -1432,6 +1434,8 @@ document.getElementById('dashboard').removeAttribute('data-role');
 document.getElementById('login-page').classList.remove('hidden');
 document.getElementById('signin-btn').disabled=false;
 document.getElementById('signin-btn').textContent=t('Sign In');
+document.getElementById('password').value='';
+document.getElementById('error-msg').textContent='';
 }
 
 var _panelContainers={};

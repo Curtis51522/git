@@ -317,6 +317,19 @@ def test_frontend_applies_role_visibility_on_login_and_session_restore():
     assert "canAccessPanel(panel)" in show_panel
 
 
+def test_frontend_clears_password_after_login_and_logout():
+    source = Path("api/module4_frontend/static/index.html").read_text(
+        encoding="utf-8"
+    )
+    login = source[source.index("async function doLogin") : source.index("function doLogout")]
+    logout = source[source.index("function doLogout") : source.index("var _panelContainers")]
+
+    password_clear = "document.getElementById('password').value=''"
+    assert password_clear in login
+    assert password_clear in logout
+    assert "document.getElementById('error-msg').textContent=''" in logout
+
+
 def test_frontend_staff_view_does_not_load_management_data_or_controls():
     source = Path("api/module4_frontend/static/index.html").read_text(
         encoding="utf-8"

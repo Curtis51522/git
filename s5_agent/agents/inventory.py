@@ -1,8 +1,9 @@
 ﻿# Inventory Agent - stock levels + freshness + waste risk
 # Phase 4: direct DB query for authoritative freshness data (no heuristic guessing).
-import httpx, logging
+import logging
 from typing import Dict, Any
 from .base import BaseAgent
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.s5_config.settings import S1_INVENTORY_URL, THRESHOLDS
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
@@ -33,12 +34,10 @@ class InventoryAgent(BaseAgent):
     async def fetch(self, params: Dict[str, Any]) -> Dict[str, Any]:
         self._fetch_ok = False
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(S1_INVENTORY_URL, timeout=10)
-                resp.raise_for_status()
-                self._fetch_ok = True
-                return resp.json()
-        except Exception as e:
+            payload = fetch_dashboard_json(S1_INVENTORY_URL, params)
+            self._fetch_ok = bool(payload)
+            return payload
+        except (OSError, TimeoutError, ValueError) as e:
             logger.warning("Inventory fetch failed: %s", e)
             return {}
 
