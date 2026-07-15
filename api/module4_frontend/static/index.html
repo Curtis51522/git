@@ -195,6 +195,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .kpi-card .kpi-change{font-size:9px;margin-top:2px}
 .kpi-up{color:#27ae60}.kpi-down{color:#e74c3c}
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.chart-row-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.chart-third{min-width:0}
 .chart-panel{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #f0e8d8}
 .chart-panel h4{font-size:14px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}
 .fresh-ratio-layout{height:180px;display:grid;grid-template-columns:minmax(74px,1fr) minmax(110px,180px) minmax(74px,1fr);align-items:center;gap:6px}
@@ -212,6 +214,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .table-panel{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #f0e8d8;margin-bottom:14px}
 .table-panel h4{font-size:14px;color:#8b6914;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid #f0e8d8}.panel-container{display:none}
 @media (max-width:600px){
+  .chart-row-three{grid-template-columns:1fr}
   .topnav{flex-wrap:wrap;padding:6px 10px;gap:4px}
   .topnav h2{font-size:16px;margin-right:auto}
   .topnav nav{order:2;flex-basis:100%;width:100%;padding-top:2px}
@@ -422,7 +425,7 @@ en:{
 'Send':'Send','Ask me anything...':'Ask me anything...',
 'AI Summary':'AI Summary','System Alerts':'System Alerts',
 'Username':'Username','Password':'Password','Sign In':'Sign In',
-'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token',
+'Invalid credentials':'Invalid credentials','Missing token':'Missing token','Invalid token':'Invalid token','Session expired. Please sign in again.':'Session expired. Please sign in again.',
 'Request failed':'Request failed','Request timed out':'Request timed out','Beverage options unavailable':'Beverage options unavailable','Manager only':'Manager only',
 'Cannot modify past schedules. Select today or a future date.':'Cannot modify past schedules. Select today or a future date.',
 'OK':'OK','Cancel':'Cancel','Error':'Error',
@@ -520,11 +523,13 @@ en:{
 'Payment failed':'Payment failed',
 'No materials found':'No materials found',
 'Forecast Demand':'Forecast Demand',
+'7-Day Forecast Demand':'7-Day Forecast Demand',
 'Forecast Revenue':'Forecast Revenue',
 'Supply Coverage':'Supply Coverage',
 'Demand Gap':'Demand Gap',
 'Bake Plan Items':'Bake Plan Items',
 'Materials to Order':'Materials to Order',
+'Materials to Restock':'Materials to Restock',
 'Demand Forecast':'Demand Forecast',
 'Production Plan':'Production Plan',
 'Material Procurement':'Material Procurement',
@@ -663,6 +668,15 @@ en:{
 'Edit Inflow Item':'Edit Inflow Item',
 'API error':'API error',
 'Bread Stock Levels':'Bread Stock Levels',
+'Baked Product Stock Records':'Baked Product Stock Records',
+'Raw Material Restock History':'Raw Material Restock History',
+'Record ID':'Record ID',
+'Remaining':'Remaining',
+'Baked':'Baked',
+'Left Now':'Left Now',
+'Left at Close':'Left at Close',
+'Check data':'Check data',
+'Source':'Source',
 'Fresh vs Day-1 Ratio':'Freshly Baked vs Day-1 Ratio',
 'Top 5 Material Consumption':'Top 5 Material Consumption',
 'Material Stock Days Remaining':'Material Stock Days Remaining',
@@ -678,8 +692,8 @@ en:{
 'Coffee Materials (kg/L)':'Coffee Materials (kg/L)',
 'Inventory Value (CNY)':'Inventory Value (CNY)',
 'Total stock value':'Total stock value',
-'items':'items',
-'No data':'No data',
+'item':'item','items':'items',
+'No data':'No data','No raw-material restock was recorded on':'No raw-material restock was recorded on','Latest restock:':'Latest restock:','records':'records','Select that date to view details.':'Select that date to view details.',
 'Daily Avg':'Daily Avg',
 'Days Left':'Days Left',
 'No consumption data yet':'No consumption data yet',
@@ -700,9 +714,23 @@ en:{
 'Act.Stock':'Act.Stock',
 'Wastage':'Wastage',
 'Hourly Sales':'Hourly Sales',
+'Discarded Product Loss':'Discarded Product Loss',
+'Selected Day':'Selected Day',
+'Date Range':'Date Range',
+'Sold':'Sold',
+'Discarded':'Discarded',
+'Sell-through':'Sell-through',
+'Closing Loss':'Closing Loss',
+'Loss Share':'Loss Share',
+'Total closing loss':'Total closing loss',
+'discarded units':'discarded units',
+'products':'products',
+'No discarded product loss for this period':'No discarded product loss for this period',
+'Loading closing loss data...':'Loading closing loss data...',
 'Category Breakdown':'Category Breakdown',
+'Dine-in vs Takeaway':'Dine-in vs Takeaway',
 'Payment Methods':'Payment Methods',
-'7-Day Profit Trend':'7-Day Profit Trend',
+'7-Day Revenue Trend':'7-Day Revenue Trend',
 '7-Day Orders & Avg Ticket Value (ATV)':'7-Day Orders & Avg Ticket Value (ATV)',
 'Bread Sales Ranking':'Bread Sales Ranking',
 'Beverages Sales Ranking':'Beverages Sales Ranking',
@@ -714,6 +742,7 @@ en:{
 'Yearly':'Yearly',
 'Bread':'Bread',
 'Beverages':'Beverages',
+'Bakery':'Bakery',
 'Query':'Query',
 'Loading revenue data...':'Loading revenue data...',
 'No data for this date':'No data for this date',
@@ -727,6 +756,10 @@ en:{
 'vs yesterday':'vs yesterday',
 'orders':'orders',
 'Profit':'Profit',
+'Closing adjustment':'Closing adjustment',
+'Unsold products discarded at closing':'Unsold products discarded at closing',
+"Already deducted from today's profit":"Already deducted from today's profit",
+'Order adjustments':'Order adjustments',
 'Select date range':'Select date range',
 'No data for this period':'No data for this period',
 'Added':'Added',
@@ -739,6 +772,7 @@ en:{
 'Revenue (CNY)':'Revenue (CNY)',
 'Profit (CNY)':'Profit (CNY)',
 'Avg Ticket Value (ATV)':'Avg Ticket Value (ATV)',
+'Avg Ticket Value (CNY)':'Avg Ticket Value (CNY)',
 'Context':'Context',
 'Intent:':'Intent:',
 'Decision:':'Decision:',
@@ -852,7 +886,7 @@ zh:{
 'Send':'\u53D1\u9001','Ask me anything...':'\u95EE\u6211\u4EFB\u4F55\u95EE\u9898...',
 'AI Summary':'AI\u6458\u8981','System Alerts':'\u7CFB\u7EDF\u63D0\u9192',
 'Username':'\u7528\u6237\u540D','Password':'\u5BC6\u7801','Sign In':'\u767B\u5F55',
-'Invalid credentials':'\u51ED\u636E\u65E0\u6548','Missing token':'\u7F3A\u5C11\u4EE4\u724C','Invalid token':'\u4EE4\u724C\u65E0\u6548',
+'Invalid credentials':'\u51ED\u636E\u65E0\u6548','Missing token':'\u7F3A\u5C11\u4EE4\u724C','Invalid token':'\u4EE4\u724C\u65E0\u6548','Session expired. Please sign in again.':'\u4F1A\u8BDD\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u91CD\u65B0\u767B\u5F55\u3002',
 'Request failed':'\u8BF7\u6C42\u5931\u8D25','Request timed out':'\u8BF7\u6C42\u8D85\u65F6','Beverage options unavailable':'\u996e\u54c1\u9009\u9879\u4e0d\u53ef\u7528','Manager only':'\u4EC5\u9650\u7ECF\u7406',
 'Cannot modify past schedules. Select today or a future date.':'\u65E0\u6CD5\u4FEE\u6539\u8FC7\u53BB\u7684\u6392\u73ED\u3002\u8BF7\u9009\u62E9\u4ECA\u5929\u6216\u672A\u6765\u65E5\u671F\u3002',
 'OK':'\u786E\u5B9A','Cancel':'\u53D6\u6D88','Error':'\u9519\u8BEF',
@@ -951,11 +985,13 @@ zh:{
 'Payment failed':'\u652F\u4ED8\u5931\u8D25',
 'No materials found':'\u672A\u627E\u5230\u7269\u6599',
 'Forecast Demand':'\u9884\u6D4B\u9700\u6C42',
+'7-Day Forecast Demand':'\u0037\u5929\u9884\u6D4B\u9700\u6C42',
 'Forecast Revenue':'\u9884\u6D4B\u6536\u5165',
 'Supply Coverage':'\u4F9B\u7ED9\u8986\u76D6\u7387',
 'Demand Gap':'\u9700\u6C42\u7F3A\u53E3',
 'Bake Plan Items':'\u70D8\u7119\u8BA1\u5212\u9879',
 'Materials to Order':'\u5F85\u91C7\u8D2D\u7269\u6599',
+'Materials to Restock':'\u9700\u8981\u8865\u8D27\u7684\u539F\u6750\u6599',
 'Demand Forecast':'\u9700\u6C42\u9884\u6D4B',
 'Production Plan':'\u751F\u4EA7\u8BA1\u5212',
 'Material Procurement':'\u7269\u6599\u91C7\u8D2D',
@@ -1094,6 +1130,15 @@ zh:{
 'Edit Inflow Item':'\u7f16\u8f91\u5165\u5e93\u9879',
 'API error':'API \u9519\u8bef',
 'Bread Stock Levels':'\u9762\u5305\u5e93\u5b58\u6c34\u5e73',
+'Baked Product Stock Records':'\u6210\u54c1\u751f\u4ea7\u5e93\u5b58\u8bb0\u5f55',
+'Raw Material Restock History':'\u539f\u6750\u6599\u8865\u8d27\u5386\u53f2',
+'Record ID':'\u8bb0\u5f55 ID',
+'Remaining':'\u5269\u4f59\u91cf',
+'Baked':'\u70d8\u5236',
+'Left Now':'\u5f53\u524d\u5269\u4f59',
+'Left at Close':'\u6253\u70ca\u65f6\u5269\u4f59',
+'Check data':'\u68c0\u67e5\u6570\u636e',
+'Source':'\u6765\u6e90',
 'Fresh vs Day-1 Ratio':'\u65b0\u9c9c\u51fa\u7089\u4e0e\u9694\u65e5\u5360\u6bd4',
 'Top 5 Material Consumption':'\u7269\u6599\u6d88\u8017 Top 5',
 'Material Stock Days Remaining':'\u7269\u6599\u5269\u4f59\u53ef\u7528\u5929\u6570',
@@ -1109,8 +1154,8 @@ zh:{
 'Coffee Materials (kg/L)':'\u5496\u5561\u7269\u6599 (kg/L)',
 'Inventory Value (CNY)':'\u5e93\u5b58\u4ef7\u503c (CNY)',
 'Total stock value':'\u603b\u5e93\u5b58\u4ef7\u503c',
-'items':'\u9879',
-'No data':'\u65e0\u6570\u636e',
+'item':'\u9879','items':'\u9879',
+'No data':'\u65e0\u6570\u636e','No raw-material restock was recorded on':'\u5f53\u5929\u6ca1\u6709\u539f\u6750\u6599\u8865\u8d27\u8bb0\u5f55\uff1a','Latest restock:':'\u6700\u8fd1\u4e00\u6b21\u8865\u8d27\uff1a','records':'\u6761\u8bb0\u5f55','Select that date to view details.':'\u9009\u62e9\u8be5\u65e5\u671f\u53ef\u67e5\u770b\u8be6\u7ec6\u8bb0\u5f55\u3002',
 'Daily Avg':'\u65e5\u5747',
 'Days Left':'\u5269\u4f59\u5929\u6570',
 'No consumption data yet':'\u6682\u65e0\u6d88\u8017\u6570\u636e',
@@ -1131,9 +1176,23 @@ zh:{
 'Act.Stock':'\u5b9e\u9645\u5e93\u5b58',
 'Wastage':'\u635f\u8017',
 'Hourly Sales':'\u5c0f\u65f6\u9500\u552e',
+'Discarded Product Loss':'\u62a5\u635f\u4ea7\u54c1\u635f\u5931',
+'Selected Day':'\u9009\u5b9a\u65e5\u671f',
+'Date Range':'\u65e5\u671f\u8303\u56f4',
+'Sold':'\u5df2\u552e',
+'Discarded':'\u5df2\u62a5\u635f',
+'Sell-through':'\u552e\u7f44\u7387',
+'Closing Loss':'\u95ed\u5e97\u635f\u5931',
+'Loss Share':'\u635f\u5931\u5360\u6bd4',
+'Total closing loss':'\u95ed\u5e97\u635f\u5931\u5408\u8ba1',
+'discarded units':'\u62a5\u635f\u4ef6',
+'products':'\u4ea7\u54c1',
+'No discarded product loss for this period':'\u8be5\u65f6\u6bb5\u65e0\u4ea7\u54c1\u62a5\u635f',
+'Loading closing loss data...':'\u52a0\u8f7d\u672a\u552e\u4ea7\u54c1\u635f\u5931\u4e2d...',
 'Category Breakdown':'\u54c1\u7c7b\u62c6\u5206',
+'Dine-in vs Takeaway':'\u5802\u98df\u4e0e\u5916\u5e26',
 'Payment Methods':'\u652f\u4ed8\u65b9\u5f0f',
-'7-Day Profit Trend':'7 \u65e5\u5229\u6da6\u8d8b\u52bf',
+'7-Day Revenue Trend':'7 \u65e5\u8425\u6536\u8d8b\u52bf',
 '7-Day Orders & Avg Ticket Value (ATV)':'7 \u65e5\u8ba2\u5355\u4e0e\u5e73\u5747\u5ba2\u5355\u4ef7 (ATV)',
 'Bread Sales Ranking':'\u9762\u5305\u9500\u552e\u6392\u540d',
 'Beverages Sales Ranking':'\u996e\u54c1\u9500\u552e\u6392\u540d',
@@ -1145,6 +1204,7 @@ zh:{
 'Yearly':'\u6309\u5e74',
 'Bread':'\u9762\u5305',
 'Beverages':'\u996e\u54c1',
+'Bakery':'\u70D8\u7119\u4EA7\u54C1',
 'Query':'\u67e5\u8be2',
 'Loading revenue data...':'\u52a0\u8f7d\u6536\u5165\u6570\u636e\u4e2d...',
 'No data for this date':'\u8be5\u65e5\u671f\u65e0\u6570\u636e',
@@ -1158,6 +1218,10 @@ zh:{
 'vs yesterday':'\u8f83\u6628\u65e5',
 'orders':'\u8ba2\u5355',
 'Profit':'\u5229\u6da6',
+'Closing adjustment':'\u95ed\u5e97\u8c03\u6574',
+'Unsold products discarded at closing':'\u95ed\u5e97\u65f6\u672a\u552e\u51fa\u5e76\u62a5\u635f\u7684\u4ea7\u54c1',
+"Already deducted from today's profit":'\u5df2\u4ece\u4eca\u65e5\u5229\u6da6\u4e2d\u6263\u9664',
+'Order adjustments':'\u8ba2\u5355\u8c03\u6574',
 'Select date range':'\u8bf7\u9009\u62e9\u65e5\u671f\u8303\u56f4',
 'No data for this period':'\u8be5\u65f6\u6bb5\u65e0\u6570\u636e',
 'Added':'\u5df2\u6dfb\u52a0',
@@ -1170,6 +1234,7 @@ zh:{
 'Revenue (CNY)':'\u6536\u5165 (CNY)',
 'Profit (CNY)':'\u5229\u6da6 (CNY)',
 'Avg Ticket Value (ATV)':'\u5e73\u5747\u5ba2\u5355\u4ef7 (ATV)',
+'Avg Ticket Value (CNY)':'\u5e73\u5747\u5ba2\u5355\u4ef7 (CNY)',
 'Context':'\u4e0a\u4e0b\u6587',
 'Intent:':'\u610f\u56fe\uff1a',
 'Decision:':'\u51b3\u7b56\uff1a',
@@ -1438,6 +1503,13 @@ document.getElementById('password').value='';
 document.getElementById('error-msg').textContent='';
 }
 
+function handleUnauthorizedResponse(response){
+if(!response||response.status!==401)return false;
+doLogout();
+document.getElementById('error-msg').textContent=t('Session expired. Please sign in again.');
+return true;
+}
+
 var _panelContainers={};
 function getPanelContainer(panel){
   if(!_panelContainers[panel]){
@@ -1477,7 +1549,7 @@ if(btn)btn.classList.add('active');
 var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),revenue:t('Revenue'),attendance:t('Attendance')};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue,attendance:renderAttendance};
-if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
+if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){loadStock();setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 var container=getPanelContainer(panel);
 container.style.display='block';
 container.innerHTML='';
@@ -1501,7 +1573,7 @@ if(method==='GET'&&!force&&_apiCache[cacheKey]&&(Date.now()-_apiCache[cacheKey].
 var headers={'Authorization':'Bearer '+token};
 if(opts.body&&!opts.bodyIsForm){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body);}
 var r=await fetch(API+url,{method:method,headers:headers,body:opts.body});
-if(!r.ok){var txt=await r.text();throw new Error(txt||t('Request failed'));}
+if(!r.ok){if(r.status===401&&handleUnauthorizedResponse(r))throw new Error(t('Session expired. Please sign in again.'));var txt=await r.text();throw new Error(txt||t('Request failed'));}
 var data=await r.json();
 if(method==='GET')_apiCache[cacheKey]={data:data,ts:Date.now()};
 return data;
@@ -2564,12 +2636,12 @@ function activeBusinessEventContext(){
 function renderForecast(c){
   var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   c.innerHTML='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'
-    +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-demand">-</div><div class="kpi-label">'+t('Forecast Demand')+'</div></div>'
+    +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-demand">-</div><div class="kpi-label">'+t('7-Day Forecast Demand')+'</div><div id="fc-kpi-demand-split" style="font-size:11px;color:#7d6b5d;margin-top:4px;line-height:1.35">-</div></div>'
     +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-revenue">-</div><div class="kpi-label">'+t('Forecast Revenue')+'</div></div>'
     +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-plan">-</div><div class="kpi-label">'+t('Weekly Bake Total')+'</div></div>'
     +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-coverage">-</div><div class="kpi-label">'+t('Supply Coverage')+'</div></div>'
     +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-gap">-</div><div class="kpi-label">'+t('Demand Gap')+'</div></div>'
-    +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-matl">-</div><div class="kpi-label">'+t('Materials to Order')+'</div></div></div>'
+    +'<div class="kpi-card"><div class="kpi-value" style="font-size:14px" id="fc-kpi-matl">-</div><div class="kpi-label">'+t('Materials to Restock')+'</div></div></div>'
     +'<div class="chart-row"><div class="chart-panel chart-full"><div id="fc-accuracy-bar" style="font-size:12px;margin-bottom:8px"></div><h4>'+t('Demand Forecast')+'</h4><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><input type="date" id="fc-date" value="'+today+'" onchange="onForecastDateChange()" style="padding:6px 10px;border:1px solid #d4c5a9;border-radius:6px;font-size:13px"><button class="btn btn-sm" style="font-size:11px" onclick="loadForecast(true)">'+t('Refresh')+'</button></div><div id="fc-business-events" style="border:1px solid #eadcc4;background:#fffdf7;border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px"><div style="font-size:12px;font-weight:700;color:#5d4037">Business Events</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-sm" style="font-size:11px" onclick="openBusinessEventModal('+"'new_product_launch'"+')">+ New Product Launch</button><button class="btn btn-sm" style="font-size:11px" onclick="openBusinessEventModal('+"'competitor_activity'"+')">+ Competitor Activity</button></div></div><div id="fc-business-events-list" style="display:flex;gap:6px;flex-wrap:wrap"><span style="font-size:12px;color:#8b7a66">Loading business events...</span></div></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px" id="fc-s5-btn-row"></div><div id="forecast-result" style="overflow-x:auto;max-width:100%"><span class="spinner"></span>'+t('Loading forecast...')+'</div></div></div>'
     +'<div class="chart-row" style="margin-top:12px"><div class="chart-panel" style="flex:1"><h4>'+t('Production Plan')+' <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadProdPlan()">'+t('Refresh')+'</button></h4><div id="prod-plan-result"><span class="spinner"></span>'+t('Loading...')+'</div></div><div class="chart-panel" style="flex:1"><h4>'+t('Material Procurement')+' <button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="loadMaterials()">'+t('Refresh')+'</button></h4><div id="materials-result"><span class="spinner"></span>'+t('Loading...')+'</div></div></div>';
   loadForecast(false);
@@ -2587,7 +2659,10 @@ function getForecastPanelDate(){
 }
 function onForecastDateChange(){
   window._forecastDemandUnits=0;
+  window._forecastBakeryDemandUnits=0;
   window._forecastTotalAvailable=0;
+  var demandEl=document.getElementById('fc-kpi-demand');if(demandEl)demandEl.textContent='-';
+  var demandSplitEl=document.getElementById('fc-kpi-demand-split');if(demandSplitEl)demandSplitEl.textContent='-';
   updateForecastCoverageKpis();
   loadForecast(false);
   loadBusinessEvents();
@@ -2595,7 +2670,7 @@ function onForecastDateChange(){
   loadMaterials();
 }
 function updateForecastCoverageKpis(){
-  var demand=Number(window._forecastDemandUnits||0);
+  var demand=Number(window._forecastBakeryDemandUnits||0);
   var available=Number(window._forecastTotalAvailable||0);
   var coverageEl=document.getElementById('fc-kpi-coverage');
   var gapEl=document.getElementById('fc-kpi-gap');
@@ -2605,7 +2680,7 @@ function updateForecastCoverageKpis(){
     return;
   }
   if(coverageEl)coverageEl.textContent=(available/demand*100).toFixed(1)+'%';
-  if(gapEl)gapEl.textContent=Math.max(Math.round(demand-available),0);
+  if(gapEl)gapEl.textContent=Math.max(Math.round(demand-available),0).toLocaleString()+' '+t('units');
 }
 function renderForecastDemandCell(v){
   if(!v||typeof v!=='object')return '-';
@@ -2631,9 +2706,10 @@ var t0=Date.now();
 var r=await api(url);
 var t1=Date.now();
 var f=r.forecasts||[], byDay={};
-var forecastDemand=0,forecastRevenue=0,forecastPrices=Object.assign({},PRODUCT_PRICES,COFFEE_PRICES);
-for(var i=0;i<f.length;i++){var fd=f[i].forecast_date;var pn=f[i].product_name;if(!byDay[fd])byDay[fd]={};byDay[fd][pn]={predicted:f[i].predicted_demand,low:f[i].lower_bound,high:f[i].upper_bound,interval_width:f[i].interval_width,relative_width:f[i].relative_width,uncertainty_level:f[i].uncertainty_level};var qty=Number(f[i].predicted_demand||0);forecastDemand+=qty;forecastRevenue+=qty*Number(f[i].unit_price||forecastPrices[pn]||0);}
+var forecastDemand=0,forecastBakeryDemand=0,forecastRevenue=0,forecastPrices=Object.assign({},PRODUCT_PRICES,COFFEE_PRICES);
+for(var i=0;i<f.length;i++){var fd=f[i].forecast_date;var pn=f[i].product_name;if(!byDay[fd])byDay[fd]={};byDay[fd][pn]={predicted:f[i].predicted_demand,low:f[i].lower_bound,high:f[i].upper_bound,interval_width:f[i].interval_width,relative_width:f[i].relative_width,uncertainty_level:f[i].uncertainty_level};var qty=Number(f[i].predicted_demand||0);forecastDemand+=qty;if(!Object.prototype.hasOwnProperty.call(COFFEE_PRICES,pn))forecastBakeryDemand+=qty;forecastRevenue+=qty*Number(f[i].unit_price||forecastPrices[pn]||0);}
 window._forecastDemandUnits=forecastDemand;
+window._forecastBakeryDemandUnits=forecastBakeryDemand;
 updateForecastCoverageKpis();
 var dates=Object.keys(byDay).sort();
 var prods=Object.keys(Object.assign({},PRODUCT_PRICES,COFFEE_PRICES));
@@ -2651,7 +2727,7 @@ tbl+='<td style="padding:8px;text-align:right;vertical-align:top">'+renderForeca
 tbl+='</tr>';
 }
 tbl+='</tbody></table>';
-tbl+='<div style="margin-top:8px;font-size:11px;color:#888">'+(r.cached===false?t('Generated in')+' '+((t1-t0)/1000).toFixed(1)+'s':t('Loaded from cache in')+' '+((t1-t0)/1000).toFixed(0)+'ms')+' | '+t('Auto-refreshes hourly')+'</div>';var demandEl=document.getElementById('fc-kpi-demand');if(demandEl)demandEl.textContent=Math.round(forecastDemand);var forecastRevEl=document.getElementById('fc-kpi-revenue');if(forecastRevEl)forecastRevEl.textContent=formatMoney(forecastRevenue);
+tbl+='<div style="margin-top:8px;font-size:11px;color:#888">'+(r.cached===false?t('Generated in')+' '+((t1-t0)/1000).toFixed(1)+'s':t('Loaded from cache in')+' '+((t1-t0)/1000).toFixed(0)+'ms')+' | '+t('Auto-refreshes hourly')+'</div>';var demandEl=document.getElementById('fc-kpi-demand');if(demandEl)demandEl.textContent=Math.round(forecastDemand).toLocaleString()+' '+t('units');var forecastBeverageDemand=Math.max(forecastDemand-forecastBakeryDemand,0);var demandSplitEl=document.getElementById('fc-kpi-demand-split');if(demandSplitEl)demandSplitEl.textContent=t('Bakery')+' '+Math.round(forecastBakeryDemand).toLocaleString()+' | '+t('Beverages')+' '+Math.round(forecastBeverageDemand).toLocaleString();var forecastRevEl=document.getElementById('fc-kpi-revenue');if(forecastRevEl)forecastRevEl.textContent='\u00A5'+formatMoney(forecastRevenue);
 el.innerHTML=tbl;
   api('/s2/accuracy').then(function(ad){
     if(ad.status==='ok'&&ad.metrics){
@@ -2882,7 +2958,7 @@ async function loadMaterials(){
     var keys=Object.keys(items);
     if(!keys.length){el.innerHTML='<span class="status-dot dot-warn"></span>'+t('No materials data');return;}
 
-    var totalOrder=0,totalOrderQty=0;
+    var totalOrder=0;
     var h='<div style="margin-top:4px"><strong style="font-size:13px;color:#4a3728">'+t('Material Procurement')+'</strong></div>';
     h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px"><thead><tr style="background:#f5f0e8">';
     h+='<th style="padding:6px 8px;text-align:left">'+t('Material')+'</th><th style="padding:6px 8px;text-align:right">'+t('Weekly Need')+'</th><th style="padding:6px 8px;text-align:right">'+t('Waste (5%)')+'</th><th style="padding:6px 8px;text-align:right">'+t('Stock')+'</th><th style="padding:6px 8px;text-align:right">'+t('To Order')+'</th><th style="padding:6px 8px;text-align:center">'+t('Status')+'</th></tr></thead><tbody>';
@@ -2897,7 +2973,6 @@ async function loadMaterials(){
       var stockStr=fmtQty(it.current_stock,it.unit)+' '+it.unit;
       var orderStr=it.to_order>0?'<strong style="color:#e74c3c">'+fmtQty(it.to_order,it.unit)+' '+it.unit+'</strong>':'-';
       if(it.to_order>0)totalOrder++;
-      totalOrderQty+=Number(it.to_order||0);
       h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
       h+='<td style="padding:6px 8px;font-weight:600;color:#4a3728">'+keys[i]+'</td>';
       h+='<td style="padding:6px 8px;text-align:right;color:#6b5b4f">'+needStr+'</td>';
@@ -2909,7 +2984,7 @@ async function loadMaterials(){
     h+='</tbody></table>';
     if(totalOrder>0){h+='<div style="margin-top:4px;font-size:11px;color:#e74c3c">'+totalOrder+' '+t('materials need reorder')+'</div>';}
     h+='<div style="margin-top:2px;font-size:10px;color:#999">'+t('Waste rate')+': '+(dm.waste_rate_default*100).toFixed(0)+'% | '+t('Week')+': '+dm.week+'</div>';
-    el.innerHTML=h;var matlEl=document.getElementById('fc-kpi-matl');if(matlEl)matlEl.textContent=totalOrderQty.toFixed(1).replace(/\.0$/,'');
+    el.innerHTML=h;var matlEl=document.getElementById('fc-kpi-matl');if(matlEl)matlEl.textContent=totalOrder.toLocaleString()+' '+t(totalOrder===1?'item':'items');
   }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>'+t('Error')+': '+e.message;}
 }
 
@@ -2971,7 +3046,7 @@ async function loadProdPlan(){
     h+='<h4>'+t('Daily Production Breakdown')+' <span style="font-size:11px;color:#8b6914;font-weight:400">('+t('top 8 products')+')</span></h4>';
     h+='<div id="prod-chart" style="height:300px"></div></div></div>';
 
-    el.innerHTML=h;var planEl=document.getElementById('fc-kpi-plan');if(planEl)planEl.textContent=totalBake;updateForecastCoverageKpis();
+    el.innerHTML=h;var planEl=document.getElementById('fc-kpi-plan');if(planEl)planEl.textContent=Math.round(totalBake).toLocaleString()+' '+t('units');updateForecastCoverageKpis();
 
     // Render chart
     setTimeout(function(){
@@ -3100,6 +3175,7 @@ function renderInventory(c){
     + '<div class="dash-grid" id="inv-kpis" style="margin-bottom:12px"></div>'
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('Bread Stock Levels')+'</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>'+t('Fresh vs Day-1 Ratio')+'</h4><div class="fresh-ratio-layout"><div class="fresh-ratio-label fresh-ratio-label-left" id="inv-fresh-ratio-left"><span>'+t('Fresh')+': <strong>0%</strong></span><i class="fresh-ratio-connector fresh-ratio-connector-left" aria-hidden="true"></i></div><div id="inv-fresh-pie" style="height:180px;width:100%"></div><div class="fresh-ratio-label fresh-ratio-label-right" id="inv-fresh-ratio-right"><i class="fresh-ratio-connector fresh-ratio-connector-right" aria-hidden="true"></i><span>'+t('Day-1')+': <strong>0%</strong></span></div></div></div><div class="chart-panel"><h4>'+t('Top 5 Material Consumption')+'</h4><div id="inv-consumption-chart" style="height:180px"></div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel"><h4>'+t('Baked Product Stock Records')+'</h4><div id="inv-inflow-history" style="max-height:260px;overflow:auto"><span class="spinner"></span>'+t('Loading...')+'</div></div><div class="chart-panel"><h4>'+t('Raw Material Restock History')+'</h4><div id="inv-restock-history" style="max-height:260px;overflow:auto"><span class="spinner"></span>'+t('Loading...')+'</div></div></div>'
     
     +'<div class="chart-row"><div class="chart-panel chart-full"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0">'+t('Material Stock Days Remaining')+'</h4><input type="date" id="inv-stockdays-date" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b" onchange="loadStockDaysHistory(this.value)"></div><div id="inv-days-table"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>'+t('Baking Materials')+'</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>'+t('Coffee Materials')+'</h4><div id="inv-coffee-table"></div></div></div>'
@@ -3122,7 +3198,7 @@ async function fetchInventoryDashboard(){
   var bkpi=document.getElementById("inv-kpis");
   if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1"><span class="spinner"></span>'+t('Loading inventory...')+'</div>';
   try{
-    var invDate=document.getElementById("inv-date");var dateParam=invDate&&invDate.value?"?date="+invDate.value:"";var r=await api("/s4/inventory/dashboard"+dateParam);
+    var invDate=document.getElementById("inv-date");var selectedDate=invDate&&invDate.value?invDate.value:"";loadInventoryHistories(selectedDate);var dateParam=selectedDate?"?date="+selectedDate:"";var r=await api("/s4/inventory/dashboard"+dateParam);
     var d=r;
     if(!d.status){if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">'+t('API error')+'</div>';return;}
     var bread=d.bread_stock||[], baking=d.baking_materials||[], coffee=d.coffee_materials||[];
@@ -3331,6 +3407,49 @@ function renderAttendance(c){
   loadAttendance();
 }
 
+function formatInventoryHistoryTime(value){
+  if(!value)return "--";
+  var parts=String(value).split(" ");
+  return parts.length>1?parts[1].slice(0,5):String(value);
+}
+
+async function loadInventoryHistories(date){
+  if(!date)return;
+  var inflowEl=document.getElementById("inv-inflow-history");
+  var restockEl=document.getElementById("inv-restock-history");
+  if(!inflowEl||!restockEl)return;
+  inflowEl.innerHTML='<span class="spinner"></span>'+t('Loading...');
+  restockEl.innerHTML='<span class="spinner"></span>'+t('Loading...');
+  try{
+    var inflow=await api("/s1/inflow/history?date="+encodeURIComponent(date));
+    var rows=inflow.records||[];
+    var remainingLabel=t(inflow.remaining_label);
+    var html='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f5f0e8"><th style="padding:6px;text-align:left">'+t('Time')+'</th><th style="padding:6px;text-align:left">'+t('Product')+'</th><th style="padding:6px;text-align:right">'+t('Baked')+'</th><th style="padding:6px;text-align:right">'+t('Sold')+'</th><th style="padding:6px;text-align:right">'+t('Discarded')+'</th><th style="padding:6px;text-align:right">'+remainingLabel+'</th></tr></thead><tbody>';
+    if(rows.length===0){html+='<tr><td colspan="6" style="padding:12px;text-align:center;color:#6b5b4f">'+t('No data')+'</td></tr>';}
+    for(var i=0;i<rows.length;i++){
+      var row=rows[i];
+      var qualityMarker=row.data_quality_issue?'<span style="display:inline-block;margin-left:4px;padding:1px 4px;border:1px solid #e8b4a8;border-radius:3px;color:#b03a2e;font-size:9px;line-height:1.2;white-space:nowrap">'+t('Check data')+'</span>':'';
+      html+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;white-space:nowrap">'+htmlEscape(formatInventoryHistoryTime(row.transaction_time))+'</td><td style="padding:5px;min-width:120px;overflow-wrap:anywhere">'+htmlEscape(capName(row.product_name||''))+'<div style="margin-top:2px;color:#999;font-size:10px;line-height:1.2;overflow-wrap:anywhere">'+htmlEscape(row.batch_id||'--')+'</div></td><td style="padding:5px;text-align:right">'+Number(row.quantity_baked||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_sold||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_discarded||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_left||0)+qualityMarker+'</td></tr>';
+    }
+    inflowEl.innerHTML=html+'</tbody></table>';
+  }catch(error){inflowEl.innerHTML='<div style="color:#e74c3c;padding:8px">'+t('Failed to load historical data')+'</div>';}
+  try{
+    var restock=await api("/s4/inventory/restock/history?date="+encodeURIComponent(date));
+    var records=restock.records||[];
+    var table='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f5f0e8"><th style="padding:6px;text-align:left">'+t('Time')+'</th><th style="padding:6px;text-align:left">'+t('Record ID')+'</th><th style="padding:6px;text-align:left">'+t('Material')+'</th><th style="padding:6px;text-align:right">'+t('Added')+'</th><th style="padding:6px;text-align:left">'+t('Source')+'</th></tr></thead><tbody>';
+    if(records.length===0){
+      var emptyMessage=t('No raw-material restock was recorded on')+' '+date+'.';
+      if(restock.latest_record_date){emptyMessage+='<br>'+t('Latest restock:')+' '+restock.latest_record_date+', '+restock.latest_record_count+' '+t('records')+'. '+t('Select that date to view details.');}
+      table+='<tr><td colspan="5" style="padding:12px;text-align:center;color:#6b5b4f;line-height:1.7">'+emptyMessage+'</td></tr>';
+    }
+    for(var j=0;j<records.length;j++){
+      var record=records[j];
+      table+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;white-space:nowrap">'+formatInventoryHistoryTime(record.created_at)+'</td><td style="padding:5px">'+record.id+'</td><td style="padding:5px">'+record.material_name+'</td><td style="padding:5px;text-align:right">'+fmtQty(record.quantity,record.unit)+' '+record.unit+'</td><td style="padding:5px">'+(record.reference||"--")+'</td></tr>';
+    }
+    restockEl.innerHTML=table+'</tbody></table>';
+  }catch(error){restockEl.innerHTML='<div style="color:#e74c3c;padding:8px">'+t('Failed to load historical data')+'</div>';}
+}
+
 
 async function punchStaffAttendance(){
   var empId=document.getElementById('staff-attendance-id').value.trim();
@@ -3457,14 +3576,105 @@ loadRevenueData(today);
 container.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap"><input type="date" id="rev-date" value="'+today+'" onchange="onRevenueDateChange(this.value)"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" id="rev-s5-btn" style="background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer"></button><button class="btn btn-sm" id="rev-promotion-mix-s5-btn" onclick="runModuleS5Analysis(\'promotion_mix\',\'rev-date\',\'rev-promotion-mix-s5-result\')" style="background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer">Promotion & Product Mix AI</button></div></div>'
 +'<div id="rev-promotion-mix-s5-result" style="display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-top:8px;max-height:50vh;overflow-y:auto"></div>'
 +'<div class="dash-grid" id="rev-kpis"></div>'
-+'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('Hourly Sales')+' <span id="rev-hourly-title"></span></h4><div id="rev-hourly-chart" style="height:200px"></div></div></div>'
-+'<div class="chart-row"><div class="chart-panel chart-half"><h4>'+t('Category Breakdown')+' <span id="rev-cat-title"></span></h4><div id="rev-category-chart" style="height:200px"></div></div><div class="chart-panel chart-half"><h4>'+t('Payment Methods')+' <span id="rev-pay-title"></span></h4><div id="rev-payment-chart" style="height:200px"></div></div></div>'
-+'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('7-Day Profit Trend')+'</h4><div id="rev-trend-chart" style="height:220px"></div></div></div>'
++'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('Hourly Sales')+' <span id="rev-hourly-title"></span></h4><div id="rev-hourly-chart" style="height:200px"></div><div id="rev-hourly-adjustment" style="display:none;margin-top:8px;color:#b45309;font-size:12px;font-weight:600"></div></div></div>'
++'<div class="chart-row"><div class="chart-panel chart-full"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><h4 style="margin:0">'+t('Discarded Product Loss')+' <span id="rev-loss-title"></span></h4><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><div style="display:flex;border:1px solid #d8c8b2;border-radius:6px;overflow:hidden"><button id="rev-loss-day-btn" onclick="setClosingLossMode(\'day\')" style="padding:5px 10px;border:0;background:#8b6914;color:#fff;cursor:pointer;font-size:11px">'+t('Selected Day')+'</button><button id="rev-loss-range-btn" onclick="setClosingLossMode(\'range\')" style="padding:5px 10px;border:0;background:#fff;color:#6b5b4f;cursor:pointer;font-size:11px">'+t('Date Range')+'</button></div><span id="rev-loss-range-controls" style="display:none;align-items:center;gap:4px"><input type="date" id="rev-loss-start" style="padding:4px 6px;border:1px solid #e0d5c7;border-radius:4px;font-size:11px"><span style="font-size:11px;color:#6b5b4f">'+t('to')+'</span><input type="date" id="rev-loss-end" style="padding:4px 6px;border:1px solid #e0d5c7;border-radius:4px;font-size:11px"><button onclick="loadClosingLossData()" style="padding:5px 10px;background:#8b6914;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:11px">'+t('Query')+'</button></span></div></div><div id="rev-closing-loss-table"></div></div></div>'
++'<div class="chart-row chart-row-three"><div class="chart-panel chart-third"><h4>'+t('Category Breakdown')+' <span id="rev-cat-title"></span></h4><div id="rev-category-chart" style="height:200px"></div></div><div class="chart-panel chart-third"><h4>'+t('Dine-in vs Takeaway')+' <span id="rev-dine-title"></span></h4><div id="rev-dine-chart" style="height:200px"></div></div><div class="chart-panel chart-third"><h4>'+t('Payment Methods')+' <span id="rev-pay-title"></span></h4><div id="rev-payment-chart" style="height:200px"></div></div></div>'
++'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('7-Day Revenue Trend')+'</h4><div id="rev-trend-chart" style="height:220px"></div></div></div>'
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('7-Day Orders & Avg Ticket Value (ATV)')+'</h4><div id="rev-orders-chart" style="height:200px"></div></div></div>'
 +'<div class="chart-row"><div class="chart-panel chart-half"><h4>'+t('Bread Sales Ranking')+' <span id="rev-bread-title"></span></h4><div id="rev-bread-ranking"></div></div><div class="chart-panel chart-half"><h4>'+t('Beverages Sales Ranking')+' <span id="rev-coffee-title"></span></h4><div id="rev-coffee-ranking"></div></div></div>'
 +'<div class="chart-row"><div class="chart-panel chart-full"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px"><h4 style="margin:0">'+t('Historical Sales')+'</h4><div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap"><span id="hist-date-row"><input type="date" id="hist-start" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><span style="font-size:12px;color:#6b5b4f">'+t('to')+'</span><input type="date" id="hist-end" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"></span><span id="hist-year-row" style="display:none"><select id="hist-year-start" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option></select><span style="font-size:12px;color:#6b5b4f">'+t('to')+'</span><select id="hist-year-end" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="2021">2021</option><option value="2022">2022</option><option value="2023" selected>2023</option></select></span><select id="hist-gran" onchange="onGranChange()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="day">'+t('Daily')+'</option><option value="week">'+t('Weekly')+'</option><option value="month">'+t('Monthly')+'</option><option value="year">'+t('Yearly')+'</option></select><select id="hist-cat" onchange="loadHistoricalData()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="total">'+t('Total')+'</option><option value="bread">'+t('Bread')+'</option><option value="beverages">'+t('Beverages')+'</option></select><select id="hist-sort" onchange="onHistSliderChange()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="desc">'+t('Revenue')+' &#x2193;</option><option value="asc">'+t('Revenue')+' &#x2191;</option><option value="default">A-Z</option></select><button onclick="loadHistoricalData()" style="padding:4px 10px;background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">'+t('Query')+'</button></div></div><div id="rev-historical-chart" style="height:420px"></div><div style="display:flex;align-items:center;gap:10px;margin-top:2px"><span style="font-size:11px;color:#6b5b4f;min-width:80px" id="hist-period-label">-</span><input type="range" id="hist-slider" min="0" max="0" value="0" oninput="onHistSliderChange()" style="flex:1;accent-color:#8b6914;height:4px"><span style="font-size:11px;color:#6b5b4f;min-width:60px;text-align:right" id="hist-period-end">-</span></div></div></div>';
 }
 
+
+function ratioLegendFormatter(data){
+  var total=0;
+  for(var i=0;i<data.length;i++)total+=Number(data[i].value)||0;
+  return function(name){
+    for(var j=0;j<data.length;j++){
+      if(data[j].name===name){
+        var pct=total>0?(Number(data[j].value)||0)/total*100:0;
+        return name+' '+pct.toFixed(1)+'%';
+      }
+    }
+    return name;
+  };
+}
+
+function revenueChangeClass(value){
+  return value==null?'':(value>=0?'kpi-up':'kpi-down');
+}
+
+function revenueChangeLabel(value){
+  return value==null?t('N/A'):(value>=0?'+':'')+value+'% '+t('vs yesterday');
+}
+
+var closingLossMode='day';
+
+function offsetIsoDate(value,days){
+  var parts=String(value||'').split('-');
+  if(parts.length!==3)return value;
+  var date=new Date(Date.UTC(Number(parts[0]),Number(parts[1])-1,Number(parts[2])));
+  date.setUTCDate(date.getUTCDate()+days);
+  return date.toISOString().slice(0,10);
+}
+
+function setClosingLossMode(mode){
+  closingLossMode=mode==='range'?'range':'day';
+  var dayBtn=document.getElementById('rev-loss-day-btn');
+  var rangeBtn=document.getElementById('rev-loss-range-btn');
+  var controls=document.getElementById('rev-loss-range-controls');
+  if(dayBtn){dayBtn.style.background=closingLossMode==='day'?'#8b6914':'#fff';dayBtn.style.color=closingLossMode==='day'?'#fff':'#6b5b4f';}
+  if(rangeBtn){rangeBtn.style.background=closingLossMode==='range'?'#8b6914':'#fff';rangeBtn.style.color=closingLossMode==='range'?'#fff':'#6b5b4f';}
+  if(controls)controls.style.display=closingLossMode==='range'?'flex':'none';
+  var selected=document.getElementById('rev-date');
+  var selectedDate=selected?selected.value:'';
+  var startEl=document.getElementById('rev-loss-start');
+  var endEl=document.getElementById('rev-loss-end');
+  if(closingLossMode==='range'&&selectedDate){
+    if(endEl&&!endEl.value)endEl.value=selectedDate;
+    if(startEl&&!startEl.value)startEl.value=offsetIsoDate(selectedDate,-6);
+  }
+  loadClosingLossData(selectedDate);
+}
+
+function loadClosingLossData(selectedDate){
+  var container=document.getElementById('rev-closing-loss-table');
+  if(!container)return;
+  var dateInput=document.getElementById('rev-date');
+  var date=selectedDate||(dateInput?dateInput.value:'');
+  var start=date,end=date;
+  if(closingLossMode==='range'){
+    var startEl=document.getElementById('rev-loss-start');
+    var endEl=document.getElementById('rev-loss-end');
+    start=startEl?startEl.value:'';
+    end=endEl?endEl.value:'';
+  }
+  if(!start||!end){container.innerHTML='<div style="padding:20px;text-align:center;color:#6b5b4f">'+t('Select date range')+'</div>';return;}
+  var title=document.getElementById('rev-loss-title');
+  if(title)title.textContent=' ('+(start===end?start:start+' '+t('to')+' '+end)+')';
+  container.innerHTML='<span class="spinner"></span> '+t('Loading closing loss data...');
+  var params='start='+encodeURIComponent(start)+'&end='+encodeURIComponent(end);
+  api('/s4/revenue/closing-loss?'+params).then(function(result){
+    var data=result.data||{};
+    var products=data.products||[];
+    if(!products.length){
+      container.innerHTML='<div style="padding:24px;text-align:center;color:#6b5b4f">'+t('No discarded product loss for this period')+'</div>';
+      return;
+    }
+    var html='<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:9px;font-size:12px;color:#6b5b4f"><strong style="color:#b45309">'+t('Total closing loss')+': \u00A5'+Number(data.total_expired_cost||0).toFixed(2)+'</strong><span>'+Number(data.total_expired_qty||0).toFixed(0)+' '+t('discarded units')+'</span><span>'+Number(data.product_count||0).toFixed(0)+' '+t('products')+'</span></div>';
+    html+='<div style="overflow-x:auto;max-height:420px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:650px"><thead style="position:sticky;top:0;z-index:1"><tr style="background:#f5f0e8"><th style="padding:7px;text-align:left">'+t('Product')+'</th><th style="padding:7px;text-align:right">'+t('Sold')+'</th><th style="padding:7px;text-align:right">'+t('Discarded')+'</th><th style="padding:7px;text-align:right">'+t('Sell-through')+'</th><th style="padding:7px;text-align:right">'+t('Closing Loss')+'</th><th style="padding:7px;text-align:right">'+t('Loss Share')+'</th></tr></thead><tbody>';
+    for(var i=0;i<products.length;i++){
+      var product=products[i];
+      var sellThrough=Number(product.sell_through_pct||0);
+      var rateColor=sellThrough<30?'#c0392b':sellThrough<60?'#b45309':'#27ae60';
+      html+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:7px">'+htmlEscape(product.name)+'</td><td style="padding:7px;text-align:right">'+Number(product.sold_qty||0).toFixed(0)+'</td><td style="padding:7px;text-align:right;font-weight:600">'+Number(product.expired_qty||0).toFixed(0)+'</td><td style="padding:7px;text-align:right;color:'+rateColor+'">'+sellThrough.toFixed(1)+'%</td><td style="padding:7px;text-align:right;color:#c0392b">\u00A5'+Number(product.expired_cost||0).toFixed(2)+'</td><td style="padding:7px;text-align:right">'+Number(product.loss_share_pct||0).toFixed(1)+'%</td></tr>';
+    }
+    html+='</tbody></table></div>';
+    container.innerHTML=html;
+  }).catch(function(error){
+    container.innerHTML='<div style="padding:20px;color:#e74c3c">'+t('Error')+': '+htmlEscape(error.message)+'</div>';
+  });
+}
 
 function loadRevenueData(date){
 date=date||'';var url=API+'/s4/revenue/daily'+(date?'?date='+date:'');
@@ -3476,15 +3686,16 @@ var m=d.data;
 var dateLabel=' ('+date+')';
   var htl=document.getElementById('rev-hourly-title');if(htl)htl.textContent=dateLabel;
   var ctl=document.getElementById('rev-cat-title');if(ctl)ctl.textContent=dateLabel;
+  var dtl=document.getElementById('rev-dine-title');if(dtl)dtl.textContent=dateLabel;
   var ptl=document.getElementById('rev-pay-title');if(ptl)ptl.textContent=dateLabel;
   var btl=document.getElementById('rev-bread-title');if(btl)btl.textContent=dateLabel;
   var cftl=document.getElementById('rev-coffee-title');if(cftl)cftl.textContent=dateLabel;
   var mtdMonth=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(date.slice(5,7))-1];
   document.getElementById('rev-kpis').innerHTML=
-  '<div class="kpi-card"><div class="kpi-value">\u00A5'+m.today_revenue.toFixed(0)+'</div><div class="kpi-label">'+t('Today Revenue')+'</div><div class="kpi-change '+(m.revenue_change>=0?'kpi-up':'kpi-down')+'">'+(m.revenue_change>=0?'+':'')+m.revenue_change+'% '+t('vs yesterday')+'</div></div>'
-  +'<div class="kpi-card"><div class="kpi-value">\u00A5'+m.today_profit.toFixed(0)+'</div><div class="kpi-label">'+t('Today Profit')+'</div><div class="kpi-change '+(m.profit_change>=0?'kpi-up':'kpi-down')+'">'+(m.profit_change>=0?'+':'')+m.profit_change+'% '+t('vs yesterday')+'</div></div>'
-  +'<div class="kpi-card"><div class="kpi-value">'+m.today_orders+'</div><div class="kpi-label">'+t('Today Orders')+'</div><div class="kpi-change '+(m.orders_change>=0?'kpi-up':'kpi-down')+'">'+(m.orders_change>=0?'+':'')+m.orders_change+'% '+t('vs yesterday')+'</div></div>'
-  +'<div class="kpi-card"><div class="kpi-value">\u00A5'+m.avg_order.toFixed(2)+'</div><div class="kpi-label">'+t('Avg Order Value')+'</div><div class="kpi-change '+(m.avg_change>=0?'kpi-up':'kpi-down')+'">'+(m.avg_change>=0?'+':'')+m.avg_change+'% '+t('vs yesterday')+'</div></div>'
+  '<div class="kpi-card"><div class="kpi-value">\u00A5'+m.today_revenue.toFixed(0)+'</div><div class="kpi-label">'+t('Today Revenue')+'</div><div class="kpi-change '+revenueChangeClass(m.revenue_change)+'">'+revenueChangeLabel(m.revenue_change)+'</div></div>'
+  +'<div class="kpi-card"><div class="kpi-value">\u00A5'+m.today_profit.toFixed(0)+'</div><div class="kpi-label">'+t('Today Profit')+'</div><div class="kpi-change '+revenueChangeClass(m.profit_change)+'">'+revenueChangeLabel(m.profit_change)+'</div></div>'
+  +'<div class="kpi-card"><div class="kpi-value">'+m.today_orders+'</div><div class="kpi-label">'+t('Today Orders')+'</div><div class="kpi-change '+revenueChangeClass(m.orders_change)+'">'+revenueChangeLabel(m.orders_change)+'</div></div>'
+  +'<div class="kpi-card"><div class="kpi-value">\u00A5'+m.avg_order.toFixed(2)+'</div><div class="kpi-label">'+t('Avg Order Value')+'</div><div class="kpi-change '+revenueChangeClass(m.avg_change)+'">'+revenueChangeLabel(m.avg_change)+'</div></div>'
   +'<div class="kpi-card"><div class="kpi-value" style="color:#e74c3c">-\u00A5'+(m.today_discount||0).toFixed(2)+'</div><div class="kpi-label">'+t('Today Discount')+'</div></div>'+
 '<div class="kpi-card"><div class="kpi-value">'+m.profit_margin.toFixed(1)+'%</div><div class="kpi-label">'+t('Profit Margin')+'</div></div>'+
 '<div class="kpi-card"><div class="kpi-value">\u00A5'+m.mtd_revenue.toFixed(0)+'</div><div class="kpi-label">'+t('MTD Revenue')+' ('+mtdMonth+')</div><div class="kpi-change" style="color:#27ae60">'+m.mtd_orders+' '+t('orders')+'</div></div>';
@@ -3492,10 +3703,16 @@ setTimeout(function(){
 var cc=document.getElementById('rev-category-chart');
   if(cc&&typeof echarts!=='undefined'){
     if(cc){var oc=echarts.getInstanceByDom(cc);if(oc)oc.dispose();}var chart2=echarts.init(cc);
-    chart2.setOption({tooltip:{trigger:'item'},color:['#8b6914','#d4a853'],
-      series:[{type:'pie',radius:['40%','65%'],data:[
-        {value:m.category.Bread,name:t('Bread')},{value:m.category.Coffee,name:t('Beverages')}
-      ],label:{color:'#3d322b',fontSize:13,fontWeight:'bold',formatter:'{b}: {d}%'}}]});
+    var categoryData=[{value:m.category.Bread,name:t('Bread')},{value:m.category.Beverages,name:t('Beverages')}];
+    chart2.setOption({tooltip:{trigger:'item'},color:['#8b6914','#d4a853'],legend:{bottom:0,left:'center',itemWidth:10,itemHeight:10,textStyle:{color:'#3d322b',fontSize:10},formatter:ratioLegendFormatter(categoryData)},
+      series:[{type:'pie',radius:['38%','62%'],center:['50%','43%'],data:categoryData,label:{show:false}}]});
+    var dc=document.getElementById('rev-dine-chart');
+    if(dc){
+      var odc=echarts.getInstanceByDom(dc);if(odc)odc.dispose();var dchart=echarts.init(dc);
+      var dineData=[{value:m.dine_type['Dine-in'],name:t('Dine-in')},{value:m.dine_type.Takeaway,name:t('Takeaway')}];
+      dchart.setOption({tooltip:{trigger:'item'},color:['#27ae60','#e67e22'],legend:{bottom:0,left:'center',itemWidth:10,itemHeight:10,textStyle:{color:'#3d322b',fontSize:10},formatter:ratioLegendFormatter(dineData)},
+        series:[{type:'pie',radius:['38%','62%'],center:['50%','43%'],data:dineData,label:{show:false}}]});
+    }
     var pc=document.getElementById('rev-payment-chart');
     if(pc){
       var opc=echarts.getInstanceByDom(pc);if(opc)opc.dispose();var pchart=echarts.init(pc);
@@ -3503,36 +3720,38 @@ var cc=document.getElementById('rev-category-chart');
       if(m.payment.Cash>0)pdata.push({value:m.payment.Cash,name:t('Cash')});
       if(m.payment.Card>0)pdata.push({value:m.payment.Card,name:t('Card')});
       if(m.payment.QR>0)pdata.push({value:m.payment.QR,name:t('QR Code')});
-      pchart.setOption({tooltip:{trigger:'item'},color:['#27ae60','#2980b9','#e67e22'],
-        series:[{type:'pie',radius:['40%','65%'],data:pdata,label:{color:'#3d322b',fontSize:13,fontWeight:'bold',formatter:'{b}: {d}%'}}]});
+      pchart.setOption({tooltip:{trigger:'item'},color:['#27ae60','#2980b9','#e67e22'],legend:{bottom:0,left:'center',itemWidth:10,itemHeight:10,textStyle:{color:'#3d322b',fontSize:10},formatter:ratioLegendFormatter(pdata)},
+        series:[{type:'pie',radius:['38%','62%'],center:['50%','43%'],data:pdata,label:{show:false}}]});
     }
   }
   var tc=document.getElementById('rev-trend-chart');
   if(tc&&typeof echarts!=='undefined'){
     var otc=echarts.getInstanceByDom(tc);if(otc)otc.dispose();var chart3=echarts.init(tc);
-    chart3.setOption({tooltip:{trigger:'axis'},legend:{data:[t('Bread'),t('Beverages')],textStyle:{color:'#3d322b'}},
+    chart3.setOption({tooltip:{trigger:'axis',formatter:function(params){var h=params[0].axisValue+'<br/>';for(var i=0;i<params.length;i++){h+=params[i].marker+' '+params[i].seriesName+': \u00A5'+Number(params[i].value||0).toFixed(2)+'<br/>';}return h;}},legend:{data:[t('Bread'),t('Beverages')],textStyle:{color:'#3d322b'}},
       grid:{left:'2%',right:'3%',bottom:'3%',containLabel:true},
       xAxis:{type:'category',data:m.trend.dates,axisLine:{lineStyle:{color:'#e0d5c7'}},axisLabel:{color:'#6b5b4f'}},
-      yAxis:{type:'value',axisLine:{lineStyle:{color:'#e0d5c7'}},axisLabel:{color:'#6b5b4f'},splitLine:{lineStyle:{color:'#f0e8d8'}}},
+      yAxis:{type:'value',name:t('Revenue (CNY)'),nameTextStyle:{color:'#6b5b4f',fontSize:11},axisLine:{lineStyle:{color:'#e0d5c7'}},axisLabel:{color:'#6b5b4f',formatter:function(value){return '\u00A5'+value;}},splitLine:{lineStyle:{color:'#f0e8d8'}}},
       series:[{name:t('Bread'),type:'line',data:m.trend.bread,color:'#8b6914',smooth:true},
               {name:t('Beverages'),type:'line',data:m.trend.beverages,color:'#d4a853',smooth:true}]});
   }
   var oc=document.getElementById('rev-orders-chart');
   if(oc&&typeof echarts!=='undefined'){
     var ochart=echarts.init(oc);
-    ochart.setOption({tooltip:{trigger:'axis'},legend:{data:[t('Orders'),t('ATV')],textStyle:{color:'#3d322b',fontSize:11}},
+    var ordersName=t('Orders');var atvName=t('ATV');
+    ochart.setOption({tooltip:{trigger:'axis',formatter:function(params){var h=params[0].axisValue+'<br/>';for(var i=0;i<params.length;i++){var value=Number(params[i].value||0);if(params[i].seriesName===ordersName){h+=params[i].marker+' '+params[i].seriesName+': '+value.toFixed(0)+'<br/>';}else{h+=params[i].marker+' '+params[i].seriesName+': \u00A5'+value.toFixed(2)+'<br/>';}}return h;}},legend:{data:[ordersName,atvName],textStyle:{color:'#3d322b',fontSize:11}},
       grid:{left:'2%',right:'3%',bottom:'3%',containLabel:true},
       xAxis:{type:'category',data:m.trend.dates,axisLabel:{color:'#6b5b4f',fontSize:10},axisLine:{lineStyle:{color:'#e0d5c7'}}},
       yAxis:[{type:'value',name:t('Orders'),nameTextStyle:{color:'#6b5b4f',fontSize:11},axisLabel:{color:'#6b5b4f',fontSize:10},splitLine:{lineStyle:{color:'#f0e8d8'}}},
-             {type:'value',name:t('Avg Ticket Value (ATV)'),nameTextStyle:{color:'#d4a853',fontSize:11},axisLabel:{color:'#6b5b4f',fontSize:10},splitLine:{show:false}}],
-      series:[{name:t('Orders'),type:'bar',data:m.trend.orders,color:'#8b6914',barWidth:'50%'},
-              {name:t('Avg Ticket Value (ATV)'),type:'line',yAxisIndex:1,data:m.trend.avg_order,color:'#d4a853',smooth:true,symbol:'circle',symbolSize:8,lineStyle:{width:2.5}}]});
+             {type:'value',name:t('Avg Ticket Value (CNY)'),nameTextStyle:{color:'#d4a853',fontSize:11},axisLabel:{color:'#6b5b4f',fontSize:10,formatter:function(value){return '\u00A5'+value;}},splitLine:{show:false}}],
+      series:[{name:ordersName,type:'bar',data:m.trend.orders,color:'#8b6914',barWidth:'50%'},
+              {name:atvName,type:'line',yAxisIndex:1,data:m.trend.avg_order,color:'#d4a853',smooth:true,symbol:'circle',symbolSize:8,lineStyle:{width:2.5}}]});
   }
 },100);
 
 document.getElementById('rev-bread-ranking').innerHTML=buildRankingTable(m.bread_ranking||[]);
 document.getElementById('rev-coffee-ranking').innerHTML=buildRankingTable(m.beverage_ranking||[]);
 loadHourlyChart(date);
+loadClosingLossData(date);
 loadHistoricalData();
 }).catch(function(e){if(revKpis)revKpis.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">'+t('Error')+': '+e.message+'</div>';});
 }
@@ -3577,19 +3796,39 @@ function loadHourlyChart(date){
     .then(function(r){return r.json();}).then(function(d){
       if(!d.data)return;
       var dd=d.data;
+      var chartHours=(dd.hours||[]).slice();
+      var breadData=(dd.bread||[]).slice();
+      var beverageData=(dd.beverages||[]).slice();
+      var profitData=(dd.profit||[]).slice();
+      var ordersData=(dd.orders||[]).slice();
+      var closingIndex=dd.hours.indexOf('Closing adjustment');
+      var closingExpiredCost=0;
+      if(closingIndex>=0){
+        closingExpiredCost=Number((dd.expired_cost||[])[closingIndex]||0);
+        chartHours.splice(closingIndex,1);
+        breadData.splice(closingIndex,1);
+        beverageData.splice(closingIndex,1);
+        profitData.splice(closingIndex,1);
+        ordersData.splice(closingIndex,1);
+      }
+      var adjustmentEl=document.getElementById('rev-hourly-adjustment');
+      if(adjustmentEl){
+        adjustmentEl.style.display=closingExpiredCost>0?'block':'none';
+        adjustmentEl.textContent=closingExpiredCost>0?t('Unsold products discarded at closing')+': \u00A5'+closingExpiredCost.toFixed(2)+' ('+t("Already deducted from today's profit")+')':'';
+      }
       var oldHc=echarts.getInstanceByDom(hc);if(oldHc)oldHc.dispose();var chart=echarts.init(hc);
       var breadName=t('Bread'),beverageName=t('Beverages'),profitName=t('Profit'),ordersName=t('Orders');
-      var hasProfit=Array.isArray(dd.profit)&&dd.profit.length;
-      var hasOrders=Array.isArray(dd.orders)&&dd.orders.length;
+      var hasProfit=profitData.length;
+      var hasOrders=ordersData.length;
       chart.setOption({tooltip:{trigger:'axis',formatter:function(params){var h=params[0].name+'<br/>';var idx=params[0].dataIndex;for(var i=0;i<params.length;i++){var val=Number(params[i].value||0);if(params[i].seriesName===ordersName){h+=params[i].marker+' '+params[i].seriesName+': '+val.toFixed(0)+'<br/>';}else{h+=params[i].marker+' '+params[i].seriesName+': \u00A5'+val.toFixed(2)+'<br/>';}}if(dd.avg_order&&dd.avg_order[idx]!==undefined){h+=t('Avg Order')+': \u00A5'+Number(dd.avg_order[idx]||0).toFixed(2)+'<br/>';}if(dd.margin&&dd.margin[idx]!==undefined){h+=t('Margin')+': '+Number(dd.margin[idx]||0).toFixed(1)+'%<br/>';}return h;}},legend:{data:[breadName,beverageName].concat(hasProfit?[profitName]:[]).concat(hasOrders?[ordersName]:[]),textStyle:{color:'#3d322b'}},
         grid:{left:'2%',right:'2%',bottom:'3%',containLabel:true},
-        xAxis:{type:'category',data:dd.hours,axisLabel:{color:'#6b5b4f',fontSize:10},axisLine:{lineStyle:{color:'#e0d5c7'}}},
+        xAxis:{type:'category',data:chartHours.map(function(hour){return t(hour);}),axisLabel:{color:'#6b5b4f',fontSize:10},axisLine:{lineStyle:{color:'#e0d5c7'}}},
         yAxis:[{type:'value',name:t('Revenue'),nameTextStyle:{color:'#6b5b4f',fontSize:11},axisLabel:{color:'#6b5b4f',fontSize:10},splitLine:{lineStyle:{color:'#f0e8d8'}}},
                {type:'value',name:t('Orders'),nameTextStyle:{color:'#6b5b4f',fontSize:11},axisLabel:{color:'#6b5b4f',fontSize:10},splitLine:{show:false}}],
-        series:[{name:breadName,type:'bar',data:dd.bread,color:'#8b6914',barGap:'10%'},
-                {name:beverageName,type:'bar',data:dd.beverages,color:'#d4a853'},
-                {name:profitName,type:'line',data:dd.profit||[],color:'#27ae60',smooth:true,symbolSize:6},
-                {name:ordersName,type:'line',yAxisIndex:1,data:dd.orders||[],color:'#3b82f6',smooth:true,symbolSize:6}].filter(function(s){return s.data&&s.data.length;})});
+        series:[{name:breadName,type:'bar',data:breadData,color:'#8b6914',barGap:'10%'},
+                {name:beverageName,type:'bar',data:beverageData,color:'#d4a853'},
+                {name:profitName,type:'line',data:profitData,color:'#27ae60',smooth:true,symbolSize:6},
+                {name:ordersName,type:'line',yAxisIndex:1,data:ordersData,color:'#3b82f6',smooth:true,symbolSize:6}].filter(function(s){return s.data&&s.data.length;})});
     }).catch(function(){});
 }
 
@@ -3642,7 +3881,7 @@ function onHistSliderChange(){
   for(var i=0;i<products.length;i++){
     var p=products[i];
     var pd=p.periods[period];
-    names.push(p.name);
+    names.push(t(p.name));
     revs.push(pd?pd.revenue:0);
     profs.push(pd?pd.profit:0);
   }
@@ -3760,7 +3999,7 @@ for(var j=0;j<COFFEE_DRINKS.length;j++){if(COFFEE_DRINKS[j].key===p.product_name
 if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }).catch(function(e){console.log('Price fetch err',e);});
 }
-function loadStock(){api('/s1/batch_inventory').then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}}if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadStock(){api('/s1/batch_inventory',{force:true}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}}if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;

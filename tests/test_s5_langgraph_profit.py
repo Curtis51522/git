@@ -1,6 +1,11 @@
 import asyncio
 
-from s5_agent.agents.revenue_analysis import HourlyRevenueAgent
+from s5_agent.agents.revenue_analysis import (
+    HourlyRevenueAgent,
+    OrderBehaviorAgent,
+    RevenueBenchmarkAgent,
+    RevenueTrendAgent,
+)
 from s5_agent.agents.profit import ProfitAgent
 from s5_agent.graph.runner import run_s5_graph
 from s5_agent.graph.state import S5Request
@@ -32,6 +37,10 @@ def test_profit_root_cause_uses_revenue_multi_agent_output():
                 "avg_order": [50.0, 50.0, 50.0],
                 "today_revenue": 1000.0,
                 "revenue_change": 11.1,
+                "profit_change": -14.8,
+                "orders_change": 6.1,
+                "avg_change": -0.8,
+                "previous_day_available": True,
             }
         },
         "revenue_product_mix": {
@@ -93,6 +102,14 @@ def test_profit_root_cause_uses_revenue_multi_agent_output():
     assert "6 orders" in result.summary
     assert "75.9% hourly margin" in result.summary
     assert "revenue timing is used as a proxy" not in result.summary
+    assert "revenue increased by 11.1% while profit decreased by 14.8%" in result.summary
+    assert "higher order volume rather than basket expansion" in result.summary
+    assert "customer traffic" not in result.summary
+    assert result.summary.count("\n\n") == 2
+    summary_paragraphs = result.summary.split("\n\n")
+    assert "Compared with the previous day" in summary_paragraphs[0]
+    assert "Revenue quality" in summary_paragraphs[1]
+    assert "Separately recorded material-wastage variance" in summary_paragraphs[2]
 
 
 def test_hourly_revenue_agent_prefers_profitability_metrics_when_available():
@@ -128,6 +145,75 @@ def test_hourly_revenue_agent_prefers_profitability_metrics_when_available():
         "peak_profit_margin_pct",
     ]
     assert not result.data_quality.limitations
+
+
+def test_hourly_revenue_agent_excludes_closing_adjustment_from_hourly_shares():
+    agent = HourlyRevenueAgent()
+    raw = {
+        "data": {
+            "hours": ["12:00", "13:00", "Closing adjustment"],
+            "bread": [400.0, 300.0, 0.0],
+            "beverages": [147.0, 100.0, 0.0],
+            "revenue": [547.0, 400.0, 0.0],
+            "profit": [476.0, 300.0, -698.4],
+            "orders": [7, 5, 0],
+            "avg_order": [78.14, 80.0, 0.0],
+            "margin": [87.0, 75.0, 0.0],
+        }
+    }
+
+    result = agent.analyze_for_graph(raw, {"date": "2026-07-14"})
+
+    assert result.metrics["peak_profit_hour"] == "12:00"
+    assert result.metrics["hourly_total_profit"] == 776.0
+    assert result.metrics["hourly_peak_profit_share_pct"] == 61.3
+    assert "Closing adjustment" not in result.metrics["low_revenue_hours"]
+
+
+def test_revenue_agents_use_recent_baseline_when_previous_day_is_unavailable():
+    raw = {
+        "data": {
+            "today_revenue": 1200.0,
+            "today_orders": 12,
+            "avg_order": 100.0,
+            "revenue_change": None,
+            "profit_change": None,
+            "orders_change": None,
+            "avg_change": None,
+            "previous_day_available": False,
+            "previous_day_date": "2026-07-13",
+            "recent_baseline": {
+                "day_count": 7,
+                "start_date": "2026-07-06",
+                "end_date": "2026-07-12",
+                "avg_revenue": 1000.0,
+                "avg_orders": 10.0,
+                "avg_order_value": 100.0,
+            },
+            "trend": {
+                "dates": ["07-08", "07-09", "07-10", "07-11", "07-12", "07-13", "07-14"],
+                "bread": [700.0, 700.0, 700.0, 700.0, 700.0, 0.0, 900.0],
+                "beverages": [300.0, 300.0, 300.0, 300.0, 300.0, 0.0, 300.0],
+                "orders": [10, 10, 10, 10, 10, 0, 12],
+                "avg_order": [100.0, 100.0, 100.0, 100.0, 100.0, 0.0, 100.0],
+            },
+        }
+    }
+
+    trend = RevenueTrendAgent().analyze_for_graph(raw, {"date": "2026-07-14"})
+    benchmark = RevenueBenchmarkAgent().analyze_for_graph(raw, {"date": "2026-07-14"})
+    behavior = OrderBehaviorAgent().analyze_for_graph(raw, {"date": "2026-07-14"})
+
+    assert trend.metrics["previous_day_available"] is False
+    assert trend.metrics["dashboard_revenue_change_pct"] is None
+    assert trend.metrics["recent_total_revenue_change_pct"] == 20.0
+    assert trend.metrics["trend_direction"] == "unavailable"
+    assert "no completed sales were recorded on 2026-07-13" in trend.claim
+    assert benchmark.metrics["revenue_vs_recent_avg_pct"] == 20.0
+    assert benchmark.metrics["baseline_day_count"] == 7
+    assert behavior.metrics["comparison_basis"] == "recent_baseline"
+    assert behavior.metrics["order_change_pct"] == 20.0
+    assert behavior.metrics["average_order_value_change_pct"] == 0.0
 
 
 def test_profit_graph_fetches_data_when_raw_inputs_missing(monkeypatch):
@@ -205,7 +291,7 @@ def test_profit_root_cause_healthy_no_risk_gets_no_action_decision():
     assert "croissant chocolate" in result.summary
     assert "Category mix" in result.summary
     assert "Peak revenue hour" in result.summary
-    assert "waste impact is not included in this check" in result.summary.lower()
+    assert "No expired-stock or non-sellable return cost was recorded" in result.summary
     assert [recommendation.id for recommendation in result.recommendations] == ["revenue_no_action_decision"]
     assert result.recommendations[0].time_horizon == "ongoing"
     assert result.recommendations[0].evidence_ids == [
@@ -218,6 +304,63 @@ def test_profit_root_cause_healthy_no_risk_gets_no_action_decision():
     assert any(node.id == "metric:average_order_value" for node in result.evidence_graph.nodes)
     assert any(node.id == "metric:revenue_trend_pct" for node in result.evidence_graph.nodes)
     assert any(node.id == "metric:top_product_revenue_share_pct" for node in result.evidence_graph.nodes)
+
+
+def test_profit_root_cause_explains_expired_cost_and_uses_correct_margin_article():
+    raw = {
+        "profit": {
+            "data": {
+                "today_revenue": 1000.0,
+                "today_profit": 694.0,
+                "today_orders": 10,
+                "discount_total": 0.0,
+                "expired_cost": 25.0,
+            }
+        }
+    }
+
+    result = asyncio.run(run_s5_graph("profit_root_cause", _request(), raw_inputs=raw))
+
+    assert "with a profit margin of 69.4%" in result.summary
+    assert "2.5% of revenue" in result.summary
+    assert "71.9% before this loss to 69.4% after it" in result.summary
+    assert "Waste impact is not included" not in result.summary
+
+
+def test_profit_root_cause_turns_material_unsold_loss_into_action():
+    raw = {
+        "profit": {
+            "data": {
+                "today_revenue": 4179.6,
+                "today_profit": 2902.13,
+                "today_orders": 52,
+                "discount_total": 63.8,
+                "expired_cost": 698.4,
+            }
+        }
+    }
+
+    result = asyncio.run(
+        run_s5_graph(
+            "profit_root_cause",
+            _request("2026-07-14"),
+            raw_inputs=raw,
+        )
+    )
+    profit_output = next(
+        output for output in result.agent_outputs if output.agent_name == "ProfitAgent"
+    )
+
+    assert "unsold_product_loss" in profit_output.risks
+    assert result.summary.startswith(
+        "This revenue day was profitable, but closing product loss needs attention"
+    )
+    assert "16.7% of revenue" in result.summary
+    assert "86.1% before this loss to 69.4% after it" in result.summary
+    assert [item.id for item in result.recommendations] == [
+        "unsold_product_loss_reduction"
+    ]
+    assert "No immediate revenue intervention" not in result.recommendations[0].action
 
 
 def test_profit_root_cause_order_value_shift_gets_watch_recommendation():
@@ -271,6 +414,86 @@ def test_profit_root_cause_order_value_shift_gets_watch_recommendation():
         "average_order_value",
     ]
     assert "average order value" in result.recommendations[0].action
+
+
+def test_profit_root_cause_explains_joint_order_and_basket_contraction():
+    dashboard = {
+        "data": {
+            "date": "2026-07-15",
+            "today_revenue": 2637.5,
+            "today_profit": 2306.86,
+            "today_orders": 45,
+            "avg_order": 58.61,
+            "today_discount": 92.1,
+            "expired_cost": 8.66,
+            "revenue_change": -36.9,
+            "profit_change": -35.9,
+            "orders_change": -13.5,
+            "avg_change": -27.1,
+            "previous_day_available": True,
+            "recent_baseline": {
+                "day_count": 7,
+                "avg_revenue": 3952.59,
+                "avg_orders": 49.29,
+                "avg_order_value": 80.2,
+            },
+            "today_items": 215,
+            "items_per_order": 4.78,
+            "items_per_order_change": -27.8,
+            "revenue_per_item": 12.27,
+            "revenue_per_item_change": 1.0,
+            "trend": {
+                "dates": ["07-09", "07-10", "07-11", "07-12", "07-13", "07-14", "07-15"],
+                "bread": [2800.0, 2900.0, 2700.0, 3000.0, 2800.0, 3024.7, 1833.4],
+                "beverages": [1068.8, 1095.6, 1044.0, 1179.6, 1170.8, 1148.0, 799.0],
+                "orders": [48, 50, 47, 52, 49, 52, 45],
+                "avg_order": [80.6, 79.9, 79.7, 80.4, 81.0, 80.38, 58.61],
+            },
+        }
+    }
+    raw = {
+        "profit": dashboard,
+        "revenue_trend": dashboard,
+        "revenue_benchmark": dashboard,
+        "order_behavior": dashboard,
+    }
+
+    result = asyncio.run(
+        run_s5_graph(
+            "profit_root_cause",
+            _request("2026-07-15"),
+            raw_inputs=raw,
+        )
+    )
+
+    behavior = next(
+        output
+        for output in result.agent_outputs
+        if output.agent_name == "OrderBehaviorAgent"
+    )
+    benchmark = next(
+        output
+        for output in result.agent_outputs
+        if output.agent_name == "RevenueBenchmarkAgent"
+    )
+
+    assert result.summary.startswith(
+        "The day remained profitable, but revenue performance weakened materially"
+    )
+    assert "with a profit margin of 87.5%" in result.summary
+    assert "healthy revenue day" not in result.summary
+    assert behavior.metrics["order_volume_driver"] == "volume-and-basket-contraction"
+    assert "Revenue weakened through both fewer orders and smaller baskets" in result.summary
+    assert "Items per order fell from 6.62 to 4.78" in result.summary
+    assert "revenue per item remained broadly stable at \u00a512.27" in result.summary
+    assert "Revenue quality is stable" not in result.summary
+    assert benchmark.risks == []
+    assert result.recommendations[0].id == "revenue_decline_review"
+    assert "targeted bundles" in result.recommendations[0].action
+    assert "product availability" in result.recommendations[0].action
+    assert "broad discount" in result.recommendations[0].action
+    assert "items_per_order" in result.recommendations[0].evidence_ids
+    assert "revenue_per_item" in result.recommendations[0].evidence_ids
 
 
 def test_profit_root_cause_uses_revenue_dashboard_comparison_as_primary_source():
@@ -334,7 +557,7 @@ def test_profit_root_cause_uses_revenue_dashboard_comparison_as_primary_source()
     assert "profit moved +40.9%" in result.summary
     assert "order count moved -6.8%" in result.summary
     assert "average order value moved +53.0%" in result.summary
-    assert "larger baskets rather than more customers" in result.summary
+    assert "larger baskets rather than higher order volume" in result.summary
     assert "+49.2% against the previous day" not in result.summary
     trend_output = next(output for output in result.agent_outputs if output.agent_name == "RevenueTrendAgent")
     assert trend_output.metrics["dashboard_revenue_change_pct"] == 42.6

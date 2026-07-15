@@ -1,4 +1,6 @@
 from pathlib import Path
+
+from api import freshness_service
 import re
 
 
@@ -130,6 +132,12 @@ def test_every_product_schema_supports_runtime_pricing_and_wastage():
         assert column in products, f"{column} missing from {CANONICAL_SCHEMA}"
 
 
+def test_raw_material_schema_declares_tracked_inventory_default_true():
+    raw_materials = _table_sql("raw_materials")
+
+    assert "`track_inventory` tinyint(1) not null default 1" in raw_materials
+
+
 def test_every_order_schema_accepts_generated_receipt_ids():
     assert "`ticket_id` varchar(50)" in _table_sql("orders")
 
@@ -184,6 +192,216 @@ def test_revenue_views_exclude_refunded_orders_and_expose_return_cost():
     assert "_get_non_sellable_return_cost_by_hour" in hourly
     assert '"non_sellable_return_cost"' in hourly
     assert "_get_non_sellable_return_cost_by_period" in historical
+
+
+def test_revenue_views_apply_expired_cost_consistently():
+    source = Path("api/module4_frontend/bff.py").read_text(encoding="utf-8")
+    daily = source[source.index('async def revenue_daily') : source.index('async def revenue_hourly')]
+    hourly = source[source.index('async def revenue_hourly') : source.index('async def revenue_historical')]
+    historical = source[source.index('async def revenue_historical') :]
+
+    assert daily.count("_get_expired_cost(") >= 3
+    assert '"expired_cost"' in daily
+    assert '"Closing adjustment"' in hourly
+    assert '"expired_cost"' in hourly
+    assert "_get_expired_cost_by_period" in historical
+    assert "_get_order_adjustments_by_period" in historical
+    assert '"Order adjustments"' in historical
+
+
+def test_daily_revenue_exposes_promotion_loss_inputs():
+    source = Path("api/module4_frontend/bff.py").read_text(encoding="utf-8")
+    daily = source[source.index('async def revenue_daily') : source.index('async def revenue_hourly')]
+
+    assert "_get_expired_product_breakdown(cur, date, expired_cost)" in daily
+    assert "_get_sold_bread_sku_count(cur, date)" in daily
+    assert '"expired_products": expired_products' in daily
+    assert '"sold_bread_sku_count": sold_bread_sku_count' in daily
+
+
+def test_revenue_category_uses_beverages_key_end_to_end():
+    backend_source = Path("api/module4_frontend/bff.py").read_text(encoding="utf-8")
+    daily = backend_source[
+        backend_source.index("async def revenue_daily") :
+        backend_source.index("async def revenue_hourly")
+    ]
+    frontend_source = Path("api/module4_frontend/static/index.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'cat_data = {"Bread": 0, "Beverages": 0}' in daily
+    assert 'else "Beverages"' in daily
+    assert 'else "Coffee"' not in daily
+    assert "m.category.Beverages" in frontend_source
+    assert "m.category.Coffee" not in frontend_source
+
+
+def test_expired_inventory_records_cost_snapshot():
+    source = Path("api/freshness_service.py").read_text(encoding="utf-8")
+    expiration = source[source.index('if new_freshness == "Expired"') :]
+
+    assert 'select("product_name,material_cost")' in source
+    assert '"unit_price": product_costs.get(' in expiration
+    assert '"unit_price": 0' not in expiration
+
+
+class _FreshnessResult:
+    def __init__(self, data):
+        self.data = data
+
+
+class _FreshnessQuery:
+    def __init__(self, tables, table):
+        self.tables = tables
+        self.table = table
+        self.operation = "select"
+        self.filters = []
+        self.payload = None
+
+    def select(self, _columns):
+        self.operation = "select"
+        return self
+
+    def gt(self, field, value):
+        self.filters.append(("gt", field, value))
+        return self
+
+    def neq(self, field, value):
+        self.filters.append(("neq", field, value))
+        return self
+
+    def order(self, _field, desc=False):
+        return self
+
+    def insert(self, payload):
+        self.operation = "insert"
+        self.payload = dict(payload)
+        return self
+
+    def update(self, payload):
+        self.operation = "update"
+        self.payload = dict(payload)
+        return self
+
+    def delete(self):
+        self.operation = "delete"
+        return self
+
+    def eq(self, field, value):
+        self.filters.append(("eq", field, value))
+        return self
+
+    def _matches(self, row):
+        for operator, field, value in self.filters:
+            current = row.get(field)
+            if operator == "gt" and not (current or 0) > value:
+                return False
+            if operator == "neq" and current == value:
+                return False
+            if operator == "eq" and current != value:
+                return False
+        return True
+
+    def execute(self):
+        rows = self.tables.setdefault(self.table, [])
+        if self.operation == "select":
+            return _FreshnessResult(
+                [dict(row) for row in rows if self._matches(row)]
+            )
+        if self.operation == "insert":
+            rows.append(dict(self.payload))
+            return _FreshnessResult([dict(self.payload)])
+        if self.operation == "update":
+            for row in rows:
+                if self._matches(row):
+                    row.update(self.payload)
+            return _FreshnessResult([])
+        if self.operation == "delete":
+            self.tables[self.table] = [
+                row for row in rows if not self._matches(row)
+            ]
+            return _FreshnessResult([])
+        raise AssertionError(self.operation)
+
+
+def test_freshness_aging_uses_remaining_inventory_only(monkeypatch):
+    tables = {
+        "batch_inventory": [
+            {
+                "batch_id": "sold-out",
+                "product_name": "croissant",
+                "quantity": 10,
+                "quantity_remaining": 0,
+                "production_time": "2026-07-11 06:00:00",
+                "freshness_status": "Fresh",
+            },
+            {
+                "batch_id": "remaining",
+                "product_name": "croissant",
+                "quantity": 10,
+                "quantity_remaining": 2,
+                "production_time": "2026-07-11 06:00:00",
+                "freshness_status": "Fresh",
+            },
+        ],
+        "products": [
+            {"product_name": "croissant", "material_cost": 1.48},
+        ],
+        "inventory_transactions": [],
+    }
+    monkeypatch.setattr(freshness_service, "get_db", lambda: object())
+    monkeypatch.setattr(
+        freshness_service,
+        "q",
+        lambda _db, table: _FreshnessQuery(tables, table),
+    )
+
+    result = freshness_service.update_all_freshness("2026-07-14")
+
+    assert result["expired_cleared"] == 1
+    assert [row["batch_id"] for row in tables["batch_inventory"]] == [
+        "sold-out"
+    ]
+    assert tables["inventory_transactions"] == [
+        {
+            "transaction_type": "outflow",
+            "batch_id": "remaining",
+            "product_name": "croissant",
+            "quantity": 2,
+            "unit_price": 1.48,
+            "discount_applied": 1.0,
+            "freshness_status": "Expired",
+        }
+    ]
+
+
+def test_sellable_batches_filter_on_remaining_inventory(monkeypatch):
+    tables = {
+        "batch_inventory": [
+            {
+                "batch_id": "sold-out",
+                "quantity": 10,
+                "quantity_remaining": 0,
+                "freshness_status": "Fresh",
+            },
+            {
+                "batch_id": "available",
+                "quantity": 10,
+                "quantity_remaining": 3,
+                "freshness_status": "Fresh",
+            },
+        ]
+    }
+    monkeypatch.setattr(freshness_service, "get_db", lambda: object())
+    monkeypatch.setattr(
+        freshness_service,
+        "q",
+        lambda _db, table: _FreshnessQuery(tables, table),
+    )
+
+    result = freshness_service.get_sellable_batches()
+
+    assert [row["batch_id"] for row in result.data] == ["available"]
 
 
 def test_daily_revenue_keeps_return_only_days_visible():

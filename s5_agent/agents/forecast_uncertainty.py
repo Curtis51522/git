@@ -36,7 +36,7 @@ class ForecastUncertaintyAgent(BaseAgent):
         top_uncertain = prods_sorted[:5]
         avg_width = sum(p["avg_width"] for p in products) / max(len(products), 1)
         top_str = "; ".join(
-            f"{p['name']} ({chr(165)}{p['avg_price']:.0f}, {chr(165)}{p['avg_qty']:.0f} predicted, {chr(165)}{p['avg_width']:.0f} range)"
+            f"{p['name']} ({p['avg_qty']:.0f} units predicted, {p['avg_width']:.0f}-unit range)"
             for p in top_uncertain
         )
 
@@ -46,7 +46,7 @@ class ForecastUncertaintyAgent(BaseAgent):
             risk_note = f" High-risk (demand > 2x uncertainty): " + ", ".join(p["name"] for p in high_risk)
 
         opinion = (
-            f"Forecast uncertainty: avg interval width {chr(165)}{avg_width:.0f}. "
+            f"Forecast uncertainty: average interval width {avg_width:.0f} units. "
             f"Most uncertain products: {top_str}.{risk_note}"
         )
 

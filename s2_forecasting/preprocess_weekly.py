@@ -22,6 +22,7 @@ import os, warnings
 import numpy as np
 import pandas as pd
 from s2_forecasting.feature_contract import WEEKLY_RESERVED_SCENARIO_FEATURES
+from s2_forecasting.preprocess import resolve_product_categories
 
 warnings.filterwarnings("ignore")
 
@@ -40,6 +41,16 @@ WEEKLY_FEATURES = [
     "is_member_week", *WEEKLY_RESERVED_SCENARIO_FEATURES.keys(), "is_rainy_w",
 ]
 TARGET_COL = "quantity_w"
+
+
+def is_named_holiday(calendar_date):
+    from chinese_calendar import get_holiday_detail
+
+    try:
+        is_holiday, holiday_name = get_holiday_detail(calendar_date)
+    except NotImplementedError:
+        return False
+    return bool(is_holiday and holiday_name)
 
 
 def run_weekly_preprocessing(verbose=True):
@@ -97,7 +108,10 @@ def run_weekly_preprocessing(verbose=True):
     # Product ID and category
     pid_map = {p: i for i, p in enumerate(all_products)}
     weekly_full["product_id"] = weekly_full["product_name"].map(pid_map)
-    weekly_full["category"] = (weekly_full["product_id"] >= 30).astype(int)
+    category_map = resolve_product_categories(df_raw, all_products)
+    weekly_full["category"] = (
+        weekly_full["product_name"].map(category_map).astype(int)
+    )
 
     # Weekly ticket count
     weekly_tickets = df_raw.groupby("week_start")["ticket_id"].nunique().reset_index()
@@ -119,16 +133,12 @@ def run_weekly_preprocessing(verbose=True):
     weekly_full["month"] = weekly_full["week_start"].dt.month
 
     # Holiday week: week contains a Chinese holiday
-    from chinese_calendar import is_holiday as chinese_holiday
     holiday_weeks = set()
     for d in pd.date_range(weekly_full["week_start"].min(),
                             weekly_full["week_start"].max() + pd.Timedelta(days=6)):
-        try:
-            if chinese_holiday(d):
-                ws = (d - pd.Timedelta(days=d.dayofweek)).strftime("%Y-%m-%d")
-                holiday_weeks.add(ws)
-        except Exception:
-            pass
+        if is_named_holiday(d.date()):
+            ws = (d - pd.Timedelta(days=d.dayofweek)).strftime("%Y-%m-%d")
+            holiday_weeks.add(ws)
     weekly_full["ws_str"] = weekly_full["week_start"].dt.strftime("%Y-%m-%d")
     weekly_full["is_holiday_week"] = weekly_full["ws_str"].isin(holiday_weeks).astype(int)
     p(f"  Holiday weeks: {weekly_full[weekly_full['is_holiday_week']==1]['ws_str'].nunique()}")

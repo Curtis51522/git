@@ -19,9 +19,13 @@ THRESHOLDS = {
     # Day-1 fixed 20% discount on aged products usually produces ~4% effective rate.
     # Only flag when effective discount exceeds this.
     "promo_high_discount_rate": 0.15,   # >15% effective discount = excessive
+    "promotion_loss_concentration_pct": 20,
+    "promotion_target_margin_floor_pct": 30,
+    "promotion_target_sell_through_floor_pct": 50,
 
     # --- ProfitAgent ---
     "profit_low_margin_pct": 20,        # <20% gross margin = alert
+    "profit_expired_cost_alert_pct": 5,  # >=5% of revenue = material closing loss
 
     # --- WastageAgent ---
     "wastage_abnormal_rate": 0.15,        # >15% wastage on a material = alert
@@ -30,6 +34,9 @@ THRESHOLDS = {
     "inventory_fresh_low": 10,          # fresh units below this + total > threshold = high waste risk
     "inventory_total_high": 60,         # total units above this + fresh low = high waste risk
     "inventory_default_price": 5.90,    # fallback unit price when product not found
+    "inventory_high_sell_through_pct": 80,
+    "inventory_low_sell_through_pct": 40,
+    "inventory_flow_min_baked_units": 3,
 }
 
 # =============================================================================
@@ -37,6 +44,7 @@ THRESHOLDS = {
 # =============================================================================
 
 S1_INVENTORY_URL  = f"{API_BASE}/s1/inventory"
+S1_INFLOW_HISTORY_URL = f"{API_BASE}/s1/inflow/history"
 S2_FORECAST_URL   = f"{API_BASE}/s2/forecast"
 S4_REVENUE_URL    = f"{API_BASE}/s4/revenue/daily"
 S4_MATERIALS_URL  = f"{API_BASE}/s4/inventory/materials"

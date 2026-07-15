@@ -235,6 +235,7 @@ CREATE TABLE `raw_materials` (
   `unit_price` decimal(8,2) DEFAULT 0.00,
   `category` varchar(30) DEFAULT 'baking',
   `reorder_point` decimal(12,6) DEFAULT 1.000000,
+  `track_inventory` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`material_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

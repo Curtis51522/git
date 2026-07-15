@@ -1,42 +1,46 @@
-import os, sys, logging, json, urllib.request
+import logging
+import os
+import sys
+
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
+if _PARENT not in sys.path:
+    sys.path.insert(0, _PARENT)
+
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
+
 logger = logging.getLogger("s5.agent.yield")
 
 YIELD_SQL = """
-SELECT 
-    pr.material_name,
-    SUM(oi.quantity * pr.quantity_per_unit) AS total_consumed,
-    mi.current_stock,
-    mi.unit,
-    mi.threshold
-FROM order_items oi
-JOIN orders o ON oi.order_id = o.id
-JOIN product_recipes pr ON oi.product_name = pr.product_name
-LEFT JOIN material_inventory mi ON pr.material_name = mi.material_name
-WHERE o.order_date = %s
-  AND o.state != 'refunded'
-GROUP BY pr.material_name, mi.current_stock, mi.unit, mi.threshold
+SELECT
+    mt.material_name,
+    SUM(mt.quantity) AS total_consumed,
+    rm.stock_quantity,
+    rm.unit,
+    rm.reorder_point
+FROM material_transactions mt
+LEFT JOIN raw_materials rm ON rm.material_name = mt.material_name
+WHERE DATE(mt.created_at) = %s
+  AND mt.transaction_type = 'outflow'
+  AND mt.reference LIKE 'production:%'
+GROUP BY mt.material_name, rm.stock_quantity, rm.unit, rm.reorder_point
 ORDER BY total_consumed DESC
 """
 
 PRODUCT_COUNT_SQL = """
-SELECT COUNT(DISTINCT oi.product_name) as product_count,
-       SUM(oi.quantity) as total_units
-FROM order_items oi
-JOIN orders o ON oi.order_id = o.id
-WHERE o.order_date = %s
-  AND o.state != 'refunded'
+SELECT COUNT(DISTINCT it.product_name) AS product_count,
+       COALESCE(SUM(it.quantity), 0) AS total_units
+FROM inventory_transactions it
+JOIN products p ON p.product_name = it.product_name
+WHERE DATE(it.transaction_time) = %s
+  AND it.transaction_type = 'inflow'
+  AND p.category = 'bakery'
 """
 
 class YieldAgent(BaseAgent):
     def _setup_tools(self):
-        self.tools.register(Tool(name="get_actual_bake", description="Get actual production from orders + recipes",
+        self.tools.register(Tool(name="get_actual_bake", description="Get actual production intake and material usage",
             parameters={"date": "string"}, primary=True, _handler=self._get_bake))
-        self.tools.register(Tool(name="get_planned_bake", description="Get planned production",
-            parameters={"date": "string"}, primary=False, _handler=self._get_planned))
 
     async def fetch(self, params):
         date = ""
@@ -51,10 +55,6 @@ class YieldAgent(BaseAgent):
 
     async def _get_bake(self, date: str = ""):
         return await self.fetch({"date": date})
-
-    async def _get_planned(self, date: str = ""):
-        return await self._get_bake(date)
-
 
     @staticmethod
     def _fmt_qty(qty, unit):
@@ -85,7 +85,6 @@ class YieldAgent(BaseAgent):
                                and m.get("threshold") is not None
                                and m.get("current_stock", 0) < m.get("threshold", 0)]
 
-        Y = chr(165)
         opinion = f"PRODUCTION: {product_count} products baked, {total_units} total units. "
         opinion += f"{total_materials} raw materials consumed. Top material: {top_name} ({self._fmt_qty(top_consumed, top_unit)}{top_unit})."
 
@@ -110,8 +109,11 @@ class YieldAgent(BaseAgent):
 def _fetch_yield_data(date=""):
     if not date:
         return {"materials": [], "product_count": 0, "total_units": 0, "note": "no_date"}
+    db = None
+    cursor = None
     try:
         from db.mysql_client import get_db
+
         db = get_db()
         cursor = db.cursor()
         cursor.execute(YIELD_SQL, (date,))
@@ -128,9 +130,6 @@ def _fetch_yield_data(date=""):
         pc_row = cursor.fetchone()
         product_count = pc_row[0] if pc_row else 0
         total_units = int(pc_row[1]) if pc_row and pc_row[1] else 0
-        cursor.close()
-        db.close()
-        _populate_batch_inventory(date)
         return {
             "materials": materials,
             "product_count": product_count,
@@ -138,43 +137,14 @@ def _fetch_yield_data(date=""):
         }
     except Exception as e:
         logger.warning("YIELD_DB: error=%s", e)
-    return {"materials": [], "product_count": 0, "total_units": 0, "note": "api_unavailable"}
-
-
-def _populate_batch_inventory(date):
-    try:
-        from db.mysql_client import get_db
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT COUNT(*) FROM batch_inventory WHERE DATE(production_time) = %s", (date,))
-        count = cursor.fetchone()[0]
-        if count > 0:
+        return {
+            "materials": [],
+            "product_count": 0,
+            "total_units": 0,
+            "note": "api_unavailable",
+        }
+    finally:
+        if cursor is not None:
             cursor.close()
+        if db is not None:
             db.close()
-            return
-        ins_sql = (
-            "INSERT INTO batch_inventory "
-            "(batch_id, product_name, quantity, production_time, tray_color, freshness_status, quantity_initial, quantity_remaining, sales_area) "
-            "SELECT "
-            "CONCAT('BTH-', DATE_FORMAT(o.order_date, '%Y%m%d'), '-', oi.product_name) as batch_id, "
-            "oi.product_name, "
-            "SUM(oi.quantity) as quantity, "
-            "TIMESTAMP(o.order_date, '06:00:00') as production_time, "
-            "'brown' as tray_color, "
-            "'fresh' as freshness_status, "
-            "SUM(oi.quantity) as quantity_initial, "
-            "0 as quantity_remaining, "
-            "'front' as sales_area "
-            "FROM order_items oi "
-            "JOIN orders o ON oi.order_id = o.id "
-            "WHERE o.order_date = %s AND o.state != 'refunded' "
-            "GROUP BY oi.product_name "
-            "ON DUPLICATE KEY UPDATE quantity = VALUES(quantity)"
-        )
-        cursor.execute(ins_sql, (date,))
-        db.commit()
-        logger.info("YIELD: populated batch_inventory for %s, %s rows", date, cursor.rowcount)
-        cursor.close()
-        db.close()
-    except Exception as e:
-        logger.warning("YIELD: batch_inventory populate failed: %s", e)

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import PRODUCT_TYPES, FORECAST_FEATURE_COLS
+from config.settings import BEVERAGE_PRODUCT_TYPES, PRODUCT_TYPES, FORECAST_FEATURE_COLS
 from db.mysql_client import get_db, q
 from api.auth import require_manager
 from models.schemas import SalesForecast
@@ -185,6 +185,20 @@ def _get_product_id_map():
         else:
             _product_id_map = {p: i for i, p in enumerate(sorted(PRODUCT_TYPES))}
     return _product_id_map
+
+
+def _get_category_id(product_name: str) -> int:
+    return int(product_name in BEVERAGE_PRODUCT_TYPES)
+
+
+def _compute_bias_factor(
+    actual_total: float,
+    predicted_total: float,
+    completed_days: int,
+) -> float:
+    if completed_days < 3 or predicted_total <= 0:
+        return 1.0
+    return min(max(actual_total / predicted_total, 0.75), 1.5)
 
 _conformal_calibration = None
 
@@ -393,54 +407,58 @@ def _get_lag(product_name: str, forecast_date, days_back: int) -> float:
     """Get sales from 'days_back' days before forecast_date, skipping closed days."""
     if not product_name:
         return 0.0
-    sales = _get_product_daily_sales(product_name)
-    if not sales:
-        return 0.0
-    fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
-    target = fd - timedelta(days=days_back)
-    # Try the exact date first, then back up to find the nearest day with data
-    for _ in range(4):
-        key = target.strftime('%Y-%m-%d')
-        if key in sales:
-            return float(sales[key])
-        target -= timedelta(days=1)
-    return 0.0
+    return _get_lag_from_history(
+        _get_product_daily_sales(product_name),
+        forecast_date,
+        days_back,
+    )
 
-def _get_rolling_7d_mean(product_name: str, forecast_date) -> float:
-    """Average daily sales over the 7 days before forecast_date."""
-    if not product_name:
+
+def _history_rows_before(sales_history: dict, forecast_date):
+    fd = forecast_date.date() if hasattr(forecast_date, "date") else forecast_date
+    rows = []
+    for key, value in sales_history.items():
+        try:
+            row_date = datetime.strptime(str(key), "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if row_date < fd:
+            rows.append((row_date, float(value)))
+    return sorted(rows, key=lambda item: item[0])
+
+
+def _get_lag_from_history(sales_history: dict, forecast_date, days_back: int) -> float:
+    if not sales_history or days_back < 1:
         return 0.0
-    sales = _get_product_daily_sales(product_name)
-    if not sales:
-        return 0.0
-    fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
-    values = []
-    for d in range(1, 8):
-        target = fd - timedelta(days=d)
-        key = target.strftime('%Y-%m-%d')
-        if key in sales:
-            values.append(sales[key])
-    if not values:
-        return 0.0
-    return float(sum(values) / len(values))
+    fd = forecast_date.date() if hasattr(forecast_date, "date") else forecast_date
+    target = fd - timedelta(days=days_back)
+    candidates = [
+        (row_date, value)
+        for row_date, value in _history_rows_before(sales_history, forecast_date)
+        if row_date <= target
+    ]
+    return candidates[-1][1] if candidates else 0.0
 
 def _get_rolling_avg(product_name: str, forecast_date, window: int) -> float:
     if not product_name or window < 1:
         return 0.0
-    sales = _get_product_daily_sales(product_name)
-    if not sales:
+    return _get_rolling_avg_from_history(
+        _get_product_daily_sales(product_name),
+        forecast_date,
+        window,
+    )
+
+
+def _get_rolling_avg_from_history(
+    sales_history: dict,
+    forecast_date,
+    window: int,
+) -> float:
+    if not sales_history or window < 1:
         return 0.0
-    fd = forecast_date if hasattr(forecast_date, "date") else forecast_date
-    vals = []
-    for d in range(1, window + 1):
-        target = fd - timedelta(days=d)
-        for _ in range(4):
-            key = target.strftime("%Y-%m-%d")
-            if key in sales:
-                vals.append(float(sales[key]))
-                break
-            target -= timedelta(days=1)
-    return float(np.mean(vals)) if vals else 0.0
+    rows = _history_rows_before(sales_history, forecast_date)
+    values = [value for _, value in rows[-window:]]
+    return float(np.mean(values)) if values else 0.0
 
 def _get_daily_tickets(forecast_date) -> float:
     try:
@@ -475,19 +493,41 @@ def _get_is_holiday(dt_date) -> int:
         ds = dt_date.strftime("%Y-%m-%d")
         return 1 if ds in _frozen_meta.get("holiday_dates", []) else 0
 
-def _get_is_day1(product_name: str) -> int:
+def _get_is_day1(product_name: str, forecast_date) -> int:
+    db = None
+    cursor = None
     try:
         db = get_db()
-        c = db.cursor()
-        c.execute(
-            "SELECT stock_day1 FROM products WHERE product_name=%s",
-            (product_name,)
+        cursor = db.cursor()
+        date_str = (
+            forecast_date.strftime("%Y-%m-%d")
+            if hasattr(forecast_date, "strftime")
+            else str(forecast_date)
         )
-        row = c.fetchone()
+        cursor.execute(
+            """
+            SELECT EXISTS(
+                SELECT 1
+                FROM batch_inventory bi
+                JOIN products p ON p.product_name = bi.product_name
+                WHERE bi.product_name = %s
+                  AND p.category = 'bakery'
+                  AND COALESCE(bi.quantity_remaining, bi.quantity) > 0
+                  AND DATE(bi.production_time) = DATE(%s) - INTERVAL 1 DAY
+            )
+            """,
+            (product_name, date_str),
+        )
+        row = cursor.fetchone()
         if row and row[0] and row[0] > 0:
             return 1
     except Exception:
         pass
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
     return 0
 
 
@@ -495,7 +535,12 @@ def _get_is_day1(product_name: str) -> int:
 # Feature order matching the deployed S2 Q50 forecast model.
 FORECAST_FEATURE_ORDER = FORECAST_FEATURE_COLS
 
-def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
+def build_forecast_features(
+    forecast_date: datetime,
+    product: str = "",
+    sales_history: dict | None = None,
+    daily_tickets: float | None = None,
+) -> dict:
     _init_frozen_meta()
     dow = forecast_date.weekday()
     dt_date = forecast_date.date() if hasattr(forecast_date, "date") else datetime(forecast_date.year, forecast_date.month, forecast_date.day).date()
@@ -504,19 +549,32 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     # Product ID and category (0=bread, 1=beverage)
     pid_map = _get_product_id_map()
     pid = pid_map.get(product, -1)
-    category = 1 if pid >= 30 else 0
+    category = _get_category_id(product)
 
     # Frozen fallback values: (lag_1, lag_7_avg, lag_30_avg, roll_std_7, roll_std_14, trend_7)
     frozen = _frozen_meta.get("last_lag", {}).get(pid, (0, 0, 0, 0, 0, 0))
 
     # Lag features: live DB first, fall back to frozen
-    lag_1 = _get_lag(product, forecast_date, 1)
+    history = sales_history
+    lag_1 = (
+        _get_lag_from_history(history, forecast_date, 1)
+        if history is not None
+        else _get_lag(product, forecast_date, 1)
+    )
     if lag_1 == 0 and len(frozen) >= 1:
         lag_1 = frozen[0]
-    lag_7 = _get_rolling_avg(product, forecast_date, 7)
+    lag_7 = (
+        _get_rolling_avg_from_history(history, forecast_date, 7)
+        if history is not None
+        else _get_rolling_avg(product, forecast_date, 7)
+    )
     if lag_7 == 0 and len(frozen) >= 2:
         lag_7 = frozen[1]
-    lag_30 = _get_rolling_avg(product, forecast_date, 30)
+    lag_30 = (
+        _get_rolling_avg_from_history(history, forecast_date, 30)
+        if history is not None
+        else _get_rolling_avg(product, forecast_date, 30)
+    )
     if lag_30 == 0 and len(frozen) >= 3:
         lag_30 = frozen[2]
 
@@ -526,12 +584,16 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     trend_7 = lag_1 - lag_7 if (lag_1 > 0 or lag_7 > 0) else (frozen[5] if len(frozen) >= 6 else 0.0)
 
     # daily_tickets: live DB estimate, fallback to frozen
-    daily_tickets = _get_daily_tickets(forecast_date)
-    if daily_tickets == 0:
-        daily_tickets = _frozen_meta.get("last_daily_tickets", 0)
+    ticket_count = (
+        float(daily_tickets)
+        if daily_tickets is not None
+        else _get_daily_tickets(forecast_date)
+    )
+    if ticket_count == 0:
+        ticket_count = _frozen_meta.get("last_daily_tickets", 0)
 
     # Promo / event features (mostly 0 for forecast)
-    is_day1 = _get_is_day1(product)
+    is_day1 = _get_is_day1(product, dt_date)
     is_top3 = 1 if pid in _frozen_meta.get("top3_products", []) else 0
     discount_pct = 0.0
     is_member_day = 0
@@ -553,7 +615,7 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     features = {
         "product_id": pid,
         "category": category,
-        "daily_tickets": daily_tickets,
+        "daily_tickets": ticket_count,
         "day_of_week": dow,
         "month": m,
         "is_weekend": 1 if dow >= 5 else 0,
@@ -580,6 +642,84 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
         "temp_hot_ratio": temp_hot_ratio,
     }
     return {name: features.get(name, 0) for name in FORECAST_FEATURE_ORDER}
+
+
+def _get_recent_category_bias_factors(
+    start_date: datetime,
+    products: list[str],
+    quantile_models: dict,
+    lookback_days: int = 7,
+) -> dict[str, float]:
+    totals = {
+        "bakery": {"actual": 0.0, "predicted": 0.0, "days": 0},
+        "beverage": {"actual": 0.0, "predicted": 0.0, "days": 0},
+    }
+    histories = {
+        product: {
+            str(key): float(value)
+            for key, value in _get_product_daily_sales(product).items()
+        }
+        for product in products
+    }
+
+    for offset in range(lookback_days, 0, -1):
+        backcast_date = start_date - timedelta(days=offset)
+        date_key = backcast_date.strftime("%Y-%m-%d")
+        ticket_count = _get_daily_tickets(backcast_date)
+        feature_rows = []
+        categories = []
+        day_actual = {"bakery": 0.0, "beverage": 0.0}
+
+        for product in products:
+            category = "beverage" if _get_category_id(product) else "bakery"
+            history = {
+                key: value
+                for key, value in histories[product].items()
+                if datetime.strptime(key, "%Y-%m-%d").date()
+                < backcast_date.date()
+            }
+            feature_rows.append(
+                build_forecast_features(
+                    backcast_date,
+                    product,
+                    sales_history=history,
+                    daily_tickets=ticket_count,
+                )
+            )
+            categories.append(category)
+            day_actual[category] += histories[product].get(date_key, 0.0)
+
+        if not feature_rows:
+            continue
+        X = pd.DataFrame(feature_rows)[FORECAST_FEATURE_ORDER].fillna(0).values
+        raw_quantiles = {
+            name: np.maximum(model.predict(X), 0)
+            for name, model in quantile_models.items()
+        }
+        corrected = enforce_quantile_monotonicity(
+            raw_quantiles["q10"],
+            raw_quantiles["q50"],
+            raw_quantiles["q90"],
+        )
+        day_predicted = {"bakery": 0.0, "beverage": 0.0}
+        for category, prediction in zip(categories, corrected["q50"]):
+            day_predicted[category] += float(prediction)
+
+        for category in totals:
+            if day_actual[category] <= 0:
+                continue
+            totals[category]["actual"] += day_actual[category]
+            totals[category]["predicted"] += day_predicted[category]
+            totals[category]["days"] += 1
+
+    return {
+        category: _compute_bias_factor(
+            values["actual"],
+            values["predicted"],
+            values["days"],
+        )
+        for category, values in totals.items()
+    }
 
 
 def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, start_date: Optional[str] = None) -> dict:
@@ -613,6 +753,12 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
         "q90": _get_unified_quantile("q90"),
     }
     pid_map = _get_product_id_map()
+    forecast_ticket_count = _get_daily_tickets(today)
+    bias_factors = _get_recent_category_bias_factors(
+        today,
+        list(pid_map),
+        quantile_models,
+    )
     unit_prices = {}
     try:
         db = get_db()
@@ -627,14 +773,26 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
             model_errors.append(f"Product {prod} not in product_id_map")
             continue
         half_width = _get_conformal_half(prod)
-        pid = pid_map[prod]
+        category = "beverage" if _get_category_id(prod) else "bakery"
+        bias_factor = bias_factors[category]
+        cutoff = today.date()
+        sales_history = {
+            str(key): float(value)
+            for key, value in _get_product_daily_sales(prod).items()
+            if datetime.strptime(str(key), "%Y-%m-%d").date() < cutoff
+        }
         for d in range(0, days):
             forecast_date = today + timedelta(days=d)
-            features = build_forecast_features(forecast_date, prod)
+            features = build_forecast_features(
+                forecast_date,
+                prod,
+                sales_history=sales_history,
+                daily_tickets=forecast_ticket_count,
+            )
             X = pd.DataFrame([features])[FORECAST_FEATURE_ORDER].fillna(0).values
             try:
                 raw_quantiles = {
-                    name: np.maximum(model.predict(X), 0)
+                    name: np.maximum(model.predict(X), 0) * bias_factor
                     for name, model in quantile_models.items()
                 }
                 corrected = enforce_quantile_monotonicity(
@@ -643,8 +801,9 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                     raw_quantiles["q90"],
                 )
                 pred = float(corrected["q50"][0])
-                lower_bound = max(0, round(pred - half_width))
-                upper_bound = max(lower_bound, round(pred + half_width))
+                adjusted_half_width = half_width * bias_factor
+                lower_bound = max(0, round(pred - adjusted_half_width))
+                upper_bound = max(lower_bound, round(pred + adjusted_half_width))
                 interval_context = _build_interval_context(pred, lower_bound, upper_bound)
             except Exception as e:
                 err_msg = f"Prediction failed for {prod} on {forecast_date.strftime('%Y-%m-%d')}: {e}"
@@ -655,6 +814,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 upper_bound = 0
                 interval_context = _build_interval_context(pred, lower_bound, upper_bound)
 
+            sales_history[forecast_date.strftime("%Y-%m-%d")] = pred
             forecasts.append(SalesForecast(
                 forecast_date=forecast_date.strftime("%Y-%m-%d"),
                 product_name=prod,

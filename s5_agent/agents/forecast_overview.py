@@ -54,17 +54,7 @@ class ForecastOverviewAgent(BaseAgent):
             total_rev += rev
 
         sorted_days = sorted(by_day.items())
-        if len(sorted_days) >= 2:
-            first3 = sum(v["rev"] for _, v in sorted_days[:3])
-            last3 = sum(v["rev"] for _, v in sorted_days[3:]) if len(sorted_days) >= 6 else first3
-            if last3 > first3 * 1.05:
-                direction = "rising"
-            elif last3 < first3 * 0.95:
-                direction = "falling"
-            else:
-                direction = "stable"
-        else:
-            direction = "unknown"
+        direction = _classify_revenue_trend(sorted_days, "rev")
 
         peak_day = max(sorted_days, key=lambda x: x[1]["rev"])
         valley_day = min(sorted_days, key=lambda x: x[1]["rev"])
@@ -108,32 +98,30 @@ class ForecastOverviewAgent(BaseAgent):
         by_product = {}
         total_units = 0.0
         total_revenue = 0.0
+        beverage_names = _get_beverage_names()
         for entry in entries:
             day = entry.get("forecast_date", "")
             product = entry.get("product_name", "")
+            category = str(entry.get("category", "")).strip().lower()
+            if category not in {"bakery", "beverage"}:
+                category = "beverage" if product in beverage_names else "bakery"
             quantity = float(entry.get("predicted_qty", 0.0) or 0.0)
             price = float(entry.get("unit_price", 0.0) or 0.0)
             revenue = quantity * price
             by_day.setdefault(day, {"units": 0.0, "revenue": 0.0})
             by_day[day]["units"] += quantity
             by_day[day]["revenue"] += revenue
-            by_product.setdefault(product, {"units": 0.0, "revenue": 0.0})
+            by_product.setdefault(
+                product,
+                {"units": 0.0, "revenue": 0.0, "category": category},
+            )
             by_product[product]["units"] += quantity
             by_product[product]["revenue"] += revenue
             total_units += quantity
             total_revenue += revenue
 
         sorted_days = sorted(by_day.items())
-        trend = "unknown"
-        if len(sorted_days) >= 2:
-            first_half = sum(value["revenue"] for _, value in sorted_days[: max(len(sorted_days) // 2, 1)])
-            second_half = sum(value["revenue"] for _, value in sorted_days[max(len(sorted_days) // 2, 1):])
-            if second_half > first_half:
-                trend = "rising"
-            elif second_half < first_half:
-                trend = "falling"
-            else:
-                trend = "stable"
+        trend = _classify_revenue_trend(sorted_days, "revenue")
 
         peak_day = max(sorted_days, key=lambda item: item[1]["revenue"])[0] if sorted_days else ""
         top_products = sorted(
@@ -142,6 +130,36 @@ class ForecastOverviewAgent(BaseAgent):
             reverse=True,
         )[:5]
         top_product_names = [name for name, _ in top_products if name]
+        bakery_products = {
+            name: values
+            for name, values in by_product.items()
+            if values["category"] == "bakery"
+        }
+        beverage_products = {
+            name: values
+            for name, values in by_product.items()
+            if values["category"] == "beverage"
+        }
+        bakery_units = sum(values["units"] for values in bakery_products.values())
+        bakery_revenue = sum(values["revenue"] for values in bakery_products.values())
+        beverage_units = sum(values["units"] for values in beverage_products.values())
+        beverage_revenue = sum(values["revenue"] for values in beverage_products.values())
+        top_bakery_products = [
+            name
+            for name, _ in sorted(
+                bakery_products.items(),
+                key=lambda item: item[1]["units"],
+                reverse=True,
+            )[:5]
+        ]
+        top_beverage_products = [
+            name
+            for name, _ in sorted(
+                beverage_products.items(),
+                key=lambda item: item[1]["units"],
+                reverse=True,
+            )[:5]
+        ]
         business_events = [
             event for event in (data.get("business_events", []) or [])
             if isinstance(event, dict) and event.get("active", True)
@@ -170,6 +188,20 @@ class ForecastOverviewAgent(BaseAgent):
                 value=peak_day,
                 metadata={"date": params.get("date", "")},
             ),
+            EvidenceItem(
+                id="forecast_bakery_units",
+                source="forecast_overview",
+                description="Forecast demand units for baked products in the planning horizon",
+                value=round(bakery_units, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="forecast_beverage_units",
+                source="forecast_overview",
+                description="Forecast demand units for made-to-order beverages in the planning horizon",
+                value=round(beverage_units, 2),
+                metadata={"date": params.get("date", "")},
+            ),
         ]
         if business_events:
             evidence_items.append(
@@ -193,9 +225,15 @@ class ForecastOverviewAgent(BaseAgent):
             metrics={
                 "forecast_total_units": round(total_units, 2),
                 "forecast_total_revenue": round(total_revenue, 2),
+                "forecast_bakery_units": round(bakery_units, 2),
+                "forecast_bakery_revenue": round(bakery_revenue, 2),
+                "forecast_beverage_units": round(beverage_units, 2),
+                "forecast_beverage_revenue": round(beverage_revenue, 2),
                 "forecast_trend": trend,
                 "forecast_peak_day": peak_day,
                 "top_forecast_products": top_product_names,
+                "top_bakery_products": top_bakery_products,
+                "top_beverage_products": top_beverage_products,
                 "business_event_count": len(business_events),
             },
             evidence_items=evidence_items,
@@ -223,6 +261,25 @@ def _get_beverage_names():
             "milk_tea","chai_latte","earl_grey","english_breakfast","lemonade"}
 
 
+def _classify_revenue_trend(sorted_days, revenue_key):
+    if len(sorted_days) < 2:
+        return "unknown"
+
+    window_size = min(3, len(sorted_days) // 2)
+    first_average = sum(
+        values[revenue_key] for _, values in sorted_days[:window_size]
+    ) / window_size
+    last_average = sum(
+        values[revenue_key] for _, values in sorted_days[-window_size:]
+    ) / window_size
+
+    if last_average > first_average * 1.05:
+        return "rising"
+    if last_average < first_average * 0.95:
+        return "falling"
+    return "stable"
+
+
 def _query_forecast_overview(date_str=""):
     try:
         from api.module2_forecast import _do_forecast
@@ -232,20 +289,34 @@ def _query_forecast_overview(date_str=""):
         forecasts = f.get("forecasts", [])
 
         db = get_db()
-        cur = db.cursor()
-        cur.execute("SELECT product_name, unit_price FROM products")
-        prices = {str(r[0]): float(r[1] or 0) for r in cur.fetchall()}
+        cur = None
+        try:
+            cur = db.cursor()
+            cur.execute("SELECT product_name, unit_price, category FROM products")
+            product_meta = {
+                str(r[0]): {
+                    "unit_price": float(r[1] or 0),
+                    "category": str(r[2] or ""),
+                }
+                for r in cur.fetchall()
+            }
+        finally:
+            if cur is not None:
+                cur.close()
+            db.close()
 
         entries = []
         for fc in forecasts:
             pn = fc.get("product_name", "")
+            meta = product_meta.get(pn, {})
             entries.append({
                 "forecast_date": fc.get("forecast_date", ""),
                 "product_name": pn,
                 "predicted_qty": float(fc.get("predicted_demand", 0)),
                 "lower_bound": float(fc.get("lower_bound", 0)),
                 "upper_bound": float(fc.get("upper_bound", 0)),
-                "unit_price": prices.get(pn, 0),
+                "unit_price": meta.get("unit_price", 0),
+                "category": meta.get("category", ""),
             })
         business_events = []
         reserved_scenario_features = {}

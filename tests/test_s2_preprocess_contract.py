@@ -1,6 +1,71 @@
 from pathlib import Path
+import inspect
+from datetime import date
 
 import pandas as pd
+
+
+def test_product_categories_preserve_business_meaning():
+    from s2_forecasting import preprocess
+
+    raw = pd.DataFrame(
+        [
+            {"product_name": "americano", "category": 1},
+            {"product_name": "macaron", "category": 0},
+        ]
+    )
+
+    categories = preprocess.resolve_product_categories(
+        raw,
+        ["americano", "macaron"],
+    )
+
+    assert categories == {"americano": 1, "macaron": 0}
+
+
+def test_weekly_preprocessing_uses_real_product_categories(monkeypatch, tmp_path):
+    from s2_forecasting import preprocess_weekly
+
+    rows = []
+    for product_name, category in [("americano", 1), ("macaron", 0)]:
+        rows.append(
+            {
+                "date": "2023-01-02",
+                "product_name": product_name,
+                "category": category,
+                "ticket_id": product_name,
+                "quantity": 3,
+                "is_day1": 0,
+                "is_top3": 0,
+                "discount_pct": 0,
+                "is_member_day": 0,
+                "is_new_product": 0,
+                "is_competitor": 0,
+                "is_rainy": 0,
+            }
+        )
+    raw_csv = tmp_path / "bakery_sales_raw.csv"
+    pd.DataFrame(rows).to_csv(raw_csv, index=False)
+    monkeypatch.setattr(preprocess_weekly, "RAW_CSV", str(raw_csv))
+
+    train_df, _, _ = preprocess_weekly.run_weekly_preprocessing(verbose=False)
+
+    assert train_df.set_index("product_id")["category"].to_dict() == {0: 1, 1: 0}
+
+
+def test_weekly_metrics_keep_preprocessed_category():
+    from s2_forecasting import train_weekly
+
+    source = inspect.getsource(train_weekly.per_product_wape)
+
+    assert '(test_df["product_id"] >= 30)' not in source
+
+
+def test_weekly_holiday_feature_excludes_ordinary_weekends():
+    from s2_forecasting import preprocess_weekly
+
+    assert preprocess_weekly.is_named_holiday(date(2026, 7, 11)) is False
+    assert preprocess_weekly.is_named_holiday(date(2026, 10, 1)) is True
 
 
 def test_preprocessing_accepts_precomputed_beverage_features(monkeypatch, tmp_path):

@@ -1,8 +1,102 @@
 import asyncio
 
+from s5_agent.agents import yield_agent
 from s5_agent.agents.inventory import InventoryAgent
+from s5_agent.agents.wastage import TREND_SQL, WASTAGE_SQL
 from s5_agent.graph.runner import run_s5_graph
 from s5_agent.graph.state import S5Request
+
+
+def test_wastage_queries_exclude_untracked_materials():
+    assert "WHERE rm.track_inventory = 1" in WASTAGE_SQL
+    assert "JOIN raw_materials rm ON rm.material_name = mw.material_name" in TREND_SQL
+    assert "rm.track_inventory = 1" in TREND_SQL
+
+
+def test_yield_queries_use_actual_production_transactions():
+    assert "FROM material_transactions mt" in yield_agent.YIELD_SQL
+    assert "mt.reference LIKE 'production:%'" in yield_agent.YIELD_SQL
+    assert "FROM inventory_transactions it" in yield_agent.PRODUCT_COUNT_SQL
+    assert "it.transaction_type = 'inflow'" in yield_agent.PRODUCT_COUNT_SQL
+    assert "p.category = 'bakery'" in yield_agent.PRODUCT_COUNT_SQL
+    assert not hasattr(yield_agent, "_populate_batch_inventory")
+
+
+def test_yield_fetch_is_read_only_and_returns_actual_production(monkeypatch):
+    executed_sql = []
+
+    class FakeCursor:
+        def __init__(self):
+            self.rows = []
+
+        def execute(self, sql, params):
+            executed_sql.append(sql)
+            if "FROM material_transactions mt" in sql:
+                self.rows = [
+                    ("Bread Flour", 2.3587, 74.555341, "kg", 12.0),
+                    ("Butter", 1.077302, 19.91897, "kg", 5.0),
+                ]
+            elif "FROM inventory_transactions it" in sql:
+                self.rows = [(30, 158)]
+            else:
+                raise AssertionError(f"Unexpected yield query: {sql}")
+
+        def fetchall(self):
+            return list(self.rows)
+
+        def fetchone(self):
+            return self.rows[0] if self.rows else None
+
+        def close(self):
+            return None
+
+    class FakeDatabase:
+        def __init__(self):
+            self.cursor_instance = FakeCursor()
+            self.closed = False
+
+        def cursor(self):
+            return self.cursor_instance
+
+        def close(self):
+            self.closed = True
+
+    database = FakeDatabase()
+    connection_count = 0
+
+    def fake_get_db():
+        nonlocal connection_count
+        connection_count += 1
+        return database
+
+    monkeypatch.setattr("db.mysql_client.get_db", fake_get_db)
+
+    result = yield_agent._fetch_yield_data("2026-07-15")
+
+    assert result == {
+        "materials": [
+            {
+                "material_name": "Bread Flour",
+                "total_consumed": 2.3587,
+                "current_stock": 74.555341,
+                "unit": "kg",
+                "threshold": 12.0,
+            },
+            {
+                "material_name": "Butter",
+                "total_consumed": 1.077302,
+                "current_stock": 19.91897,
+                "unit": "kg",
+                "threshold": 5.0,
+            },
+        ],
+        "product_count": 30,
+        "total_units": 158,
+    }
+    assert connection_count == 1
+    assert len(executed_sql) == 2
+    assert all(sql.lstrip().upper().startswith("SELECT") for sql in executed_sql)
+    assert database.closed is True
 
 
 def _wastage_material(
@@ -84,12 +178,10 @@ def test_wastage_graph_zero_waste_stays_evidence_limited(monkeypatch):
         "yield": {"data": {"materials": [], "product_count": 0, "total_units": 0}},
         "inventory": {
             "inventory": [
-                {
-                    "product_name": "croissant",
-                    "total_quantity": 12,
-                    "batches": 1,
-                    "selling_price": 12.0,
-                }
+                {"product_name": "bread_roll", "total_quantity": 0, "batches": 1, "selling_price": 6.5},
+                {"product_name": "cornbread", "total_quantity": 0, "batches": 1, "selling_price": 8.0},
+                {"product_name": "macaron", "total_quantity": 1, "batches": 1, "selling_price": 10.0},
+                {"product_name": "croissant", "total_quantity": 2, "batches": 1, "selling_price": 12.0},
             ]
         },
     }
@@ -118,6 +210,7 @@ def test_wastage_graph_zero_waste_stays_evidence_limited(monkeypatch):
     assert outputs_by_agent["WastageAgent"].metrics["total_waste_cost"] == 0.0
     assert outputs_by_agent["WastageAgent"].metrics["latest_wastage_record_date"] == "2026-07-02"
     assert outputs_by_agent["YieldAgent"].metrics["yield_data_available"] is False
+    assert outputs_by_agent["FinishedStockAgent"].risks == []
     assert "low" not in {
         risk
         for output in result.agent_outputs
@@ -202,7 +295,7 @@ def test_wastage_summary_reads_like_business_analysis_when_loss_is_small(monkeyp
     summary = result.summary
     currency = chr(165)
 
-    assert summary.startswith("Today's material waste is limited in cost, but it should still be checked.")
+    assert summary.startswith("For 2026-06-30, recorded material waste is limited in cost, but it should still be checked.")
     assert f"The system found waste in 4 of 18 checked materials, with a total recorded waste cost of {currency}1.24." in summary
     assert "This is not a major financial loss yet" in summary
     assert "repeated small losses in the same materials could become a process issue" in summary
@@ -210,7 +303,7 @@ def test_wastage_summary_reads_like_business_analysis_when_loss_is_small(monkeyp
     assert f"Eggs also logged a small waste entry at {currency}0.08, but it is lower priority than the top three losses." in summary
     assert f"Butter caused the largest recorded loss at {currency}0.60, followed by Coffee Beans at {currency}0.48 and Bread Flour at {currency}0.08." in summary
     assert "Their wastage rates cannot be calculated reliably because theoretical consumption is recorded as zero" in summary
-    assert "Production-yield data is available for this day, with 261 units and 10 consumed-material rows." in summary
+    assert "Production records for this date show 261 baked units and recorded consumption for 10 materials." in summary
     assert "finished stock should still be interpreted separately from material waste" in summary
 
 

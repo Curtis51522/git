@@ -49,9 +49,18 @@ class ProductMixAgent(BaseAgent):
 
             top_name = bread[0].get("name", "?")
             top_qty = bread[0].get("qty", 0)
+            sold_sku_count = int(data.get("sold_bread_sku_count", 0) or 0)
             total_sku = data.get("total_bread_sku", 0)
-            sku_context = f" of {total_sku} SKUs" if total_sku > 0 else ""
-            parts.append(f"Bread: {len(bread)}{sku_context} sold today, top is {top_name} ({top_qty} units, {chr(165)}{bread[0].get('revenue',0):.0f})")
+            if sold_sku_count and total_sku > 0:
+                sku_context = f"{sold_sku_count} of {total_sku} SKUs sold today"
+            elif sold_sku_count:
+                sku_context = f"{sold_sku_count} SKUs sold today"
+            else:
+                sku_context = "ranked bread products"
+            parts.append(
+                f"Bread: {sku_context}, top is {top_name} "
+                f"({top_qty} units, {chr(165)}{bread[0].get('revenue',0):.0f})"
+            )
 
             if top3_pct > 60:
                 root_cause = "high_concentration"
@@ -156,6 +165,7 @@ def _query_product_ranking(date_str=""):
         return {
             "bread_ranking": bread_ranking[:5],
             "beverage_ranking": beverage_ranking[:5],
+            "sold_bread_sku_count": len(bread_ranking),
             "category": {"Bread": round(bread_rev, 2), "Beverages": round(bev_rev, 2)},
         }
     except Exception as e:

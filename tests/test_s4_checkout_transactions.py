@@ -61,6 +61,17 @@ class RecordingConnection:
             "payments": [],
             "receipts": [],
         }
+        self.material_tracking = {
+            material_name: True for material_name in self.state["materials"]
+        }
+        self.material_prices = {
+            "Cup Regular": 0.0,
+            "Cup Large": 0.0,
+            "Packaging Box": 0.30,
+            "Packaging Bag": 0.15,
+            "Bread Flour": 8.0,
+            "Coffee Beans": 80.0,
+        }
         self.initial_state = copy.deepcopy(self.state)
 
     def cursor(self, dictionary=False):
@@ -124,6 +135,20 @@ class RecordingCursor:
         elif normalized.startswith("SELECT pr.material_name"):
             self.rows = list(self.db.recipes.get(params[0], []))
         elif normalized.startswith(
+            "SELECT material_name, stock_quantity, unit, unit_price FROM raw_materials"
+        ):
+            requested = set(params)
+            self.rows = [
+                (
+                    material_name,
+                    quantity,
+                    "pcs" if material_name.startswith(("Cup", "Packaging")) else "kg",
+                    self.db.material_prices[material_name],
+                )
+                for material_name, quantity in self.db.state["materials"].items()
+                if material_name in requested
+            ]
+        elif normalized.startswith(
             "SELECT material_name, stock_quantity, unit FROM raw_materials"
         ):
             requested = set(params)
@@ -136,6 +161,25 @@ class RecordingCursor:
                 for material_name, quantity in self.db.state["materials"].items()
                 if material_name in requested
             ]
+        elif normalized.startswith(
+            "SELECT stock_quantity, unit, track_inventory FROM raw_materials"
+        ):
+            material_name = params[0]
+            if material_name in self.db.state["materials"]:
+                unit = (
+                    "pcs"
+                    if material_name.startswith(("Cup", "Packaging"))
+                    else "kg"
+                )
+                self.rows = [
+                    (
+                        self.db.state["materials"][material_name],
+                        unit,
+                        self.db.material_tracking.get(material_name, True),
+                    )
+                ]
+            else:
+                self.rows = []
         elif normalized.startswith(
             "SELECT stock_quantity, unit FROM raw_materials"
         ):
@@ -578,6 +622,24 @@ def test_checkout_commits_once_after_receipt_on_one_transaction(monkeypatch, bff
     assert order_row[6] == pytest.approx(line_profit_total)
 
 
+def test_takeaway_profit_deducts_packaging_material_cost(monkeypatch, bff_module):
+    db = RecordingConnection()
+    _, yolo_stub, freshness_stub = _checkout_dependencies(monkeypatch, bff_module, db)
+    payload = _checkout_payload()
+    payload["dine_type"] = "takeaway"
+
+    with patch.dict(
+        sys.modules,
+        {"api.module1_yolo": yolo_stub, "api.freshness_service": freshness_stub},
+    ):
+        result = asyncio.run(bff_module.checkout_complete(payload))
+
+    order_row = db.state["orders"][0]
+    line_profit_total = sum(row[6] for row in db.state["order_items"])
+    assert result["receipt"]["total"] == pytest.approx(19.7)
+    assert order_row[6] == pytest.approx(line_profit_total + 0.30 - 0.45)
+
+
 def test_checkout_links_fifo_and_beverage_outflows_to_receipt(
     monkeypatch, bff_module
 ):
@@ -791,6 +853,28 @@ def test_restock_rolls_back_stock_when_audit_write_fails(monkeypatch, bff_module
         )
 
     assert db.state == db.initial_state
+    assert db.commit_count == 0
+    assert db.rollback_count == 1
+    assert db.closed
+
+
+def test_restock_rejects_untracked_utility(monkeypatch, bff_module):
+    db = RecordingConnection()
+    db.state["materials"]["Water"] = 0
+    db.material_tracking["Water"] = False
+    db.initial_state = copy.deepcopy(db.state)
+    monkeypatch.setattr(bff_module, "get_db", lambda **_kwargs: db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(
+            bff_module.inventory_restock(
+                {"material_name": "Water", "quantity": 2.5}
+            )
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == "Material is not stock-tracked"
+    assert db.state["materials"]["Water"] == 0
     assert db.commit_count == 0
     assert db.rollback_count == 1
     assert db.closed

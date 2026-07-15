@@ -1312,6 +1312,39 @@ async def acknowledge_prep():
 # ======================================================================
 # S3 Production Scheduler endpoints (from s3_scheduling/scheduler.py)
 # ======================================================================
+def _load_day1_stock(breads, start_date):
+    day1_stock = {product_name: 0 for product_name in breads}
+    db = None
+    cursor = None
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT bi.product_name,
+                   SUM(COALESCE(bi.quantity_remaining, bi.quantity)) AS units
+            FROM batch_inventory bi
+            JOIN products p ON p.product_name = bi.product_name
+            WHERE p.category = 'bakery'
+              AND COALESCE(bi.quantity_remaining, bi.quantity) > 0
+              AND DATE(bi.production_time) = DATE(%s) - INTERVAL 1 DAY
+            GROUP BY bi.product_name
+            """,
+            (start_date,),
+        )
+        for product_name, units in cursor.fetchall():
+            if product_name in day1_stock:
+                day1_stock[product_name] = int(units or 0)
+    except Exception:
+        logger.exception("Failed to load Day-1 batch inventory")
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+    return day1_stock
+
+
 @router.get("/plan/7day", dependencies=[Depends(require_manager)])
 async def get_7day_production_plan(date: str = None):
     """
@@ -1325,29 +1358,14 @@ async def get_7day_production_plan(date: str = None):
         _sys3.path.insert(0, _base3)
     from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
     import numpy as np
-    from datetime import datetime as _dt, timedelta as _td
+    from datetime import datetime as _dt
 
     if date is None:
         date = _dt.now().strftime("%Y-%m-%d")
-    start_dt = _dt.strptime(date, "%Y-%m-%d")
-    if start_dt.weekday() != 0:
-        start_dt -= _td(days=start_dt.weekday())
-    start_date = start_dt.strftime("%Y-%m-%d")
+    start_date = _dt.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
 
     s = Scheduler()
-    # Fetch real day-1 stock from products table
-    try:
-        stock_rows = q(get_db(), "products").select("product_name,stock_day1").eq("category", "bakery").execute()
-        day1_stock = {}
-        if stock_rows.data:
-            for row in stock_rows.data:
-                day1_stock[row["product_name"]] = int(row.get("stock_day1") or 0)
-        # Fill any missing breads with 0
-        for p in s.breads:
-            if p not in day1_stock:
-                day1_stock[p] = 0
-    except Exception:
-        day1_stock = {p: 0 for p in s.breads}
+    day1_stock = _load_day1_stock(s.breads, start_date)
     forecast = generate_7day_s2_forecast(start_date)
     result = s.generate_7day_plan(start_date, day1_stock, forecast)
     day1_stock_total = sum(day1_stock.values())
@@ -1382,29 +1400,14 @@ async def get_materials_procurement(date: str = None):
         _sys4.path.insert(0, _base4)
     from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
     import numpy as np
-    from datetime import datetime as _dt2, timedelta as _td2
+    from datetime import datetime as _dt2
 
     if date is None:
         date = _dt2.now().strftime("%Y-%m-%d")
-    start_dt = _dt2.strptime(date, "%Y-%m-%d")
-    if start_dt.weekday() != 0:
-        start_dt -= _td2(days=start_dt.weekday())
-    start_date = start_dt.strftime("%Y-%m-%d")
+    start_date = _dt2.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
 
     s = Scheduler()
-    # Fetch real day-1 stock from products table
-    try:
-        stock_rows = q(get_db(), "products").select("product_name,stock_day1").eq("category", "bakery").execute()
-        day1_stock = {}
-        if stock_rows.data:
-            for row in stock_rows.data:
-                day1_stock[row["product_name"]] = int(row.get("stock_day1") or 0)
-        # Fill any missing breads with 0
-        for p in s.breads:
-            if p not in day1_stock:
-                day1_stock[p] = 0
-    except Exception:
-        day1_stock = {p: 0 for p in s.breads}
+    day1_stock = _load_day1_stock(s.breads, start_date)
     forecast = generate_7day_s2_forecast(start_date)
     result = s.generate_7day_plan(start_date, day1_stock, forecast)
 

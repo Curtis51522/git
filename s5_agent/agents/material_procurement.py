@@ -1,5 +1,5 @@
 import os, sys, logging
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
@@ -7,7 +7,6 @@ from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
 from s5_agent.schemas.recommendation import Recommendation
-from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.material_procurement")
 
 class MaterialProcurementAgent(BaseAgent):
@@ -28,6 +27,22 @@ class MaterialProcurementAgent(BaseAgent):
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         data = raw.get("data", {}) if "data" in raw else raw
         items = data.get("items", {})
+        stock_data_available = bool(data.get("stock_data_available", True))
+        if not stock_data_available:
+            return AgentOpinion(
+                agent=self.name,
+                opinion=(
+                    "Current material stock could not be verified because the raw-material "
+                    "inventory source was unavailable. Procurement quantities and shortage "
+                    "alerts have been withheld to avoid treating missing data as zero stock."
+                ),
+                confidence=0.3,
+                attribution={
+                    "metric": "material_procurement",
+                    "root_cause": "stock_data_unavailable",
+                    "deviation": 0,
+                },
+            )
         if not items:
             return AgentOpinion(agent=self.name,
                 opinion="No material procurement data available.",
@@ -54,7 +69,7 @@ class MaterialProcurementAgent(BaseAgent):
             note = info.get("note", "")
             if note:
                 ok_count += 1  # no estimate materials are informational only
-            elif alert in ("critical", "urgent", "low") or (need is not None and stock < need * 0.5):
+            elif alert in ("critical", "urgent", "low") or (need is not None and stock < need):
                 if stock == 0 or (need is not None and stock < need * 0.3):
                     critical.append({"name": name, "need": need or 0, "stock": stock, "unit": info.get("unit","kg")})
                 else:
@@ -102,6 +117,10 @@ class MaterialProcurementAgent(BaseAgent):
                 f"{l['name']} (need {l['need']:.1f}, have {l['stock']:.1f})" for l in low
             ))
         parts.append(f"{ok_count} materials adequate.")
+        below_count = len(critical) + len(low)
+        if below_count:
+            material_label = "material" if below_count == 1 else "materials"
+            parts.append(f"{below_count} {material_label} below required stock.")
         parts.append(f"Total to order: {total_order:.0f} units.")
         if biggest_gap["name"]:
             parts.append(f"Largest gap: {biggest_gap['name']} (shortfall {_fmt(biggest_gap['gap'],biggest_gap.get('unit','kg'))}).")
@@ -120,6 +139,7 @@ class MaterialProcurementAgent(BaseAgent):
             data = {}
 
         items = data.get("items", {}) or {}
+        stock_data_available = bool(data.get("stock_data_available", True))
         critical_materials = []
         low_materials = []
         total_order = 0.0
@@ -148,6 +168,13 @@ class MaterialProcurementAgent(BaseAgent):
                 low_materials.append(str(name))
 
         evidence_items = [
+            EvidenceItem(
+                id="material_stock_data_available",
+                source="material_procurement",
+                description="Whether current raw-material stock data was available for procurement analysis",
+                value=stock_data_available,
+                metadata={"date": params.get("date", "")},
+            ),
             EvidenceItem(
                 id="material_count",
                 source="material_procurement",
@@ -180,7 +207,22 @@ class MaterialProcurementAgent(BaseAgent):
 
         recommendations = []
         material_watchlist = sorted(set(critical_materials + low_materials))
-        if material_watchlist:
+        if not stock_data_available:
+            recommendations.append(
+                Recommendation(
+                    id="material_stock_data_check",
+                    action="Verify the raw-material inventory feed before locking the weekly bake.",
+                    urgency="high",
+                    time_horizon="today",
+                    rationale=(
+                        "Current material stock was unavailable, so procurement quantities "
+                        "and shortage alerts could not be verified."
+                    ),
+                    expected_impact="Prevents missing stock data from creating false procurement decisions.",
+                    evidence_ids=["material_stock_data_available"],
+                )
+            )
+        elif material_watchlist:
             recommendations.append(
                 Recommendation(
                     id="material_procurement_action_1",
@@ -201,6 +243,7 @@ class MaterialProcurementAgent(BaseAgent):
             claim=opinion.opinion,
             confidence=float(opinion.confidence),
             metrics={
+                "material_stock_data_available": stock_data_available,
                 "material_count": len(items),
                 "critical_material_count": len(set(critical_materials)),
                 "low_material_count": len(set(low_materials)),
@@ -209,12 +252,21 @@ class MaterialProcurementAgent(BaseAgent):
                 "largest_gap_material": largest_gap_material,
             },
             evidence_items=evidence_items,
-            risks=["material_shortage_risk"] if material_watchlist else [],
+            risks=(
+                ["material_data_gap"]
+                if not stock_data_available
+                else (["material_shortage_risk"] if material_watchlist else [])
+            ),
             recommendations=recommendations,
             data_quality=DataQuality(
                 freshness="fresh" if items else "missing",
                 completeness=1.0 if items else 0.0,
                 source_status={"material_procurement": "fresh" if items else "missing"},
+                limitations=(
+                    ["Current raw-material stock data was unavailable."]
+                    if not stock_data_available
+                    else []
+                ),
             ),
             metadata={
                 "critical_materials": sorted(set(critical_materials)),
@@ -226,24 +278,24 @@ class MaterialProcurementAgent(BaseAgent):
 def _query_materials(date_str=""):
     try:
         from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
+        from api.module3_scheduling import _load_day1_stock
         if not date_str:
             date_str = dt.now().strftime("%Y-%m-%d")
-        start_dt = dt.strptime(date_str, "%Y-%m-%d")
-        if start_dt.weekday() != 0:
-            start_dt -= timedelta(days=start_dt.weekday())
-        start_date = start_dt.strftime("%Y-%m-%d")
+        start_date = dt.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m-%d")
         s = Scheduler()
-        db = get_db()
-        cur = db.cursor()
-        cur.execute("SELECT product_name, stock_day1 FROM products WHERE category='bakery'")
-        day1_stock = {str(r[0]): int(r[1] or 0) for r in cur.fetchall()}
-        for p in s.breads:
-            if p not in day1_stock:
-                day1_stock[p] = 0
+        day1_stock = _load_day1_stock(s.breads, start_date)
         forecast = generate_7day_s2_forecast(start_date)
         result = s.generate_7day_plan(start_date, day1_stock, forecast)
         dm = result["dashboard_materials"]
-        return {"items": dm.get("items", {})}
+        return {
+            "items": dm.get("items", {}),
+            "stock_data_available": bool(dm.get("stock_data_available", True)),
+            "error": dm.get("error", ""),
+        }
     except Exception as e:
         logger.warning("MaterialProcurement fetch failed: %s", e)
-        return {"items": {}}
+        return {
+            "items": {},
+            "stock_data_available": False,
+            "error": "material_plan_unavailable",
+        }

@@ -7,7 +7,6 @@ from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
 from s5_agent.schemas.recommendation import Recommendation
-from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.production_plan")
 
 class ProductionPlanAgent(BaseAgent):
@@ -72,7 +71,8 @@ class ProductionPlanAgent(BaseAgent):
         )
         opinion = (
             f"The {planning_days}-day plan calls for {total_bake} bake units, with projected "
-            f"revenue of {chr(165)}{total_rev:.0f} and profit of {chr(165)}{total_profit:.0f}."
+            f"revenue of {chr(165)}{total_rev:.0f} and profit of {chr(165)}{total_profit:.0f} "
+            "after waste and shortage risk allowances."
             f"{stock_note} The main bake load is concentrated in {top_str}.{scenario_note}"
         )
 
@@ -99,6 +99,16 @@ class ProductionPlanAgent(BaseAgent):
             profit_gap = q50_s.get("profit", 0) - q10_s.get("profit", 0)
             if profit_gap > 500:
                 base_units = int(total_bake * 0.85)
+                downside_profit = float(q10_s.get("profit", 0) or 0)
+                if downside_profit < 0:
+                    downside_description = (
+                        f"a {chr(165)}{abs(downside_profit):.0f} downside-scenario loss"
+                    )
+                else:
+                    downside_description = (
+                        f"the downside scenario, which still projects "
+                        f"{chr(165)}{downside_profit:.0f} profit"
+                    )
                 recommendations.append({
                     "action": (
                         f"Start with an 85% base bake of {base_units} units. Keep the remaining "
@@ -112,8 +122,8 @@ class ProductionPlanAgent(BaseAgent):
                         f"of committing the full {total_bake} units upfront."
                     ),
                     "expected_impact": (
-                        f"This protects against the {chr(165)}{abs(q10_s.get('profit', 0)):.0f} "
-                        f"downside case while keeping upside capacity available; it also "
+                        f"This limits exposure to {downside_description} while keeping upside capacity "
+                        f"available; it also "
                         f"keeps the {waste_rate_pct}% expected-demand waste exposure visible before "
                         f"extra production is released."
                     )
@@ -153,6 +163,12 @@ class ProductionPlanAgent(BaseAgent):
         total_bake = int(summary.get("total_bake", 0) or 0)
         total_revenue = float(summary.get("total_revenue", 0.0) or 0.0)
         total_profit = float(summary.get("total_profit", 0.0) or 0.0)
+        profit_definition = str(
+            summary.get(
+                "profit_definition",
+                "after_waste_and_shortage_risk_allowances",
+            )
+        )
         buffer = float(data.get("buffer", 1.0) or 1.0)
         day1_stock_total = int(data.get("day1_stock_total", 0) or 0)
         grid = data.get("grid", []) or []
@@ -161,6 +177,8 @@ class ProductionPlanAgent(BaseAgent):
         q50_profit = float((scenarios.get("q50", {}) or {}).get("profit", 0.0) or 0.0)
         q10_profit = float((scenarios.get("q10", {}) or {}).get("profit", 0.0) or 0.0)
         q50_waste = float((scenarios.get("q50", {}) or {}).get("waste", 0.0) or 0.0)
+        q90 = scenarios.get("q90", {}) or {}
+        q90_shortage_units = int(q90.get("shortage", q90.get("shortage_units", 0)) or 0)
         scenario_profit_gap = round(q50_profit - q10_profit, 2)
         waste_rate_pct = round(q50_waste / max(total_bake, 1) * 100, 2)
 
@@ -201,6 +219,13 @@ class ProductionPlanAgent(BaseAgent):
                 value=waste_rate_pct,
                 metadata={"date": params.get("date", ""), "expected_demand_waste_units": q50_waste},
             ),
+            EvidenceItem(
+                id="q90_shortage_units",
+                source="production_plan",
+                description="Bakery units not covered in the high-demand production scenario",
+                value=q90_shortage_units,
+                metadata={"date": params.get("date", "")},
+            ),
         ]
 
         recommendations = []
@@ -232,10 +257,12 @@ class ProductionPlanAgent(BaseAgent):
                 "total_bake": total_bake,
                 "total_revenue": total_revenue,
                 "total_profit": total_profit,
+                "profit_definition": profit_definition,
                 "buffer": buffer,
                 "day1_stock_total": day1_stock_total,
                 "scenario_profit_gap": scenario_profit_gap,
                 "waste_rate_pct": waste_rate_pct,
+                "q90_shortage_units": q90_shortage_units,
             },
             evidence_items=evidence_items,
             risks=risks,
@@ -255,21 +282,12 @@ class ProductionPlanAgent(BaseAgent):
 def _query_plan(date_str=""):
     try:
         from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
+        from api.module3_scheduling import _load_day1_stock
         if not date_str:
             date_str = dt.now().strftime("%Y-%m-%d")
-        start_dt = dt.strptime(date_str, "%Y-%m-%d")
-        if start_dt.weekday() != 0:
-            from datetime import timedelta
-            start_dt -= timedelta(days=start_dt.weekday())
-        start_date = start_dt.strftime("%Y-%m-%d")
+        start_date = dt.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m-%d")
         s = Scheduler()
-        db = get_db()
-        cur = db.cursor()
-        cur.execute("SELECT product_name, stock_day1 FROM products WHERE category='bakery'")
-        day1_stock = {str(r[0]): int(r[1] or 0) for r in cur.fetchall()}
-        for p in s.breads:
-            if p not in day1_stock:
-                day1_stock[p] = 0
+        day1_stock = _load_day1_stock(s.breads, start_date)
         forecast = generate_7day_s2_forecast(start_date)
         result = s.generate_7day_plan(start_date, day1_stock, forecast)
         d7 = result["dashboard_7day"]
@@ -284,6 +302,10 @@ def _query_plan(date_str=""):
                 "total_bake": ws.get("total_bake", 0),
                 "total_revenue": ws.get("total_revenue", 0),
                 "total_profit": ws.get("total_profit", 0),
+                "profit_definition": ws.get(
+                    "profit_definition",
+                    "after_waste_and_shortage_risk_allowances",
+                ),
                 "scenarios": ws.get("scenarios", {}),
                 "top_products": ws.get("top_products", []),
             }

@@ -65,13 +65,14 @@ def test_inventory_agent_uses_dashboard_auth(monkeypatch):
     )
     monkeypatch.setattr(
         inventory_module,
-        "S1_INVENTORY_URL",
-        "http://127.0.0.1:9/s1/inventory",
+        "S4_DASHBOARD_URL",
+        "http://127.0.0.1:9/s4/inventory/dashboard",
     )
 
     result = asyncio.run(
         InventoryAgent().fetch(
             {
+                "date": "2026-07-15",
                 "module": "inventory",
                 "product": "all",
                 "_authorization": "Bearer manager-token",
@@ -81,7 +82,7 @@ def test_inventory_agent_uses_dashboard_auth(monkeypatch):
 
     assert result == {"inventory": []}
     assert captured == {
-        "url": "http://127.0.0.1:9/s1/inventory",
+        "url": "http://127.0.0.1:9/s4/inventory/dashboard?date=2026-07-15",
         "authorization": "Bearer manager-token",
         "timeout": 10,
     }

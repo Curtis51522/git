@@ -29,7 +29,7 @@ Usage:
   python s3_scheduling/scheduler.py --save plan.json   # save to file
 """
 
-import os, sys, json, argparse
+import os, sys, json, argparse, logging
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -291,10 +291,6 @@ def _predict_from_training(date_str):
 # RAW MATERIAL ESTIMATION
 # ============================================================
 # Loads recipes from MySQL product_recipes table
-# Derives secondary materials (baking powder, salt, yeast) from flour ratio
-
-# Cake products (use Cake Flour instead of Bread Flour)
-_CAKE_PRODUCTS = {"chiffon", "chocolate_cake", "brownie", "chocopie", "tiramisu", "muffin"}
 
 def load_recipe_from_db(product_name):
     """Query product_recipes table for a single product's materials (kg/pcs/L per unit)."""
@@ -318,14 +314,6 @@ def estimate_raw_materials(bake_plan, products):
     Estimate raw material needs from a bake plan using DB product_recipes.
 
     Returns dict: {material_name: total_kg_or_pcs}
-
-    Secondary materials (not in product_recipes) derived from flour:
-      - Baking Powder: 2% of total flour weight
-      - Salt: 1.5% of total flour weight
-      - Yeast: 1% of total flour weight
-
-    Cake products (chiffon, chocolate_cake, brownie, chocopie, muffins)
-    use Cake Flour instead of Bread Flour for the flour component.
     """
     materials = {}  # material_name -> total (kg for dry, L for liquid, pcs for items)
 
@@ -340,20 +328,6 @@ def estimate_raw_materials(bake_plan, products):
         for mat_name, qty_per_unit in recipe.items():
             total = quantity * qty_per_unit
             materials[mat_name] = materials.get(mat_name, 0) + total
-
-    # Derive secondary materials from total flour
-    bread_flour = materials.get("Bread Flour", 0)
-    cake_flour = materials.get("Cake Flour", 0)
-    total_flour = bread_flour + cake_flour
-
-    if total_flour > 0:
-        materials["Baking Powder"] = round(total_flour * 0.02, 3)
-        materials["Salt"] = round(total_flour * 0.015, 3)
-        materials["Yeast"] = round(total_flour * 0.01, 3)
-
-    # For cake products, flour should be Cake Flour not Bread Flour
-    # (product_recipes already has the right material_name from DB)
-    # We keep both columns for dashboard display
 
     # Round all values
     return {k: round(v, 3) for k, v in materials.items() if v > 0}
@@ -643,6 +617,7 @@ class Scheduler:
         """Aggregate 7 daily plans into a weekly summary."""
         agg = {
             "total_bake": 0, "total_profit": 0.0, "total_revenue": 0.0,
+            "profit_definition": "after_waste_and_shortage_risk_allowances",
             "total_waste": 0, "total_shortage": 0, "total_sales": 0,
             "daily_profits": [],
             "scenarios": {"q10": {"profit": 0, "waste": 0, "shortage": 0},
@@ -701,23 +676,45 @@ class Scheduler:
     def dashboard_format_materials(self, weekly_summary, plans=None, forecast=None):
         """Format for Forecasting Dashboard Panel 3: Raw Material Procurement."""
         # Fetch real stock from database
-        # Fetch real stock from database
         db_stock = {}
+        untracked_materials = set()
+        stock_data_available = False
+        db = None
         try:
             from db.mysql_client import get_db, q
             db = get_db()
-            rows = q(db, "raw_materials").select("material_name, stock_quantity, unit").execute()
+            rows = (
+                q(db, "raw_materials")
+                .select("material_name, stock_quantity, unit, track_inventory")
+                .execute()
+            )
             if rows.data:
                 for r in rows.data:
+                    if not bool(r.get("track_inventory", True)):
+                        untracked_materials.add(r["material_name"])
+                        continue
                     db_stock[r["material_name"]] = {
                         "qty": float(r["stock_quantity"] or 0),
                         "unit": r.get("unit", "kg"),
                     }
+                stock_data_available = True
         except Exception as e:
             logger = logging.getLogger(__name__)
             logger.warning("dashboard_format_materials: DB query failed: %s", e)
+        finally:
+            if db is not None:
+                db.close()
 
         DEFAULT_WASTE = 0.05
+        if not stock_data_available:
+            return {
+                "week": f"{weekly_summary.get('week_start', '-')} ~ {weekly_summary.get('week_end', '-')}",
+                "waste_rate_default": DEFAULT_WASTE,
+                "stock_data_available": False,
+                "error": "raw_material_stock_unavailable",
+                "items": {},
+            }
+
         # Materials now use DB names directly (kg for dry/liquid, pcs for items)
         agg = {}
         for mat_name, weekly_need in weekly_summary.get("materials", {}).items():
@@ -752,6 +749,8 @@ class Scheduler:
 
         procurement = {}
         for db_name, a in agg.items():
+            if db_name in untracked_materials:
+                continue
             weekly_need_db = round(a["weekly_need"], 2)
             info = db_stock.get(db_name, {"qty": 0, "unit": "kg"})
             stock_db_units = info["qty"]
@@ -779,6 +778,7 @@ class Scheduler:
         return {
             "week": f"{weekly_summary.get('week_start', '-')} ~ {weekly_summary.get('week_end', '-')}",
             "waste_rate_default": DEFAULT_WASTE,
+            "stock_data_available": True,
             "items": procurement,
         }
 

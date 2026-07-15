@@ -168,7 +168,6 @@ def per_product_wape(test_df, models):
     df_p.to_csv(os.path.join(OUT_DIR, "weekly_per_product.csv"), index=False)
 
     # Coarsen: bread vs beverage
-    test_df["category"] = (test_df["product_id"] >= 30).astype(int)
     for cat, label in [(0, "Bakery"), (1, "Beverage")]:
         sub = test_df[test_df["category"] == cat]
         yt = sub[TARGET].values

@@ -59,6 +59,47 @@ def test_forecast_accuracy_bar_uses_range_hit_label():
     assert "+t('Range Hit')+" in html
 
 
+def test_forecast_supply_coverage_uses_bakery_demand_only():
+    html = _html()
+
+    assert "window._forecastBakeryDemandUnits=0" in html
+    assert "var demand=Number(window._forecastBakeryDemandUnits||0)" in html
+    assert "forecastBakeryDemand+=qty" in html
+    assert "Object.prototype.hasOwnProperty.call(COFFEE_PRICES,pn)" in html
+    assert "window._forecastBakeryDemandUnits=forecastBakeryDemand" in html
+
+
+def test_forecast_demand_kpi_matches_s5_total_and_category_scope():
+    html = _html()
+
+    assert "t('7-Day Forecast Demand')" in html
+    assert 'id="fc-kpi-demand-split"' in html
+    assert "demandEl.textContent=Math.round(forecastDemand).toLocaleString()+' '+t('units')" in html
+    assert "t('Bakery')+' '+Math.round(forecastBakeryDemand).toLocaleString()" in html
+    assert "t('Beverages')+' '+Math.round(forecastBeverageDemand).toLocaleString()" in html
+    assert "var forecastBeverageDemand=Math.max(forecastDemand-forecastBakeryDemand,0)" in html
+
+
+def test_forecast_demand_kpi_translation_keys_exist():
+    html = _html()
+
+    assert "'7-Day Forecast Demand':'7-Day Forecast Demand'" in html
+    assert "'Bakery':'Bakery'" in html
+    assert "'7-Day Forecast Demand':'\\u0037\\u5929\\u9884\\u6D4B\\u9700\\u6C42'" in html
+    assert "'Bakery':'\\u70D8\\u7119\\u4EA7\\u54C1'" in html
+
+
+def test_forecast_kpi_units_and_material_restock_count_are_business_readable():
+    html = _html()
+
+    assert "forecastRevEl.textContent='\\u00A5'+formatMoney(forecastRevenue)" in html
+    assert "planEl.textContent=Math.round(totalBake).toLocaleString()+' '+t('units')" in html
+    assert "gapEl.textContent=Math.max(Math.round(demand-available),0).toLocaleString()+' '+t('units')" in html
+    assert "t('Materials to Restock')" in html
+    assert "matlEl.textContent=totalOrder.toLocaleString()+' '+t(totalOrder===1?'item':'items')" in html
+    assert "matlEl.textContent=totalOrderQty" not in html
+
+
 def test_business_event_chip_uses_english_separator():
     html = _html()
 
@@ -166,3 +207,65 @@ def test_promotion_mix_evidence_labels_are_readable():
     assert "promotionsignalagent_claim: 'Promotion signal'" in labels
     assert "promotionproductmixagent_claim: 'Product mix signal'" in labels
     assert "top3_bread_revenue_share_pct: 'Top 3 bread concentration'" in labels
+    assert "expired_cost: 'Closing unsold-product cost'" in labels
+    assert "expired_cost_revenue_pct: 'Closing loss share of revenue'" in labels
+    assert "expired_products: 'Products discarded at closing'" in labels
+
+
+def test_inventory_material_evidence_label_is_status_neutral():
+    labels = Path("api/module4_frontend/static/s5_analysis.js").read_text(encoding="utf-8")
+
+    assert "low_stock_material_count: 'Raw-material reorder status'" in labels
+    assert "low_stock_material_count: 'Materials at or below reorder point'" not in labels
+
+
+def test_s5_details_prioritize_recommendation_evidence():
+    labels = Path("api/module4_frontend/static/s5_analysis.js").read_text(encoding="utf-8")
+
+    assert "recommendationEvidenceIds.concat(agentEvidenceIds)" in labels
+    assert "agentEvidenceIds.concat(recommendationEvidenceIds)" not in labels
+    assert "profit_margin_before_expiry_pct: 'Profit margin before closing loss'" in labels
+
+
+def test_s5_recommendation_supporting_text_is_readable():
+    labels = Path("api/module4_frontend/static/s5_analysis.js").read_text(encoding="utf-8")
+
+    assert "color:#6b5b4f;font-size:12px;line-height:1.5" in labels
+    assert "color:#27ae60;font-size:12px;line-height:1.5" in labels
+
+
+def test_revenue_trend_uses_revenue_title_and_currency_units():
+    html = _html()
+    chart_start = html.index("var tc=document.getElementById('rev-trend-chart')")
+    chart_end = html.index("var oc=document.getElementById('rev-orders-chart')", chart_start)
+    chart = html[chart_start:chart_end]
+
+    assert "t('7-Day Revenue Trend')" in html
+    assert "t('7-Day Profit Trend')" not in html
+    assert "name:t('Revenue (CNY)')" in chart
+    assert "return '\\u00A5'+value" in chart
+    assert "seriesName+': \\u00A5'" in chart
+
+
+def test_orders_and_atv_chart_formats_only_atv_as_currency():
+    html = _html()
+    chart_start = html.index("var oc=document.getElementById('rev-orders-chart')")
+    chart_end = html.index("document.getElementById('rev-bread-ranking')", chart_start)
+    chart = html[chart_start:chart_end]
+
+    assert "name:t('Avg Ticket Value (CNY)')" in chart
+    assert "return '\\u00A5'+value" in chart
+    assert "seriesName+': \\u00A5'" in chart
+    assert "seriesName+': '+value.toFixed(0)" in chart
+
+
+def test_expired_session_returns_to_login_for_dashboard_and_s5_requests():
+    html = _html()
+    s5_source = Path("api/module4_frontend/static/s5_analysis.js").read_text(encoding="utf-8")
+
+    assert "function handleUnauthorizedResponse(response)" in html
+    assert "response.status!==401" in html
+    assert "sessionStorage.removeItem('bakery_token')" in html
+    assert "if(r.status===401&&handleUnauthorizedResponse(r))" in html
+    assert "if(r.status===401&&handleUnauthorizedResponse(r))" in s5_source
+    assert "Session expired. Please sign in again." in html

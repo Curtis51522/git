@@ -16,6 +16,72 @@ from db.mysql_client import get_db
 logger = logging.getLogger("s5.agent.profit")
 
 
+def _profit_margin_pct(data, revenue, profit):
+    dashboard_margin = data.get("profit_margin") if isinstance(data, dict) else None
+    if dashboard_margin is not None:
+        return float(dashboard_margin)
+    return round(profit / max(revenue, 1.0) * 100, 2)
+
+
+def _expired_cost_metrics(revenue, adjusted_profit, expired_cost):
+    if revenue <= 0:
+        return {
+            "profit_before_expiry": adjusted_profit + expired_cost,
+            "expired_cost_revenue_pct": 0.0,
+            "profit_margin_before_expiry_pct": 0.0,
+            "expired_margin_erosion_pct_points": 0.0,
+        }
+    expired_cost_revenue_pct = round(expired_cost / revenue * 100, 2)
+    return {
+        "profit_before_expiry": round(adjusted_profit + expired_cost, 2),
+        "expired_cost_revenue_pct": expired_cost_revenue_pct,
+        "profit_margin_before_expiry_pct": round(
+            (adjusted_profit + expired_cost) / revenue * 100,
+            2,
+        ),
+        "expired_margin_erosion_pct_points": expired_cost_revenue_pct,
+    }
+
+
+def _profit_cost_context(
+    expired_cost,
+    non_sellable_return_cost,
+    revenue=0.0,
+    adjusted_profit=0.0,
+):
+    sentences = []
+    if expired_cost > 0:
+        expired_metrics = _expired_cost_metrics(
+            revenue,
+            adjusted_profit,
+            expired_cost,
+        )
+        if revenue > 0:
+            sentences.append(
+                f"Unsold products discarded at closing cost ¥{expired_cost:.2f}, equal to "
+                f"{expired_metrics['expired_cost_revenue_pct']:.1f}% of revenue, and reduced "
+                f"margin from {(adjusted_profit + expired_cost) / revenue * 100:.1f}% to "
+                f"{adjusted_profit / revenue * 100:.1f}%."
+            )
+        else:
+            sentences.append(
+                f"Unsold products discarded at closing cost ¥{expired_cost:.2f} and are included in profit."
+            )
+    if non_sellable_return_cost > 0:
+        sentences.append(
+            "Non-sellable return cost of "
+            f"¥{non_sellable_return_cost:.2f} is included in profit."
+        )
+    if not sentences:
+        sentences.append(
+            "No expired-stock or non-sellable return cost was recorded."
+        )
+    sentences.append(
+        "Separately recorded material-wastage variance is not deducted again."
+    )
+    return " ".join(sentences)
+
+
 class ProfitAgent(BaseAgent):
     def _setup_tools(self):
         self.tools.register(Tool(name="get_revenue_breakdown", description="Get daily revenue breakdown",
@@ -54,13 +120,21 @@ class ProfitAgent(BaseAgent):
         dashboard = await self._get_revenue(date_str, authorization)
         dashboard_data = dashboard.get("data", {}) if isinstance(dashboard, dict) else {}
         if isinstance(dashboard_data, dict) and dashboard_data:
+            dashboard_margin = dashboard_data.get("profit_margin")
             return {
                 "success": True,
                 "data": {
                     "today_revenue": float(dashboard_data.get("today_revenue") or 0.0),
                     "today_profit": float(dashboard_data.get("today_profit") or 0.0),
                     "today_orders": int(dashboard_data.get("today_orders") or 0),
+                    "profit_margin": (
+                        float(dashboard_margin)
+                        if dashboard_margin is not None
+                        else None
+                    ),
                     "discount_total": float(dashboard_data.get("today_discount") or dashboard_data.get("discount_total") or 0.0),
+                    "expired_cost": float(dashboard_data.get("expired_cost") or 0.0),
+                    "expired_products": dashboard_data.get("expired_products", []),
                     "non_sellable_return_cost": float(
                         dashboard_data.get("non_sellable_return_cost") or 0.0
                     ),
@@ -120,12 +194,52 @@ class ProfitAgent(BaseAgent):
                 )
             return_row = cur.fetchone() or {}
             non_sellable_return_cost = float(return_row.get("return_cost") or 0)
-            profit_val -= non_sellable_return_cost
+            if date_str:
+                cur.execute(
+                    """
+                    SELECT COALESCE(
+                        SUM(
+                            it.quantity
+                            * COALESCE(NULLIF(it.unit_price, 0), p.material_cost)
+                        ),
+                        0
+                    ) AS expired_cost
+                    FROM inventory_transactions it
+                    JOIN products p ON it.product_name = p.product_name
+                    WHERE it.transaction_type = 'outflow'
+                      AND it.freshness_status = 'Expired'
+                      AND p.category = 'bakery'
+                      AND DATE(it.transaction_time) = %s
+                    """,
+                    (date_str,),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT COALESCE(
+                        SUM(
+                            it.quantity
+                            * COALESCE(NULLIF(it.unit_price, 0), p.material_cost)
+                        ),
+                        0
+                    ) AS expired_cost
+                    FROM inventory_transactions it
+                    JOIN products p ON it.product_name = p.product_name
+                    WHERE it.transaction_type = 'outflow'
+                      AND it.freshness_status = 'Expired'
+                      AND p.category = 'bakery'
+                      AND DATE(it.transaction_time) = CURDATE()
+                    """
+                )
+            expired_row = cur.fetchone() or {}
+            expired_cost = float(expired_row.get("expired_cost") or 0)
+            profit_val -= non_sellable_return_cost + expired_cost
             data = {
                 "today_revenue": revenue,
                 "today_profit": profit_val,
                 "today_orders": orders,
                 "discount_total": discount,
+                "expired_cost": expired_cost,
                 "non_sellable_return_cost": non_sellable_return_cost,
             }
             return {"success": True, "data": data, "tool": "profit_db"}
@@ -144,6 +258,7 @@ class ProfitAgent(BaseAgent):
                 "today_profit": 0,
                 "today_orders": 0,
                 "discount_total": 0,
+                "expired_cost": 0,
                 "non_sellable_return_cost": 0,
             },
             "tool": "profit_db_fallback",
@@ -159,18 +274,47 @@ class ProfitAgent(BaseAgent):
         non_sellable_return_cost = float(
             data.get("non_sellable_return_cost", 0) or 0
         )
-        margin = profit / max(revenue, 1) * 100
-        if non_sellable_return_cost > 0:
-            cost_context = (
-                f"Non-sellable return cost of ¥{non_sellable_return_cost:.2f} is "
-                "included in profit; broader production waste is not included."
-            )
-            healthy_cost_context = f". {cost_context}"
-        else:
-            cost_context = "Waste impact is not included in this check."
-            healthy_cost_context = "; waste impact is not included in this check."
+        expired_cost = float(data.get("expired_cost", 0) or 0)
+        margin = _profit_margin_pct(data, revenue, profit)
+        cost_context = _profit_cost_context(
+            expired_cost,
+            non_sellable_return_cost,
+            revenue,
+            profit,
+        )
+        healthy_cost_context = f". {cost_context}"
+        expired_metrics = _expired_cost_metrics(revenue, profit, expired_cost)
+        is_material_unsold_loss = (
+            revenue >= 100.0
+            and orders > 3
+            and expired_metrics["expired_cost_revenue_pct"]
+            >= THRESHOLDS["profit_expired_cost_alert_pct"]
+        )
 
         contributions = self._parse_upstream(context)
+        if is_material_unsold_loss:
+            opening = (
+                "Revenue remained profitable, but unsold product loss needs attention"
+                if profit > 0
+                else "Revenue performance and unsold product loss need attention"
+            )
+            return AgentOpinion(
+                agent=self.name,
+                opinion=(
+                    f"{opening}: margin {margin:.1f}% on {orders} orders, with revenue at "
+                    f"¥{revenue:.0f} and profit at ¥{profit:.0f}. {cost_context}"
+                ),
+                confidence=0.85,
+                attribution={
+                    "metric": "expired_cost_revenue_pct",
+                    "root_cause": "unsold_product_loss",
+                    "deviation": (
+                        expired_metrics["expired_cost_revenue_pct"]
+                        - THRESHOLDS["profit_expired_cost_alert_pct"]
+                    ),
+                    "contributions": {"expired_finished_products": 100},
+                },
+            )
         if margin < THRESHOLDS["profit_low_margin_pct"]:
             top_factor = max(contributions, key=contributions.get, default="unknown")
             return AgentOpinion(agent=self.name,
@@ -208,17 +352,32 @@ class ProfitAgent(BaseAgent):
         non_sellable_return_cost = float(
             data.get("non_sellable_return_cost", 0.0) or 0.0
         )
-        margin_pct = round(profit / max(revenue, 1.0) * 100, 2)
+        expired_cost = float(data.get("expired_cost", 0.0) or 0.0)
+        expired_products = data.get("expired_products", [])
+        if not isinstance(expired_products, list):
+            expired_products = []
+        expired_products = sorted(
+            (item for item in expired_products if isinstance(item, dict)),
+            key=lambda item: float(item.get("expired_cost", 0.0) or 0.0),
+            reverse=True,
+        )
+        margin_pct = _profit_margin_pct(data, revenue, profit)
+        expired_metrics = _expired_cost_metrics(revenue, profit, expired_cost)
         average_order_value = round(revenue / max(orders, 1), 2)
         discount_rate = round(discount_total / max(revenue, 1.0), 4)
         has_enough_sales_sample = revenue >= 100.0 and orders > 3
         is_low_margin = has_enough_sales_sample and margin_pct < THRESHOLDS["profit_low_margin_pct"]
+        is_material_unsold_loss = (
+            has_enough_sales_sample
+            and expired_metrics["expired_cost_revenue_pct"]
+            >= THRESHOLDS["profit_expired_cost_alert_pct"]
+        )
 
         evidence_items = [
             EvidenceItem(
                 id="profit_margin_pct",
                 source="profit",
-                description="Gross profit margin percentage for the requested period",
+                description="Adjusted profit margin percentage for the requested period",
                 value=margin_pct,
                 metadata={"date": params.get("date", ""), "orders": orders},
             ),
@@ -251,6 +410,42 @@ class ProfitAgent(BaseAgent):
                 metadata={"date": params.get("date", "")},
             ),
             EvidenceItem(
+                id="expired_cost",
+                source="profit",
+                description=(
+                    "Cost of expired finished products recognized in profit for "
+                    "the requested period"
+                ),
+                value=expired_cost,
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="expired_cost_revenue_pct",
+                source="profit",
+                description="Closing unsold-product loss as a percentage of revenue",
+                value=expired_metrics["expired_cost_revenue_pct"],
+                metadata={
+                    "date": params.get("date", ""),
+                    "alert_threshold_pct": THRESHOLDS[
+                        "profit_expired_cost_alert_pct"
+                    ],
+                },
+            ),
+            EvidenceItem(
+                id="profit_margin_before_expiry_pct",
+                source="profit",
+                description="Profit margin before closing unsold-product loss",
+                value=expired_metrics["profit_margin_before_expiry_pct"],
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="expired_margin_erosion_pct_points",
+                source="profit",
+                description="Profit-margin percentage points lost to closing unsold products",
+                value=expired_metrics["expired_margin_erosion_pct_points"],
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
                 id="non_sellable_return_cost",
                 source="profit",
                 description=(
@@ -261,6 +456,19 @@ class ProfitAgent(BaseAgent):
                 metadata={"date": params.get("date", "")},
             ),
         ]
+        if expired_products:
+            evidence_items.append(
+                EvidenceItem(
+                    id="expired_products",
+                    source="profit",
+                    description=(
+                        "Products discarded at closing with recorded loss and "
+                        "sell-through context"
+                    ),
+                    value=expired_products,
+                    metadata={"date": params.get("date", "")},
+                )
+            )
 
         recommendations = []
         if is_low_margin:
@@ -275,6 +483,71 @@ class ProfitAgent(BaseAgent):
                     evidence_ids=["profit_margin_pct"],
                 )
             )
+        if is_material_unsold_loss:
+            priority_products = expired_products[:3]
+            priority_names = [
+                str(item.get("name") or "").strip()
+                for item in priority_products
+                if str(item.get("name") or "").strip()
+            ]
+            if len(priority_names) > 1:
+                priority_label = ", ".join(priority_names[:-1]) + ", and " + priority_names[-1]
+            elif priority_names:
+                priority_label = priority_names[0]
+            else:
+                priority_label = "the products discarded at closing"
+            sell_through_rates = [
+                f"{float(item.get('sell_through_pct', 0.0) or 0.0):.1f}%"
+                for item in priority_products
+            ]
+            if len(sell_through_rates) > 1:
+                sell_through_label = ", ".join(sell_through_rates[:-1]) + ", and " + sell_through_rates[-1]
+            elif sell_through_rates:
+                sell_through_label = sell_through_rates[0]
+            else:
+                sell_through_label = ""
+            detail_rationale = (
+                f" The highest recorded loss items were {priority_label}, with sell-through rates "
+                f"of {sell_through_label}, respectively."
+                if priority_names and sell_through_label
+                else ""
+            )
+            evidence_ids = [
+                "expired_cost",
+                "expired_cost_revenue_pct",
+                "profit_margin_before_expiry_pct",
+                "profit_margin_pct",
+            ]
+            if expired_products:
+                evidence_ids.append("expired_products")
+            recommendations.append(
+                Recommendation(
+                    id="unsold_product_loss_reduction",
+                    action=(
+                        f"Review {priority_label} before the next production plan, "
+                        "then reduce or stage bake quantities for items with repeated unsold loss."
+                    ),
+                    urgency="high",
+                    time_horizon="this_week",
+                    rationale=(
+                        f"Closing unsold-product loss was ¥{expired_cost:.2f}, equal to "
+                        f"{expired_metrics['expired_cost_revenue_pct']:.1f}% of revenue and "
+                        f"reducing margin from {(profit + expired_cost) / revenue * 100:.1f}% to "
+                        f"{margin_pct:.1f}%.{detail_rationale}"
+                    ),
+                    expected_impact=(
+                        "Reduces avoidable finished-product loss while keeping production "
+                        "changes tied to observed demand."
+                    ),
+                    evidence_ids=evidence_ids,
+                )
+            )
+
+        risks = []
+        if is_low_margin:
+            risks.append("low_margin")
+        if is_material_unsold_loss:
+            risks.append("unsold_product_loss")
 
         return AgentOutput(
             agent_name="ProfitAgent",
@@ -288,10 +561,13 @@ class ProfitAgent(BaseAgent):
                 "profit_margin_pct": margin_pct,
                 "discount_total": discount_total,
                 "discount_rate": discount_rate,
+                "expired_cost": expired_cost,
+                "expired_products": expired_products,
+                **expired_metrics,
                 "non_sellable_return_cost": non_sellable_return_cost,
             },
             evidence_items=evidence_items,
-            risks=["low_margin"] if is_low_margin else [],
+            risks=risks,
             recommendations=recommendations,
             data_quality=DataQuality(
                 freshness="fresh" if revenue > 0 else "unknown",

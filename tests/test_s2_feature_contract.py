@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import date, datetime
 
 import numpy as np
 
@@ -119,7 +119,11 @@ def test_build_forecast_features_covers_contract(monkeypatch):
     monkeypatch.setattr(module2_forecast, "_get_lag", lambda product, date, days_back: 0.0)
     monkeypatch.setattr(module2_forecast, "_get_rolling_avg", lambda product, date, window: 0.0)
     monkeypatch.setattr(module2_forecast, "_get_daily_tickets", lambda date: 0.0)
-    monkeypatch.setattr(module2_forecast, "_get_is_day1", lambda product: 0)
+    monkeypatch.setattr(
+        module2_forecast,
+        "_get_is_day1",
+        lambda product, forecast_date: 0,
+    )
     monkeypatch.setattr(module2_forecast, "_get_is_holiday", lambda date: 0)
     monkeypatch.setattr(module2_forecast, "_get_weather", lambda date: (26.0, 8.0, 0, 1))
 
@@ -127,3 +131,60 @@ def test_build_forecast_features_covers_contract(monkeypatch):
 
     assert list(features.keys()) == FORECAST_FEATURES
     assert set(features) == set(FORECAST_FEATURES)
+
+
+def test_forecast_category_uses_real_product_type():
+    from api import module2_forecast
+
+    assert module2_forecast._get_category_id("americano") == 1
+    assert module2_forecast._get_category_id("macaron") == 0
+
+
+def test_day1_feature_uses_dated_bakery_batch_inventory(monkeypatch):
+    from api import module2_forecast
+
+    class Cursor:
+        def __init__(self):
+            self.executions = []
+            self.closed = False
+
+        def execute(self, sql, params):
+            self.executions.append((" ".join(sql.split()), params))
+
+        def fetchone(self):
+            product_name = self.executions[-1][1][0]
+            return (1 if product_name == "baguette" else 0,)
+
+        def close(self):
+            self.closed = True
+
+    class Database:
+        def __init__(self):
+            self.cursor_instance = Cursor()
+            self.closed = False
+
+        def cursor(self):
+            return self.cursor_instance
+
+        def close(self):
+            self.closed = True
+
+    databases = []
+
+    def fake_get_db():
+        database = Database()
+        databases.append(database)
+        return database
+
+    monkeypatch.setattr(module2_forecast, "get_db", fake_get_db)
+
+    assert module2_forecast._get_is_day1("baguette", date(2026, 7, 15)) == 1
+    assert module2_forecast._get_is_day1("latte", date(2026, 7, 15)) == 0
+
+    sql, params = databases[0].cursor_instance.executions[0]
+    assert "JOIN products" in sql
+    assert "p.category = 'bakery'" in sql
+    assert "DATE(bi.production_time) = DATE(%s) - INTERVAL 1 DAY" in sql
+    assert params == ("baguette", "2026-07-15")
+    assert all(database.cursor_instance.closed for database in databases)
+    assert all(database.closed for database in databases)

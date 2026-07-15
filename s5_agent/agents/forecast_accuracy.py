@@ -38,7 +38,7 @@ class ForecastAccuracyAgent(BaseAgent):
         avg_width = overall.get("conformal_avg_width", 0)
 
         opinion = (
-            f"Forecast reliability: recent error {wape:.1f}%, "
+            f"Held-out historical evaluation: error {wape:.1f}%, "
             f"coverage {coverage:.1f}%, average demand range {avg_width:.1f} units."
         )
 
@@ -61,21 +61,21 @@ class ForecastAccuracyAgent(BaseAgent):
             EvidenceItem(
                 id="forecast_wape",
                 source="forecast_accuracy",
-                description="Weighted absolute percentage error for recent forecasts",
+                description="Weighted absolute percentage error on the held-out historical evaluation set",
                 value=round(wape, 2),
                 metadata={"date": params.get("date", "")},
             ),
             EvidenceItem(
                 id="forecast_coverage",
                 source="forecast_accuracy",
-                description="Recent forecast interval coverage rate",
+                description="Forecast interval coverage rate on the held-out historical evaluation set",
                 value=round(coverage, 2),
                 metadata={"date": params.get("date", "")},
             ),
             EvidenceItem(
                 id="forecast_accuracy_interval_width",
                 source="forecast_accuracy",
-                description="Average recent forecast interval width",
+                description="Average forecast interval width on the held-out historical evaluation set",
                 value=round(avg_width, 2),
                 metadata={"date": params.get("date", "")},
             ),

@@ -58,7 +58,17 @@ def update_all_freshness(reference_date: str = None):
     When a batch expires (2+ calendar days old), record it as waste and delete from inventory.
     """
     db = get_db()
-    batches = q(db, "batch_inventory").select("*").gt("quantity", 0).execute()
+    batches = (
+        q(db, "batch_inventory")
+        .select("*")
+        .gt("quantity_remaining", 0)
+        .execute()
+    )
+    product_rows = q(db, "products").select("product_name,material_cost").execute()
+    product_costs = {
+        row["product_name"]: float(row.get("material_cost") or 0)
+        for row in (product_rows.data or [])
+    }
     
     updated = 0
     expired_cleared = 0
@@ -79,8 +89,8 @@ def update_all_freshness(reference_date: str = None):
                 "transaction_type": "outflow",
                 "batch_id": batch.get("batch_id", ""),
                 "product_name": batch.get("product_name", ""),
-                "quantity": batch.get("quantity", 0),
-                "unit_price": 0,
+                "quantity": batch.get("quantity_remaining", 0),
+                "unit_price": product_costs.get(batch.get("product_name", ""), 0),
                 "discount_applied": 1.0,
                 "freshness_status": "Expired",
             }).execute()
@@ -113,4 +123,11 @@ def get_tray_color(freshness: str) -> str:
 def get_sellable_batches():
     """Get all sellable batches (not expired), ordered by freshness (oldest first = FIFO)."""
     db = get_db()
-    return q(db, "batch_inventory").select("*").gt("quantity", 0).neq("freshness_status", "Expired").order("production_time", desc=False).execute()
+    return (
+        q(db, "batch_inventory")
+        .select("*")
+        .gt("quantity_remaining", 0)
+        .neq("freshness_status", "Expired")
+        .order("production_time", desc=False)
+        .execute()
+    )

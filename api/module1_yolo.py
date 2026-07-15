@@ -3,7 +3,7 @@ import numpy as np
 from ultralytics import YOLO
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 import time
 import sys, os
@@ -186,7 +186,8 @@ def _consume_production_materials(db, items, reference):
             f"""
             SELECT p.product_name, p.category, p.wastage_pct,
                    pr.material_name, pr.quantity_per_unit,
-                   rm.stock_quantity, rm.unit, rm.category
+                   rm.stock_quantity, rm.unit, rm.category,
+                   rm.track_inventory
             FROM products p
             LEFT JOIN product_recipes pr
               ON pr.product_name = p.product_name
@@ -204,6 +205,7 @@ def _consume_production_materials(db, items, reference):
         requirements = {}
         material_units = {}
         material_stock = {}
+        material_tracking = {}
 
         for row in cursor.fetchall():
             (
@@ -215,6 +217,7 @@ def _consume_production_materials(db, items, reference):
                 stock_quantity,
                 unit,
                 material_category,
+                track_inventory,
             ) = row
             known_products.add(product_name)
             if not product_category:
@@ -229,7 +232,12 @@ def _consume_production_materials(db, items, reference):
                 )
             if not material_name:
                 continue
-            if stock_quantity is None or not unit or not material_category:
+            if (
+                stock_quantity is None
+                or not unit
+                or not material_category
+                or track_inventory is None
+            ):
                 raise HTTPException(
                     409,
                     f"Missing raw material stock: {material_name}",
@@ -262,10 +270,15 @@ def _consume_production_materials(db, items, reference):
                 )
 
             recipe_products.add(product_name)
+            tracked = bool(track_inventory)
             required = recipe_quantity * Decimal(
                 quantities_by_product[product_name]
             )
-            if str(unit).lower() != "pcs" and str(material_category).lower() != "packaging":
+            if (
+                tracked
+                and str(unit).lower() != "pcs"
+                and str(material_category).lower() != "packaging"
+            ):
                 required *= Decimal("1") + wastage_rate
             required = required.quantize(Decimal("0.000001"))
             requirements[material_name] = requirements.get(
@@ -274,6 +287,13 @@ def _consume_production_materials(db, items, reference):
             ) + required
             material_units[material_name] = unit
             material_stock[material_name] = available_stock
+            existing_tracking = material_tracking.get(material_name)
+            if existing_tracking is not None and existing_tracking != tracked:
+                raise HTTPException(
+                    409,
+                    f"Inconsistent inventory tracking: {material_name}",
+                )
+            material_tracking[material_name] = tracked
 
         missing_products = sorted(set(product_names) - known_products)
         if missing_products:
@@ -290,6 +310,8 @@ def _consume_production_materials(db, items, reference):
 
         shortages = []
         for material_name in sorted(requirements):
+            if not material_tracking[material_name]:
+                continue
             required = requirements[material_name]
             available = material_stock[material_name]
             if available < required:
@@ -305,19 +327,20 @@ def _consume_production_materials(db, items, reference):
         transaction_reference = f"production:{reference}"
         for material_name in sorted(requirements):
             required = requirements[material_name]
-            cursor.execute(
-                """
-                UPDATE raw_materials
-                SET stock_quantity = stock_quantity - %s
-                WHERE material_name = %s AND stock_quantity >= %s
-                """,
-                (required, material_name, required),
-            )
-            if cursor.rowcount != 1:
-                raise HTTPException(
-                    409,
-                    f"Material stock changed during production: {material_name}",
+            if material_tracking[material_name]:
+                cursor.execute(
+                    """
+                    UPDATE raw_materials
+                    SET stock_quantity = stock_quantity - %s
+                    WHERE material_name = %s AND stock_quantity >= %s
+                    """,
+                    (required, material_name, required),
                 )
+                if cursor.rowcount != 1:
+                    raise HTTPException(
+                        409,
+                        f"Material stock changed during production: {material_name}",
+                    )
             cursor.execute(
                 """
                 INSERT INTO material_transactions
@@ -715,6 +738,120 @@ async def get_detection_logs(
         query = q(db, "detection_log").select("*").eq("scenario", scenario).order("created_at", desc=True).limit(limit)
     r = query.execute()
     return {"status": "ok", "count": len(r.data), "logs": r.data}
+
+
+# ======================================================================
+# GET /s1/inflow/history -- Finished-product inflow history by date
+# ======================================================================
+@router.get("/inflow/history", dependencies=[Depends(require_manager)])
+async def get_inflow_history(
+    date: str = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+):
+    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    try:
+        start = datetime.strptime(selected_date, "%Y-%m-%d")
+    except ValueError as exc:
+        raise HTTPException(400, "Date must use YYYY-MM-DD format") from exc
+    if start.strftime("%Y-%m-%d") != selected_date:
+        raise HTTPException(400, "Date must use YYYY-MM-DD format")
+    end = start + timedelta(days=1)
+    is_today = start.date() == datetime.now().date()
+    boundary = end
+    remaining_label = "Left Now" if is_today else "Left at Close"
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT inflow.id,
+                   inflow.batch_id,
+                   inflow.product_name,
+                   inflow.quantity AS quantity_baked,
+                   COALESCE(SUM(
+                       CASE WHEN outflow.disposition = 'sold'
+                            THEN ABS(outflow.quantity) ELSE 0 END
+                   ), 0) AS quantity_sold,
+                   COALESCE(SUM(
+                       CASE WHEN COALESCE(outflow.disposition, '') <> 'sold'
+                                  AND (
+                                      outflow.disposition IN ('non_sellable', 'discarded')
+                                      OR outflow.freshness_status = 'Expired'
+                                  )
+                            THEN ABS(outflow.quantity) ELSE 0 END
+                   ), 0) AS quantity_discarded,
+                   COALESCE(SUM(ABS(outflow.quantity)), 0) AS quantity_outflow_total,
+                   inflow.transaction_time
+            FROM inventory_transactions inflow
+            JOIN products p ON p.product_name = inflow.product_name
+            LEFT JOIN inventory_transactions outflow
+                   ON outflow.batch_id = inflow.batch_id
+                  AND outflow.transaction_type = 'outflow'
+                  AND outflow.transaction_time < %s
+            WHERE inflow.transaction_type = 'inflow'
+              AND p.category = 'bakery'
+              AND inflow.transaction_time >= %s
+              AND inflow.transaction_time < %s
+            GROUP BY inflow.id, inflow.batch_id, inflow.product_name,
+                     inflow.quantity, inflow.transaction_time
+            ORDER BY inflow.transaction_time, inflow.id
+            LIMIT %s
+            """,
+            (
+                boundary.strftime("%Y-%m-%d %H:%M:%S"),
+                start.strftime("%Y-%m-%d %H:%M:%S"),
+                end.strftime("%Y-%m-%d %H:%M:%S"),
+                limit,
+            ),
+        )
+        records = cursor.fetchall()
+    finally:
+        cursor.close()
+        db.close()
+
+    for record in records:
+        quantity_baked = max(int(record.get("quantity_baked") or 0), 0)
+        quantity_sold = max(int(record.get("quantity_sold") or 0), 0)
+        quantity_discarded = max(int(record.get("quantity_discarded") or 0), 0)
+        quantity_outflow_total = max(
+            int(record.pop("quantity_outflow_total", 0) or 0),
+            0,
+        )
+        quantity_other_outflow = max(
+            quantity_outflow_total - quantity_sold - quantity_discarded,
+            0,
+        )
+        calculated_left = (
+            quantity_baked
+            - quantity_sold
+            - quantity_discarded
+            - quantity_other_outflow
+        )
+        record.update(
+            {
+                "quantity_baked": quantity_baked,
+                "quantity_sold": quantity_sold,
+                "quantity_discarded": quantity_discarded,
+                "quantity_other_outflow": quantity_other_outflow,
+                "quantity_left": max(calculated_left, 0),
+                "data_quality_issue": calculated_left < 0,
+            }
+        )
+        transaction_time = record.get("transaction_time")
+        if isinstance(transaction_time, datetime):
+            record["transaction_time"] = transaction_time.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+    return {
+        "status": "ok",
+        "date": selected_date,
+        "count": len(records),
+        "remaining_label": remaining_label,
+        "records": records,
+    }
+
+
 # ======================================================================
 # GET /s1/inventory_transactions -- Query all inventory transactions
 # ======================================================================

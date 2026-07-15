@@ -1,3 +1,5 @@
+import asyncio
+
 from s3_scheduling import scheduler as scheduler_module
 from s3_scheduling.scheduler import Scheduler, BREAD_CAPACITY, DEMAND_BUFFER
 
@@ -82,6 +84,106 @@ def test_q50_baseline_plan_uses_buffer_when_capacity_allows():
     assert plan["croissant"] == int(10 * DEMAND_BUFFER)
 
 
+def test_material_dashboard_does_not_convert_database_failure_to_zero_stock(monkeypatch):
+    from db import mysql_client
+
+    scheduler = make_scheduler()
+
+    def fail_database_connection():
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(mysql_client, "get_db", fail_database_connection)
+
+    result = scheduler.dashboard_format_materials(
+        {"materials": {"Bread Flour": 10.0}}
+    )
+
+    assert result["stock_data_available"] is False
+    assert result["items"] == {}
+    assert result["error"] == "raw_material_stock_unavailable"
+
+
+def test_material_estimate_uses_only_direct_database_recipe(monkeypatch):
+    monkeypatch.setattr(
+        scheduler_module,
+        "load_recipe_from_db",
+        lambda product_name: {
+            "Bread Flour": 0.06,
+            "Water": 0.04,
+            "Salt": 0.0012,
+        }
+        if product_name == "baguette"
+        else {},
+    )
+
+    result = scheduler_module.estimate_raw_materials({"baguette": 10}, {})
+
+    assert result == {
+        "Bread Flour": 0.6,
+        "Water": 0.4,
+        "Salt": 0.012,
+    }
+    assert "Baking Powder" not in result
+    assert "Yeast" not in result
+
+
+def test_material_dashboard_excludes_explicitly_untracked_recipe_materials(monkeypatch):
+    from db import mysql_client
+
+    class Rows:
+        data = [
+            {
+                "material_name": "Bread Flour",
+                "stock_quantity": 20.0,
+                "unit": "kg",
+                "track_inventory": True,
+            },
+            {
+                "material_name": "Water",
+                "stock_quantity": 0.0,
+                "unit": "L",
+                "track_inventory": False,
+            },
+        ]
+
+    class Query:
+        def select(self, columns):
+            assert "track_inventory" in columns
+            return self
+
+        def execute(self):
+            return Rows()
+
+    class Database:
+        def __init__(self):
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    database = Database()
+    monkeypatch.setattr(mysql_client, "get_db", lambda: database)
+    monkeypatch.setattr(mysql_client, "q", lambda *_args: Query())
+    scheduler = make_scheduler()
+
+    result = scheduler.dashboard_format_materials(
+        {
+            "week_start": "2026-07-15",
+            "week_end": "2026-07-21",
+            "materials": {
+                "Bread Flour": 4.0,
+                "Water": 15.0,
+                "Unknown Ingredient": 2.0,
+            },
+        }
+    )
+
+    assert "Bread Flour" in result["items"]
+    assert "Water" not in result["items"]
+    assert result["items"]["Unknown Ingredient"]["alert"] == "urgent"
+    assert database.closed
+
+
 def test_solver_sells_day1_stock_before_fresh_bake(monkeypatch):
     monkeypatch.setattr(scheduler_module, "estimate_raw_materials", lambda *_: {})
     scheduler = make_scheduler()
@@ -126,7 +228,7 @@ def test_rolling_plan_carries_unsold_fresh_but_not_expired_day1_stock():
         "2026-07-02": {"croissant": {"q10": 1, "q50": 2, "q90": 3}},
     }
 
-    scheduler.generate_7day_plan(
+    result = scheduler.generate_7day_plan(
         "2026-07-01",
         {"croissant": 3},
         forecast,
@@ -134,3 +236,99 @@ def test_rolling_plan_carries_unsold_fresh_but_not_expired_day1_stock():
 
     assert observed_stock[0]["croissant"] == 3
     assert observed_stock[1]["croissant"] == 4
+    assert result["weekly_summary"]["profit_definition"] == (
+        "after_waste_and_shortage_risk_allowances"
+    )
+
+
+def test_day1_loader_aggregates_only_real_bakery_batches(monkeypatch):
+    from api import module3_scheduling
+
+    class Cursor:
+        def __init__(self):
+            self.sql = ""
+            self.params = ()
+            self.closed = False
+
+        def execute(self, sql, params):
+            self.sql = " ".join(sql.split())
+            self.params = params
+
+        def fetchall(self):
+            return [("croissant", 3), ("latte", 20)]
+
+        def close(self):
+            self.closed = True
+
+    class Database:
+        def __init__(self):
+            self.cursor_instance = Cursor()
+            self.closed = False
+
+        def cursor(self):
+            return self.cursor_instance
+
+        def close(self):
+            self.closed = True
+
+    database = Database()
+    monkeypatch.setattr(module3_scheduling, "get_db", lambda: database)
+
+    result = module3_scheduling._load_day1_stock(
+        {"croissant": {}, "baguette": {}},
+        "2026-07-15",
+    )
+
+    assert result == {"croissant": 3, "baguette": 0}
+    assert "JOIN products" in database.cursor_instance.sql
+    assert "p.category = 'bakery'" in database.cursor_instance.sql
+    assert database.cursor_instance.params == ("2026-07-15",)
+    assert database.cursor_instance.closed
+    assert database.closed
+
+
+def test_7day_plan_starts_on_selected_date(monkeypatch):
+    from api import module3_scheduling
+
+    captured = {}
+
+    class FakeScheduler:
+        breads = {"croissant": {}}
+
+        def generate_7day_plan(self, start_date, day1_stock, forecast):
+            captured["start_date"] = start_date
+            captured["day1_stock"] = day1_stock
+            captured["forecast"] = forecast
+            return {
+                "dashboard_7day": {"dates": [start_date], "grid": []},
+                "weekly_summary": {
+                    "total_bake": 0,
+                    "total_profit": 0.0,
+                    "total_revenue": 0.0,
+                    "daily_profits": [],
+                    "scenarios": {},
+                    "top_products": [],
+                },
+            }
+
+    monkeypatch.setattr(scheduler_module, "Scheduler", FakeScheduler)
+    monkeypatch.setattr(
+        scheduler_module,
+        "generate_7day_s2_forecast",
+        lambda start_date: {start_date: {}},
+    )
+    monkeypatch.setattr(
+        module3_scheduling,
+        "_load_day1_stock",
+        lambda breads, start_date: {"croissant": 3},
+        raising=False,
+    )
+
+    result = asyncio.run(
+        module3_scheduling.get_7day_production_plan(date="2026-07-15")
+    )
+
+    assert captured["start_date"] == "2026-07-15"
+    assert captured["day1_stock"] == {"croissant": 3}
+    assert result["dashboard_7day"]["dates"] == ["2026-07-15"]
+    assert result["weekly_summary"]["day1_stock_total"] == 3

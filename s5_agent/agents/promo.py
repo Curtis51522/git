@@ -24,7 +24,19 @@ class PromoAgent(BaseAgent):
             data = payload.get("data", {})
             disc = data.get("today_discount", 0)
             rev = data.get("today_revenue", 1)
-            return {"active_promos": 1 if disc > 0 else 0, "total_discount": disc, "discount_rate": disc/max(rev,1)}
+            return {
+                "active_promos": 1 if disc > 0 else 0,
+                "today_revenue": rev,
+                "total_discount": disc,
+                "discount_rate": disc / max(rev, 1),
+                "expired_cost": data.get("expired_cost", 0),
+                "expired_products": data.get("expired_products", []),
+                "sold_bread_sku_count": data.get("sold_bread_sku_count", 0),
+                "items_per_order": data.get("items_per_order"),
+                "items_per_order_change": data.get("items_per_order_change"),
+                "revenue_per_item": data.get("revenue_per_item"),
+                "revenue_per_item_change": data.get("revenue_per_item_change"),
+            }
         except Exception as e:
             logger.warning("Promo fetch failed: %s", e)
         return {"active_promos": 0, "total_discount": 0, "discount_rate": 0}

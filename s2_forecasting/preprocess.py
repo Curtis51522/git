@@ -17,6 +17,7 @@ Data split (time-series, no shuffle):
 import os, warnings
 import numpy as np
 import pandas as pd
+from config.settings import BEVERAGE_PRODUCT_TYPES
 from s2_forecasting.feature_contract import FORECAST_FEATURES
 
 warnings.filterwarnings("ignore")
@@ -43,6 +44,34 @@ BEVERAGE_FEATURE_COLS = [
     "ice_avg",
     "temp_hot_ratio",
 ]
+
+
+def resolve_product_categories(df_raw, products):
+    defaults = {
+        product: int(product in BEVERAGE_PRODUCT_TYPES)
+        for product in products
+    }
+    if "category" not in df_raw.columns:
+        return defaults
+
+    category_counts = df_raw.groupby("product_name")["category"].nunique()
+    inconsistent = category_counts[category_counts > 1]
+    if not inconsistent.empty:
+        names = ", ".join(sorted(inconsistent.index.astype(str)))
+        raise ValueError(f"Products have inconsistent categories: {names}")
+
+    raw_categories = (
+        df_raw.dropna(subset=["category"])
+        .groupby("product_name")["category"]
+        .first()
+        .to_dict()
+    )
+    for product, value in raw_categories.items():
+        category = int(value)
+        if category not in (0, 1):
+            raise ValueError(f"Invalid category for {product}: {value}")
+        defaults[product] = category
+    return defaults
 
 
 def run_preprocessing(verbose=True):
@@ -122,7 +151,8 @@ def run_preprocessing(verbose=True):
 
     pid_map = {p: i for i, p in enumerate(all_products)}
     daily_full["product_id"] = daily_full["product_name"].map(pid_map)
-    daily_full["category"] = (daily_full["product_id"] >= 30).astype(int)
+    category_map = resolve_product_categories(df_raw, all_products)
+    daily_full["category"] = daily_full["product_name"].map(category_map).astype(int)
 
     # Daily ticket count (traffic proxy)
     if "daily_tickets" in df_raw.columns:

@@ -19,19 +19,20 @@ S5_DISCOUNT_URL = os.getenv("S5_DISCOUNT_URL", "http://127.0.0.1:8001/discounts"
 S5_DISCOUNT_TIMEOUT_SECONDS = float(os.getenv("S5_DISCOUNT_TIMEOUT_SECONDS", "5"))
 YOLO_MODEL_PATH = "models/yolo/best.pt"
 YOLO_CONFIDENCE_THRESHOLD = 0.5
-PRODUCT_TYPES = [
-    # 30 Breads
+BAKERY_PRODUCT_TYPES = [
     "apple_pie", "bagel", "baguette", "bread_coconut", "bread_roll", "brioche",
     "brownie", "chiffon", "chocolate_cake", "chocopie", "cookie", "cornbread",
     "cream_horn", "croissant", "croissant_chocolate", "donut", "eggtart",
     "flatbread", "macaron", "mantequilla", "melon_bread", "muffin", "pancake",
     "pandesal", "pizza_bread", "pullman", "soboru_bread", "sourdough",
     "stickbread", "tostada",
-    # 15 Beverages
+]
+BEVERAGE_PRODUCT_TYPES = [
     "americano", "cappuccino", "caramel_macchiato", "chai_latte", "cold_brew",
     "earl_grey", "english_breakfast", "espresso", "flat_white", "hot_chocolate",
     "latte", "lemonade", "matcha_latte", "milk_tea", "mocha",
 ]
+PRODUCT_TYPES = BAKERY_PRODUCT_TYPES + BEVERAGE_PRODUCT_TYPES
 
 FORECAST_FEATURE_COLS = FORECAST_FEATURES
 

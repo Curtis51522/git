@@ -58,6 +58,7 @@ class MemoryCursor:
                             None,
                             None,
                             None,
+                            None,
                         )
                     )
                     continue
@@ -73,6 +74,7 @@ class MemoryCursor:
                             material["stock_quantity"] if material else None,
                             material["unit"] if material else None,
                             material["category"] if material else None,
+                            material["track_inventory"] if material else None,
                         )
                     )
             self.rows = rows
@@ -136,6 +138,7 @@ class MemoryDB:
                     "stock_quantity": Decimal("10"),
                     "unit": "kg",
                     "category": "flour",
+                    "track_inventory": True,
                 }
             },
             "material_transactions": [],
@@ -259,6 +262,52 @@ def test_confirmed_inflow_initializes_inventory_quantity_fields(monkeypatch):
     assert material_transaction["quantity"] == Decimal("1.050000")
     assert material_transaction["unit"] == "kg"
     assert material_transaction["reference"].startswith("production:")
+
+
+def test_production_records_water_without_changing_water_stock(monkeypatch):
+    module1_yolo, db = _install_memory_db(monkeypatch)
+    db.tables["product_recipes"]["bread_coconut"].append(
+        ("Water", Decimal("0.02"))
+    )
+    db.tables["raw_materials"]["Water"] = {
+        "stock_quantity": Decimal("0"),
+        "unit": "L",
+        "category": "utility",
+        "track_inventory": False,
+    }
+    db.committed_tables = copy.deepcopy(db.tables)
+
+    result = asyncio.run(
+        module1_yolo.inflow_batch(
+            DeductRequest(
+                items=[
+                    {
+                        "product_name": "bread_coconut",
+                        "quantity": 10,
+                        "tray_color": "green",
+                    }
+                ]
+            )
+        )
+    )
+
+    assert result["status"] == "ok"
+    assert db.tables["raw_materials"]["Water"]["stock_quantity"] == Decimal("0")
+    water_transactions = [
+        row
+        for row in db.tables["material_transactions"]
+        if row["material_name"] == "Water"
+    ]
+    assert water_transactions == [
+        {
+            "material_name": "Water",
+            "transaction_type": "outflow",
+            "quantity": Decimal("0.200000"),
+            "unit": "L",
+            "reference": water_transactions[0]["reference"],
+        }
+    ]
+    assert water_transactions[0]["reference"].startswith("production:")
 
 
 def test_confirmed_inflow_rolls_back_when_production_material_is_insufficient(

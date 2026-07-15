@@ -37,21 +37,24 @@ LEFT JOIN (
         GROUP BY mw.material_name
     ) wc2 ON wc1.id = wc2.max_id
 ) wc ON rm.material_name = wc.material_name
+WHERE rm.track_inventory = 1
 ORDER BY COALESCE(wc.wastage_qty, 0) DESC
 """
 
 TREND_SQL = """
 SELECT
-    id,
-    material_name,
-    check_date,
-    COALESCE(wastage_qty, 0) AS wastage_qty,
-    COALESCE(wastage_rate, 0) AS wastage_rate,
-    COALESCE(theoretical_consumed, 0) AS theoretical_consumed,
-    COALESCE(actual_consumed, 0) AS actual_consumed
-FROM material_wastage_log
-WHERE check_date >= %s AND check_date <= %s
-ORDER BY material_name, check_date
+    mw.id,
+    mw.material_name,
+    mw.check_date,
+    COALESCE(mw.wastage_qty, 0) AS wastage_qty,
+    COALESCE(mw.wastage_rate, 0) AS wastage_rate,
+    COALESCE(mw.theoretical_consumed, 0) AS theoretical_consumed,
+    COALESCE(mw.actual_consumed, 0) AS actual_consumed
+FROM material_wastage_log mw
+JOIN raw_materials rm ON rm.material_name = mw.material_name
+WHERE rm.track_inventory = 1
+  AND mw.check_date >= %s AND mw.check_date <= %s
+ORDER BY mw.material_name, mw.check_date
 """
 
 ROOT_CAUSE_MAP = {

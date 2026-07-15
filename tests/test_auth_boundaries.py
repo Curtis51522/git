@@ -64,6 +64,7 @@ MANAGER_ROUTES = {
     ("/s1/detection_logs", "GET"),
     ("/s1/inflow", "POST"),
     ("/s1/inflow/batch", "POST"),
+    ("/s1/inflow/history", "GET"),
     ("/s1/inventory", "GET"),
     ("/s1/inventory_transactions", "GET"),
     ("/s2/accuracy", "GET"),
@@ -97,9 +98,11 @@ MANAGER_ROUTES = {
     ("/s4/inventory/materials", "GET"),
     ("/s4/inventory/materials/theoretical", "GET"),
     ("/s4/inventory/restock", "POST"),
+    ("/s4/inventory/restock/history", "GET"),
     ("/s4/inventory/stock-days-history", "GET"),
     ("/s4/inventory/wastage/summary", "GET"),
     ("/s4/orders/refund", "POST"),
+    ("/s4/revenue/closing-loss", "GET"),
     ("/s4/revenue/daily", "GET"),
     ("/s4/revenue/historical", "GET"),
     ("/s4/revenue/hourly", "GET"),
@@ -358,6 +361,22 @@ def test_frontend_protected_reads_send_authentication():
         "fetch(API+'/s4/products',{headers:{'Authorization':'Bearer '+"
         "(typeof token==='undefined'?'':token)}})" in source
     )
-    assert "api('/s1/batch_inventory')" in source
+    assert "api('/s1/batch_inventory',{force:true})" in source
     assert "fetch(API+'/s2/accuracy')" not in source
     assert "fetch(API+'/s1/batch_inventory')" not in source
+
+
+def test_frontend_refreshes_stock_when_pos_is_opened():
+    source = Path("api/module4_frontend/static/index.html").read_text(
+        encoding="utf-8"
+    )
+    show_panel = source[
+        source.index("async function showPanel") : source.index("var _apiCache")
+    ]
+    load_stock_start = source.index("function loadStock(){")
+    load_stock = source[
+        load_stock_start : source.index("function changeQty", load_stock_start)
+    ]
+
+    assert "loadStock()" in show_panel
+    assert "api('/s1/batch_inventory',{force:true})" in load_stock

@@ -8,26 +8,26 @@
     "is_competitor_w"
   ],
   "baseline": {
-    "WAPE": 16.92,
-    "MAE": 7.96,
-    "RMSE": 25.2
+    "WAPE": 22.69,
+    "MAE": 10.05,
+    "RMSE": 33.14
   },
   "Q10": {
-    "WAPE": 30.07,
-    "MAE": 14.15,
-    "RMSE": 50.27
+    "WAPE": 25.94,
+    "MAE": 11.48,
+    "RMSE": 35.19
   },
   "Q50": {
-    "WAPE": 20.57,
-    "MAE": 9.68,
-    "RMSE": 39.43
+    "WAPE": 16.21,
+    "MAE": 7.18,
+    "RMSE": 23.39
   },
   "Q90": {
-    "WAPE": 22.86,
-    "MAE": 10.75,
-    "RMSE": 34.28
+    "WAPE": 27.02,
+    "MAE": 11.97,
+    "RMSE": 32.55
   },
-  "coverage_Q50_Q90": 0.4068,
-  "interval_width": 7.77,
-  "Q50_vs_baseline": -3.65
+  "coverage_Q50_Q90": 0.3774,
+  "interval_width": 10.26,
+  "Q50_vs_baseline": 6.48
 }
