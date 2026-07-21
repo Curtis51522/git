@@ -19,5 +19,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
+"%PY%" -m pip check
+if errorlevel 1 (
+    echo Python dependency check failed.
+    echo Repair with: "%PY%" -m pip install -r requirements.txt
+    exit /b 1
+)
+
 echo Starting Bakery AI main server on 127.0.0.1:8002...
 "%PY%" main.py

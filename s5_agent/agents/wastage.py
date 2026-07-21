@@ -18,8 +18,8 @@ SELECT
     rm.unit_price,
     COALESCE(wc.theoretical_consumed, 0) AS theoretical_consumed,
     COALESCE(wc.actual_consumed, 0) AS actual_consumed,
-    COALESCE(wc.wastage_qty, 0) AS wastage_qty,
-    COALESCE(wc.wastage_rate, 0) AS wastage_rate,
+    GREATEST(COALESCE(wc.wastage_qty, 0), 0) AS wastage_qty,
+    GREATEST(COALESCE(wc.wastage_rate, 0), 0) AS wastage_rate,
     wc.check_date
 FROM raw_materials rm
 LEFT JOIN (
@@ -38,7 +38,7 @@ LEFT JOIN (
     ) wc2 ON wc1.id = wc2.max_id
 ) wc ON rm.material_name = wc.material_name
 WHERE rm.track_inventory = 1
-ORDER BY COALESCE(wc.wastage_qty, 0) DESC
+ORDER BY GREATEST(COALESCE(wc.wastage_qty, 0), 0) DESC
 """
 
 TREND_SQL = """
@@ -46,8 +46,8 @@ SELECT
     mw.id,
     mw.material_name,
     mw.check_date,
-    COALESCE(mw.wastage_qty, 0) AS wastage_qty,
-    COALESCE(mw.wastage_rate, 0) AS wastage_rate,
+    GREATEST(COALESCE(mw.wastage_qty, 0), 0) AS wastage_qty,
+    GREATEST(COALESCE(mw.wastage_rate, 0), 0) AS wastage_rate,
     COALESCE(mw.theoretical_consumed, 0) AS theoretical_consumed,
     COALESCE(mw.actual_consumed, 0) AS actual_consumed
 FROM material_wastage_log mw

@@ -41,16 +41,186 @@ class HistoryDb:
         self.closed = True
 
 
+class HistoricalRevenueCursor:
+    def __init__(self):
+        self.rows = []
+
+    def execute(self, sql, params=None):
+        normalized = " ".join(sql.split())
+        if "SUM(oi.line_total) as total_revenue" in normalized:
+            self.rows = [
+                ("macaron", "2026-07-18", "2026-07-18", 223.0, 215.0),
+            ]
+        elif "AS revenue_adjustment" in normalized:
+            self.rows = [
+                ("2026-07-18", "2026-07-18", 9.0, -4.75),
+            ]
+        elif "transaction_type = 'return'" in normalized:
+            self.rows = []
+        elif "freshness_status = 'Expired'" in normalized:
+            self.rows = []
+        else:
+            raise AssertionError(f"Unexpected SQL: {normalized}")
+
+    def fetchall(self):
+        return self.rows
+
+
+class HistoricalRevenueDb:
+    def __init__(self):
+        self.cursor_instance = HistoricalRevenueCursor()
+
+    def cursor(self):
+        return self.cursor_instance
+
+
+class InventorySnapshotCursor:
+    def __init__(self, snapshot_rows=None):
+        self.rows = []
+        self.executed = []
+        self.snapshot_rows = snapshot_rows or [
+            ("bagel", datetime(2026, 7, 1, 6, 15), 2),
+        ]
+
+    def execute(self, sql, params=None):
+        normalized = " ".join(sql.split())
+        self.executed.append((normalized, tuple(params or ())))
+        if "LEFT JOIN inventory_transactions it" in normalized:
+            self.rows = self.snapshot_rows
+        elif "SUM(bi.quantity_remaining)" in normalized:
+            self.rows = [("bagel", "Day-1", 0)]
+        elif "FROM order_items oi JOIN orders o" in normalized:
+            self.rows = [("bagel", "Fresh", 9)]
+        elif "FROM raw_materials rm" in normalized:
+            self.rows = []
+        elif "FROM batch_inventory bi JOIN products p" in normalized:
+            self.rows = [(0,)]
+        elif "stock_quantity * unit_price" in normalized:
+            self.rows = [(0,)]
+        elif "SELECT material_name, stock_quantity, unit" in normalized:
+            self.rows = []
+        elif "SELECT material_name, SUM(quantity) as total" in normalized:
+            self.rows = []
+        else:
+            raise AssertionError(f"Unexpected SQL: {normalized}")
+
+    def fetchall(self):
+        return self.rows
+
+    def fetchone(self):
+        return self.rows[0]
+
+
+class InventorySnapshotDb:
+    def __init__(self, snapshot_rows=None):
+        self.cursor_instance = InventorySnapshotCursor(snapshot_rows)
+
+    def cursor(self):
+        return self.cursor_instance
+
+
+def test_inventory_dashboard_reconstructs_selected_date_from_batch_movements(
+    monkeypatch,
+):
+    database = InventorySnapshotDb()
+    monkeypatch.setattr(bff, "get_db", lambda: database)
+
+    result = asyncio.run(bff.inventory_dashboard(date="2026-07-02"))
+
+    assert result["bread_stock"] == [
+        {
+            "product_name": "bagel",
+            "fresh_qty": 0,
+            "day1_qty": 2,
+            "total_qty": 2,
+        }
+    ]
+    assert result["fresh_total"] == 0
+    assert result["day1_total"] == 2
+    assert result["snapshot_basis"] == "historical_close"
+    assert result["snapshot_label"] == "Closing Bread Stock (2026-07-02)"
+    snapshot_queries = [
+        query for query in database.cursor_instance.executed
+        if "LEFT JOIN inventory_transactions it" in query[0]
+    ]
+    assert snapshot_queries
+    assert snapshot_queries[0][1] == (
+        "2026-07-03 00:00:00",
+        "2026-07-03 00:00:00",
+    )
+
+
+def test_inventory_dashboard_uses_current_time_for_today(monkeypatch):
+    database = InventorySnapshotDb()
+    monkeypatch.setattr(bff, "datetime", FixedDateTime)
+    monkeypatch.setattr(bff, "get_db", lambda: database)
+
+    result = asyncio.run(bff.inventory_dashboard(date="2026-07-15"))
+
+    assert result["snapshot_basis"] == "current_live"
+    assert result["snapshot_label"] == "Current Bread Stock"
+    assert result["balance_time"] == "2026-07-15 12:30:00"
+    snapshot_queries = [
+        query
+        for query in database.cursor_instance.executed
+        if "LEFT JOIN inventory_transactions it" in query[0]
+    ]
+    assert snapshot_queries[0][1] == (
+        "2026-07-15 12:30:00",
+        "2026-07-15 12:30:00",
+    )
+
+
+def test_inventory_dashboard_excludes_stock_older_than_day1(monkeypatch):
+    database = InventorySnapshotDb(
+        [
+            ("bagel", datetime(2026, 7, 2, 6, 15), 3),
+            ("croissant", datetime(2026, 7, 1, 6, 15), 2),
+            ("brownie", datetime(2026, 6, 30, 6, 15), 4),
+        ]
+    )
+    monkeypatch.setattr(bff, "get_db", lambda: database)
+
+    result = asyncio.run(bff.inventory_dashboard(date="2026-07-02"))
+
+    assert result["fresh_total"] == 3
+    assert result["day1_total"] == 2
+    assert result["bread_stock"] == [
+        {
+            "product_name": "bagel",
+            "fresh_qty": 3,
+            "day1_qty": 0,
+            "total_qty": 3,
+        },
+        {
+            "product_name": "croissant",
+            "fresh_qty": 0,
+            "day1_qty": 2,
+            "total_qty": 2,
+        },
+    ]
+    assert result["overdue_total"] == 4
+    assert result["overdue_stock"] == [
+        {
+            "product_name": "brownie",
+            "overdue_qty": 4,
+            "oldest_production_date": "2026-06-30",
+        }
+    ]
+
+
 def test_finished_product_inflow_history_uses_selected_date(monkeypatch):
     rows = [
         {
             "id": 14323,
             "batch_id": "BATCH_20260714061500000000_apple_pie",
             "product_name": "apple_pie",
+            "quantity_opening": 0,
             "quantity_baked": 11,
             "quantity_sold": 7,
             "quantity_discarded": 2,
             "quantity_outflow_total": 9,
+            "quantity_closing": 2,
             "transaction_time": FixedDateTime(2026, 7, 14, 6, 15),
         }
     ]
@@ -67,17 +237,18 @@ def test_finished_product_inflow_history_uses_selected_date(monkeypatch):
     assert result["remaining_label"] == "Left at Close"
     record = result["records"][0]
     assert record["quantity_baked"] == 11
+    assert record["quantity_opening"] == 0
     assert record["quantity_sold"] == 7
     assert record["quantity_discarded"] == 2
     assert record["quantity_other_outflow"] == 0
     assert record["quantity_left"] == 2
+    assert record["quantity_carried_to_day1"] == 2
     assert record["data_quality_issue"] is False
     assert record["transaction_time"] == "2026-07-14 06:15:00"
-    assert "LEFT JOIN inventory_transactions outflow" in db.cursor_instance.sql
+    assert "LEFT JOIN inventory_transactions it" in db.cursor_instance.sql
     assert "LEFT JOIN batch_inventory" not in db.cursor_instance.sql
     assert "p.category = 'bakery'" in db.cursor_instance.sql
     assert db.cursor_instance.params == (
-        "2026-07-15 00:00:00",
         "2026-07-14 00:00:00",
         "2026-07-15 00:00:00",
         100,
@@ -119,7 +290,7 @@ class FixedDateTime(datetime):
         return cls(2026, 7, 15, 12, 30)
 
 
-def test_finished_product_inflow_history_uses_selected_day_end_for_today(monkeypatch):
+def test_finished_product_inflow_history_uses_current_time_for_today(monkeypatch):
     db = HistoryDb([])
     monkeypatch.setattr(module1_yolo, "datetime", FixedDateTime)
     monkeypatch.setattr(module1_yolo, "get_db", lambda: db)
@@ -129,10 +300,10 @@ def test_finished_product_inflow_history_uses_selected_day_end_for_today(monkeyp
     )
 
     assert result["remaining_label"] == "Left Now"
+    assert result["snapshot_basis"] == "current_live"
     assert db.cursor_instance.params == (
-        "2026-07-16 00:00:00",
         "2026-07-15 00:00:00",
-        "2026-07-16 00:00:00",
+        "2026-07-15 12:30:00",
         100,
     )
 
@@ -396,18 +567,31 @@ def test_frontend_exposes_inventory_histories_and_order_type_chart():
     assert "Latest restock:" in source
     assert "Select that date to view details." in source
     assert "Baked Product Stock Records" in source
+    assert 'id="inv-bread-chart-title"' in source
+    assert "d.snapshot_basis" in source
+    assert "No bread stock remains now" in source
+    assert "No bread stock remained at closing" in source
+    assert "d.overdue_total" in source
+    assert "Expired Stock Pending Disposal" in source
+    assert "Not included in sellable stock" in source
     assert "t(inflow.remaining_label)" in source
     assert "row.batch_id" in source
     assert "row.product_name" in source
     assert "capName(row.product_name||'')" in history_source
     assert "row.transaction_time" in source
     assert "row.quantity_baked" in source
+    assert "row.quantity_opening" in source
     assert "row.quantity_sold" in source
     assert "row.quantity_discarded" in source
+    assert "row.quantity_carried_to_day1" in source
     assert "row.quantity_left" in source
     assert "row.data_quality_issue" in source
     assert "t('Check data')" in source
-    assert "colspan=\"6\"" in source
+    assert "colspan=\"8\"" in source
+    assert "'Opening':'Opening'" in source
+    assert "'Carried to Day-1':'Carried to Day-1'" in source
+    assert "'Current Bread Stock':'Current Bread Stock'" in source
+    assert "'Closing Bread Stock':'Closing Bread Stock'" in source
     assert "'Baked':'Baked'" in source
     assert "'Sold':'Sold'" in source
     assert "'Discarded':'Discarded'" in source
@@ -459,6 +643,42 @@ def test_revenue_kpis_show_na_when_previous_day_is_unavailable():
     assert "revenueChangeLabel(m.avg_change)" in source
 
 
+def test_historical_sales_separates_order_adjustments_from_products(monkeypatch):
+    database = HistoricalRevenueDb()
+    monkeypatch.setattr(bff, "get_db", lambda: database)
+
+    result = asyncio.run(
+        bff.revenue_historical(
+            start="2026-07-18",
+            end="2026-07-18",
+            granularity="day",
+            category="total",
+        )
+    )
+
+    data = result["data"]
+    assert [product["name"] for product in data["products"]] == ["Macaron"]
+    assert data["order_adjustments"] == {
+        "total_revenue": 9.0,
+        "total_profit": -4.75,
+        "periods": {
+            "2026-07-18": {"revenue": 9.0, "profit": -4.75},
+        },
+    }
+
+
+def test_historical_sales_frontend_renders_adjustments_outside_chart():
+    source = Path("api/module4_frontend/static/index.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'id="rev-historical-adjustment"' in source
+    assert "d.order_adjustments||{}" in source
+    assert "adjustments.periods||{}" in source
+    assert "Separate order charges/costs" in source
+    assert "names.push(t(p.name));" in source
+
+
 def test_hourly_chart_separates_closing_adjustment_from_trading_hours():
     source = Path("api/module4_frontend/static/index.html").read_text(
         encoding="utf-8"
@@ -471,7 +691,7 @@ def test_hourly_chart_separates_closing_adjustment_from_trading_hours():
     ) in source
     assert "Already deducted from today's profit" in source
     assert "'Closing inventory loss':'Closing inventory loss'" not in source
-    assert "'Order adjustments':'Order adjustments'" in source
+    assert "'Separate order charges/costs':'Separate order charges/costs'" in source
     assert 'id="rev-hourly-adjustment"' in source
     assert "var closingIndex=dd.hours.indexOf('Closing adjustment');" in source
     assert "chartHours.splice(closingIndex,1);" in source

@@ -190,6 +190,58 @@ def test_inventory_stock_risk_ai_analysis_entry_exists():
     assert "Inventory AI analysis button removed" not in html
 
 
+def test_inventory_top_consumption_chart_descends_from_top_to_bottom():
+    html = _html()
+    chart_start = html.index('var cc=document.getElementById("inv-consumption-chart")')
+    chart_end = html.index("// Stock days table", chart_start)
+    chart = html[chart_start:chart_end]
+
+    assert 'yAxis:{type:"category",inverse:true' in chart
+
+
+def test_inventory_visible_copy_uses_recipe_based_material_groups():
+    html = _html()
+
+    assert "'Baking Ingredients':'Baking Ingredients'" in html
+    assert (
+        "'Beverage Ingredients & Supplies':'Beverage Ingredients & Supplies'"
+        in html
+    )
+    assert "'Packaging Supplies':'Packaging Supplies'" in html
+    assert "d.beverage_materials||d.coffee_materials||[]" in html
+    assert "d.packaging_materials||[]" in html
+    assert "m.usage_scope" in html
+    assert (
+        "chart-panel chart-full\"><h4>'+t('Baking Ingredients')"
+        in html
+    )
+    assert (
+        "id=\"inv-beverage-table\"></div></div><div class=\"chart-panel\"><h4>'+t('Packaging Supplies')"
+        in html
+    )
+    assert "totalBaking" not in html
+    assert "totalCoffee" not in html
+    assert "Baking Materials (kg/L)" not in html
+    assert "Beverage Materials (kg/L)" not in html
+
+
+def test_pos_drinks_have_lightweight_category_filters():
+    html = _html()
+
+    assert "'Drinks - Quick Order':'Drinks - Quick Order'" in html
+    assert "'All Drinks':'All Drinks'" in html
+    assert "'Tea & Milk Tea':'Tea & Milk Tea'" in html
+    assert "'Other Drinks':'Other Drinks'" in html
+    assert "var activeDrinkCategory='all';" in html
+    assert "function setDrinkCategory(category)" in html
+    assert 'id="pos-drink-filters"' in html
+    assert 'id="pos-drink-grid"' in html
+    assert "data-drink-category=\"'+cd.category+'\"" in html
+    assert "category:'coffee'" in html
+    assert "category:'tea_milk_tea'" in html
+    assert "category:'other'" in html
+
+
 def test_revenue_promotion_mix_ai_analysis_entry_exists():
     html = _html()
 

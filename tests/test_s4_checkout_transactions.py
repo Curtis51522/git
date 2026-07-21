@@ -4,6 +4,7 @@ import importlib
 import importlib.util
 import sys
 import types
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -355,6 +356,25 @@ def _checkout_payload():
     }
 
 
+def test_receipt_ids_remain_unique_within_one_operation_second(
+    monkeypatch, bff_module
+):
+    tokens = iter(("a" * 32, "b" * 32))
+    monkeypatch.setattr(
+        bff_module,
+        "uuid4",
+        lambda: types.SimpleNamespace(hex=next(tokens)),
+    )
+    business_time = datetime(2026, 6, 24, 8, 46, 0)
+
+    first = bff_module._new_receipt_id(business_time)
+    second = bff_module._new_receipt_id(business_time)
+
+    assert first == "RCP-20260624084600-aaaaaaaaaaaa"
+    assert second == "RCP-20260624084600-bbbbbbbbbbbb"
+    assert first != second
+
+
 @pytest.mark.parametrize("quantity", [0, -1, 1.5, True, "2"])
 def test_checkout_rejects_quantity_that_is_not_a_positive_integer(
     quantity, monkeypatch, bff_module
@@ -532,7 +552,7 @@ def test_checkout_rejects_non_positive_recipe_quantity_before_writes(
             [
                 {
                     "product_name": "croissant",
-                    "quantity": 1,
+                    "quantity": 3,
                     "freshness": "Fresh",
                 }
             ],
@@ -622,7 +642,26 @@ def test_checkout_commits_once_after_receipt_on_one_transaction(monkeypatch, bff
     assert order_row[6] == pytest.approx(line_profit_total)
 
 
-def test_takeaway_profit_deducts_packaging_material_cost(monkeypatch, bff_module):
+def test_checkout_persists_selected_payment_method_on_order(monkeypatch, bff_module):
+    db = RecordingConnection()
+    _, yolo_stub, freshness_stub = _checkout_dependencies(
+        monkeypatch, bff_module, db
+    )
+
+    with patch.dict(
+        sys.modules,
+        {"api.module1_yolo": yolo_stub, "api.freshness_service": freshness_stub},
+    ):
+        asyncio.run(bff_module.checkout_complete(_checkout_payload()))
+
+    order_insert = next(
+        event for event in db.events if str(event[0]).startswith("INSERT INTO orders")
+    )
+    assert "payment_method" in order_insert[0]
+    assert "card" in order_insert[1]
+
+
+def test_takeaway_packaging_is_internal_cost_not_customer_fee(monkeypatch, bff_module):
     db = RecordingConnection()
     _, yolo_stub, freshness_stub = _checkout_dependencies(monkeypatch, bff_module, db)
     payload = _checkout_payload()
@@ -636,8 +675,51 @@ def test_takeaway_profit_deducts_packaging_material_cost(monkeypatch, bff_module
 
     order_row = db.state["orders"][0]
     line_profit_total = sum(row[6] for row in db.state["order_items"])
-    assert result["receipt"]["total"] == pytest.approx(19.7)
-    assert order_row[6] == pytest.approx(line_profit_total + 0.30 - 0.45)
+    assert result["receipt"]["total"] == pytest.approx(19.4)
+    assert all(
+        item["product_name"] != "Packaging (Takeaway)"
+        for item in result["receipt"]["items"]
+    )
+    assert db.state["materials"]["Packaging Bag"] == pytest.approx(9)
+    assert order_row[6] == pytest.approx(line_profit_total - 0.15)
+
+
+@pytest.mark.parametrize(
+    ("items", "expected_bags", "expected_boxes"),
+    [
+        (
+            [
+                {
+                    "product_name": "latte",
+                    "quantity": 1,
+                    "size": "regular",
+                }
+            ],
+            1,
+            0,
+        ),
+        ([{"product_name": "croissant", "quantity": 2}], 1, 0),
+        ([{"product_name": "croissant", "quantity": 3}], 1, 1),
+        ([{"product_name": "croissant", "quantity": 7}], 1, 2),
+    ],
+)
+def test_takeaway_packaging_follows_order_contents(
+    items, expected_bags, expected_boxes, bff_module
+):
+    db = RecordingConnection()
+
+    requirements = bff_module._build_material_requirements(
+        db.cursor(),
+        items,
+        {
+            "croissant": {"wastage_pct": 0},
+            "latte": {"wastage_pct": 0},
+        },
+        "takeaway",
+    )
+
+    assert requirements["Packaging Bag"] == expected_bags
+    assert requirements.get("Packaging Box", 0) == expected_boxes
 
 
 def test_checkout_links_fifo_and_beverage_outflows_to_receipt(
@@ -838,6 +920,26 @@ def test_restock_uses_one_locked_transaction(monkeypatch, bff_module):
     assert any("FOR UPDATE" in event[0] for event in db.events)
     assert db.commit_count == 1
     assert db.rollback_count == 0
+    assert db.closed
+
+
+def test_restock_rejects_fractional_piece_quantity(monkeypatch, bff_module):
+    db = RecordingConnection()
+    monkeypatch.setattr(bff_module, "get_db", lambda **_kwargs: db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(
+            bff_module.inventory_restock(
+                {"material_name": "Cup Regular", "quantity": 2.5}
+            )
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Piece quantities must be whole numbers"
+    assert db.state["materials"]["Cup Regular"] == 10
+    assert db.state["material_transactions"] == []
+    assert db.commit_count == 0
+    assert db.rollback_count == 1
     assert db.closed
 
 

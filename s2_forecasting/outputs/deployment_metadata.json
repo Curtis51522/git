@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "run_timestamp": "2026-07-19T16:10:27.476093+00:00",
+  "evaluation": {
+    "model_selection": {
+      "split": "train",
+      "row_count": 9990,
+      "period": "2025-06-24 to 2026-01-31"
+    },
+    "calibration": {
+      "split": "validation",
+      "row_count": 2655,
+      "period": "2026-02-01 to 2026-03-31"
+    },
+    "test": {
+      "split": "test",
+      "row_count": 3780,
+      "period": "2026-04-01 to 2026-06-23"
+    },
+    "test_evaluated_once": true
+  },
+  "deployment_refit": {
+    "split": "complete_active_year",
+    "row_count": 16425,
+    "period": "2025-06-24 to 2026-06-23",
+    "purpose": "runtime_forecasting_after_held_out_evaluation",
+    "held_out_metric_claim": false
+  },
+  "calibration_note": "Runtime models are refitted on the complete active year after held-out evaluation. The saved conformal residual widths remain sourced from the chronological validation design and are not reported as refit metrics."
+}

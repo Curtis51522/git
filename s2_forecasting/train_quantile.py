@@ -1,4 +1,6 @@
 import os, json, joblib, warnings
+from datetime import datetime, timezone
+
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -18,7 +20,17 @@ TARGET = "quantity"
 QUANTILES = [0.10, 0.50, 0.90]
 CV_SPLITS = 3
 EXPERIMENT_ROLE = "proposed_probabilistic_forecast"
-VALIDATION_DESIGN = "date-aware rolling-origin cross-validation"
+VALIDATION_DESIGN = (
+    "train-only rolling-origin model selection and fitting; independent "
+    "chronological validation calibration; untouched chronological test evaluation"
+)
+CORE_INTERVAL_METHOD = "Core pre-runtime-bias conformal 80%"
+CORE_INTERVAL_SCOPE = "core_pre_runtime_bias_conformal"
+RUNTIME_TRANSFORM_NOTE = (
+    "The live endpoint applies operation-specific bakery/beverage bias scaling "
+    "and integer rounding. Those dynamic transforms are not evaluated by this "
+    "core artifact-level interval metric."
+)
 
 PARAM_GRID_Q50 = {
     "n_estimators": [200, 500],
@@ -56,6 +68,81 @@ def get_xy(df):
     return df[FEATURES].copy(), df[TARGET].copy()
 
 
+def predict_postprocessed_quantiles(df, models):
+    features, _ = get_xy(df)
+    raw_q10 = np.maximum(models[0.10].predict(features), 0)
+    raw_q50 = np.maximum(models[0.50].predict(features), 0)
+    raw_q90 = np.maximum(models[0.90].predict(features), 0)
+    corrected = enforce_quantile_monotonicity(raw_q10, raw_q50, raw_q90)
+    corrected["q50_changed_count"] = int(
+        np.count_nonzero(raw_q50 != corrected["q50"])
+    )
+    return corrected
+
+
+def _utc_timestamp():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _split_metadata(df, split_name):
+    return {
+        "split": split_name,
+        "row_count": int(len(df)),
+        "period": f"{df['date'].min()} to {df['date'].max()}",
+    }
+
+
+def build_deployment_refit_frame(train_df, val_df, test_df):
+    frames = (train_df, val_df, test_df)
+    if any(frame.empty for frame in frames):
+        raise ValueError("Deployment refit requires non-empty train, validation, and test splits")
+    periods = [pd.to_datetime(frame["date"]) for frame in frames]
+    if not periods[0].max() < periods[1].min() < periods[2].min():
+        raise ValueError("Deployment refit splits must be strictly chronological")
+    combined = pd.concat(frames, ignore_index=True)
+    sort_columns = ["date"]
+    if "product_id" in combined.columns:
+        sort_columns.append("product_id")
+    return combined.sort_values(sort_columns, kind="stable").reset_index(drop=True)
+
+
+def write_deployment_metadata(
+    train_df,
+    val_df,
+    test_df,
+    refit_df,
+    *,
+    output_dir=None,
+):
+    metadata = {
+        "schema_version": 1,
+        "run_timestamp": _utc_timestamp(),
+        "evaluation": {
+            "model_selection": _split_metadata(train_df, "train"),
+            "calibration": _split_metadata(val_df, "validation"),
+            "test": _split_metadata(test_df, "test"),
+            "test_evaluated_once": True,
+        },
+        "deployment_refit": {
+            **_split_metadata(refit_df, "complete_active_year"),
+            "purpose": "runtime_forecasting_after_held_out_evaluation",
+            "held_out_metric_claim": False,
+        },
+        "calibration_note": (
+            "Runtime models are refitted on the complete active year after held-out "
+            "evaluation. The saved conformal residual widths remain sourced from the "
+            "chronological validation design and are not reported as refit metrics."
+        ),
+    }
+    target_dir = output_dir or OUT_DIR
+    os.makedirs(target_dir, exist_ok=True)
+    output_path = os.path.join(target_dir, "deployment_metadata.json")
+    with open(output_path, "w", encoding="ascii") as handle:
+        json.dump(metadata, handle, indent=2, ensure_ascii=True)
+        handle.write("\n")
+    return metadata
+
+
 def build_date_aware_cv(df, n_splits=CV_SPLITS, date_col="date"):
     """Build rolling-origin CV folds using complete forecast dates as units."""
     if date_col not in df.columns:
@@ -77,11 +164,10 @@ def build_date_aware_cv(df, n_splits=CV_SPLITS, date_col="date"):
         yield train_idx, val_idx
 
 
-def tune_q50(train_df, val_df):
+def tune_q50(train_df):
     print("\n--- Tuning Q50 (Tweedie, date-aware rolling CV) ---")
-    combined = pd.concat([train_df, val_df], ignore_index=True)
-    X, y = get_xy(combined)
-    cv_splits = list(build_date_aware_cv(combined, n_splits=CV_SPLITS))
+    X, y = get_xy(train_df)
+    cv_splits = list(build_date_aware_cv(train_df, n_splits=CV_SPLITS))
     grid = GridSearchCV(
         xgb.XGBRegressor(objective="reg:tweedie",
                          enable_categorical=True, tree_method="hist",
@@ -95,13 +181,11 @@ def tune_q50(train_df, val_df):
     return grid.best_params_
 
 
-def train_quantile(train_df, val_df, quantile_alpha, best_params, is_tweedie=False):
+def train_quantile(train_df, quantile_alpha, best_params, is_tweedie=False):
     qname = int(quantile_alpha * 100)
     label = "Tweedie" if is_tweedie else "Quantile"
     print(f"\n--- Training Q{qname} ({label}) ---")
-    combined = pd.concat([train_df, val_df], ignore_index=True)
-    X, y = get_xy(combined)
-    X_val, y_val = get_xy(val_df)
+    X, y = get_xy(train_df)
 
     if is_tweedie:
         tw_power = best_params.get("tweedie_variance_power", 1.5)
@@ -111,7 +195,6 @@ def train_quantile(train_df, val_df, quantile_alpha, best_params, is_tweedie=Fal
             tweedie_variance_power=tw_power,
             enable_categorical=True,
             tree_method="hist",
-            early_stopping_rounds=50,
             **params,
             random_state=42,
             n_jobs=-1,
@@ -124,23 +207,23 @@ def train_quantile(train_df, val_df, quantile_alpha, best_params, is_tweedie=Fal
             quantile_alpha=quantile_alpha,
             enable_categorical=True,
             tree_method="hist",
-            early_stopping_rounds=50,
             **params,
             random_state=42,
             n_jobs=-1,
             verbosity=0,
         )
-    model.fit(X, y, eval_set=[(X_val, y_val)], verbose=False)
+    model.fit(X, y)
     fname = os.path.join(OUT_DIR, f"quantile_model_q{qname}.pkl")
     joblib.dump(model, fname)
     print(f"  Saved -> {fname}")
     return model
 
 
-def conformal_calibrate(val_df, models):
+def conformal_calibrate(val_df, models, model_fit_df=None):
     print("\n--- Conformal Calibration on Val Set (target 80% coverage) ---")
-    X_val, y_val = get_xy(val_df)
-    q50_preds = np.maximum(models[0.50].predict(X_val), 0)
+    _, y_val = get_xy(val_df)
+    corrected = predict_postprocessed_quantiles(val_df, models)
+    q50_preds = corrected["q50"]
 
     per_product = {}
     for pid in sorted(val_df["product_id"].unique()):
@@ -153,7 +236,26 @@ def conformal_calibrate(val_df, models):
     all_residuals = np.abs(y_val.values - q50_preds)
     global_half = round(max(float(np.quantile(all_residuals, 0.80)), 0.5), 1)
 
-    calibration = {"per_product": per_product, "global": global_half}
+    calibration = {
+        "method": "chronological split conformal calibration",
+        "target_coverage": 0.80,
+        "run_timestamp": _utc_timestamp(),
+        "model_fit": (
+            _split_metadata(model_fit_df, "train")
+            if model_fit_df is not None
+            else {"split": "train"}
+        ),
+        "calibration_split": _split_metadata(val_df, "validation"),
+        "test_usage": "untouched until final evaluation",
+        "prediction_postprocessing": {
+            "algorithm": "enforce_quantile_monotonicity",
+            "applied_before_residual_scoring": True,
+            "raw_quantile_crossing_count": corrected["crossing_count"],
+            "q50_changed_count": corrected["q50_changed_count"],
+        },
+        "per_product": per_product,
+        "global": global_half,
+    }
 
     out_path = os.path.join(OUT_DIR, "conformal_calibration.json")
     with open(out_path, "w") as f:
@@ -162,6 +264,10 @@ def conformal_calibrate(val_df, models):
     print(f"  Global half_width: {global_half}")
     vals = list(per_product.values())
     print(f"  Per-product range: {min(vals)} to {max(vals)}")
+    print(
+        "  Validation raw crossings / changed Q50: "
+        f"{corrected['crossing_count']} / {corrected['q50_changed_count']}"
+    )
 
     covered = 0
     total = 0
@@ -175,13 +281,10 @@ def conformal_calibrate(val_df, models):
 
 
 def evaluate(test_df, models, calibration):
-    X_test, y_test = get_xy(test_df)
-
-    q50_preds = np.maximum(models[0.50].predict(X_test), 0)
-    q10_preds = np.maximum(models[0.10].predict(X_test), 0)
-    q90_preds = np.maximum(models[0.90].predict(X_test), 0)
-    corrected = enforce_quantile_monotonicity(q10_preds, q50_preds, q90_preds)
+    _, y_test = get_xy(test_df)
+    corrected = predict_postprocessed_quantiles(test_df, models)
     pre_correction_crossing_count = corrected["crossing_count"]
+    q50_changed_count = corrected["q50_changed_count"]
     q10_preds = corrected["q10"]
     q50_preds = corrected["q50"]
     q90_preds = corrected["q90"]
@@ -211,13 +314,35 @@ def evaluate(test_df, models, calibration):
     rmse = float(np.sqrt(np.mean((y_test.values - q50_preds) ** 2)))
 
     metrics = {
+        "run_timestamp": _utc_timestamp(),
+        "row_count": int(len(test_df)),
         "model": "XGBoost Tweedie Q50 + Quantile Q10/Q90",
         "experiment_role": EXPERIMENT_ROLE,
         "validation_design": VALIDATION_DESIGN,
         "features": len(FEATURES),
         "feature_contract": "s2_forecasting.feature_contract.FORECAST_FEATURES",
         "test_period": f"{test_df['date'].min()} to {test_df['date'].max()}",
-        "interval_method": "Conformal 80%",
+        "interval_method": CORE_INTERVAL_METHOD,
+        "interval_scope": CORE_INTERVAL_SCOPE,
+        "runtime_transform_evaluated": False,
+        "runtime_transform_note": RUNTIME_TRANSFORM_NOTE,
+        "model_fit": calibration.get("model_fit", {"split": "train"}),
+        "calibration_split": calibration.get(
+            "calibration_split",
+            {"split": "validation"},
+        ),
+        "prediction_postprocessing": {
+            "algorithm": "enforce_quantile_monotonicity",
+            "applied_before_evaluation": True,
+        },
+        "monitoring_diagnostics": {
+            "raw_quantile_crossing_count": pre_correction_crossing_count,
+            "raw_quantile_crossing_rate_pct": round(
+                pre_correction_crossing_count / total * 100,
+                4,
+            ),
+            "q50_changed_count": q50_changed_count,
+        },
         "overall": {
             "WAPE": round(wape, 1),
             "MAE": round(mae, 1),
@@ -268,15 +393,14 @@ def main():
     train, val, test = load_data()
 
     # Tune Q50 with Tweedie
-    best_q50 = tune_q50(train, val)
+    best_q50 = tune_q50(train)
     with open(os.path.join(OUT_DIR, "tweedie_best_params.json"), "w") as f:
         json.dump(best_q50, f, indent=2, default=str)
 
     # Q10/Q90 use quantile params from simpler grid
     print("\n--- Tuning Q10 (Quantile, date-aware rolling CV) ---")
-    combined = pd.concat([train, val], ignore_index=True)
-    X_all, y_all = get_xy(combined)
-    cv_splits = list(build_date_aware_cv(combined, n_splits=CV_SPLITS))
+    X_all, y_all = get_xy(train)
+    cv_splits = list(build_date_aware_cv(train, n_splits=CV_SPLITS))
     qt_grid = GridSearchCV(
         xgb.XGBRegressor(objective="reg:quantileerror", quantile_alpha=0.10,
                          enable_categorical=True, tree_method="hist",
@@ -289,12 +413,33 @@ def main():
     print(f"  Best Q10 params: {best_qt}")
 
     models = {}
-    models[0.50] = train_quantile(train, val, 0.50, best_q50, is_tweedie=True)
-    models[0.10] = train_quantile(train, val, 0.10, best_qt, is_tweedie=False)
-    models[0.90] = train_quantile(train, val, 0.90, best_qt, is_tweedie=False)
+    models[0.50] = train_quantile(train, 0.50, best_q50, is_tweedie=True)
+    models[0.10] = train_quantile(train, 0.10, best_qt, is_tweedie=False)
+    models[0.90] = train_quantile(train, 0.90, best_qt, is_tweedie=False)
 
-    calibration = conformal_calibrate(val, models)
+    calibration = conformal_calibrate(val, models, model_fit_df=train)
     metrics, preds, y_test = evaluate(test, models, calibration)
+
+    deployment_refit = build_deployment_refit_frame(train, val, test)
+    train_quantile(
+        deployment_refit,
+        0.50,
+        best_q50,
+        is_tweedie=True,
+    )
+    train_quantile(
+        deployment_refit,
+        0.10,
+        best_qt,
+        is_tweedie=False,
+    )
+    train_quantile(
+        deployment_refit,
+        0.90,
+        best_qt,
+        is_tweedie=False,
+    )
+    write_deployment_metadata(train, val, test, deployment_refit)
 
     print(f"\n{'='*60}")
     print("  Done. Outputs -> s2_forecasting/outputs/")

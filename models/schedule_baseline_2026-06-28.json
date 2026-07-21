@@ -1,55 +1,45 @@
 {
   "week_start": "2026-06-28",
   "employees": {
-    "E005": {
-      "name": "Chen Hao",
+    "E004": {
+      "name": "Liu Yang",
       "role": "baker",
-      "shifts": 6
+      "shifts": 1
     },
     "E006": {
       "name": "Zhao Min",
       "role": "baker",
-      "shifts": 5
+      "shifts": 1
     },
-    "E008": {
-      "name": "Wu Tao",
-      "role": "baker",
-      "shifts": 6
-    },
-    "E009": {
-      "name": "Lin Yue",
+    "E003": {
+      "name": "Wang Lei",
       "role": "barista",
-      "shifts": 8
+      "shifts": 1
     },
-    "E002": {
-      "name": "Li Na",
+    "E007": {
+      "name": "Huang Jian",
       "role": "cashier",
-      "shifts": 8
+      "shifts": 1
     },
     "E001": {
       "name": "Zhang Wei",
       "role": "baker",
-      "shifts": 5
+      "shifts": 1
     },
-    "E003": {
-      "name": "Wang Lei",
+    "E008": {
+      "name": "Wu Tao",
+      "role": "baker",
+      "shifts": 1
+    },
+    "E009": {
+      "name": "Lin Yue",
+      "role": "barista",
+      "shifts": 1
+    },
+    "E002": {
+      "name": "Li Na",
       "role": "cashier",
-      "shifts": 8
-    },
-    "E010": {
-      "name": "Sun Jie",
-      "role": "manager",
-      "shifts": 8
-    },
-    "E004": {
-      "name": "Liu Yang",
-      "role": "baker",
-      "shifts": 5
-    },
-    "E007": {
-      "name": "Huang Jian",
-      "role": "baker",
-      "shifts": 5
+      "shifts": 1
     }
   }
 }

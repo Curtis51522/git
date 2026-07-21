@@ -27,6 +27,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .topnav nav button{padding:7px 12px;background:transparent;border:none;color:#5c3d2e;font-size:13px;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:500;transition:all .2s}
 .topnav nav button:hover,.topnav nav button.active{background:#8b6914;color:#fff}
 .topnav .logout-btn{padding:6px 12px;background:#8b6914;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap}
+.operation-clock{display:none;align-items:center;gap:4px;padding:3px 5px;border:1px solid #d4c5b2;border-radius:6px;background:#fff;white-space:nowrap}
+#dashboard[data-role="manager"] .operation-clock{display:flex}
+.operation-clock label{font-size:10px;color:#6b5b4f;font-weight:600}
+.operation-clock input{width:112px;padding:3px 4px;border:1px solid #d4c5b2;border-radius:4px;color:#3d322b;font-size:11px}
+.operation-clock input[type="time"]{width:76px}
+.operation-clock button{padding:4px 7px;border:0;border-radius:4px;background:#8b6914;color:#fff;font-size:10px;font-weight:600;cursor:pointer}
+.operation-clock-status{max-width:72px;overflow:hidden;text-overflow:ellipsis;color:#27ae60;font-size:9px}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .topbar{padding:12px 20px;background:#fffcf7;border-bottom:1px solid #e8dcc8}
 .topbar h3{font-size:18px;color:#8b6914}
@@ -67,6 +74,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .detect-actions .detect-delete:hover{background:#e74c3c;color:#fff;border-color:#e74c3c}
 .hit-log{font-size:12px;color:#8b6914;margin-top:8px;padding:8px 12px;background:#fdfaf5;border-radius:8px;border:1px dashed #e0d5c7}
 .drink-grid{display:flex;flex-wrap:wrap;gap:6px}
+.drink-filter{display:inline-flex;flex-wrap:wrap;gap:0;border:1px solid #d4c5b2;border-radius:6px;overflow:hidden;margin-bottom:8px}
+.drink-filter-btn{border:0;border-right:1px solid #d4c5b2;background:#fff;color:#6b5b4f;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.drink-filter-btn:last-child{border-right:0}
+.drink-filter-btn:hover{background:#f5f0e8;color:#8b6914}
+.drink-filter-btn.active{background:#8b6914;color:#fff}
 .drink-btn{background:#fff;border:1.5px solid #d4c5b2;border-radius:6px;padding:6px 10px;cursor:pointer;text-align:left;transition:all .15s;display:inline-flex;flex-direction:column;gap:2px;min-width:120px}
 .drink-btn:hover{background:#8b6914;color:#fff;border-color:#8b6914;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.12)}
 .drink-btn:hover .drink-desc,.drink-btn:hover .drink-price{color:#d4c4a8}
@@ -78,6 +90,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 .cart-summary .cart-row:last-child{border-bottom:none;font-size:17px;font-weight:700;color:#8b6914;padding-top:8px}
 .checkout-btn{width:100%;padding:10px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px;box-shadow:0 2px 6px rgba(39,174,96,.25)}
 .checkout-btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(39,174,96,.35)}
+.checkout-btn:disabled{cursor:not-allowed;opacity:.65;transform:none;box-shadow:none}
 .bundle-grid{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .bundle-card{background:#fdfaf5;border:1.5px dashed #e0d5c7;border-radius:8px;padding:10px;text-align:center;transition:all .15s;cursor:pointer}
 .bundle-card:hover{border-color:#8b6914;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.06)}
@@ -220,6 +233,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
   .topnav nav{order:2;flex-basis:100%;width:100%;padding-top:2px}
   .topnav nav button{padding:6px 10px}
   .topnav .role-badge{margin:2px 0;padding:3px 8px}
+  .operation-clock{order:3;flex-basis:100%;justify-content:flex-start}
   #user-display{display:none}
   .lang-toggle{margin:0}
   .lang-toggle button{padding:3px 7px}
@@ -250,6 +264,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <button data-panel="inventory" data-i18n="Inventory" class="manager-only" onclick="showPanel('inventory')">Inventory</button>
 <button data-panel="revenue" data-i18n="Revenue" class="manager-only" onclick="showPanel('revenue')">Revenue</button>
 </nav>
+<div id="operation-clock" class="operation-clock manager-only">
+<label for="operation-date">Business Date</label>
+<input id="operation-date" type="date" min="2026-06-24" max="2026-07-24" onchange="onOperationDateChange(this.value)">
+<input id="operation-time" type="time" step="60" onchange="onOperationTimeChange(this.value)" aria-label="Business time">
+<button type="button" onclick="runOperationDayStart()">Start Day</button>
+<span id="operation-clock-status" class="operation-clock-status"></span>
+</div>
 <span id="role-badge" class="role-badge"></span>
 <span style="color:#6b5b4f;font-size:12px;white-space:nowrap" id="user-display"></span>
 <div class="lang-toggle">
@@ -310,6 +331,51 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f0eb;color:#8b691
 <div class="modal-btns">
 <button class="modal-btn-delete" onclick="deleteCartItem()" data-i18n="Delete Item">Delete Item</button>
 <button class="modal-btn-save" onclick="saveCartItem()" data-i18n="Save Changes">Save Changes</button>
+</div>
+</div>
+</div>
+
+<!-- Manager Attendance PIN Modal -->
+<div id="attendance-pin-modal" class="modal-overlay" onclick="if(event.target===this)closeManagerAttendancePin()">
+<div class="modal-box" style="max-width:380px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+<h3 style="margin:0" data-i18n="Punch Attendance">Punch Attendance</h3>
+<button type="button" onclick="closeManagerAttendancePin()" aria-label="Close" style="background:none;border:none;font-size:22px;cursor:pointer;color:#8b6914;padding:0;line-height:1">&times;</button>
+</div>
+<div id="attendance-manager-name" style="font-size:13px;color:#6b5b4f;margin-top:10px"></div>
+<label for="attendance-manager-pin">PIN</label>
+<input id="attendance-manager-pin" type="password" inputmode="numeric" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitManagerAttendancePunch()">
+<div id="attendance-manager-pin-result" role="status" style="min-height:18px;margin-top:8px;font-size:12px;color:#6b5b4f"></div>
+<div class="modal-btns">
+<button type="button" class="modal-btn-cancel" onclick="closeManagerAttendancePin()" data-i18n="Cancel">Cancel</button>
+<button type="button" id="attendance-manager-punch-submit" class="modal-btn-save" onclick="submitManagerAttendancePunch()" data-i18n="Punch">Punch</button>
+</div>
+</div>
+</div>
+
+<!-- Attendance Correction Modal -->
+<div id="attendance-correction-modal" class="modal-overlay" onclick="if(event.target===this)closeAttendanceCorrection()">
+<div class="modal-box" style="max-width:420px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<h3 style="margin:0" data-i18n="Correct Attendance">Correct Attendance</h3>
+<button type="button" onclick="closeAttendanceCorrection()" aria-label="Close" style="background:none;border:none;font-size:22px;cursor:pointer;color:#8b6914;padding:0;line-height:1">&times;</button>
+</div>
+<div id="attendance-correction-employee" style="font-size:13px;color:#6b5b4f;margin-bottom:10px"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div><label for="attendance-correction-in" data-i18n="Actual In">Actual In</label><input id="attendance-correction-in" type="time"></div>
+<div><label for="attendance-correction-out" data-i18n="Actual Out">Actual Out</label><input id="attendance-correction-out" type="time"></div>
+</div>
+<label for="attendance-correction-reason" data-i18n="Correction Reason">Correction Reason</label>
+<select id="attendance-correction-reason">
+<option value="" data-i18n="Select Reason">Select Reason</option>
+<option value="Forgot to punch" data-i18n="Forgot to Punch">Forgot to Punch</option>
+<option value="Device issue" data-i18n="Device Issue">Device Issue</option>
+<option value="Manager verified attendance" data-i18n="Manager Verified">Manager Verified</option>
+</select>
+<div id="attendance-correction-result" role="status" style="min-height:18px;margin-top:8px;font-size:12px;color:#6b5b4f"></div>
+<div class="modal-btns">
+<button type="button" class="modal-btn-cancel" onclick="closeAttendanceCorrection()" data-i18n="Cancel">Cancel</button>
+<button type="button" id="attendance-correction-submit" class="modal-btn-save" onclick="submitAttendanceCorrection()" data-i18n="Save Correction">Save Correction</button>
 </div>
 </div>
 </div>
@@ -453,7 +519,8 @@ en:{
 'Bakery AI System':'Bakery AI System',
 'Bakery-Cafe Intelligent Operations':'Bakery-Cafe Intelligent Operations',
 'Bakery Products':'Bakery Products',
-'Coffee - Quick Drink Order':'Coffee - Quick Drink Order',
+'Drinks - Quick Order':'Drinks - Quick Order',
+'All Drinks':'All Drinks','Coffee':'Coffee','Tea & Milk Tea':'Tea & Milk Tea','Other Drinks':'Other Drinks',
 'Cart - Current Order':'Cart - Current Order',
 'AI Bundle Recommendation':'AI Bundle Recommendation',
 'Dine-in':'Dine-in',
@@ -519,6 +586,8 @@ en:{
 'Cart is empty':'Cart is empty',
 'No stock for':'No stock for',
 'Cannot checkout':'Cannot checkout',
+'No stock available for selected freshness':'No stock available for selected freshness',
+'Piece quantities must be whole numbers':'Piece quantities must be whole numbers',
 'Partial':'Partial',
 'Payment failed':'Payment failed',
 'No materials found':'No materials found',
@@ -550,6 +619,7 @@ en:{
 'Schedule generated for':'Schedule generated for',
 'Enter PIN for':'Enter PIN for',
 'Punch error':'Punch error',
+'Correct':'Correct','Corrected':'Corrected','Correct Attendance':'Correct Attendance','Actual In':'Actual In','Actual Out':'Actual Out','Correction Reason':'Correction Reason','Select Reason':'Select Reason','Forgot to Punch':'Forgot to Punch','Device Issue':'Device Issue','Manager Verified':'Manager Verified','Save Correction':'Save Correction','Correction reason is required':'Correction reason is required','Attendance correction error':'Attendance correction error',
 'Top Performer':'Top Performer',
 'Best Score':'Best Score',
 'Total Employees':'Total Employees',
@@ -566,9 +636,15 @@ en:{
 'Needs Attention':'Needs Attention',
 'Present':'Present',
 'Late':'Late',
+'Early Leave':'Early Leave',
+'Late & Early Leave':'Late & Early Leave',
 'Absent':'Absent',
 'On Time':'On Time',
+'Scheduled':'Scheduled',
 'Off Day':'Off Day',
+'Attendance Rate':'Attendance Rate',
+'On-Time Rate':'On-Time Rate',
+'Shift Completion':'Shift Completion',
 'Action':'Action',
 'Punch':'Punch',
 'In':'In',
@@ -668,28 +744,38 @@ en:{
 'Edit Inflow Item':'Edit Inflow Item',
 'API error':'API error',
 'Bread Stock Levels':'Bread Stock Levels',
+'Current Bread Stock':'Current Bread Stock',
+'Closing Bread Stock':'Closing Bread Stock',
+'No bread stock remains now':'No bread stock remains now',
+'No bread stock remained at closing':'No bread stock remained at closing',
+'Expired Stock Pending Disposal':'Expired Stock Pending Disposal',
+'Not included in sellable stock':'Not included in sellable stock',
 'Baked Product Stock Records':'Baked Product Stock Records',
 'Raw Material Restock History':'Raw Material Restock History',
 'Record ID':'Record ID',
 'Remaining':'Remaining',
 'Baked':'Baked',
+'Opening':'Opening',
 'Left Now':'Left Now',
 'Left at Close':'Left at Close',
+'Fresh Left Now':'Fresh Left Now',
+'Carried to Day-1':'Carried to Day-1',
 'Check data':'Check data',
 'Source':'Source',
 'Fresh vs Day-1 Ratio':'Freshly Baked vs Day-1 Ratio',
 'Top 5 Material Consumption':'Top 5 Material Consumption',
 'Material Stock Days Remaining':'Material Stock Days Remaining',
-'Baking Materials':'Baking Materials',
-'Coffee Materials':'Coffee Materials',
+'Baking Ingredients':'Baking Ingredients',
+'Beverage Ingredients & Supplies':'Beverage Ingredients & Supplies',
+'Packaging Supplies':'Packaging Supplies',
+'Used For':'Used For',
+'Bakery':'Bakery','Beverage':'Beverage','Both':'Both','Packaging':'Packaging',
 'Material Wastage Rates':'Material Wastage Rates',
 'New Material Check':'New Material Check',
 'Loading materials...':'Loading materials...',
 'Submit Check':'Submit Check',
 'View History':'View History',
 'Bread Stock':'Bread Stock',
-'Baking Materials (kg/L)':'Baking Materials (kg/L)',
-'Coffee Materials (kg/L)':'Coffee Materials (kg/L)',
 'Inventory Value (CNY)':'Inventory Value (CNY)',
 'Total stock value':'Total stock value',
 'item':'item','items':'items',
@@ -759,7 +845,8 @@ en:{
 'Closing adjustment':'Closing adjustment',
 'Unsold products discarded at closing':'Unsold products discarded at closing',
 "Already deducted from today's profit":"Already deducted from today's profit",
-'Order adjustments':'Order adjustments',
+'Separate order charges/costs':'Separate order charges/costs',
+'Includes takeaway packaging costs plus small rounding differences.':'Includes takeaway packaging costs plus small rounding differences.',
 'Select date range':'Select date range',
 'No data for this period':'No data for this period',
 'Added':'Added',
@@ -915,7 +1002,8 @@ zh:{
 'Bakery-Cafe Intelligent Operations':'\u70D8\u7119\u5496\u5561\u667A\u80FD\u8FD0\u8425'
 ,
 'Bakery Products':'\u9762\u5305\u4EA7\u54C1',
-'Coffee - Quick Drink Order':'\u5496\u5561 - \u5FEB\u901F\u70B9\u5355',
+'Drinks - Quick Order':'\u996e\u54c1 - \u5feb\u901f\u70b9\u5355',
+'All Drinks':'\u5168\u90e8\u996e\u54c1','Coffee':'\u5496\u5561','Tea & Milk Tea':'\u8336\u4e0e\u5976\u8336','Other Drinks':'\u5176\u4ed6\u996e\u54c1',
 'Cart - Current Order':'\u8D2D\u7269\u8F66 - \u5F53\u524D\u8BA2\u5355',
 'AI Bundle Recommendation':'AI\u5957\u9910\u63A8\u8350',
 'Dine-in':'\u5802\u98DF',
@@ -981,6 +1069,8 @@ zh:{
 'Cart is empty':'\u8D2D\u7269\u8F66\u4E3A\u7A7A',
 'No stock for':'\u65E0\u5E93\u5B58',
 'Cannot checkout':'\u65E0\u6CD5\u7ED3\u8D26',
+'No stock available for selected freshness':'\u6240\u9009\u65b0\u9c9c\u5ea6\u5e93\u5b58\u4e0d\u8db3',
+'Piece quantities must be whole numbers':'\u4ef6\u6570\u5fc5\u987b\u4e3a\u6574\u6570',
 'Partial':'\u90E8\u5206\u5B8C\u6210',
 'Payment failed':'\u652F\u4ED8\u5931\u8D25',
 'No materials found':'\u672A\u627E\u5230\u7269\u6599',
@@ -1012,6 +1102,7 @@ zh:{
 'Schedule generated for':'\u6392\u73ED\u5DF2\u751F\u6210\uFF1A',
 'Enter PIN for':'\u8BF7\u8F93\u5165 PIN\uFF1A',
 'Punch error':'\u6253\u5361\u9519\u8BEF',
+'Correct':'\u8865\u7B7E','Corrected':'\u5DF2\u8865\u7B7E','Correct Attendance':'\u8003\u52E4\u8865\u7B7E','Actual In':'\u5B9E\u9645\u4E0A\u73ED\u65F6\u95F4','Actual Out':'\u5B9E\u9645\u4E0B\u73ED\u65F6\u95F4','Correction Reason':'\u8865\u7B7E\u539F\u56E0','Select Reason':'\u9009\u62E9\u539F\u56E0','Forgot to Punch':'\u5FD8\u8BB0\u6253\u5361','Device Issue':'\u8BBE\u5907\u6545\u969C','Manager Verified':'\u7ECF\u7BA1\u7406\u5458\u6838\u5B9E','Save Correction':'\u4FDD\u5B58\u8865\u7B7E','Correction reason is required':'\u8BF7\u9009\u62E9\u8865\u7B7E\u539F\u56E0','Attendance correction error':'\u8003\u52E4\u8865\u7B7E\u5931\u8D25',
 'Top Performer':'\u6700\u4F73\u5458\u5DE5',
 'Best Score':'\u6700\u9AD8\u5206',
 'Total Employees':'\u5458\u5DE5\u603B\u6570',
@@ -1028,9 +1119,15 @@ zh:{
 'Needs Attention':'\u9700\u5173\u6CE8',
 'Present':'\u51FA\u52E4',
 'Late':'\u8FDF\u5230',
+'Early Leave':'\u65E9\u9000',
+'Late & Early Leave':'\u8FDF\u5230\u4E14\u65E9\u9000',
 'Absent':'\u7F3A\u52E4',
 'On Time':'\u51C6\u65F6',
+'Scheduled':'\u5DF2\u6392\u73ED',
 'Off Day':'\u4F11\u606F\u65E5',
+'Attendance Rate':'\u51FA\u52E4\u7387',
+'On-Time Rate':'\u51C6\u65F6\u7387',
+'Shift Completion':'\u5B8C\u6574\u73ED\u6B21\u7387',
 'Action':'\u64CD\u4F5C',
 'Punch':'\u6253\u5361',
 'In':'\u4E0A\u73ED',
@@ -1130,28 +1227,38 @@ zh:{
 'Edit Inflow Item':'\u7f16\u8f91\u5165\u5e93\u9879',
 'API error':'API \u9519\u8bef',
 'Bread Stock Levels':'\u9762\u5305\u5e93\u5b58\u6c34\u5e73',
+'Current Bread Stock':'\u5f53\u524d\u9762\u5305\u5e93\u5b58',
+'Closing Bread Stock':'\u95ed\u5e97\u65f6\u9762\u5305\u5e93\u5b58',
+'No bread stock remains now':'\u5f53\u524d\u6ca1\u6709\u5269\u4f59\u9762\u5305\u5e93\u5b58',
+'No bread stock remained at closing':'\u5f53\u5929\u95ed\u5e97\u65f6\u6ca1\u6709\u5269\u4f59\u9762\u5305\u5e93\u5b58',
+'Expired Stock Pending Disposal':'\u8fc7\u671f\u5f85\u6e05\u7406\u5e93\u5b58',
+'Not included in sellable stock':'\u4e0d\u8ba1\u5165\u53ef\u552e\u5e93\u5b58',
 'Baked Product Stock Records':'\u6210\u54c1\u751f\u4ea7\u5e93\u5b58\u8bb0\u5f55',
 'Raw Material Restock History':'\u539f\u6750\u6599\u8865\u8d27\u5386\u53f2',
 'Record ID':'\u8bb0\u5f55 ID',
 'Remaining':'\u5269\u4f59\u91cf',
 'Baked':'\u70d8\u5236',
+'Opening':'\u671f\u521d',
 'Left Now':'\u5f53\u524d\u5269\u4f59',
 'Left at Close':'\u6253\u70ca\u65f6\u5269\u4f59',
+'Fresh Left Now':'\u5f53\u524d\u65b0\u9c9c\u5269\u4f59',
+'Carried to Day-1':'\u7ed3\u8f6c\u4e3a Day-1',
 'Check data':'\u68c0\u67e5\u6570\u636e',
 'Source':'\u6765\u6e90',
 'Fresh vs Day-1 Ratio':'\u65b0\u9c9c\u51fa\u7089\u4e0e\u9694\u65e5\u5360\u6bd4',
 'Top 5 Material Consumption':'\u7269\u6599\u6d88\u8017 Top 5',
 'Material Stock Days Remaining':'\u7269\u6599\u5269\u4f59\u53ef\u7528\u5929\u6570',
-'Baking Materials':'\u70d8\u7119\u7269\u6599',
-'Coffee Materials':'\u5496\u5561\u7269\u6599',
+'Baking Ingredients':'\u70d8\u7119\u539f\u6599',
+'Beverage Ingredients & Supplies':'\u996e\u54c1\u539f\u6599\u4e0e\u8017\u6750',
+'Packaging Supplies':'\u5305\u88c5\u8017\u6750',
+'Used For':'\u7528\u9014',
+'Bakery':'\u70d8\u7119','Beverage':'\u996e\u54c1','Both':'\u70d8\u7119\u4e0e\u996e\u54c1','Packaging':'\u5305\u88c5',
 'Material Wastage Rates':'\u7269\u6599\u635f\u8017\u7387',
 'New Material Check':'\u65b0\u7269\u6599\u76d8\u70b9',
 'Loading materials...':'\u52a0\u8f7d\u7269\u6599\u4e2d...',
 'Submit Check':'\u63d0\u4ea4\u76d8\u70b9',
 'View History':'\u67e5\u770b\u5386\u53f2',
 'Bread Stock':'\u9762\u5305\u5e93\u5b58',
-'Baking Materials (kg/L)':'\u70d8\u7119\u7269\u6599 (kg/L)',
-'Coffee Materials (kg/L)':'\u5496\u5561\u7269\u6599 (kg/L)',
 'Inventory Value (CNY)':'\u5e93\u5b58\u4ef7\u503c (CNY)',
 'Total stock value':'\u603b\u5e93\u5b58\u4ef7\u503c',
 'item':'\u9879','items':'\u9879',
@@ -1221,7 +1328,8 @@ zh:{
 'Closing adjustment':'\u95ed\u5e97\u8c03\u6574',
 'Unsold products discarded at closing':'\u95ed\u5e97\u65f6\u672a\u552e\u51fa\u5e76\u62a5\u635f\u7684\u4ea7\u54c1',
 "Already deducted from today's profit":'\u5df2\u4ece\u4eca\u65e5\u5229\u6da6\u4e2d\u6263\u9664',
-'Order adjustments':'\u8ba2\u5355\u8c03\u6574',
+'Separate order charges/costs':'\u5355\u72ec\u8ba2\u5355\u8d39\u7528/\u6210\u672c',
+'Includes takeaway packaging costs plus small rounding differences.':'\u5305\u62ec\u5916\u5e26\u5305\u88c5\u6210\u672c\u548c\u5c11\u91cf\u820d\u5165\u5dee\u5f02\u3002',
 'Select date range':'\u8bf7\u9009\u62e9\u65e5\u671f\u8303\u56f4',
 'No data for this period':'\u8be5\u65f6\u6bb5\u65e0\u6570\u636e',
 'Added':'\u5df2\u6dfb\u52a0',
@@ -1405,6 +1513,78 @@ setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}do
 
 var token=sessionStorage.getItem('bakery_token')||'', role=sessionStorage.getItem('bakery_role')||'', username=sessionStorage.getItem('bakery_username')||'', currentPanel='pos';
 var API='';
+var OPERATION_REPLAY_START='2026-06-24',OPERATION_REPLAY_END='2026-07-24';
+
+function getOperationDate(){
+var value=sessionStorage.getItem('bakery_operation_date')||OPERATION_REPLAY_START;
+return value>=OPERATION_REPLAY_START&&value<=OPERATION_REPLAY_END?value:OPERATION_REPLAY_START;
+}
+function getOperationTime(){
+var value=sessionStorage.getItem('bakery_operation_time')||'05:00';
+return /^\d{2}:\d{2}$/.test(value)?value:'05:00';
+}
+function getSelectedOperationAt(){
+if(role!=='manager'||!token)return '';
+var dateInput=document.getElementById('operation-date');
+var timeInput=document.getElementById('operation-time');
+var date=dateInput&&dateInput.value?dateInput.value:getOperationDate();
+var time=timeInput&&timeInput.value?timeInput.value:getOperationTime();
+if(date<OPERATION_REPLAY_START||date>OPERATION_REPLAY_END)return '';
+return date+'T'+time+':00';
+}
+function initializeOperationControls(){
+var dateInput=document.getElementById('operation-date');
+var timeInput=document.getElementById('operation-time');
+if(!dateInput||!timeInput)return;
+var date=getOperationDate();
+dateInput.value=date;
+timeInput.value=getOperationTime();
+if(role==='manager')setSelectedOperationalDate(date);
+}
+function onOperationDateChange(value){
+if(value<OPERATION_REPLAY_START||value>OPERATION_REPLAY_END)return;
+sessionStorage.setItem('bakery_operation_date',value);
+setSelectedOperationalDate(value);
+_apiCache={};
+clearPanelCache(currentPanel);
+showPanel(currentPanel);
+}
+function onOperationTimeChange(value){
+if(!/^\d{2}:\d{2}$/.test(value||''))return;
+sessionStorage.setItem('bakery_operation_time',value);
+_apiCache={};
+}
+async function runOperationDayStart(){
+var status=document.getElementById('operation-clock-status');
+if(status)status.textContent='Updating...';
+try{
+var result=await api('/freshness/update',{method:'POST'});
+_apiCache={};stockMap=null;freshnessMap=null;
+if(status)status.textContent='Ready: '+Number(result.updated||0)+' updated';
+loadStock();
+}catch(error){
+if(status){status.style.color='#e74c3c';status.textContent='Failed';}
+throw error;
+}
+}
+
+var nativeFetch=window.fetch.bind(window);
+window.fetch=function(input,options){
+var requestOptions=Object.assign({},options||{});
+var operationAt=getSelectedOperationAt();
+var requestUrl=typeof input==='string'?input:(input&&input.url)||String(input||'');
+var requestPath='';
+try{requestPath=new URL(requestUrl,window.location.origin).pathname;}catch(error){}
+if(operationAt&&requestPath!=='/s4/login'){
+var baseHeaders=requestOptions.headers;
+if(!baseHeaders&&typeof Request!=='undefined'&&input instanceof Request)baseHeaders=input.headers;
+var headers=new Headers(baseHeaders||{});
+headers.set('X-Operation-At',operationAt);
+requestOptions.headers=headers;
+}
+return nativeFetch(input,requestOptions);
+};
+
 function canAccessPanel(panel){return role==='manager'||panel==='pos'||panel==='attendance';}
 function applyRoleVisibility(){
 var dashboard=document.getElementById('dashboard');
@@ -1412,9 +1592,10 @@ dashboard.setAttribute('data-role',role);
 var badge=document.getElementById('role-badge');
 badge.textContent=role==='manager'?t('Manager'):t('Staff');
 badge.className='role-badge '+(role==='manager'?'role-manager':'role-staff');
+initializeOperationControls();
 }
 if(token&&role){
-API=window.location.origin.replace('localhost','127.0.0.1');
+API=window.location.origin;
 S5_API=API+'/s5';
 document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
@@ -1426,6 +1607,15 @@ document.getElementById('lang-'+LANG).classList.add('active');
 setTimeout(function(){loadPrices();loadBeverageOptions().catch(function(e){console.log('Beverage options load failed',e);});showPanel(savedPanel);},50);
 }
 var cartItems=[], detections=[], hitlLog=[], bundleRecs=[], lastScanResult=null, stockMap=null, freshnessMap=null, cachedSchedule=null, cachedSummary=null, cachedDate=null, cachedInventory=null, scanning=false, dineType='dine_in';
+var selectedRecommendationEventIds=new Set();
+var pendingRecommendationSelections=new Map();
+var recommendationSelectionGeneration=0;
+var checkoutInFlight=false;
+function resetRecommendationSelectionState(){
+recommendationSelectionGeneration+=1;
+pendingRecommendationSelections.clear();
+selectedRecommendationEventIds.clear();
+}
 var PRODUCT_PRICES={apple_pie:14.00,bagel:12.00,baguette:10.00,bread_coconut:10.00,bread_roll:8.00,brioche:18.00,brownie:18.00,chiffon:18.00,chocolate_cake:20.00,chocopie:10.00,cookie:9.00,cornbread:8.00,cream_horn:14.00,croissant:10.00,croissant_chocolate:12.00,donut:7.00,eggtart:7.00,flatbread:9.00,macaron:10.00,mantequilla:9.00,melon_bread:10.00,muffin:12.00,pancake:14.00,pandesal:6.00,pizza_bread:16.00,pullman:10.00,soboru_bread:13.00,sourdough:22.00,stickbread:7.00,tostada:10.00};
 var PRODUCT_COSTS={apple_pie:1.90,bagel:0.66,baguette:0.48,bread_coconut:1.42,bread_roll:1.18,brioche:1.97,brownie:7.56,chiffon:1.32,chocolate_cake:4.10,chocopie:3.05,cookie:1.26,cornbread:1.45,cream_horn:2.03,croissant:2.07,croissant_chocolate:3.15,donut:1.31,eggtart:1.87,flatbread:0.62,macaron:0.33,mantequilla:1.77,melon_bread:1.52,muffin:1.77,pancake:1.41,pandesal:1.07,pizza_bread:1.02,pullman:0.89,soboru_bread:1.59,sourdough:0.52,stickbread:0.87,tostada:0.96};
 var COFFEE_PRICES={latte:18.00,americano:14.00,cappuccino:18.00,mocha:22.00,espresso:12.00,flat_white:20.00,caramel_macchiato:22.00,cold_brew:18.00,hot_chocolate:16.00,matcha_latte:18.00,milk_tea:14.00,chai_latte:16.00,earl_grey:12.00,english_breakfast:12.00,lemonade:12.00};
@@ -1433,25 +1623,47 @@ var DISCOUNT_RATE=0.20; // Day-1 discount, keep in sync with freshness_service.p
 var s5DiscountCache={};
 var beverageOptionMap={};
 var beverageOptionsReady=false;
+var activeDrinkCategory='all';
 window._activeBusinessEvents=[];
 
 var COFFEE_DRINKS=[
-{name:'Latte',desc:'Smooth espresso with steamed milk',price:18,key:'latte'},
-{name:'Americano',desc:'Espresso with hot water',price:14,key:'americano'},
-{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:18,key:'cappuccino'},
-{name:'Mocha',desc:'Espresso with chocolate',price:22,key:'mocha'},
-{name:'Espresso',desc:'Pure concentrated coffee shot',price:12,key:'espresso'},
-{name:'Flat White',desc:'Velvety microfoam with espresso',price:20,key:'flat_white'},
-{name:'Caramel Macchiato',desc:'Vanilla syrup with caramel drizzle',price:22,key:'caramel_macchiato'},
-{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:18,key:'cold_brew'},
-{name:'Hot Chocolate',desc:'Rich cocoa with steamed milk',price:16,key:'hot_chocolate'},
-{name:'Matcha Latte',desc:'Japanese green tea with milk',price:18,key:'matcha_latte'},
-{name:'Milk Tea',desc:'Classic black tea with milk',price:14,key:'milk_tea'},
-{name:'Chai Latte',desc:'Spiced Indian tea with milk',price:16,key:'chai_latte'},
-{name:'Earl Grey',desc:'Bergamot-infused black tea',price:12,key:'earl_grey'},
-{name:'English Breakfast',desc:'Full-bodied black tea',price:12,key:'english_breakfast'},
-{name:'Lemonade',desc:'Freshly squeezed lemon juice',price:12,key:'lemonade'}
+{name:'Latte',desc:'Smooth espresso with steamed milk',price:18,key:'latte',category:'coffee'},
+{name:'Americano',desc:'Espresso with hot water',price:14,key:'americano',category:'coffee'},
+{name:'Cappuccino',desc:'Espresso with frothy milk foam',price:18,key:'cappuccino',category:'coffee'},
+{name:'Mocha',desc:'Espresso with chocolate',price:22,key:'mocha',category:'coffee'},
+{name:'Espresso',desc:'Pure concentrated coffee shot',price:12,key:'espresso',category:'coffee'},
+{name:'Flat White',desc:'Velvety microfoam with espresso',price:20,key:'flat_white',category:'coffee'},
+{name:'Caramel Macchiato',desc:'Vanilla syrup with caramel drizzle',price:22,key:'caramel_macchiato',category:'coffee'},
+{name:'Cold Brew',desc:'Slow-steeped for 18 hours',price:18,key:'cold_brew',category:'coffee'},
+{name:'Hot Chocolate',desc:'Rich cocoa with steamed milk',price:16,key:'hot_chocolate',category:'other'},
+{name:'Matcha Latte',desc:'Japanese green tea with milk',price:18,key:'matcha_latte',category:'tea_milk_tea'},
+{name:'Milk Tea',desc:'Classic black tea with milk',price:14,key:'milk_tea',category:'tea_milk_tea'},
+{name:'Chai Latte',desc:'Spiced Indian tea with milk',price:16,key:'chai_latte',category:'tea_milk_tea'},
+{name:'Earl Grey',desc:'Bergamot-infused black tea',price:12,key:'earl_grey',category:'tea_milk_tea'},
+{name:'English Breakfast',desc:'Full-bodied black tea',price:12,key:'english_breakfast',category:'tea_milk_tea'},
+{name:'Lemonade',desc:'Freshly squeezed lemon juice',price:12,key:'lemonade',category:'other'}
 ];
+var DRINK_CATEGORY_OPTIONS=[
+{key:'all',label:'All Drinks'},
+{key:'coffee',label:'Coffee'},
+{key:'tea_milk_tea',label:'Tea & Milk Tea'},
+{key:'other',label:'Other Drinks'}
+];
+
+function setDrinkCategory(category){
+var valid=false;
+for(var i=0;i<DRINK_CATEGORY_OPTIONS.length;i++){if(DRINK_CATEGORY_OPTIONS[i].key===category){valid=true;break;}}
+if(!valid)return;
+activeDrinkCategory=category;
+var cards=document.querySelectorAll('#pos-drink-grid .drink-btn');
+for(var j=0;j<cards.length;j++)cards[j].style.display=category==='all'||cards[j].getAttribute('data-drink-category')===category?'inline-flex':'none';
+var filters=document.querySelectorAll('#pos-drink-filters .drink-filter-btn');
+for(var k=0;k<filters.length;k++){
+var selected=filters[k].getAttribute('data-category')===category;
+filters[k].classList.toggle('active',selected);
+filters[k].setAttribute('aria-pressed',selected?'true':'false');
+}
+}
 
 async function doLogin(){
 var u=document.getElementById('username').value.trim();
@@ -1463,7 +1675,7 @@ try{
 var r=await fetch(API+'/s4/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
 if(!r.ok){var txt=await r.text();throw new Error(txt||t('Request failed'))}
 var d=await r.json();
-token=d.access_token;role=d.role;username=d.username;API=window.location.origin.replace('localhost','127.0.0.1');S5_API=API+'/s5';
+token=d.access_token;role=d.role;username=d.username;API=window.location.origin;S5_API=API+'/s5';
 sessionStorage.setItem('bakery_token',token);
 sessionStorage.setItem('bakery_role',role);
 sessionStorage.setItem('bakery_username',username);
@@ -1475,7 +1687,7 @@ document.getElementById('login-page').classList.add('hidden');
 document.getElementById('dashboard').classList.remove('hidden');
 document.getElementById('user-display').textContent=username;
 applyRoleVisibility();
-showPanel('pos');loadStock();loadPrices();
+await showPanel('pos');loadPrices();
 }catch(e){
 document.getElementById('error-msg').textContent=t('Error')+': '+e.message;
 document.getElementById('signin-btn').disabled=false;
@@ -1488,7 +1700,7 @@ document.getElementById('signin-btn').textContent=t('Sign In');
 setTimeout(function(){var s=localStorage.getItem('bakery_lang');if(s){LANG=s;}document.getElementById('lang-'+LANG).classList.add('active');},100);
 
 function doLogout(){
-token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];
+token='';role='';username='';cartItems=[];detections=[];hitlLog=[];bundleRecs=[];resetRecommendationSelectionState();
 sessionStorage.removeItem('bakery_token');
 sessionStorage.removeItem('bakery_role');
 sessionStorage.removeItem('bakery_username');
@@ -1549,9 +1761,9 @@ if(btn)btn.classList.add('active');
 var titles={pos:t('POS Checkout'),forecast:t('Sales Forecast'),schedule:t('Shift Schedule'),inventory:t('Inventory'),revenue:t('Revenue'),attendance:t('Attendance')};
 document.getElementById('panel-title').textContent=titles[panel]||panel;
 var panels={pos:renderPOS,forecast:renderForecast,schedule:renderSchedule,inventory:renderInventory,revenue:renderRevenue,attendance:renderAttendance};
-if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){loadStock();setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 var container=getPanelContainer(panel);
 container.style.display='block';
+if(panel==='forecast'){var fc=document.getElementById('panel-forecast');if(fc)fc.innerHTML='';}if(panel==='pos'){await loadStock();setTimeout(function(){if(typeof loadRecentOrders==='function')loadRecentOrders();},500);}
 container.innerHTML='';
 if(panels[panel])panels[panel](container);
 applyI18n(container);
@@ -1568,7 +1780,7 @@ async function api(url,opts){
 opts=opts||{};
 var method=opts.method||'GET';
 var force=opts.force===true;
-var cacheKey=method+':'+url+':'+(opts.body?JSON.stringify(opts.body):'');
+var cacheKey=method+':'+url+':'+(opts.body?JSON.stringify(opts.body):'')+':'+getSelectedOperationAt();
 if(method==='GET'&&!force&&_apiCache[cacheKey]&&(Date.now()-_apiCache[cacheKey].ts)<60000)return _apiCache[cacheKey].data;
 var headers={'Authorization':'Bearer '+token};
 if(opts.body&&!opts.bodyIsForm){headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body);}
@@ -1772,11 +1984,19 @@ bundleHTML+='<div class="bundle-save">'+t('Save:')+' \u00A5'+roundPosMoney(b.sav
 var coffeeBtns='';
 for(var i=0;i<COFFEE_DRINKS.length;i++){
 var cd=COFFEE_DRINKS[i];
-coffeeBtns+='<button class="drink-btn" onclick="openCoffeeModal('+"'"+cd.key+"'"+')">';
+var drinkVisible=activeDrinkCategory==='all'||activeDrinkCategory===cd.category;
+coffeeBtns+='<button class="drink-btn" data-drink-category="'+cd.category+'" style="'+(drinkVisible?'':'display:none')+'" onclick="openCoffeeModal('+"'"+cd.key+"'"+')">';
 coffeeBtns+='<span class="drink-name">'+capName(cd.key)+'</span>';
 coffeeBtns+='<span class="drink-desc">'+tx('coffee_desc.'+cd.key,cd.desc)+'</span>';
 coffeeBtns+='<span class="drink-price">\u00A5'+roundPosMoney(COFFEE_PRICES[cd.key]!==undefined?COFFEE_PRICES[cd.key]:cd.price).toFixed(1)+'</span></button>';
 }
+var drinkFilterBtns='<div class="drink-filter" id="pos-drink-filters" role="group" aria-label="Drink categories">';
+for(var i=0;i<DRINK_CATEGORY_OPTIONS.length;i++){
+var drinkOption=DRINK_CATEGORY_OPTIONS[i];
+var isActiveDrinkCategory=activeDrinkCategory===drinkOption.key;
+drinkFilterBtns+='<button class="drink-filter-btn'+(isActiveDrinkCategory?' active':'')+'" data-category="'+drinkOption.key+'" aria-pressed="'+(isActiveDrinkCategory?'true':'false')+'" onclick="setDrinkCategory(\''+drinkOption.key+'\')">'+t(drinkOption.label)+'</button>';
+}
+drinkFilterBtns+='</div>';
 
 
 // Bakery buttons with freshness dots
@@ -1796,12 +2016,13 @@ var bp=PRODUCT_PRICES[bk]||5;
 var dr={"Fresh":0,"Day-1":DISCOUNT_RATE};
 var discountRate=dr[curFresh]||0;
 var eventDiscount=getBusinessEventDiscountForProduct(bk);
-bakeryBtns+='<button class="drink-btn" onclick="quickAddBakery('+"'"+bk+"','"+curFresh+"'"+')" style="border-left:4px solid '+fci+'">';
+var displayDiscountRate=Math.max(discountRate,eventDiscount/100);
+bakeryBtns+='<button class="drink-btn" data-selected-freshness="'+curFresh+'" data-fresh-stock="'+freshQty+'" data-day1-stock="'+day1Qty+'" onclick="quickAddBakery('+"'"+bk+"','"+curFresh+"'"+')" style="border-left:4px solid '+fci+'">';
 bakeryBtns+='<span class="drink-name">'+capName(bk)+'</span>';
 bakeryBtns+='<span class="drink-desc">'+t('Stock:')+' '+stockInfo+'</span>';
 if(eventDiscount>0)bakeryBtns+='<span class="event-discount-tag" style="display:inline-block;margin-top:3px;font-size:10px;color:#6b5b4f;background:#fff3cd;border:1px solid #ead58f;border-radius:4px;padding:1px 5px">Event: '+Number(eventDiscount).toFixed(1).replace(/\.0$/,'')+'%</span>';
-if(discountRate>0){
-    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">\u00A5'+roundPosMoney(bp).toFixed(1)+'</s> \u00A5'+roundPosMoney(bp*(1-discountRate)).toFixed(1)+'</span>';
+if(displayDiscountRate>0){
+    bakeryBtns+='<span class="drink-price"><s style="color:#999;font-size:11px">\u00A5'+roundPosMoney(bp).toFixed(1)+'</s> \u00A5'+roundPosMoney(bp*(1-displayDiscountRate)).toFixed(1)+'</span>';
 }else{
     bakeryBtns+='<span class="drink-price">\u00A5'+roundPosMoney(bp).toFixed(1)+'</span>';
 }
@@ -1838,7 +2059,8 @@ h+='</div>';
 h+='';
 h+='<div class="panel manager-only" style="border:2px solid #8b6914"><h4>'+t('Fresh Batch Inflow')+'</h4>';
 h+='<p style="font-size:12px;color:#8b6914;margin-bottom:8px">'+t('Scan fresh-baked goods to add to inventory')+'</p>';
-h+='<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:6px" onclick="startInflowScan()">'+t('Scan Fresh Batch')+'</button>';
+h+='<div style="display:flex;gap:6px;margin-bottom:6px"><button class="btn btn-primary btn-sm" style="flex:1" onclick="startInflowScan()">'+t('Scan Fresh Batch')+'</button>';
+h+='<button class="btn btn-outline btn-sm" style="flex:1" onclick="addManualInflowItem()">'+t('Manual Inflow')+'</button></div>';
 h+='<div id="inflow-preview" style="font-size:12px;color:#8b6914;margin-top:4px"></div>';
 if(inflowDets.length>0){
 var infHTML='';
@@ -1873,8 +2095,8 @@ h+='<div style="flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:au
 
 h+='<div class="panel"><h4>'+t('Bakery Products')+'</h4>';
 h+='<div class="drink-grid">'+bakeryBtns+'</div></div>';
-h+='<div class="panel"><h4>'+t('Coffee - Quick Drink Order')+'</h4>';
-h+='<div class="drink-grid">'+coffeeBtns+'</div></div>';
+h+='<div class="panel"><h4>'+t('Drinks - Quick Order')+'</h4>';
+h+=drinkFilterBtns+'<div class="drink-grid" id="pos-drink-grid">'+coffeeBtns+'</div></div>';
 
 h+='<div style="display:flex;gap:6px;margin-bottom:6px">';
 h+='<button class="dine-type-btn" id="dine-in-btn" onclick="setDineType(\'dine_in\')" style="flex:1;padding:8px;border:2px solid '+(dineType==='dine_in'?'#27ae60':'#e0d5c7')+';border-radius:8px;background:'+(dineType==='dine_in'?'#eafaf1':'#fff')+';color:'+(dineType==='dine_in'?'#27ae60':'#8b6914')+';font-weight:600;cursor:pointer;font-size:13px">'+t('Dine-in')+'</button>';
@@ -1885,7 +2107,10 @@ h+='<div class="cart-summary">';
 if(cartItems.length>0){h+=cartHTML;h+='<div class="cart-row"><span>'+t('Total')+'</span><span>\u00A5'+roundPosMoney(total).toFixed(1)+'</span></div>';}
 else{h+='<p style="color:#8b6914;font-size:13px;text-align:center;padding:10px">'+t('No items in cart')+'</p>';}
 h+='</div>';
-if(cartItems.length>0){h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="clearCart()">'+t('Clear')+'</button><button class="checkout-btn" onclick="completePayment()" style="flex:1">'+t('Checkout')+' - \u00A5'+roundPosMoney(total).toFixed(1)+'</button></div>';}
+var recommendationSelectionPending=pendingRecommendationSelections.size>0;
+var checkoutDisabled=recommendationSelectionPending||checkoutInFlight;
+var checkoutLabel=recommendationSelectionPending?t('Pending'):t('Checkout');
+if(cartItems.length>0){h+='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="clearCart()">'+t('Clear')+'</button><button class="checkout-btn" onclick="completePayment()" style="flex:1"'+(checkoutDisabled?' disabled':'')+'>'+checkoutLabel+' - \u00A5'+roundPosMoney(total).toFixed(1)+'</button></div>';}
 h+='</div></div>';
 
 // RIGHT
@@ -1923,13 +2148,14 @@ function loadRecentOrders(){
     for(var i=0;i<d.orders.length;i++){
       var o=d.orders[i];
       var timeStr=o.order_time?o.order_time.substring(0,5):'';
-      var shortId=o.ticket_id.slice(-6);
+      var displayOrderId='#'+o.order_id;
+      if(!o.order_id)displayOrderId=o.ticket_id||'--';
       var typeLabel=o.dine_type==='takeaway'?'TA':'DI';
       var typeColor=o.dine_type==='takeaway'?'#e67e22':'#27ae60';
       var refunded=o.state==='refunded';
       h+='<tr style="border-bottom:1px solid #f0e8d8;'+(refunded?'opacity:0.5;text-decoration:line-through;':'')+'">';
       h+='<td style="padding:4px 6px">'+timeStr+'</td>';
-      h+='<td style="padding:4px 6px;font-family:monospace">'+shortId+'</td>';
+      h+='<td style="padding:4px 6px;font-family:monospace">'+displayOrderId+'</td>';
       h+='<td style="padding:4px 6px"><span style="color:'+typeColor+';font-weight:600">'+typeLabel+'</span></td>';
       h+='<td style="padding:4px 6px;text-align:right;font-weight:600">'+roundPosMoney(o.total_amount).toFixed(1)+'</td>';
       h+='<td style="padding:4px 6px;text-align:center">'+(refunded?'<span style="color:#e74c3c;font-size:10px">'+t('REFUNDED')+'</span>':(role==='manager'?'<button class="manager-only" onclick="refundOrder(\''+o.ticket_id+'\')" style="background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">'+t('Refund')+'</button>':''))+' <button onclick="viewReceipt(\''+o.ticket_id+'\')" style="background:#3498db;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;padding:2px 6px">'+t('Receipt')+'</button></td>';
@@ -2177,15 +2403,36 @@ if(!window._bakeryFreshness)window._bakeryFreshness={};
 window._bakeryFreshness[name]=fresh;
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }
+function bakeryStockForFreshness(name,fresh){
+var source=fresh==='Day-1'?window._day1Stock:window._freshStock;
+return Math.max(Number(source&&source[name])||0,0);
+}
+function bakeryCartQuantityForFreshness(name,fresh){
+var quantity=0;
+for(var i=0;i<cartItems.length;i++){
+if(cartItems[i].product_name===name&&cartItems[i].freshness===fresh)quantity+=Number(cartItems[i].quantity)||0;
+}
+return quantity;
+}
 function quickAddBakery(name,fresh){
-var found=false;
-for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name&&cartItems[i].freshness===fresh){cartItems[i].quantity+=1;found=true;break;}}
 if(!fresh||fresh==="undefined")fresh=freshnessMap&&freshnessMap[name]?freshnessMap[name]:"Fresh";
+var available=bakeryStockForFreshness(name,fresh);
+if(bakeryCartQuantityForFreshness(name,fresh)>=available){alert(t('No stock available for selected freshness'));return;}
+var found=false;
+var existingItem=null;
+for(var i=0;i<cartItems.length;i++){if(cartItems[i].product_name===name&&cartItems[i].freshness===fresh){cartItems[i].quantity+=1;found=true;existingItem=cartItems[i];break;}}
 var tc={"Fresh":"green","Day-1":"yellow","Day-2":"orange","Near-Expired":"red"};
 var dr={"Fresh":0,"Day-1":DISCOUNT_RATE,"Day-2":DISCOUNT_RATE,"Near-Expired":DISCOUNT_RATE};
 var tray=tc[fresh]||"green";
 var disc=dr[fresh]||0;
-if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tray,discount_rate:disc,freshness:fresh,status:'confirmed'});
+var discountSource=disc>0?'freshness':'';
+var discountStrategy=disc>0?'clearance':'';
+var discountReason=disc>0?'Freshness-based discount':'';
+var businessEvent=getBusinessEventForProduct(name);
+var eventRate=businessEvent?Number(businessEvent.discount_pct||0)/100:0;
+if(eventRate>disc){disc=eventRate;discountSource='business_event';discountStrategy=businessEvent.event_type||'';discountReason='Active '+businessEventLabel(businessEvent.event_type);}
+if(existingItem){existingItem.discount_rate=disc;existingItem.discount_source=discountSource;existingItem.discount_strategy=discountStrategy;existingItem.discount_reason=discountReason;}
+if(!found)cartItems.push({product_name:name,quantity:1,confidence:1.0,bbox:[],tray_color:tray,discount_rate:disc,discount_source:discountSource,discount_strategy:discountStrategy,discount_reason:discountReason,freshness:fresh,status:'confirmed'});
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }
 function handleScan(e){
@@ -2205,10 +2452,10 @@ document.getElementById('scan-file').value='';
 var _payTotal=0,_payMethod="",_payReceipt=null,_payCashInput=0,cartItemsRaw=[];
 function completePayment(){
 if(cartItems.length===0){alert(t("No items in cart"));return;}
+if(typeof pendingRecommendationSelections!=="undefined"&&pendingRecommendationSelections.size>0){alert(t("Cannot checkout")+": "+t("Pending"));return;}
+if(typeof checkoutInFlight!=="undefined"&&checkoutInFlight)return;
 var total=0;_payTotal=0;
 for(var i=0;i<cartItems.length;i++){var it=cartItems[i];var pr=getItemPrice(it);total+=pr*it.quantity;}
-var packagingFee=dineType==='takeaway'?0.30:0;
-total+=packagingFee;
 _payTotal=roundPosMoney(total);
 cartItemsRaw=cartItems.map(function(ci){return Object.assign({},ci);});
 document.getElementById("pay-total").textContent="\u00A5"+_payTotal.toFixed(1);
@@ -2248,20 +2495,30 @@ return o;
 });
 }
 async function confirmPayment(){
+if(typeof checkoutInFlight!=="undefined"&&checkoutInFlight)return;
+if(typeof pendingRecommendationSelections!=="undefined"&&pendingRecommendationSelections.size>0){alert(t("Cannot checkout")+": "+t("Pending"));return;}
 var items;
 try{items=buildCheckoutItems(cartItems,function(ci){return {freshness:ci.freshness,discount_rate:ci.discount_rate||0,discount_source:ci.discount_source||'',discount_strategy:ci.discount_strategy||'',discount_reason:ci.discount_reason||''};});}
 catch(e){alert(t('Beverage options unavailable'));return;}
+if(typeof checkoutInFlight!=="undefined")checkoutInFlight=true;
+var paymentConfirmButton=document.getElementById("pay-confirm-btn");
+if(paymentConfirmButton)paymentConfirmButton.disabled=true;
 try{
 var hdrs={"Content-Type":"application/json","Authorization":"Bearer "+token};
-var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod,dine_type:dineType})});
+var recommendationEventIds=typeof selectedRecommendationEventIds!=="undefined"?Array.from(selectedRecommendationEventIds):[];
+var resp=await fetch(API+"/s4/checkout/complete",{method:"POST",headers:hdrs,body:JSON.stringify({items:items,payment_method:_payMethod,dine_type:dineType,recommendation_event_ids:recommendationEventIds})});
 var d=await resp.json();
 if(!resp.ok)throw new Error(d.detail||d.message||t("Checkout failed"));
 clearPanelCache('revenue');clearPanelCache('inventory');if(d.receipt){_payReceipt=d.receipt;_payReceipt.payment_method=_payMethod;if(_payMethod==="cash"&&_payCashInput>0)_payReceipt.cash_received=_payCashInput;}
 else if(d.errors&&d.errors.length>0){alert(t("Checkout errors")+": "+d.errors.join(", "));renderPOS(document.getElementById("panel-pos")||document.getElementById("content-area"));return;}
 showReceipt(_payReceipt);
 hitlLog.push({action:"Checkout: "+roundPosMoney(_payReceipt?(_payReceipt.total||_payTotal):_payTotal).toFixed(1)+" ("+cartItems.length+" items)",time:new Date().toLocaleTimeString()});
-cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();
+if(typeof resetRecommendationSelectionState==="function")resetRecommendationSelectionState();cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();
 }catch(e){alert(t("Payment Failed")+": "+e.message);}
+finally{
+if(typeof checkoutInFlight!=="undefined")checkoutInFlight=false;
+if(paymentConfirmButton)paymentConfirmButton.disabled=_payMethod==="cash"&&_payCashInput<_payTotal;
+}
 }
 function showReceipt(r){
 document.getElementById("payment-modal").classList.remove("show");document.getElementById("payment-modal").classList.add("hidden");
@@ -2284,7 +2541,7 @@ document.getElementById("receipt-overlay").classList.remove("hidden");document.g
 function closePaymentModal(){document.getElementById("payment-modal").classList.remove("show");document.getElementById("payment-modal").classList.add("hidden");}
 function clearCart(){
 if(!confirm(t('Clear cart?')))return;
-cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();
+resetRecommendationSelectionState();cartItems=[];detections=[];lastScanResult=null;bundleRecs=[];dineType='dine_in';loadStock();
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }
 function printReceipt(){window.print();}
@@ -2334,18 +2591,22 @@ items:[rc.product_name,rc.coffee_key],
 product_name:rc.product_name,
 coffee_key:rc.coffee_key,
 total_score:rc.total_score,
-discount_rate: (discountOverrides[rc.product_name] || 0) / 100,
-discount_source: (discountDetails[rc.product_name]||{}).source||'',
-discount_strategy: (discountDetails[rc.product_name]||{}).strategy||'',
-discount_reason: (discountDetails[rc.product_name]||{}).reason||'',
+discount_rate: Number(rc.discount_rate||0)||((discountOverrides[rc.product_name]||0)/100),
+            discount_source: rc.discount_source||(discountDetails[rc.product_name]||{}).source||'',
+            discount_strategy: rc.discount_strategy||(discountDetails[rc.product_name]||{}).strategy||'',
+            discount_reason: rc.discount_reason||(discountDetails[rc.product_name]||{}).reason||'',
+            recommendation_event_id:rc.recommendation_event_id,
             scoring_breakdown:rc.scoring_breakdown
 });
 }
 renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }catch(e){bundleRecs=[];renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));alert(t('Bundle error')+': '+e.message);}
 }
-function addBundleToCart(idx){
+async function addBundleToCart(idx){
 var b=bundleRecs[idx];if(!b)return;
+var recommendationEventId=Number(b.recommendation_event_id);
+if(!Number.isInteger(recommendationEventId)||recommendationEventId<=0){alert(t('Bundle error'));return;}
+if(selectedRecommendationEventIds.has(recommendationEventId)||pendingRecommendationSelections.has(recommendationEventId))return;
 var ALL_BAKERY=Object.keys(PRODUCT_PRICES);var BAKERY_KEYS={};for(var k=0;k<ALL_BAKERY.length;k++)BAKERY_KEYS[ALL_BAKERY[k]]=1;
 var beverageOptionsByName={};
 for(var i=0;i<b.items.length;i++){
@@ -2357,6 +2618,9 @@ for(var i=0;i<b.items.length;i++){
         catch(e){alert(t('Beverage options unavailable'));return;}
     }
 }
+var cartSnapshot=cartItems.map(function(item){return Object.assign({},item);});
+var selectionToken={generation:recommendationSelectionGeneration};
+pendingRecommendationSelections.set(recommendationEventId,selectionToken);
 for(var i=0;i<b.items.length;i++){
     var name=b.items[i];
     var isBread=!!BAKERY_KEYS[name];
@@ -2414,6 +2678,23 @@ for(var i=0;i<b.items.length;i++){
     }
 }
 bundleRecs=[];renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
+try{
+    var selectionResponse=await fetch(API+'/s4/combo/select',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({recommendation_event_id:recommendationEventId})});
+    if(!selectionResponse.ok){var selectionError=await selectionResponse.json();throw new Error(selectionError.detail||t('Bundle error'));}
+    if(pendingRecommendationSelections.get(recommendationEventId)===selectionToken&&selectionToken.generation===recommendationSelectionGeneration){
+        selectedRecommendationEventIds.add(recommendationEventId);
+    }
+}catch(e){
+    if(pendingRecommendationSelections.get(recommendationEventId)===selectionToken&&selectionToken.generation===recommendationSelectionGeneration){
+        cartItems=cartSnapshot;
+        alert(t('Bundle error')+': '+e.message);
+    }
+}finally{
+    if(pendingRecommendationSelections.get(recommendationEventId)===selectionToken&&selectionToken.generation===recommendationSelectionGeneration){
+        pendingRecommendationSelections.delete(recommendationEventId);
+        renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
+    }
+}
 }
 async function getScript(){
 if(!bundleRecs.length){alert(t('Generate Top-3 bundles first'));return}
@@ -2603,16 +2884,20 @@ function renderBusinessEvents(events){
   }
   el.innerHTML=html;
 }
-function getBusinessEventDiscountForProduct(productName){
+function getBusinessEventForProduct(productName){
   var events=window._activeBusinessEvents||[];
-  var best=0;
+  var best=null;
   for(var i=0;i<events.length;i++){
     var ev=events[i];
     if(!ev||!ev.active||!ev.products||ev.products.indexOf(productName)===-1)continue;
     var pct=Number(ev.discount_pct||0);
-    if(pct>best)best=pct;
+    if(!best||pct>Number(best.discount_pct||0))best=ev;
   }
   return best;
+}
+function getBusinessEventDiscountForProduct(productName){
+  var event=getBusinessEventForProduct(productName);
+  return event?Number(event.discount_pct||0):0;
 }
 function activeBusinessEventContext(){
   var events=window._activeBusinessEvents||[];
@@ -2742,10 +3027,38 @@ el.innerHTML=tbl;
 }catch(e){el.innerHTML='<span class="status-dot dot-err"></span> '+t('Error')+': '+e.message;}
 }
 
+function getLocalToday(){
+  if(role==='manager'&&token)return getOperationDate();
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function getSelectedOperationalDate(){
+  var stored=sessionStorage.getItem('bakery_operational_date')||'';
+  return /^\d{4}-\d{2}-\d{2}$/.test(stored)?stored:getLocalToday();
+}
+
+function setSelectedOperationalDate(value){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return;
+  sessionStorage.setItem('bakery_operational_date',value);
+  var scheduleDate=document.getElementById('sched-date');
+  var attendanceDate=document.getElementById('att-hist-date');
+  if(scheduleDate&&scheduleDate.value!==value)scheduleDate.value=value;
+  if(attendanceDate&&attendanceDate.value!==value)attendanceDate.value=value;
+}
+
+function onScheduleDateChange(value){
+  setSelectedOperationalDate(value);
+  cachedSchedule=null;
+  cachedDate=null;
+  loadSchedule();
+  loadKPI();
+}
+
 function renderSchedule(c){
-var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+var selectedDate=getSelectedOperationalDate();
 c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
-+'<div style="display:flex;align-items:center;gap:8px"><input id="sched-date" type="date" value="'+today+'" onchange="cachedSchedule=null;cachedDate=null;loadSchedule();loadKPI()" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b">'
++'<div style="display:flex;align-items:center;gap:8px"><input id="sched-date" type="date" value="'+selectedDate+'" onchange="onScheduleDateChange(this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b">'
 +'<button class="btn btn-primary btn-sm" onclick="generateSchedule()" style="font-size:12px">'+t('Generate')+'</button>'
 +'<button class="btn btn-outline btn-sm" onclick="resyncSchedule()" title="'+t('Full regeneration')+'" style="font-size:11px">'+t('Resync')+'</button></div>'
 
@@ -2755,12 +3068,12 @@ c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:
 +'<div id="swap-msg" style="margin-top:8px;font-size:12px;color:#6b5b4f"></div>'
 
 +'<div id="kpi-result" style="margin-top:12px"></div>'
-+'<div style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0;color:#4a3728">'+t('Monthly KPI Ranking')+'</h4><div style="display:flex;align-items:center;gap:6px"><input type="month" id="kpi-ranking-month" value="'+today.substring(0,7)+'" onchange="loadKPIRanking(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b"></div></div>'
++'<div style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0;color:#4a3728">'+t('Monthly KPI Ranking')+'</h4><div style="display:flex;align-items:center;gap:6px"><input type="month" id="kpi-ranking-month" value="'+selectedDate.substring(0,7)+'" onchange="loadKPIRanking(this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b"></div></div>'
 +'<div id="kpi-ranking-result"><span class="spinner"></span>'+t('Loading ranking...')+'</div></div>';
 loadSchedule();
 loadKPI();
   var km2=document.getElementById('kpi-ranking-month');
-  loadKPIRanking(km2?km2.value:today.substring(0,7));
+  loadKPIRanking(km2?km2.value:selectedDate.substring(0,7));
   // Schedule AI analysis button removed - data is self-explanatory
 }
 
@@ -2780,7 +3093,11 @@ cachedSchedule=null;cachedDate=null;
 try{
 var solveRes=await api('/s3/solve',{method:'POST',body:{start_date:sd,days:genDays}});
   if(solveRes.status!=='ok'){document.getElementById('schedule-result').innerHTML='<span class="status-dot dot-err"></span>'+solveRes.message;document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">'+solveRes.message+'</span>';return;}
-  loadSchedule();loadKPI();
+  clearApiCacheByPath('/s3/schedule');
+  clearApiCacheByPath('/s3/kpi');
+  cachedSummary=null;
+  await loadSchedule();
+  await loadKPI();
   document.getElementById('swap-msg').innerHTML='<span style="color:#27ae60">'+t('Schedule generated for')+' '+sd+'</span>';
 }catch(e){document.getElementById('swap-msg').textContent=t('Error')+': '+e.message;}
 }
@@ -2791,14 +3108,94 @@ function daysToSunday(d){var dow=d.getDay();if(dow===0)return 7;return 7-dow+1;}
 
 
 
-async function punchEmployee(empId, empName){
-  var pin=prompt(t('Enter PIN for')+' '+empName+':');
-  if(!pin)return;
+var MANAGER_ATTENDANCE_PUNCH=null;
+
+function punchEmployee(empId, empName){
+  MANAGER_ATTENDANCE_PUNCH={id:empId,name:empName};
+  document.getElementById('attendance-manager-name').textContent=t('Enter PIN for')+' '+empName;
+  document.getElementById('attendance-manager-pin-result').textContent='';
+  var input=document.getElementById('attendance-manager-pin');
+  input.value='';
+  document.getElementById('attendance-pin-modal').classList.add('show');
+  setTimeout(function(){input.focus();},0);
+}
+
+function closeManagerAttendancePin(){
+  document.getElementById('attendance-pin-modal').classList.remove('show');
+  document.getElementById('attendance-manager-pin').value='';
+  document.getElementById('attendance-manager-pin-result').textContent='';
+  MANAGER_ATTENDANCE_PUNCH=null;
+}
+
+async function submitManagerAttendancePunch(){
+  if(!MANAGER_ATTENDANCE_PUNCH)return;
+  var empId=MANAGER_ATTENDANCE_PUNCH.id;
+  var empName=MANAGER_ATTENDANCE_PUNCH.name;
+  var pin=document.getElementById('attendance-manager-pin').value.trim();
+  var result=document.getElementById('attendance-manager-pin-result');
+  var submit=document.getElementById('attendance-manager-punch-submit');
+  if(!pin){result.textContent=t('PIN is required');result.style.color='#e74c3c';return;}
+  submit.disabled=true;
   try{
-    var r=await api('/s3/attendance/punch?emp_id='+empId+'&pin='+pin,{method:'POST'});
-    if(r.status==='ok'){alert(empName+': '+r.message);loadAttendance();}
-    else{alert(t('Error')+': '+r.message);}
-  }catch(e){alert(t('Punch error')+': '+e.message);}
+    var r=await api('/s3/attendance/punch?emp_id='+encodeURIComponent(empId)+'&pin='+encodeURIComponent(pin),{method:'POST'});
+    result.textContent=r.status==='ok'?empName+': '+r.message:t('Error')+': '+r.message;
+    result.style.color=r.status==='ok'?'#27ae60':'#e74c3c';
+    if(r.status==='ok'){
+      _apiCache={};
+      await loadAttendance();
+      closeManagerAttendancePin();
+    }
+  }catch(e){
+    result.textContent=t('Punch error')+': '+e.message;
+    result.style.color='#e74c3c';
+  }finally{
+    submit.disabled=false;
+  }
+}
+
+var ATTENDANCE_CORRECTION=null;
+
+function openAttendanceCorrection(empId,empName,selectedDate,shiftStart,shiftEnd,punchIn,punchOut){
+  ATTENDANCE_CORRECTION={id:empId,name:empName,date:selectedDate};
+  document.getElementById('attendance-correction-employee').textContent=empName+' | '+selectedDate+' | '+shiftStart+'-'+shiftEnd;
+  document.getElementById('attendance-correction-in').value=punchIn||shiftStart||'';
+  document.getElementById('attendance-correction-out').value=punchOut||shiftEnd||'';
+  document.getElementById('attendance-correction-reason').value='';
+  document.getElementById('attendance-correction-result').textContent='';
+  document.getElementById('attendance-correction-modal').classList.add('show');
+}
+
+function closeAttendanceCorrection(){
+  document.getElementById('attendance-correction-modal').classList.remove('show');
+  document.getElementById('attendance-correction-result').textContent='';
+  ATTENDANCE_CORRECTION=null;
+}
+
+async function submitAttendanceCorrection(){
+  if(!ATTENDANCE_CORRECTION)return;
+  var punchIn=document.getElementById('attendance-correction-in').value;
+  var punchOut=document.getElementById('attendance-correction-out').value;
+  var reason=document.getElementById('attendance-correction-reason').value;
+  var result=document.getElementById('attendance-correction-result');
+  var submit=document.getElementById('attendance-correction-submit');
+  if(!reason){result.textContent=t('Correction reason is required');result.style.color='#e74c3c';return;}
+  submit.disabled=true;
+  try{
+    var r=await api('/s3/attendance/correct',{method:'POST',body:{employee_id:ATTENDANCE_CORRECTION.id,date:ATTENDANCE_CORRECTION.date,punch_in:punchIn,punch_out:punchOut,reason:reason}});
+    result.textContent=r.message||'';
+    result.style.color=r.status==='ok'?'#27ae60':'#e74c3c';
+    if(r.status==='ok'){
+      var selectedDate=ATTENDANCE_CORRECTION.date;
+      _apiCache={};
+      closeAttendanceCorrection();
+      await loadAttendance(selectedDate);
+    }
+  }catch(e){
+    result.textContent=t('Attendance correction error')+': '+e.message;
+    result.style.color='#e74c3c';
+  }finally{
+    submit.disabled=false;
+  }
 }
 
 async function loadKPIRanking(month){
@@ -2865,84 +3262,94 @@ async function loadKPIRanking(month){
   }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>'+t('Error')+': '+e.message;}
 }
 
-async function loadAttendance(){
+function attendanceStatusMeta(status){
+  var statuses={
+    on_time:{color:'#27ae60',label:t('On Time')},
+    late:{color:'#f39c12',label:t('Late')},
+    early_leave:{color:'#d35400',label:t('Early Leave')},
+    late_and_early_leave:{color:'#c0392b',label:t('Late & Early Leave')},
+    absent:{color:'#e74c3c',label:t('Absent')},
+    present:{color:'#27ae60',label:t('Present')},
+    scheduled:{color:'#3498db',label:t('Scheduled')}
+  };
+  return statuses[status]||{color:'#6b5b4f',label:status||'-'};
+}
+
+function attendancePercent(value){
+  return value!=null?Number(value).toFixed(1)+'%':'-';
+}
+
+function renderAttendanceDashboard(data,showAction){
+  var emps=data.employees||[];
+  var showManagerAction=role==='manager';
+  var h='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(4,1fr)">';
+  h+='<div class="kpi-card" style="border-left:3px solid #27ae60"><div class="kpi-value" style="color:#27ae60">'+(data.present||0)+'</div><div class="kpi-label">'+t('Present')+'</div></div>';
+  h+='<div class="kpi-card" style="border-left:3px solid #f39c12"><div class="kpi-value" style="color:#f39c12">'+(data.late||0)+'</div><div class="kpi-label">'+t('Late')+'</div></div>';
+  h+='<div class="kpi-card" style="border-left:3px solid #d35400"><div class="kpi-value" style="color:#d35400">'+(data.early_leave||0)+'</div><div class="kpi-label">'+t('Early Leave')+'</div></div>';
+  h+='<div class="kpi-card" style="border-left:3px solid #e74c3c"><div class="kpi-value" style="color:#e74c3c">'+(data.absent||0)+'</div><div class="kpi-label">'+t('Absent')+'</div></div></div>';
+
+  h+='<div style="overflow-x:auto"><table style="width:100%;min-width:1040px;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">';
+  h+='<th style="padding:6px 10px;text-align:left">'+t('Employee')+'</th><th style="padding:6px 10px;text-align:left">'+t('Role')+'</th><th style="padding:6px 10px;text-align:center">'+t('Shift')+'</th><th style="padding:6px 10px;text-align:center">'+t('Status')+'</th><th style="padding:6px 10px;text-align:center">'+t('In')+'</th><th style="padding:6px 10px;text-align:center">'+t('Out')+'</th><th style="padding:6px 10px;text-align:center">'+t('Attendance Rate')+'</th><th style="padding:6px 10px;text-align:center">'+t('On-Time Rate')+'</th><th style="padding:6px 10px;text-align:center">'+t('Shift Completion')+'</th>';
+  if(showManagerAction)h+='<th style="padding:6px 10px;text-align:center">'+t('Action')+'</th>';
+  h+='</tr></thead><tbody>';
+
+  for(var i=0;i<emps.length;i++){
+    var e=emps[i];var st=e.status||'absent';var meta=attendanceStatusMeta(st);
+    var shiftStr=(e.time_slot||e.shift_start)?(e.time_slot||(e.shift_start+'-'+e.shift_end)):'-';
+    var attendanceDays=e.attendance_display||((e.attended_days!=null&&e.scheduled_days!=null)?e.attended_days+' / '+e.scheduled_days:'-');
+    h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+meta.color+'10">';
+    h+='<td style="padding:5px 10px;font-weight:600;color:#4a3728">'+e.name+'</td>';
+    h+='<td style="padding:5px 10px;color:#6b5b4f;text-transform:capitalize">'+e.role+'</td>';
+    h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+shiftStr+'</td>';
+    var correctedBadge=e.corrected?' <span title="'+(e.correction_reason||'')+'" style="color:#8b6914;font-size:9px;font-weight:700">'+t('Corrected')+'</span>':'';
+    h+='<td style="padding:5px 10px;text-align:center"><span style="color:'+meta.color+';font-weight:700;font-size:11px">'+meta.label+'</span>'+correctedBadge+'</td>';
+    h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+(e.punch_in||'-')+'</td>';
+    h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+(e.punch_out||'-')+'</td>';
+    h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+attendanceDays+'</td>';
+    h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+attendancePercent(e.punctuality_rate)+'</td>';
+    h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+attendancePercent(e.shift_completion_rate)+'</td>';
+    if(showManagerAction){
+      var actions=[];
+      if(showAction){var punchLabel=e.punch_in&&!e.punch_out?t('Out'):t('In');actions.push('<button onclick="punchEmployee(\x27'+e.id+'\x27,\x27'+e.name+'\x27)" style="background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px">'+t('Punch')+' '+punchLabel+'</button>');}
+      actions.push('<button onclick="openAttendanceCorrection(\x27'+e.id+'\x27,\x27'+e.name+'\x27,\x27'+data.date+'\x27,\x27'+(e.shift_start||'')+'\x27,\x27'+(e.shift_end||'')+'\x27,\x27'+(e.punch_in||'')+'\x27,\x27'+(e.punch_out||'')+'\x27)" style="background:#fff;color:#8b6914;border:1px solid #8b6914;border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px">'+t('Correct')+'</button>');
+      h+='<td style="padding:3px 6px;text-align:center"><div style="display:flex;gap:4px;justify-content:center">'+actions.join('')+'</div></td>';
+    }
+    h+='</tr>';
+  }
+  return h+'</tbody></table></div>';
+}
+
+function onAttendanceDateChange(value){
+  setSelectedOperationalDate(value);
+  loadAttendance(value);
+}
+
+function showTodayAttendance(){
+  var today=getLocalToday();
+  setSelectedOperationalDate(today);
+  loadAttendance(today);
+}
+
+async function loadAttendance(date){
   var el=document.getElementById('attendance-result');
   var dateEl=document.getElementById('kpi-att-date');
-  el.innerHTML='<span class="spinner"></span> '+t('Loading attendance...');
+  var input=document.getElementById('att-hist-date');
+  var selectedDate=date||(input&&input.value)||getSelectedOperationalDate();
+  var isToday=selectedDate===getLocalToday();
+  setSelectedOperationalDate(selectedDate);
+  if(dateEl)dateEl.textContent='('+selectedDate+')';
+  el.innerHTML='<span class="spinner"></span> '+t('Loading attendance...')+' '+selectedDate+'...';
   try{
-    var r=await api('/s3/attendance');
+    var path=isToday?'/s3/attendance':'/s3/attendance/history?date='+encodeURIComponent(selectedDate);
+    var r=await api(path);
     if(r.status!=='ok'){el.innerHTML='<span class="status-dot dot-err"></span>'+ (r.message||'Failed');return;}
-    var ta=r.today_attendance;var emps=ta.employees||[];
-    var statusIcon={on_time:'O',late:'L',absent:'X',present:'P'};
-    var statusColor={on_time:'#27ae60',late:'#f39c12',absent:'#e74c3c',present:'#27ae60'};
-    var statusLabel={on_time:t('On Time'),late:t('Late'),absent:t('Absent'),present:t('Present')};
-    if(dateEl)dateEl.textContent='('+ta.date+')';
-
-    var present=ta.present;var absent=ta.absent||0;var late=ta.late||0;
-    var h='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr)">';
-    h+='<div class="kpi-card" style="border-left:3px solid #27ae60"><div class="kpi-value" style="color:#27ae60">'+present+'</div><div class="kpi-label">'+t('Present')+'</div></div>';
-    h+='<div class="kpi-card" style="border-left:3px solid #f39c12"><div class="kpi-value" style="color:#f39c12">'+late+'</div><div class="kpi-label">'+t('Late')+'</div></div>';
-    h+='<div class="kpi-card" style="border-left:3px solid #e74c3c"><div class="kpi-value" style="color:#e74c3c">'+absent+'</div><div class="kpi-label">'+t('Absent')+'</div></div></div>';
-
-    h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">';
-    h+='<th style="padding:6px 10px;text-align:left">'+t('Employee')+'</th><th style="padding:6px 10px;text-align:left">'+t('Role')+'</th><th style="padding:6px 10px;text-align:center">'+t('Shift')+'</th><th style="padding:6px 10px;text-align:center">'+t('Status')+'</th><th style="padding:6px 10px;text-align:center">'+t('In')+'</th><th style="padding:6px 10px;text-align:center">'+t('Out')+'</th><th style="padding:6px 10px;text-align:center">Att%</th><th style="padding:6px 10px;text-align:center">'+t('Action')+'</th></tr></thead><tbody>';
-    var monthly=r.monthly_summary||{};
-    for(var i=0;i<emps.length;i++){
-      var e=emps[i];var st=e.status||'absent';
-      var bg=statusColor[st]+'10';
-      h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
-      h+='<td style="padding:5px 10px;font-weight:600;color:#4a3728">'+e.name+'</td>';
-      h+='<td style="padding:5px 10px;color:#6b5b4f;text-transform:capitalize">'+e.role+'</td>';
-      var shiftStr=(e.time_slot||e.shift_start)?(e.time_slot||(e.shift_start+'-'+e.shift_end)):'-';
-      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+shiftStr+'</td>';
-      h+='<td style="padding:5px 10px;text-align:center"><span style="color:'+statusColor[st]+';font-weight:700;font-size:11px">'+statusLabel[st]+'</span></td>';
-      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_in||'-') +'</td>';
-      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_out||'-') +'</td>';
-      var attRate=monthly[e.id]?monthly[e.id].attendance_rate:null;
-      var attStr=attRate!=null?attRate.toFixed(1)+'%':'-';
-      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+attStr+'</td>';
-      var punchLabel=e.punch_in&&!e.punch_out?t('Out'):t('In');
-      h+='<td style="padding:3px 6px;text-align:center"><button onclick="punchEmployee(\x27'+e.id+'\x27,\x27'+e.name+'\x27)" style="background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:10px;padding:2px 8px">'+t('Punch')+' '+punchLabel+'</button></td></tr>';
-    }
-    h+='</tbody></table>';
-    el.innerHTML=h;
+    var attendance=isToday?r.today_attendance:r;
+    el.innerHTML=renderAttendanceDashboard(attendance,isToday);
   }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>'+t('Error')+': '+e.message;}
 }
 
 async function loadAttendanceHistory(date){
-  var el=document.getElementById('attendance-result');
-  var dateEl=document.getElementById('kpi-att-date');
-  if(dateEl)dateEl.textContent='('+date+')';
-  el.innerHTML='<span class="spinner"></span> '+t('Loading attendance...')+' '+date+'...';
-  try{
-    var r=await api('/s3/attendance/history?date='+date);
-    if(r.status!=='ok'){el.innerHTML='<span class="status-dot dot-err"></span>'+ (r.message||'Failed');return;}
-    var emps=r.employees||[];
-    var statusColor={on_time:'#27ae60',late:'#f39c12',absent:'#e74c3c',present:'#27ae60',off_day:'#999'};
-    var statusLabel={on_time:t('On Time'),late:t('Late'),absent:t('Absent'),present:t('Present'),off_day:t('Off Day')};
-
-    var h='<div class="dash-grid" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr)">';
-    h+='<div class="kpi-card" style="border-left:3px solid #27ae60"><div class="kpi-value" style="color:#27ae60">'+r.present+'</div><div class="kpi-label">'+t('Present')+'</div></div>';
-    h+='<div class="kpi-card" style="border-left:3px solid #f39c12"><div class="kpi-value" style="color:#f39c12">'+r.late+'</div><div class="kpi-label">'+t('Late')+'</div></div>';
-    h+='<div class="kpi-card" style="border-left:3px solid #e74c3c"><div class="kpi-value" style="color:#e74c3c">'+r.absent+'</div><div class="kpi-label">'+t('Absent')+'</div></div></div>';
-
-    h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">';
-    h+='<th style="padding:6px 10px;text-align:left">'+t('Employee')+'</th><th style="padding:6px 10px;text-align:left">'+t('Role')+'</th><th style="padding:6px 10px;text-align:center">'+t('Shift')+'</th><th style="padding:6px 10px;text-align:center">'+t('Status')+'</th><th style="padding:6px 10px;text-align:center">'+t('In')+'</th><th style="padding:6px 10px;text-align:center">'+t('Out')+'</th><th style="padding:6px 10px;text-align:center">Att%</th></tr></thead><tbody>';
-    for(var i=0;i<emps.length;i++){
-      var e=emps[i];var st=e.status||'absent';
-      var bg=statusColor[st]+'10';
-      h+='<tr style="border-bottom:1px solid #f0e8d8;background:'+bg+'">';
-      h+='<td style="padding:5px 10px;font-weight:600;color:#4a3728">'+e.name+'</td>';
-      h+='<td style="padding:5px 10px;color:#6b5b4f;text-transform:capitalize">'+e.role+'</td>';
-      var shiftStr=(e.time_slot||e.shift_start)?(e.time_slot||(e.shift_start+'-'+e.shift_end)):'-';
-      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+shiftStr+'</td>';
-      h+='<td style="padding:5px 10px;text-align:center"><span style="color:'+statusColor[st]+';font-weight:700;font-size:11px">'+statusLabel[st]+'</span></td>';
-      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_in||'-') +'</td>';
-      h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+ (e.punch_out||'-') +'</td>'; var attRate=e.attendance_rate; var attStr=attRate!=null?attRate.toFixed(1)+'%':'-'; h+='<td style="padding:5px 10px;text-align:center;color:#6b5b4f;font-size:11px">'+attStr+'</td></tr>';
-    }
-    h+='</tbody></table>';
-    el.innerHTML=h;
-  }catch(e){el.innerHTML='<span class="status-dot dot-err"></span>'+t('Error')+': '+e.message;}
+  return loadAttendance(date);
 }
 
 
@@ -3170,15 +3577,16 @@ else{document.getElementById('swap-msg').innerHTML='<span style="color:#e74c3c">
 }
 function renderInventory(c){
   var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap"><input type="date" id="inv-date" value="'+today+'" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b" onchange="fetchInventoryDashboard()"><button class="btn btn-sm" id="inv-stock-s5-btn" style="background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer" onclick="runModuleS5Analysis(\'inventory\',\'inv-date\',\'inv-stock-s5-result\')">'+t('Stock Risk AI Analysis')+'</button></div>'
+  c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap"><input type="date" id="inv-date" value="'+today+'" max="'+today+'" style="padding:6px 10px;border-radius:6px;border:1px solid #e0d5c7;font-size:13px;color:#3d322b" onchange="fetchInventoryDashboard()"><button class="btn btn-sm" id="inv-stock-s5-btn" style="background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer" onclick="runModuleS5Analysis(\'inventory\',\'inv-date\',\'inv-stock-s5-result\')">'+t('Stock Risk AI Analysis')+'</button></div>'
     +'<div id="inv-stock-s5-result" style="display:none;background:#fdfaf5;border:1px solid #d4c5a9;box-shadow:0 2px 8px rgba(139,105,20,0.08);border-radius:10px;padding:14px;margin-bottom:12px;max-height:50vh;overflow-y:auto"></div>'
     + '<div class="dash-grid" id="inv-kpis" style="margin-bottom:12px"></div>'
-    +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('Bread Stock Levels')+'</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel chart-full"><h4 id="inv-bread-chart-title">'+t('Bread Stock Levels')+'</h4><div id="inv-bread-chart" style="height:550px"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>'+t('Fresh vs Day-1 Ratio')+'</h4><div class="fresh-ratio-layout"><div class="fresh-ratio-label fresh-ratio-label-left" id="inv-fresh-ratio-left"><span>'+t('Fresh')+': <strong>0%</strong></span><i class="fresh-ratio-connector fresh-ratio-connector-left" aria-hidden="true"></i></div><div id="inv-fresh-pie" style="height:180px;width:100%"></div><div class="fresh-ratio-label fresh-ratio-label-right" id="inv-fresh-ratio-right"><i class="fresh-ratio-connector fresh-ratio-connector-right" aria-hidden="true"></i><span>'+t('Day-1')+': <strong>0%</strong></span></div></div></div><div class="chart-panel"><h4>'+t('Top 5 Material Consumption')+'</h4><div id="inv-consumption-chart" style="height:180px"></div></div></div>'
     +'<div class="chart-row"><div class="chart-panel"><h4>'+t('Baked Product Stock Records')+'</h4><div id="inv-inflow-history" style="max-height:260px;overflow:auto"><span class="spinner"></span>'+t('Loading...')+'</div></div><div class="chart-panel"><h4>'+t('Raw Material Restock History')+'</h4><div id="inv-restock-history" style="max-height:260px;overflow:auto"><span class="spinner"></span>'+t('Loading...')+'</div></div></div>'
     
     +'<div class="chart-row"><div class="chart-panel chart-full"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0">'+t('Material Stock Days Remaining')+'</h4><input type="date" id="inv-stockdays-date" style="padding:4px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b" onchange="loadStockDaysHistory(this.value)"></div><div id="inv-days-table"></div></div></div>'
-    +'<div class="chart-row"><div class="chart-panel"><h4>'+t('Baking Materials')+'</h4><div id="inv-baking-table"></div></div><div class="chart-panel"><h4>'+t('Coffee Materials')+'</h4><div id="inv-coffee-table"></div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('Baking Ingredients')+'</h4><div id="inv-baking-table"></div></div></div>'
+    +'<div class="chart-row"><div class="chart-panel"><h4>'+t('Beverage Ingredients & Supplies')+'</h4><div id="inv-beverage-table"></div></div><div class="chart-panel"><h4>'+t('Packaging Supplies')+'</h4><div id="inv-packaging-table"></div></div></div>'
     +'<hr style="margin:16px 0;border-color:#e0d5c7">'
     +'<div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">'
     +'<div style="flex:1;min-width:280px"><h5 style="margin:0 0 8px;color:#8b6914">'+t('Material Wastage Rates')+'</h5><div class="result-box" id="inv-wastage-summary" style="max-height:50vh;overflow-y:auto"><span class="spinner"></span>'+t('Loading...')+'</div></div>'
@@ -3201,15 +3609,20 @@ async function fetchInventoryDashboard(){
     var invDate=document.getElementById("inv-date");var selectedDate=invDate&&invDate.value?invDate.value:"";loadInventoryHistories(selectedDate);var dateParam=selectedDate?"?date="+selectedDate:"";var r=await api("/s4/inventory/dashboard"+dateParam);
     var d=r;
     if(!d.status){if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">'+t('API error')+'</div>';return;}
-    var bread=d.bread_stock||[], baking=d.baking_materials||[], coffee=d.coffee_materials||[];
+    var bread=d.bread_stock||[], baking=d.baking_materials||[], beverage=d.beverage_materials||d.coffee_materials||[], packaging=d.packaging_materials||[];
     var totalBreadStock=d.fresh_total+d.day1_total;
-    var totalBaking=0;for(var i=0;i<baking.length;i++)totalBaking+=baking[i].stock;
-    var totalCoffee=0;for(var i=0;i<coffee.length;i++)totalCoffee+=coffee[i].stock;
+    var historicalStock=d.snapshot_basis==="historical_close";
+    var breadTitle=historicalStock?t('Closing Bread Stock')+' ('+selectedDate+')':t('Current Bread Stock');
+    var breadTitleEl=document.getElementById('inv-bread-chart-title');if(breadTitleEl)breadTitleEl.textContent=breadTitle;
 
     if(bkpi){
-      bkpi.innerHTML='<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+totalBreadStock+'</div><div class="kpi-label">'+t('Bread Stock')+'</div><div class="kpi-change">'+d.fresh_total+' '+t('Fresh')+' | '+d.day1_total+' '+t('Day-1')+'</div></div>'
-        +'<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+totalBaking.toFixed(3)+'</div><div class="kpi-label">'+t('Baking Materials (kg/L)')+'</div><div class="kpi-change">'+baking.length+' '+t('items')+'</div></div>'
-        +'<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+totalCoffee.toFixed(3)+'</div><div class="kpi-label">'+t('Coffee Materials (kg/L)')+'</div><div class="kpi-change">'+coffee.length+' '+t('items')+'</div></div>';
+      bkpi.innerHTML='<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+totalBreadStock+'</div><div class="kpi-label">'+breadTitle+'</div><div class="kpi-change">'+d.fresh_total+' '+t('Fresh')+' | '+d.day1_total+' '+t('Day-1')+'</div></div>'
+        +'<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+baking.length+'</div><div class="kpi-label">'+t('Baking Ingredients')+'</div><div class="kpi-change">'+t('items')+'</div></div>'
+        +'<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+beverage.length+'</div><div class="kpi-label">'+t('Beverage Ingredients & Supplies')+'</div><div class="kpi-change">'+t('items')+'</div></div>'
+        +'<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+packaging.length+'</div><div class="kpi-label">'+t('Packaging Supplies')+'</div><div class="kpi-change">'+t('items')+'</div></div>';
+      if((d.overdue_total||0)>0){
+        bkpi.innerHTML+='<div class="kpi-card" style="border-color:#e8b4a8"><div class="kpi-value" style="color:#b03a2e">'+d.overdue_total+'</div><div class="kpi-label">'+t('Expired Stock Pending Disposal')+'</div><div class="kpi-change" style="color:#b03a2e">'+t('Not included in sellable stock')+'</div></div>';
+      }
       if(d.inventory_value>0){
         bkpi.innerHTML+='<div class="kpi-card"><div class="kpi-value" style="color:#8b6914">'+d.inventory_value.toLocaleString()+'</div><div class="kpi-label">'+t('Inventory Value (CNY)')+'</div><div class="kpi-change">'+t('Total stock value')+'</div></div>';
       }
@@ -3220,14 +3633,19 @@ async function fetchInventoryDashboard(){
       var bc=document.getElementById("inv-bread-chart");
       if(bc&&typeof echarts!=="undefined"){
         var obc=echarts.getInstanceByDom(bc);if(obc)obc.dispose();var chart=echarts.init(bc);
-        chart.setOption({
-          tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
-          legend:{data:[t("Fresh"),t("Day-1")],textStyle:{color:"#3d322b"}},
-          grid:{left:"2%",right:"2%",bottom:"8%",containLabel:true},
-          xAxis:{type:"value",axisLabel:{color:"#6b5b4f",fontSize:10},splitLine:{lineStyle:{color:"#f0e8d8"}}},
-          yAxis:{type:"category",data:bread.map(function(b){return b.product_name.replace(/_/g," ").replace(/\b\w/g,function(x){return x.toUpperCase()})}),axisLabel:{color:"#6b5b4f",fontSize:10}},
-          series:[{name:t("Fresh"),type:"bar",data:bread.map(function(b){return b.fresh_qty}),color:"#8b6914",stack:"total",barWidth:"60%"},{name:t("Day-1"),type:"bar",data:bread.map(function(b){return b.day1_qty}),color:"#d4a853",stack:"total"}]
-        });
+        if(totalBreadStock>0&&bread.length>0){
+          chart.setOption({
+            tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
+            legend:{data:[t("Fresh"),t("Day-1")],textStyle:{color:"#3d322b"}},
+            grid:{left:"2%",right:"2%",bottom:"8%",containLabel:true},
+            xAxis:{type:"value",axisLabel:{color:"#6b5b4f",fontSize:10},splitLine:{lineStyle:{color:"#f0e8d8"}}},
+            yAxis:{type:"category",data:bread.map(function(b){return b.product_name.replace(/_/g," ").replace(/\b\w/g,function(x){return x.toUpperCase()})}),axisLabel:{color:"#6b5b4f",fontSize:10}},
+            series:[{name:t("Fresh"),type:"bar",data:bread.map(function(b){return b.fresh_qty}),color:"#8b6914",stack:"total",barWidth:"60%"},{name:t("Day-1"),type:"bar",data:bread.map(function(b){return b.day1_qty}),color:"#d4a853",stack:"total"}]
+          });
+        }else{
+          var stockEmptyMessage=historicalStock?t('No bread stock remained at closing'):t('No bread stock remains now');
+          chart.setOption({title:{text:stockEmptyMessage,left:'center',top:'center',textStyle:{color:'#6b5b4f',fontSize:14,fontWeight:500}}});
+        }
       }
       // Fresh vs Day-1 pie
       var pc=document.getElementById("inv-fresh-pie");
@@ -3261,7 +3679,7 @@ async function fetchInventoryDashboard(){
             tooltip:{trigger:"axis",axisPointer:{type:"shadow"}},
             grid:{left:"2%",right:"2%",bottom:"5%",containLabel:true},
             xAxis:{type:"value",axisLabel:{color:"#6b5b4f",fontSize:9},splitLine:{lineStyle:{color:"#f0e8d8"}}},
-            yAxis:{type:"category",data:cdata.map(function(x){return x.material_name}),axisLabel:{color:"#6b5b4f",fontSize:9}},
+            yAxis:{type:"category",inverse:true,data:cdata.map(function(x){return x.material_name}),axisLabel:{color:"#6b5b4f",fontSize:9}},
             series:[{type:"bar",data:cdata.map(function(x){return x.consumed_qty}),color:"#8b6914",barWidth:"50%"}]
           });
         }else{
@@ -3298,9 +3716,9 @@ async function fetchInventoryDashboard(){
 
     function buildMatTable(materials, tableId){
       var tableHtml='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f5f0e8">'
-        +'<th style="padding:6px;text-align:left">'+t('Material')+'</th><th style="padding:6px;text-align:left">'+t('Stock')+'</th><th style="padding:6px;width:28px"></th></tr></thead><tbody>';
+        +'<th style="padding:6px;text-align:left">'+t('Material')+'</th><th style="padding:6px;text-align:left">'+t('Used For')+'</th><th style="padding:6px;text-align:left">'+t('Stock')+'</th><th style="padding:6px;width:28px"></th></tr></thead><tbody>';
       if(materials.length===0){
-        tableHtml+='<tr><td colspan="3" style="padding:12px;text-align:center;color:#6b5b4f">'+t('No data')+'</td></tr>';
+        tableHtml+='<tr><td colspan="4" style="padding:12px;text-align:center;color:#6b5b4f">'+t('No data')+'</td></tr>';
       }else{
         for(var i=0;i<materials.length;i++){
           var m=materials[i];
@@ -3310,15 +3728,17 @@ async function fetchInventoryDashboard(){
           if(pct<30)barCol="#d4a853";else if(pct<70)barCol="#b8952e";
           var rowId=tableId+'_row_'+i;
           tableHtml+='<tr style="border-bottom:1px solid #f0e8d8" id="'+rowId+'"><td style="padding:5px;font-weight:600;font-size:11px">'+m.material_name+'</td>'
+            +'<td style="padding:5px;color:#6b5b4f;font-size:11px">'+t(m.usage_scope||'')+'</td>'
             +'<td style="padding:5px;width:50%"><div style="background:#f0e8d8;border-radius:6px;height:14px;overflow:hidden">'
             +'<div style="height:100%;width:'+pct+'%;background:'+barCol+';border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700">'+fmtQty(m.stock,m.unit)+' / '+fmtQty(baseline,m.unit)+' '+m.unit+'</div></div></td>'
-            +'<td style="padding:3px"><button onclick="showRestockInput(\''+m.material_name+'\',\''+rowId+'\',\''+m.unit+'\')" style="background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1" title="'+t('Restock')+'">+</button></td></tr>';
+            +'<td style="padding:3px"><button data-unit="'+m.unit+'" onclick="showRestockInput(\''+m.material_name+'\',\''+rowId+'\',\''+m.unit+'\')" style="background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:24px;height:24px;line-height:1" title="'+t('Restock')+'">+</button></td></tr>';
         }
       }
       tableHtml+='</tbody></table>';return tableHtml;
     }
     document.getElementById("inv-baking-table").innerHTML=buildMatTable(baking,"baking");
-    document.getElementById("inv-coffee-table").innerHTML=buildMatTable(coffee,"coffee");
+    document.getElementById("inv-beverage-table").innerHTML=buildMatTable(beverage,"beverage");
+    document.getElementById("inv-packaging-table").innerHTML=buildMatTable(packaging,"packaging");
 
   }catch(e){if(bkpi)bkpi.innerHTML='<div class="kpi-card" style="grid-column:1/-1;color:#e74c3c">'+t('Error')+': '+e.message+'</div>';}
 }
@@ -3365,8 +3785,9 @@ async function loadStockDaysHistory(date){
       var row=document.getElementById(rowId);
       if(!row)return;
       var cells=row.getElementsByTagName('td');
+      var step=unit==="pcs"?"1":"0.001";
       cells[1].innerHTML='<div style="display:flex;align-items:center;gap:4px">'
-        +'<input type="number" id="restock-qty" step="0.001" min="0.001" style="width:60px;padding:2px 4px;border:1px solid #8b6914;border-radius:4px;font-size:11px" placeholder="Qty"><span style="font-size:10px;color:#888;margin-left:2px">'+unit+'</span>'
+        +'<input type="number" id="restock-qty" data-unit="'+unit+'" step="'+step+'" min="'+step+'" style="width:60px;padding:2px 4px;border:1px solid #8b6914;border-radius:4px;font-size:11px" placeholder="Qty"><span style="font-size:10px;color:#888;margin-left:2px">'+unit+'</span>'
         +'<button onclick="doRestock(\''+materialName+'\',\''+rowId+'\')" style="background:#27ae60;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;padding:2px 6px">OK</button>'
         +'<button onclick="cancelRestock(\''+rowId+'\')" style="background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;padding:2px 6px">x</button></div>';
     }
@@ -3377,6 +3798,7 @@ async function loadStockDaysHistory(date){
       var qtyEl=document.getElementById('restock-qty');
       var qty=parseFloat(qtyEl.value);
       if(!qty||qty<=0)return;
+      if(qtyEl.getAttribute('data-unit')==='pcs'&&!Number.isInteger(qty)){alert(t('Piece quantities must be whole numbers'));return;}
       try{
         var r=await api('/s4/inventory/restock',{method:'POST',body:{material_name:materialName,quantity:qty}});
         if(r.status==='ok'){fetchInventoryDashboard();}
@@ -3397,14 +3819,14 @@ function renderAttendance(c){
       +'<div id="staff-attendance-result" style="margin-top:10px;font-size:12px;color:#6b5b4f"></div></div>';
     return;
   }
-  var d=new Date();var today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var selectedDate=getSelectedOperationalDate();
   c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
-    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="loadAttendance()" style="font-size:12px">'+t('Today')+'</button>'
-    +'<input type="date" id="att-hist-date" value="'+today+'" onchange="loadAttendanceHistory(this.value)" style="padding:5px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b">'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="showTodayAttendance()" style="font-size:12px">'+t('Today')+'</button>'
+    +'<input type="date" id="att-hist-date" value="'+selectedDate+'" onchange="onAttendanceDateChange(this.value)" style="padding:5px 8px;border-radius:6px;border:1px solid #e0d5c7;font-size:12px;color:#3d322b">'
     +'</div></div>'
     +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('Attendance')+' <span id="kpi-att-date"></span></h4><div id="attendance-result"><span class="spinner"></span>'+t('Loading...')+'</div></div></div>'
     +'';
-  loadAttendance();
+  loadAttendance(selectedDate);
 }
 
 function formatInventoryHistoryTime(value){
@@ -3424,12 +3846,14 @@ async function loadInventoryHistories(date){
     var inflow=await api("/s1/inflow/history?date="+encodeURIComponent(date));
     var rows=inflow.records||[];
     var remainingLabel=t(inflow.remaining_label);
-    var html='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f5f0e8"><th style="padding:6px;text-align:left">'+t('Time')+'</th><th style="padding:6px;text-align:left">'+t('Product')+'</th><th style="padding:6px;text-align:right">'+t('Baked')+'</th><th style="padding:6px;text-align:right">'+t('Sold')+'</th><th style="padding:6px;text-align:right">'+t('Discarded')+'</th><th style="padding:6px;text-align:right">'+remainingLabel+'</th></tr></thead><tbody>';
-    if(rows.length===0){html+='<tr><td colspan="6" style="padding:12px;text-align:center;color:#6b5b4f">'+t('No data')+'</td></tr>';}
+    var carryLabel=inflow.snapshot_basis==="current_live"?t('Fresh Left Now'):t('Carried to Day-1');
+    var html='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#f5f0e8"><th style="padding:6px;text-align:left">'+t('Time')+'</th><th style="padding:6px;text-align:left">'+t('Product')+'</th><th style="padding:6px;text-align:right">'+t('Opening')+'</th><th style="padding:6px;text-align:right">'+t('Baked')+'</th><th style="padding:6px;text-align:right">'+t('Sold')+'</th><th style="padding:6px;text-align:right">'+t('Discarded')+'</th><th style="padding:6px;text-align:right">'+carryLabel+'</th><th style="padding:6px;text-align:right">'+remainingLabel+'</th></tr></thead><tbody>';
+    if(rows.length===0){html+='<tr><td colspan="8" style="padding:12px;text-align:center;color:#6b5b4f">'+t('No data')+'</td></tr>';}
     for(var i=0;i<rows.length;i++){
       var row=rows[i];
       var qualityMarker=row.data_quality_issue?'<span style="display:inline-block;margin-left:4px;padding:1px 4px;border:1px solid #e8b4a8;border-radius:3px;color:#b03a2e;font-size:9px;line-height:1.2;white-space:nowrap">'+t('Check data')+'</span>':'';
-      html+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;white-space:nowrap">'+htmlEscape(formatInventoryHistoryTime(row.transaction_time))+'</td><td style="padding:5px;min-width:120px;overflow-wrap:anywhere">'+htmlEscape(capName(row.product_name||''))+'<div style="margin-top:2px;color:#999;font-size:10px;line-height:1.2;overflow-wrap:anywhere">'+htmlEscape(row.batch_id||'--')+'</div></td><td style="padding:5px;text-align:right">'+Number(row.quantity_baked||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_sold||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_discarded||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_left||0)+qualityMarker+'</td></tr>';
+      var carryQty=inflow.snapshot_basis==="current_live"?row.quantity_fresh_remaining:row.quantity_carried_to_day1;
+      html+='<tr style="border-bottom:1px solid #f0e8d8"><td style="padding:5px;white-space:nowrap">'+htmlEscape(formatInventoryHistoryTime(row.transaction_time))+'</td><td style="padding:5px;min-width:120px;overflow-wrap:anywhere">'+htmlEscape(capName(row.product_name||''))+'<div style="margin-top:2px;color:#999;font-size:10px;line-height:1.2;overflow-wrap:anywhere">'+htmlEscape(row.batch_id||'--')+'</div></td><td style="padding:5px;text-align:right">'+Number(row.quantity_opening||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_baked||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_sold||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_discarded||0)+'</td><td style="padding:5px;text-align:right">'+Number(carryQty||0)+'</td><td style="padding:5px;text-align:right">'+Number(row.quantity_left||0)+qualityMarker+'</td></tr>';
     }
     inflowEl.innerHTML=html+'</tbody></table>';
   }catch(error){inflowEl.innerHTML='<div style="color:#e74c3c;padding:8px">'+t('Failed to load historical data')+'</div>';}
@@ -3517,12 +3941,15 @@ var countsDiv=document.getElementById('inv-wastage-counts');
 var h='';
 for(var i=0;i<items.length;i++){
 var it=items[i];
+var isPiece=it.unit==='pcs';
+var countStep=isPiece?'1':'0.001';
+var countValue=isPiece?String(Math.round(it.theoretical_stock)):it.theoretical_stock.toFixed(3);
 h+='<div style="margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:6px">';
 h+='<div style="font-size:12px;font-weight:600;color:#3d322b">'+it.material_name+' <span style="font-size:10px;color:#999">('+it.unit+')</span></div>';
 h+='<div style="font-size:10px;color:#888;margin:2px 0">'+t('DB stock')+': '+fmtQty(it.current_stock,it.unit)+' '+it.unit+' | '+t('Consumed')+': '+fmtMaterialQty(it.consumed_since,it.unit)+' '+it.unit+' | '+t('Theory')+': '+fmtQty(it.theoretical_stock,it.unit)+' '+it.unit+'</div>';
 h+='<div style="display:flex;align-items:center;gap:6px">';
 h+='<span style="font-size:11px;color:#666">'+t('Actual')+':</span>';
-h+='<input type="number" id="iwc-'+it.material_name.replace(/ /g,'_')+'" value="'+it.theoretical_stock.toFixed(3)+'" step="0.001" min="0" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
+h+='<input type="number" id="iwc-'+it.material_name.replace(/ /g,'_')+'" data-unit="'+it.unit+'" value="'+countValue+'" step="'+countStep+'" min="0" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px">';
 h+='<span style="font-size:10px;color:#999">'+it.unit+'</span>';
 h+='</div></div>';
 }
@@ -3533,13 +3960,20 @@ async function submitInvWastageCheck(){
 var date=document.getElementById('inv-wastage-date').value;
 var inputs=document.querySelectorAll('#inv-wastage-counts input[type=number]');
 var counts=[];
+var invalidPieceCount=false;
 inputs.forEach(function(inp){
 var id=inp.id;
 if(id.startsWith('iwc-')){
 var mn=id.slice(4).replace(/_/g,' ');
-counts.push({material_name:mn,actual_stock:parseFloat(inp.value)||0});
+var actualStock=parseFloat(inp.value)||0;
+if(inp.getAttribute('data-unit')==='pcs'&&!Number.isInteger(actualStock)){
+invalidPieceCount=true;
+return;
+}
+counts.push({material_name:mn,actual_stock:actualStock});
 }
 });
+if(invalidPieceCount){document.getElementById('inv-wastage-result-msg').innerHTML='<span style="color:#e74c3c">'+t('Piece quantities must be whole numbers')+'</span>';return;}
 if(counts.length===0){document.getElementById('inv-wastage-result-msg').innerHTML='<span style="color:#e74c3c">'+t('No materials to check')+'</span>';return;}
 var msg=document.getElementById('inv-wastage-result-msg');
 msg.innerHTML='<span class="spinner"></span> '+t('Processing...');
@@ -3582,7 +4016,7 @@ container.innerHTML='<div style="display:flex;justify-content:space-between;alig
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('7-Day Revenue Trend')+'</h4><div id="rev-trend-chart" style="height:220px"></div></div></div>'
 +'<div class="chart-row"><div class="chart-panel chart-full"><h4>'+t('7-Day Orders & Avg Ticket Value (ATV)')+'</h4><div id="rev-orders-chart" style="height:200px"></div></div></div>'
 +'<div class="chart-row"><div class="chart-panel chart-half"><h4>'+t('Bread Sales Ranking')+' <span id="rev-bread-title"></span></h4><div id="rev-bread-ranking"></div></div><div class="chart-panel chart-half"><h4>'+t('Beverages Sales Ranking')+' <span id="rev-coffee-title"></span></h4><div id="rev-coffee-ranking"></div></div></div>'
-+'<div class="chart-row"><div class="chart-panel chart-full"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px"><h4 style="margin:0">'+t('Historical Sales')+'</h4><div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap"><span id="hist-date-row"><input type="date" id="hist-start" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><span style="font-size:12px;color:#6b5b4f">'+t('to')+'</span><input type="date" id="hist-end" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"></span><span id="hist-year-row" style="display:none"><select id="hist-year-start" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option></select><span style="font-size:12px;color:#6b5b4f">'+t('to')+'</span><select id="hist-year-end" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="2021">2021</option><option value="2022">2022</option><option value="2023" selected>2023</option></select></span><select id="hist-gran" onchange="onGranChange()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="day">'+t('Daily')+'</option><option value="week">'+t('Weekly')+'</option><option value="month">'+t('Monthly')+'</option><option value="year">'+t('Yearly')+'</option></select><select id="hist-cat" onchange="loadHistoricalData()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="total">'+t('Total')+'</option><option value="bread">'+t('Bread')+'</option><option value="beverages">'+t('Beverages')+'</option></select><select id="hist-sort" onchange="onHistSliderChange()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="desc">'+t('Revenue')+' &#x2193;</option><option value="asc">'+t('Revenue')+' &#x2191;</option><option value="default">A-Z</option></select><button onclick="loadHistoricalData()" style="padding:4px 10px;background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">'+t('Query')+'</button></div></div><div id="rev-historical-chart" style="height:420px"></div><div style="display:flex;align-items:center;gap:10px;margin-top:2px"><span style="font-size:11px;color:#6b5b4f;min-width:80px" id="hist-period-label">-</span><input type="range" id="hist-slider" min="0" max="0" value="0" oninput="onHistSliderChange()" style="flex:1;accent-color:#8b6914;height:4px"><span style="font-size:11px;color:#6b5b4f;min-width:60px;text-align:right" id="hist-period-end">-</span></div></div></div>';
++'<div class="chart-row"><div class="chart-panel chart-full"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px"><h4 style="margin:0">'+t('Historical Sales')+'</h4><div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap"><span id="hist-date-row"><input type="date" id="hist-start" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><span style="font-size:12px;color:#6b5b4f">'+t('to')+'</span><input type="date" id="hist-end" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"></span><span id="hist-year-row" style="display:none"><select id="hist-year-start" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option></select><span style="font-size:12px;color:#6b5b4f">'+t('to')+'</span><select id="hist-year-end" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="2021">2021</option><option value="2022">2022</option><option value="2023" selected>2023</option></select></span><select id="hist-gran" onchange="onGranChange()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="day">'+t('Daily')+'</option><option value="week">'+t('Weekly')+'</option><option value="month">'+t('Monthly')+'</option><option value="year">'+t('Yearly')+'</option></select><select id="hist-cat" onchange="loadHistoricalData()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="total">'+t('Total')+'</option><option value="bread">'+t('Bread')+'</option><option value="beverages">'+t('Beverages')+'</option></select><select id="hist-sort" onchange="onHistSliderChange()" style="padding:4px 6px;border-radius:4px;border:1px solid #e0d5c7;font-size:11px;color:#3d322b"><option value="desc">'+t('Revenue')+' &#x2193;</option><option value="asc">'+t('Revenue')+' &#x2191;</option><option value="default">A-Z</option></select><button onclick="loadHistoricalData()" style="padding:4px 10px;background:#8b6914;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">'+t('Query')+'</button></div></div><div id="rev-historical-chart" style="height:420px"></div><div id="rev-historical-adjustment" style="display:none;padding:8px 10px;margin:2px 0 8px;border-left:3px solid #c4a35a;background:#faf7f1;color:#6b5b4f;font-size:11px;line-height:1.5"></div><div style="display:flex;align-items:center;gap:10px;margin-top:2px"><span style="font-size:11px;color:#6b5b4f;min-width:80px" id="hist-period-label">-</span><input type="range" id="hist-slider" min="0" max="0" value="0" oninput="onHistSliderChange()" style="flex:1;accent-color:#8b6914;height:4px"><span style="font-size:11px;color:#6b5b4f;min-width:60px;text-align:right" id="hist-period-end">-</span></div></div></div>';
 }
 
 
@@ -3835,6 +4269,8 @@ function loadHourlyChart(date){
 function loadHistoricalData(){
   var cEl=document.getElementById('rev-historical-chart');
   if(!cEl)return;
+  var adjustmentEl=document.getElementById('rev-historical-adjustment');
+  if(adjustmentEl){adjustmentEl.style.display='none';adjustmentEl.innerHTML='';}
   var gran=document.getElementById('hist-gran').value;
   var start,end;
   if(gran==='year'){
@@ -3885,6 +4321,20 @@ function onHistSliderChange(){
     revs.push(pd?pd.revenue:0);
     profs.push(pd?pd.profit:0);
   }
+  var adjustmentEl=document.getElementById('rev-historical-adjustment');
+  var adjustments=d.order_adjustments||{};
+  var adjustment=(adjustments.periods||{})[period];
+  if(adjustmentEl&&adjustment&&(Math.abs(Number(adjustment.revenue||0))>=0.005||Math.abs(Number(adjustment.profit||0))>=0.005)){
+    var adjustmentRevenue=Number(adjustment.revenue||0);
+    var adjustmentProfit=Number(adjustment.profit||0);
+    var revenueSign=adjustmentRevenue>=0?'+':'-';
+    var profitSign=adjustmentProfit>=0?'+':'-';
+    adjustmentEl.innerHTML='<strong>'+t('Separate order charges/costs')+'</strong>: '+t('Revenue')+' '+revenueSign+'\u00A5'+Math.abs(adjustmentRevenue).toFixed(2)+' | '+t('Profit')+' '+profitSign+'\u00A5'+Math.abs(adjustmentProfit).toFixed(2)+'<br><span>'+t('Includes takeaway packaging costs plus small rounding differences.')+'</span>';
+    adjustmentEl.style.display='block';
+  }else if(adjustmentEl){
+    adjustmentEl.style.display='none';
+    adjustmentEl.innerHTML='';
+  }
   var cEl=document.getElementById('rev-historical-chart');
   if(typeof echarts==='undefined'){cEl.innerHTML='<div style="padding:40px;text-align:center;color:#6b5b4f">'+t('Charts not available')+'</div>';return;}
   var oldChart=echarts.getInstanceByDom(cEl);if(oldChart)oldChart.dispose();
@@ -3926,6 +4376,13 @@ detections.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:n
 cartItems.push({product_name:nn,quantity:nq,confidence:1.0,bbox:[],tray_color:ntc,status:"confirmed",freshness:nf!=="auto"?nf:"Fresh"});
 hitlLog.push({action:'Added manually: '+nn+' x'+nq,product:nn,time:new Date().toLocaleTimeString()});
 closeEditModal();loadStock();renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));return;
+}
+if(EDITING_INFLOW&&EDITING_IDX===-3){
+var productName=document.getElementById('edit-name').value;
+if(!productName){alert(t('Please select a product'));return;}
+var quantity=parseInt(document.getElementById('edit-qty').value)||1;
+inflowDets.push({product_name:productName,quantity:quantity,confidence:1.0,tray_color:'green'});
+closeEditModal();renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));return;
 }
 if(EDITING_INFLOW){
 var d=inflowDets[EDITING_IDX];if(!d)return;
@@ -3999,7 +4456,33 @@ for(var j=0;j<COFFEE_DRINKS.length;j++){if(COFFEE_DRINKS[j].key===p.product_name
 if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
 }).catch(function(e){console.log('Price fetch err',e);});
 }
-function loadStock(){api('/s1/batch_inventory',{force:true}).then(function(d){var inv=d.inventory||[];stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};for(var i=0;i<inv.length;i++){var item=inv[i];var pn=item.product_name;if(!stockMap[pn]){stockMap[pn]=0;freshnessMap[pn]=item.freshness_status||"Fresh";}stockMap[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));var f=item.freshness_status||"Fresh";var frank={"Expired":0,"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};if(f!=="Expired"&&frank[f]<frank[freshnessMap[pn]])freshnessMap[pn]=f;if(f==="Fresh"){if(!window._freshStock[pn])window._freshStock[pn]=0;window._freshStock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}if(f==="Day-1"){if(!window._day1Stock[pn])window._day1Stock[pn]=0;window._day1Stock[pn]+=(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0));}}if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}).catch(function(e){console.log('Stock err',e);});}
+function loadStock(){
+return api('/s1/batch_inventory',{force:true}).then(function(d){
+var inv=d.inventory||[];
+var freshnessStock={};
+var freshnessRank={"Fresh":1,"Day-1":2,"Day-2":3,"Near-Expired":4};
+stockMap={};freshnessMap={};window._freshStock={};window._day1Stock={};
+if(!window._bakeryFreshness)window._bakeryFreshness={};
+for(var i=0;i<inv.length;i++){
+var item=inv[i];
+var pn=item.product_name;
+var qty=Number(item.quantity_remaining!=null?item.quantity_remaining:(item.quantity||0))||0;
+var fresh=item.freshness_status||"Fresh";
+if(stockMap[pn]===undefined)stockMap[pn]=0;
+stockMap[pn]+=qty;
+if(!freshnessStock[pn])freshnessStock[pn]={};
+freshnessStock[pn][fresh]=(freshnessStock[pn][fresh]||0)+qty;
+if(qty>0&&fresh!=="Expired"&&(freshnessMap[pn]===undefined||freshnessRank[fresh]<freshnessRank[freshnessMap[pn]]))freshnessMap[pn]=fresh;
+if(fresh==="Fresh")window._freshStock[pn]=(window._freshStock[pn]||0)+qty;
+if(fresh==="Day-1")window._day1Stock[pn]=(window._day1Stock[pn]||0)+qty;
+}
+Object.keys(stockMap).forEach(function(pn){
+var selected=window._bakeryFreshness[pn];
+if(!selected||!freshnessStock[pn]||!(freshnessStock[pn][selected]>0))window._bakeryFreshness[pn]=freshnessMap[pn]||"Fresh";
+});
+if(currentPanel==='pos')renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));
+}).catch(function(e){console.log('Stock err',e);throw e;});
+}
 function changeQty(delta){
 var el=document.getElementById('edit-qty');
 var v=(parseInt(el.value)||1)+delta;
@@ -4036,7 +4519,7 @@ document.getElementById('scan-file').value='';
 }
 function deleteCartItem(){
 if(EDITING_INFLOW){
-deleteInflowDetect(EDITING_IDX);EDITING_INFLOW=false;closeEditModal();return;
+if(EDITING_IDX>=0)deleteInflowDetect(EDITING_IDX);EDITING_INFLOW=false;closeEditModal();return;
 }
 if(EDITING_IDX===-2){closeEditModal();return;}
 if(EDITING_DETECT){
@@ -4106,6 +4589,17 @@ renderPOS(document.getElementById('panel-pos')||document.getElementById('content
 function incrQty(idx){cartItems[idx].quantity+=1;renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
 function decrQty(idx){cartItems[idx].quantity-=1;if(cartItems[idx].quantity<=0){cartItems.splice(idx,1);}renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
 function deleteInflowDetect(idx){inflowDets.splice(idx,1);renderPOS(document.getElementById('panel-pos')||document.getElementById('content-area'));}
+function addManualInflowItem(){
+EDITING_IDX=-3;EDITING_DETECT=false;EDITING_INFLOW=true;
+var bakeryKeys=Object.keys(PRODUCT_PRICES).sort();
+var options='';
+for(var i=0;i<bakeryKeys.length;i++)options+='<option value="'+bakeryKeys[i]+'">'+capName(bakeryKeys[i])+'</option>';
+document.getElementById('edit-name').innerHTML='<optgroup label="'+t('-- Bakery --')+'">'+options+'</optgroup>';
+document.getElementById('edit-qty').value=1;
+document.getElementById('edit-freshness').value='Fresh';
+document.querySelector('#edit-modal h3').textContent=t('Manual Inflow');
+document.getElementById('edit-modal').classList.add('show');
+}
 function editInflowDetect(idx){
 var d=inflowDets[idx];if(!d)return;
 EDITING_IDX=idx;EDITING_DETECT=false;EDITING_INFLOW=true;

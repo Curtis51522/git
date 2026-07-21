@@ -8,6 +8,7 @@ are useful after accounting for demand scale.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
@@ -24,6 +25,11 @@ DATA_DIR = BASE_DIR / "data"
 OUT_DIR = Path(__file__).resolve().parent / "outputs"
 TARGET = "quantity"
 DEFAULT_HIGH_UNCERTAINTY_THRESHOLD = 0.60
+CORE_INTERVAL_SCOPE = "core_pre_runtime_bias_conformal"
+RUNTIME_TRANSFORM_NOTE = (
+    "The live endpoint applies operation-specific bakery/beverage bias scaling "
+    "and integer rounding. These diagnostics do not evaluate that dynamic transform."
+)
 
 
 def _safe_divide(numerator: pd.Series | np.ndarray, denominator: pd.Series | np.ndarray) -> np.ndarray:
@@ -229,6 +235,8 @@ def summarize_overall(
     return {
         "sample_count": int(len(interval_frame)),
         "product_count": int(interval_frame["product_id"].nunique()),
+        "conformal_interval_scope": CORE_INTERVAL_SCOPE,
+        "runtime_transform_evaluated": False,
         "raw_interval_coverage_pct": round(
             _coverage(interval_frame["actual"], interval_frame["raw_lower"], interval_frame["raw_upper"]),
             4,
@@ -273,11 +281,18 @@ def run_diagnostics(
     overall = summarize_overall(interval_frame, high_uncertainty_threshold, product_names)
 
     diagnostics = {
+        "run_timestamp": datetime.now(timezone.utc).isoformat(),
+        "row_count": int(len(test_df)),
+        "test_period": f"{test_df['date'].min()} to {test_df['date'].max()}",
         "module": "S2 interval diagnostics",
         "purpose": "Evaluate prediction interval usefulness by demand scale.",
+        "runtime_transform_note": RUNTIME_TRANSFORM_NOTE,
         "intervals": {
             "raw": "Q10 to Q90",
-            "conformal": "Q50 plus or minus product-level conformal half-width",
+            "conformal": (
+                "Core pre-runtime-bias Q50 plus or minus product-level "
+                "conformal half-width"
+            ),
         },
         "overall": overall,
         "outputs": {

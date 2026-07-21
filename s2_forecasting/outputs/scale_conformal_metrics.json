@@ -4,179 +4,141 @@
   "role": "candidate_uncertainty_calibration",
   "scope": "candidate_not_deployed",
   "description": "Calibrates conformal half-width by predicted demand scale while keeping the deployed Q50 model fixed.",
-  "validation_design": "validation residual calibration with chronological holdout test set",
+  "validation_design": "chronological inner validation calibration and later validation selection; chosen configuration recalibrated on full validation; test evaluated once",
   "feature_contract": "s2_forecasting.feature_contract.FORECAST_FEATURES",
   "features": 27,
-  "test_period": "2025-07-01 to 2026-06-29",
+  "test_period": "2025-07-01 to 2026-06-23",
   "calibration": {
     "method": "predicted-demand-scale conformal calibration",
     "target_coverage_quantile": 0.8,
-    "n_bins": 20,
+    "n_bins": 10,
     "min_half_width": 0.5,
-    "global_half_width": 1.654473,
+    "global_half_width": 0.701895,
     "bins": [
       {
-        "lower_edge": 0.4608,
-        "upper_edge": 0.705723,
-        "half_width": 0.664053,
-        "sample_count": 408
-      },
-      {
-        "lower_edge": 0.705723,
-        "upper_edge": 0.791618,
-        "half_width": 0.744205,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 0.791648,
-        "upper_edge": 0.852916,
+        "lower_edge": 0.969229,
+        "upper_edge": 1.490238,
         "half_width": 0.5,
-        "sample_count": 407
+        "sample_count": 815
       },
       {
-        "lower_edge": 0.853037,
-        "upper_edge": 0.951994,
+        "lower_edge": 1.490441,
+        "upper_edge": 1.806835,
+        "half_width": 0.520085,
+        "sample_count": 814
+      },
+      {
+        "lower_edge": 1.807224,
+        "upper_edge": 2.031505,
         "half_width": 0.5,
-        "sample_count": 407
+        "sample_count": 815
       },
       {
-        "lower_edge": 0.952166,
-        "upper_edge": 1.042025,
+        "lower_edge": 2.031567,
+        "upper_edge": 2.437009,
         "half_width": 0.5,
-        "sample_count": 408
+        "sample_count": 814
       },
       {
-        "lower_edge": 1.042218,
-        "upper_edge": 1.204235,
+        "lower_edge": 2.438094,
+        "upper_edge": 2.957508,
+        "half_width": 0.537924,
+        "sample_count": 815
+      },
+      {
+        "lower_edge": 2.957994,
+        "upper_edge": 3.39988,
         "half_width": 0.5,
-        "sample_count": 407
+        "sample_count": 814
       },
       {
-        "lower_edge": 1.204361,
-        "upper_edge": 1.715645,
-        "half_width": 0.696945,
-        "sample_count": 407
+        "lower_edge": 3.400329,
+        "upper_edge": 4.184763,
+        "half_width": 0.581263,
+        "sample_count": 814
       },
       {
-        "lower_edge": 1.715913,
-        "upper_edge": 2.076373,
-        "half_width": 1.017368,
-        "sample_count": 407
+        "lower_edge": 4.184829,
+        "upper_edge": 7.356527,
+        "half_width": 0.74108,
+        "sample_count": 815
       },
       {
-        "lower_edge": 2.076928,
-        "upper_edge": 2.315816,
-        "half_width": 1.149313,
-        "sample_count": 407
+        "lower_edge": 7.358993,
+        "upper_edge": 11.703662,
+        "half_width": 1.471953,
+        "sample_count": 814
       },
       {
-        "lower_edge": 2.318585,
-        "upper_edge": 2.514471,
-        "half_width": 0.672651,
-        "sample_count": 408
-      },
-      {
-        "lower_edge": 2.515674,
-        "upper_edge": 2.72858,
-        "half_width": 1.330083,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 2.728817,
-        "upper_edge": 3.037968,
-        "half_width": 1.098424,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 3.039433,
-        "upper_edge": 3.385232,
-        "half_width": 1.349145,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 3.386947,
-        "upper_edge": 3.847503,
-        "half_width": 1.548517,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 3.848936,
-        "upper_edge": 4.608782,
-        "half_width": 1.981165,
-        "sample_count": 408
-      },
-      {
-        "lower_edge": 4.611132,
-        "upper_edge": 5.86239,
-        "half_width": 2.46544,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 5.865066,
-        "upper_edge": 7.599401,
-        "half_width": 2.969124,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 7.601048,
-        "upper_edge": 10.627331,
-        "half_width": 3.817566,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 10.63064,
-        "upper_edge": 28.767204,
-        "half_width": 7.635337,
-        "sample_count": 407
-      },
-      {
-        "lower_edge": 28.86854,
-        "upper_edge": 214.431839,
-        "half_width": 21.055544,
-        "sample_count": 408
+        "lower_edge": 11.708114,
+        "upper_edge": 35.870449,
+        "half_width": 3.265397,
+        "sample_count": 815
       }
     ]
   },
   "overall": {
-    "WAPE": 29.9,
-    "MAE": 1.9,
-    "RMSE": 6.5,
-    "coverage_80": 81.3,
-    "avg_width": 5.2,
-    "avg_relative_width": 0.979,
-    "bias_q50_minus_actual": -0.5634
+    "WAPE": 9.6,
+    "MAE": 0.5,
+    "RMSE": 0.9,
+    "coverage_80": 85.0,
+    "avg_width": 1.8,
+    "avg_relative_width": 0.4423,
+    "bias_q50_minus_actual": -0.0223
   },
-  "n_bins": 20,
-  "sweep": [
-    {
-      "n_bins": 2,
-      "coverage_80": 79.7,
-      "avg_width": 3.8,
-      "avg_relative_width": 1.2207
+  "run_timestamp": "2026-07-18T17:02:57.281801+00:00",
+  "row_count": 16110,
+  "n_bins": 10,
+  "selection": {
+    "evaluation_split": "validation_selection",
+    "inner_calibration": {
+      "split": "validation_inner_calibration",
+      "row_count": 5670,
+      "period": "2025-01-01 to 2025-05-06"
     },
-    {
-      "n_bins": 3,
-      "coverage_80": 80.2,
-      "avg_width": 4.5,
-      "avg_relative_width": 1.1904
+    "selection": {
+      "split": "validation_selection",
+      "row_count": 2475,
+      "period": "2025-05-07 to 2025-06-30"
     },
-    {
-      "n_bins": 5,
-      "coverage_80": 79.5,
-      "avg_width": 5.2,
-      "avg_relative_width": 1.1833
-    },
-    {
-      "n_bins": 10,
-      "coverage_80": 80.9,
-      "avg_width": 5.3,
-      "avg_relative_width": 1.0384
-    },
-    {
-      "n_bins": 20,
-      "coverage_80": 81.3,
-      "avg_width": 5.2,
-      "avg_relative_width": 0.979
-    }
-  ]
+    "selected_n_bins": 10,
+    "sweep": [
+      {
+        "n_bins": 2,
+        "coverage_80": 83.8,
+        "avg_width": 1.6,
+        "avg_relative_width": 0.5034
+      },
+      {
+        "n_bins": 3,
+        "coverage_80": 83.0,
+        "avg_width": 1.7,
+        "avg_relative_width": 0.4813
+      },
+      {
+        "n_bins": 5,
+        "coverage_80": 82.5,
+        "avg_width": 1.7,
+        "avg_relative_width": 0.4607
+      },
+      {
+        "n_bins": 10,
+        "coverage_80": 83.8,
+        "avg_width": 1.8,
+        "avg_relative_width": 0.4585
+      },
+      {
+        "n_bins": 20,
+        "coverage_80": 86.7,
+        "avg_width": 1.8,
+        "avg_relative_width": 0.4708
+      }
+    ]
+  },
+  "final_evaluation": {
+    "evaluation_split": "test_once",
+    "split": "test",
+    "row_count": 16110,
+    "period": "2025-07-01 to 2026-06-23"
+  }
 }

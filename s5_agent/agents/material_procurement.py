@@ -1,8 +1,10 @@
 import os, sys, logging
 from datetime import datetime as dt
+from urllib.parse import urlencode
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
@@ -21,7 +23,7 @@ class MaterialProcurementAgent(BaseAgent):
 
     async def fetch(self, params):
         date_str = str(params.get("date", "")) if isinstance(params, dict) else ""
-        data = _query_materials(date_str)
+        data = _query_materials(date_str, params)
         return {"success": True, "data": data, "tool": "material_procurement"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
@@ -275,18 +277,17 @@ class MaterialProcurementAgent(BaseAgent):
         )
 
 
-def _query_materials(date_str=""):
+def _query_materials(date_str="", params=None):
     try:
-        from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
-        from api.module3_scheduling import _load_day1_stock
         if not date_str:
             date_str = dt.now().strftime("%Y-%m-%d")
         start_date = dt.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m-%d")
-        s = Scheduler()
-        day1_stock = _load_day1_stock(s.breads, start_date)
-        forecast = generate_7day_s2_forecast(start_date)
-        result = s.generate_7day_plan(start_date, day1_stock, forecast)
-        dm = result["dashboard_materials"]
+        url = (
+            "http://127.0.0.1:8002/s3/materials?"
+            + urlencode({"date": start_date})
+        )
+        payload = fetch_dashboard_json(url, params, timeout=120)
+        dm = payload.get("dashboard_materials", {})
         return {
             "items": dm.get("items", {}),
             "stock_data_available": bool(dm.get("stock_data_available", True)),

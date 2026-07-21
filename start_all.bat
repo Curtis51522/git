@@ -19,6 +19,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
+"%PY%" -m pip check
+if errorlevel 1 (
+    echo Python dependency check failed.
+    echo Repair with: "%PY%" -m pip install -r requirements.txt
+    exit /b 1
+)
+
 echo Starting S5 LangGraph service on 127.0.0.1:8001...
 start "Bakery S5 LangGraph Server" "%PY%" -m s5_agent.server
 

@@ -1,6 +1,7 @@
 # s5_agent/server.py - S5 dashboard analysis server (port 8001)
 import asyncio, logging, sys, os
 from contextlib import asynccontextmanager
+from datetime import date as date_type
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
@@ -59,10 +60,13 @@ def _response_cache_key(intent: str, params: dict, lang: str = "en") -> str:
     module = str(params.get("module", "")) if params else ""
     return f"{intent}:{date}:{module}:{_normalize_lang(lang)}"
 
-def _latest_cached_synthesis(intent: str) -> dict:
+def _latest_cached_synthesis(intent: str, selected_date: str = "") -> dict:
     for value in reversed(list(_response_cache.values())):
-        if value.get("intent") == intent:
-            return value
+        if value.get("intent") != intent:
+            continue
+        if selected_date and value.get("date") != selected_date:
+            continue
+        return value
     return {}
 
 def _priority_context(cached: dict) -> str:
@@ -87,58 +91,13 @@ def _build_priority_recommendations(context: str) -> list:
             return priorities[:3]
     except Exception as exc:
         logger.debug("RecommendationAgent direct analysis unavailable: %s", exc)
-
-    signals = agent._parse_signals(context)
-    priorities = []
-
-    def add_priority(product: str, coffee: str, reason: str, boost: float, strategy: str) -> None:
-        if product and product not in [item["product"] for item in priorities]:
-            priorities.append({
-                "product": product,
-                "coffee": coffee,
-                "reason": reason,
-                "boost": boost,
-                "strategy": strategy,
-            })
-
-    for product in signals.get("day1_products", [])[:3]:
-        add_priority(
-            product,
-            agent._best_coffee_for(product, signals),
-            f"Day-1 clearance: {product} needs to move before expiry",
-            2.5,
-            "clearance",
-        )
-    for product in signals.get("rising_products", [])[:2]:
-        add_priority(
-            product,
-            agent._best_coffee_for(product, signals),
-            f"Momentum: {product} volume rising, amplify with bundle",
-            2.0,
-            "amplify",
-        )
-    for product in signals.get("high_margin_products", [])[:2]:
-        add_priority(
-            product,
-            signals.get("high_margin_coffee", "cold_brew"),
-            f"Margin play: {product} has strong profit margin",
-            1.8,
-            "margin",
-        )
-    for product in signals.get("concentration_risk_products", [])[:2]:
-        add_priority(
-            product,
-            agent._best_coffee_for(product, signals),
-            f"Diversification: reduce reliance on {signals.get('top_seller', 'hero item')}",
-            1.5,
-            "diversify",
-        )
-    return priorities[:3]
+    return []
 
 @app.post("/analyze/module")
 async def analyze_module(
     req: ModuleAnalyzeRequest,
     authorization: str | None = Header(default=None),
+    x_operation_at: str | None = Header(default=None),
 ):
     lang = _normalize_lang(req.lang)
     module = (req.module or "").strip().lower()
@@ -154,8 +113,11 @@ async def analyze_module(
         **(req.params or {}),
     }
     graph_params.pop("_authorization", None)
+    graph_params.pop("_operation_at", None)
     if authorization:
         graph_params["_authorization"] = authorization
+    if x_operation_at:
+        graph_params["_operation_at"] = x_operation_at
     graph_request = S5Request(
         query=module,
         module=module,
@@ -166,7 +128,12 @@ async def analyze_module(
     graph_response = await run_s5_graph(template_id, graph_request)
     response_payload = graph_response.model_dump()
     cache_key = _response_cache_key(template_id, graph_params, lang)
-    _response_cache[cache_key] = {"intent": template_id, **response_payload}
+    analysis_date = str(req.date or "").strip() or date_type.today().isoformat()
+    _response_cache[cache_key] = {
+        "intent": template_id,
+        "date": analysis_date,
+        **response_payload,
+    }
     if len(_response_cache) > _response_cache_max:
         oldest = next(iter(_response_cache))
         del _response_cache[oldest]
@@ -180,7 +147,10 @@ async def analyze_module(
 async def get_priorities():
     """Return cached bundle priority recommendations from RecommendationAgent."""
     try:
-        cached = _latest_cached_synthesis("profit_root_cause")
+        cached = _latest_cached_synthesis(
+            "profit_root_cause",
+            date_type.today().isoformat(),
+        )
         priorities = _build_priority_recommendations(_priority_context(cached))
         if priorities:
             return {"status": "ok", "priorities": priorities, "cached": True}
@@ -205,7 +175,10 @@ async def get_discounts(req: DiscountRequest):
     try:
         priority_map = {}
         try:
-            cached = _latest_cached_synthesis("profit_root_cause")
+            cached = _latest_cached_synthesis(
+                "profit_root_cause",
+                date_type.today().isoformat(),
+            )
             for p in _build_priority_recommendations(_priority_context(cached)):
                 prod = p.get("product", "").lower().replace(" ", "_")
                 strategy = p.get("strategy", "")

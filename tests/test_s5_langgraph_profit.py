@@ -110,6 +110,13 @@ def test_profit_root_cause_uses_revenue_multi_agent_output():
     assert "Compared with the previous day" in summary_paragraphs[0]
     assert "Revenue quality" in summary_paragraphs[1]
     assert "Separately recorded material-wastage variance" in summary_paragraphs[2]
+    peak_recommendation = next(
+        recommendation
+        for recommendation in result.recommendations
+        if recommendation.id == "peak_profit_window_protection"
+    )
+    assert "Croissant" not in peak_recommendation.action
+    assert "products selling in that hour" in peak_recommendation.action
 
 
 def test_hourly_revenue_agent_prefers_profitability_metrics_when_available():
@@ -416,6 +423,32 @@ def test_profit_root_cause_order_value_shift_gets_watch_recommendation():
     assert "average order value" in result.recommendations[0].action
 
 
+def test_order_behavior_does_not_flag_low_value_orders_when_aov_increases():
+    raw = {
+        "data": {
+            "today_revenue": 2917.0,
+            "today_orders": 37,
+            "avg_order": 78.84,
+            "orders_change": 42.3,
+            "avg_change": 1.3,
+            "previous_day_available": True,
+            "items_per_order": 7.05,
+            "items_per_order_change": 5.4,
+            "revenue_per_item": 11.18,
+            "revenue_per_item_change": -3.9,
+        }
+    }
+
+    result = OrderBehaviorAgent().analyze_for_graph(
+        raw,
+        {"date": "2026-06-30"},
+    )
+
+    assert result.metrics["order_volume_driver"] == "volume-led"
+    assert result.risks == []
+    assert result.recommendations == []
+
+
 def test_profit_root_cause_explains_joint_order_and_basket_contraction():
     dashboard = {
         "data": {
@@ -624,7 +657,8 @@ def test_profit_root_cause_peak_profit_recommendation_is_operationally_specific(
     )
 
     assert "Before 09:00" in peak_recommendation.action
-    assert "Macaron" in peak_recommendation.action
+    assert "products selling in that hour" in peak_recommendation.action
+    assert "Macaron" not in peak_recommendation.action
     assert "beverage pairing" in peak_recommendation.action
     assert "service coverage" in peak_recommendation.action
     assert "stock or queue delays" in peak_recommendation.expected_impact

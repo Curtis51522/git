@@ -55,6 +55,17 @@ For development and test work, install the development manifest instead of the r
 
 `requirements-s5.txt` remains a compatibility entry point and delegates to the same unified runtime manifest.
 
+Verify the isolated runtime before starting the system or running tests:
+
+```powershell
+& "$venv\Scripts\python.exe" -m pip check
+& "$venv\Scripts\python.exe" -m pytest -q
+```
+
+Do not run the project with the system-wide Python interpreter. The launchers use
+the isolated Python 3.13 runtime and stop early when installed dependencies are
+inconsistent with the project manifest.
+
 Start the full local system:
 
 ```powershell
@@ -105,7 +116,7 @@ S5 is a module-based analysis service used by the manager dashboard and POS reco
 ```text
 Dashboard or POS request
 -> FastAPI S5 endpoint
--> module-to-template mapping
+-> module-to-workflow registry
 -> LangGraph workflow
 -> deterministic specialist agents
 -> evidence graph and verification checks
@@ -113,9 +124,9 @@ Dashboard or POS request
 -> structured JSON response
 ```
 
-### Module Template Map
+### Module Workflow Map
 
-| Dashboard Module | LangGraph Template |
+| Dashboard Module | LangGraph Workflow ID |
 | --- | --- |
 | revenue | `profit_root_cause` |
 | wastage | `wastage_root_cause` |
@@ -125,7 +136,7 @@ Dashboard or POS request
 
 Schedule, attendance, and KPI ranking remain S3 dashboard functions. They do not currently expose S5 AI analysis endpoints.
 
-### LangGraph Templates
+### LangGraph Workflows
 
 S5 currently ships these module workflows:
 
@@ -153,8 +164,8 @@ The LangGraph runtime keeps module execution constrained:
 
 - Only explicitly supported dashboard modules can call `/analyze/module`.
 - Each workflow produces structured agent outputs.
-- Recommendations must link back to evidence IDs.
-- Verification reports expose missing evidence, unsupported recommendations, and data-quality warnings.
+- Recommendation records expose their supporting evidence IDs.
+- Verification reports surface missing evidence links and data-quality warnings.
 - Unsupported modules fail fast instead of falling back to legacy routes.
 
 This prevents silent execution of stale analysis paths.

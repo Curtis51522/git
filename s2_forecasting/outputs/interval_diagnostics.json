@@ -1,27 +1,33 @@
 {
+  "run_timestamp": "2026-07-18T17:29:26.185403+00:00",
+  "row_count": 16110,
+  "test_period": "2025-07-01 to 2026-06-23",
   "module": "S2 interval diagnostics",
   "purpose": "Evaluate prediction interval usefulness by demand scale.",
+  "runtime_transform_note": "The live endpoint applies operation-specific bakery/beverage bias scaling and integer rounding. These diagnostics do not evaluate that dynamic transform.",
   "intervals": {
     "raw": "Q10 to Q90",
-    "conformal": "Q50 plus or minus product-level conformal half-width"
+    "conformal": "Core pre-runtime-bias Q50 plus or minus product-level conformal half-width"
   },
   "overall": {
-    "sample_count": 16380,
+    "sample_count": 16110,
     "product_count": 45,
-    "raw_interval_coverage_pct": 78.1197,
-    "conformal_interval_coverage_pct": 78.9316,
-    "avg_q50": 5.8667,
-    "avg_raw_interval_width": 5.3142,
-    "avg_raw_relative_width": 0.9083,
-    "avg_conformal_interval_width": 5.2143,
-    "avg_conformal_relative_width": 1.0745,
-    "wape_pct": 29.8543,
-    "bias_q50_minus_actual": -0.5617,
-    "pre_correction_crossing_count": 1245,
+    "conformal_interval_scope": "core_pre_runtime_bias_conformal",
+    "runtime_transform_evaluated": false,
+    "raw_interval_coverage_pct": 82.1477,
+    "conformal_interval_coverage_pct": 84.6865,
+    "avg_q50": 5.382,
+    "avg_raw_interval_width": 1.6946,
+    "avg_raw_relative_width": 0.3786,
+    "avg_conformal_interval_width": 1.9022,
+    "avg_conformal_relative_width": 0.4532,
+    "wape_pct": 9.5098,
+    "bias_q50_minus_actual": -0.0206,
+    "pre_correction_crossing_count": 668,
     "quantile_crossing_count": 0,
     "high_uncertainty_threshold": 0.6,
-    "high_uncertainty_product_count": 41,
-    "widest_relative_product": "pancake"
+    "high_uncertainty_product_count": 3,
+    "widest_relative_product": "soboru_bread"
   },
   "outputs": {
     "by_product": "interval_by_product.csv",

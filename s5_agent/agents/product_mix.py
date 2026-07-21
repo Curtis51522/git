@@ -43,7 +43,9 @@ class ProductMixAgent(BaseAgent):
 
         # Bread: top concentration risk
         if bread:
-            total_bread_rev = sum(p.get("revenue", 0) for p in bread)
+            total_bread_rev = cat.get("Bread", 0) or sum(
+                p.get("revenue", 0) for p in bread
+            )
             top3_rev = sum(p.get("revenue", 0) for p in bread[:3])
             top3_pct = top3_rev / max(total_bread_rev, 1) * 100
 
@@ -62,7 +64,7 @@ class ProductMixAgent(BaseAgent):
                 f"({top_qty} units, {chr(165)}{bread[0].get('revenue',0):.0f})"
             )
 
-            if top3_pct > 60:
+            if top3_pct >= 50:
                 root_cause = "high_concentration"
                 deviation = round(top3_pct - 50)
                 parts.append(f"Top 3 breads = {top3_pct:.0f}% of revenue (concentration risk)")

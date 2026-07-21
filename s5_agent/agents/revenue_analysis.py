@@ -550,7 +550,15 @@ class OrderBehaviorAgent:
         risks = []
         recommendations = []
         low_sample_collapse = current_orders <= 3 and order_change_pct <= -50
-        if not low_sample_collapse and abs(order_change_pct - aov_change_pct) > 15:
+        opposing_movements = (
+            order_change_pct < 0 < aov_change_pct
+            or order_change_pct > 0 > aov_change_pct
+        )
+        if (
+            not low_sample_collapse
+            and opposing_movements
+            and abs(order_change_pct - aov_change_pct) > 15
+        ):
             risks.append("order_value_shift")
             if order_change_pct < 0 < aov_change_pct:
                 action = (

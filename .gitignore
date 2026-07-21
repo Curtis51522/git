@@ -83,6 +83,8 @@ runs/
 
 # Temp / misc
 temp_*
+.playwright-cli/
+.codex_replay_*.tmp.js
 gen_arch_content.json
 api/module4_frontend/static/login_test.html
 api/module4_frontend/static/test_*.html
@@ -90,6 +92,7 @@ api/module4_frontend/static/_full.js
 migration.sql
 docs/*
 !docs/s5_promotion_mix_design.md
+!docs/2026-07-24-operational-validation.md
 !docs/superpowers/
 docs/superpowers/*
 !docs/superpowers/plans/

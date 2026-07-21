@@ -6,12 +6,21 @@ only requires changing the import in each module.
 import mysql.connector
 from datetime import datetime
 
+from api.operation_clock import get_operation_time
 from db.mysql_config import get_mysql_connection_config
 
 DB_CONFIG = get_mysql_connection_config()
 
 def get_db(*, autocommit=True):
-    return mysql.connector.connect(**DB_CONFIG, autocommit=autocommit)
+    connection = mysql.connector.connect(**DB_CONFIG, autocommit=autocommit)
+    selected = get_operation_time()
+    if selected is not None:
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SET timestamp = %s", (int(selected.timestamp()),))
+        finally:
+            cursor.close()
+    return connection
 
 class FakeResponse:
     def __init__(self, data):

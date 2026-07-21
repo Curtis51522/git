@@ -1,6 +1,11 @@
 {
   "module": "S2 demand forecasting",
   "summary_file": "s2_experiment_results.json",
+  "run_timestamp": "2026-07-18T17:29:30.855916+00:00",
+  "acceptance_contract": {
+    "row_count": 16110,
+    "test_period": "2025-07-01 to 2026-06-23"
+  },
   "feature_contract": {
     "source": "s2_forecasting.feature_contract",
     "total_features": 27,
@@ -51,129 +56,159 @@
     }
   },
   "validation_design": {
-    "model_selection": "date-aware rolling-origin cross-validation",
-    "final_evaluation": "chronological holdout test set"
+    "model_selection": "train-only date-aware rolling-origin cross-validation",
+    "calibration": "independent chronological validation split",
+    "final_evaluation": "chronological holdout test set evaluated once"
   },
   "experiments": [
     {
       "id": "B0",
-      "name": "Historical moving-average baseline",
+      "name": "B0 lag_7_avg",
       "role": "simple_business_baseline",
       "description": "Uses lag_7_avg directly as the demand prediction.",
       "metrics": {
-        "MAE": 2.7102564102564104,
-        "RMSE": 9.064229292802425,
-        "MAPE": 49.048792921715574,
-        "R2": 0.6483333829064015
+        "MAE": 0.7816174514498536,
+        "RMSE": 1.5590120274160295,
+        "MAPE": 16.473443226567195,
+        "R2": 0.9470948689653109
+      },
+      "provenance": {
+        "run_timestamp": "2026-07-18T16:59:32.806886+00:00",
+        "row_count": 16110,
+        "test_period": "2025-07-01 to 2026-06-23",
+        "source_artifacts": [
+          {
+            "path": "metrics.json",
+            "sha256": "d81d6fc947b1a04188b20a4a44408a85d5cdcd192deb7899ee289d9a22aee8ca"
+          }
+        ]
       }
     },
     {
       "id": "B1",
-      "name": "Deterministic XGBoost baseline",
+      "name": "B1 deterministic XGBoost",
       "role": "point_forecast_ml_baseline",
-      "description": "Uses the shared S2 forecast-time feature contract with a deterministic XGBoost point forecast objective.",
+      "description": "Deterministic XGBoost point forecast baseline.",
       "metrics": {
-        "MAE": 2.0940122604370117,
-        "RMSE": 7.6421690708796906,
-        "MAPE": 32.62801026015249,
-        "R2": 0.7500214576721191
+        "MAE": 0.5042396783828735,
+        "RMSE": 0.8431166638413962,
+        "MAPE": 13.998106897753699,
+        "R2": 0.9845269918441772
+      },
+      "provenance": {
+        "run_timestamp": "2026-07-18T16:59:32.806886+00:00",
+        "row_count": 16110,
+        "test_period": "2025-07-01 to 2026-06-23",
+        "source_artifacts": [
+          {
+            "path": "metrics.json",
+            "sha256": "d81d6fc947b1a04188b20a4a44408a85d5cdcd192deb7899ee289d9a22aee8ca"
+          }
+        ]
       }
     },
     {
       "id": "Proposed",
       "name": "Tweedie Q50 with conformal interval",
       "role": "probabilistic_decision_support_model",
-      "description": "Uses the shared S2 forecast-time feature contract with a Tweedie Q50 point forecast and conformal prediction interval.",
+      "description": "Train-only Q50 with independent validation split-conformal calibration. Metrics cover the core pre-runtime-bias interval.",
+      "interval_scope": "core_pre_runtime_bias_conformal",
+      "runtime_transform_evaluated": false,
+      "runtime_transform_note": "The live endpoint applies operation-specific bakery/beverage bias scaling and integer rounding. Those dynamic transforms are not evaluated by this core artifact-level interval metric.",
       "metrics": {
-        "WAPE": 29.9,
-        "MAE": 1.9,
-        "RMSE": 6.5,
-        "coverage_80": 78.9,
-        "avg_interval_width": 5.3
+        "WAPE": 9.5,
+        "MAE": 0.5,
+        "RMSE": 0.9,
+        "coverage_80": 84.7,
+        "avg_interval_width": 1.9
+      },
+      "provenance": {
+        "run_timestamp": "2026-07-18T17:29:20.034351+00:00",
+        "row_count": 16110,
+        "test_period": "2025-07-01 to 2026-06-23",
+        "source_artifacts": [
+          {
+            "path": "test_metrics.json",
+            "sha256": "4aa9d41e9906646c2153c2cd9869e20c97d7e8d347f2e655818707a7762945de"
+          }
+        ]
       }
     }
   ],
   "candidate_experiments": [
-    {
-      "id": "CandidateA_LogQuantile",
-      "name": "Log-scale quantile candidate",
-      "role": "candidate_probabilistic_forecast",
-      "scope": "candidate_not_deployed",
-      "description": "Trains Q10/Q50/Q90 quantile models on log1p quantity and evaluates outputs in demand units.",
-      "validation_design": "chronological train/validation fit with chronological holdout test set",
-      "metrics": {
-        "WAPE": 37.4,
-        "MAE": 2.4,
-        "RMSE": 9.4,
-        "raw_Q10Q90_coverage": 79.1,
-        "avg_raw_relative_width": 0.9928,
-        "quantile_crossing_count": 0
-      }
-    },
     {
       "id": "CandidateB_ScaleConformal",
       "name": "Demand-scale conformal candidate",
       "role": "candidate_uncertainty_calibration",
       "scope": "candidate_not_deployed",
       "description": "Calibrates conformal half-width by predicted demand scale while keeping the deployed Q50 model fixed.",
-      "validation_design": "validation residual calibration with chronological holdout test set",
+      "validation_design": "chronological inner validation calibration and later validation selection; chosen configuration recalibrated on full validation; test evaluated once",
       "metrics": {
-        "WAPE": 29.9,
-        "MAE": 1.9,
-        "RMSE": 6.5,
-        "coverage_80": 81.3,
-        "avg_width": 5.2,
-        "avg_relative_width": 0.979
-      }
-    },
-    {
-      "id": "CandidateC_RelativeConformal",
-      "name": "Relative conformal candidate",
-      "role": "candidate_uncertainty_calibration",
-      "scope": "candidate_not_deployed",
-      "description": "Calibrates interval width using normalized residuals while keeping the deployed Q50 model fixed.",
-      "validation_design": "validation normalized-residual calibration with chronological holdout test set",
-      "metrics": {
-        "WAPE": 29.9,
-        "MAE": 1.9,
-        "RMSE": 6.5,
-        "coverage_80": 79.6,
-        "avg_width": 5.8,
-        "avg_relative_width": 0.9784
+        "WAPE": 9.6,
+        "MAE": 0.5,
+        "RMSE": 0.9,
+        "coverage_80": 85.0,
+        "avg_width": 1.8,
+        "avg_relative_width": 0.4423
+      },
+      "provenance": {
+        "run_timestamp": "2026-07-18T17:02:57.281801+00:00",
+        "row_count": 16110,
+        "test_period": "2025-07-01 to 2026-06-23",
+        "source_artifacts": [
+          {
+            "path": "scale_conformal_metrics.json",
+            "sha256": "87778c3808f278458d9ba1f58df9ec44f8de3206496145d1a87fc274d40d7ab7"
+          },
+          {
+            "path": "scale_conformal_predictions.csv",
+            "sha256": "9065e32f8216ce3f391ddbaeda4d93ceeeeb890789ba27f2a484b2013ef5a31b"
+          }
+        ]
       }
     }
   ],
-  "supplementary_experiments": [
+  "supplementary_experiments": [],
+  "excluded_artifacts": [
+    {
+      "id": "CandidateA_LogQuantile",
+      "reason": "log_quantile_metrics.json provenance missing fields: run_timestamp, row_count",
+      "source_artifacts": [
+        {
+          "path": "log_quantile_metrics.json",
+          "sha256": "d72ff87924472ce10987e157f2548cad2bff1eaeb3c706476738e01316fe6c2c"
+        }
+      ]
+    },
+    {
+      "id": "CandidateC_RelativeConformal",
+      "reason": "relative_conformal_metrics.json provenance missing fields: run_timestamp, row_count",
+      "source_artifacts": [
+        {
+          "path": "relative_conformal_metrics.json",
+          "sha256": "fc380e89442779d476d51c66efb35d924fcba0808875c7d1e6508b917baa8f38"
+        }
+      ]
+    },
     {
       "id": "AuxClassifier",
-      "name": "Auxiliary high-demand risk classifier",
-      "role": "auxiliary_high_demand_risk_classifier",
-      "scope": "auxiliary_risk_signal",
-      "description": "Classifies product-day high-demand risk using the shared 27-feature forecast-time contract. Metrics are classification signals and are not directly comparable with WAPE.",
-      "validation_design": "date-aware rolling-origin cross-validation",
-      "metrics": {
-        "Accuracy": 0.8256,
-        "Precision": 0.5417,
-        "Recall": 0.6322,
-        "F1": 0.5835,
-        "ROC_AUC": 0.8656
-      }
+      "reason": "classifier_metrics.json provenance missing fields: run_timestamp, row_count, test_period",
+      "source_artifacts": [
+        {
+          "path": "classifier_metrics.json",
+          "sha256": "9db028cad57c84f626e95e73ff5efbf311bd63f10fb1ee1f257f267abc322e7a"
+        }
+      ]
     },
     {
       "id": "WeeklyEventAware",
-      "name": "Weekly event-aware supplementary forecast",
-      "role": "supplementary_weekly_event_aware_forecast",
-      "scope": "weekly_supplementary",
-      "description": "Forecasts weekly product demand with reserved new-product and competitor event fields for supplementary scenario analysis.",
-      "validation_design": "chronological weekly holdout",
-      "metrics": {
-        "baseline_WAPE": 16.92,
-        "Q50_WAPE": 20.57,
-        "Q50_MAE": 9.68,
-        "Q50_RMSE": 39.43,
-        "coverage_Q50_Q90": 0.4068,
-        "interval_width": 7.77
-      }
+      "reason": "weekly_metrics.json provenance missing fields: run_timestamp, row_count, test_period",
+      "source_artifacts": [
+        {
+          "path": "weekly_metrics.json",
+          "sha256": "dc4aa68c1c4c63c4d8c6808a9de2b28123320db0872dc6b9a560ff62c29b7c19"
+        }
+      ]
     }
   ],
   "ablation_plan": [
@@ -236,10 +271,7 @@
       "B1",
       "Proposed"
     ],
-    "supplementary_chain": [
-      "AuxClassifier",
-      "WeeklyEventAware"
-    ],
-    "claim": "S2 improves from a simple historical baseline to a deterministic machine-learning baseline, then adds calibrated uncertainty for downstream production and inventory decisions."
+    "supplementary_chain": [],
+    "claim": "S2 improves from a lag-7 baseline to a deterministic model, then adds leakage-free core conformal uncertainty estimates."
   }
 }

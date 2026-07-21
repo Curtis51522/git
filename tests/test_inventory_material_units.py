@@ -9,6 +9,9 @@ BFF_SOURCE = (REPO_ROOT / "api" / "module4_frontend" / "bff.py").read_text(encod
 SCHEDULER_SOURCE = (REPO_ROOT / "s3_scheduling" / "scheduler.py").read_text(
     encoding="utf-8"
 )
+FRONTEND_SOURCE = (
+    REPO_ROOT / "api" / "module4_frontend" / "static" / "index.html"
+).read_text(encoding="utf-8")
 
 
 def test_checkout_uses_raw_material_units_for_recipe_transactions():
@@ -34,6 +37,18 @@ def test_inventory_stock_queries_filter_untracked_materials():
 def test_manual_restock_rejects_untracked_materials():
     assert "SELECT stock_quantity, unit, track_inventory FROM raw_materials" in BFF_SOURCE
     assert "Material is not stock-tracked" in BFF_SOURCE
+
+
+def test_piece_restock_input_and_api_require_whole_units():
+    assert 'unit==="pcs"?"1":"0.001"' in FRONTEND_SOURCE
+    assert "Number.isInteger(qty)" in FRONTEND_SOURCE
+    assert "Piece quantities must be whole numbers" in BFF_SOURCE
+
+
+def test_piece_material_check_input_and_api_require_whole_units():
+    assert "data-unit=\"'+it.unit+'\"" in FRONTEND_SOURCE
+    assert "Number.isInteger(actualStock)" in FRONTEND_SOURCE
+    assert "_validate_material_quantity_for_unit" in BFF_SOURCE
 
 
 def test_material_transaction_history_remains_available():

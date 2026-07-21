@@ -2,16 +2,271 @@
 KPI Attendance System ? MySQL-backed Punch Card + Attendance Metrics
 ====================================================================
 Real-time punch-in/out tracking with PIN verification.
-Computes: attendance_rate, punctuality_rate, late_count, overtime_hours.
+Computes schedule-based attendance, punctuality, shift completion, and work hours.
 """
 
-from datetime import datetime, timedelta
-from collections import defaultdict
-import json, os, sys
+import os
+import sys
+from datetime import date, datetime, time, timedelta
 
 _PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
+
+from api.operation_clock import operation_now
+
+SYSTEM_ATTENDANCE_START_DATE = date(2026, 6, 24)
+
+
+def time_to_minutes(value):
+    """Convert database and API time values to whole minutes."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, timedelta):
+        return int(value.total_seconds() // 60)
+    if isinstance(value, (datetime, time)):
+        return value.hour * 60 + value.minute
+
+    text = str(value).strip()
+    parts = text.split(":")
+    if len(parts) < 2:
+        return None
+    try:
+        hours = int(parts[0])
+        minutes = int(parts[1])
+    except ValueError:
+        return None
+    if hours < 0 or minutes < 0 or minutes > 59:
+        return None
+    return hours * 60 + minutes
+
+
+def format_time_hhmm(value):
+    """Format a supported time value as zero-padded HH:MM."""
+    minutes = time_to_minutes(value)
+    if minutes is None:
+        return None
+    minutes %= 24 * 60
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def _schedule_date(row):
+    value = row.get("date", row.get("schedule_date"))
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value or "")
+
+
+def build_schedule_windows(rows, target_date):
+    """Merge an employee's scheduled slots into one daily working window."""
+    grouped = {}
+    for row in rows or []:
+        if _schedule_date(row) != target_date:
+            continue
+        employee_id = str(row.get("employee_id") or "")
+        parts = str(row.get("time_slot") or "").split("-")
+        if not employee_id or len(parts) != 2:
+            continue
+        start = time_to_minutes(parts[0])
+        end = time_to_minutes(parts[1])
+        if start is None or end is None or end <= start:
+            continue
+
+        current = grouped.setdefault(
+            employee_id,
+            {
+                "employee_id": employee_id,
+                "employee_name": row.get("employee_name", ""),
+                "role": row.get("role", ""),
+                "start_minutes": start,
+                "end_minutes": end,
+            },
+        )
+        current["start_minutes"] = min(current["start_minutes"], start)
+        current["end_minutes"] = max(current["end_minutes"], end)
+
+    for window in grouped.values():
+        window["shift_start"] = format_time_hhmm(window["start_minutes"])
+        window["shift_end"] = format_time_hhmm(window["end_minutes"])
+        window["time_slot"] = f'{window["shift_start"]}-{window["shift_end"]}'
+    return grouped
+
+
+def derive_attendance_status(record, window):
+    """Derive status from both punch boundaries and the scheduled window."""
+    punch_in = time_to_minutes(record.get("punch_in"))
+    punch_out = time_to_minutes(record.get("punch_out"))
+    if punch_in is None:
+        return "absent"
+
+    shift_start = window.get("start_minutes")
+    shift_end = window.get("end_minutes")
+    if shift_start is None:
+        shift_start = time_to_minutes(window.get("shift_start"))
+    if shift_end is None:
+        shift_end = time_to_minutes(window.get("shift_end"))
+    if shift_start is None or shift_end is None:
+        return "present"
+
+    late = punch_in > shift_start
+    if punch_out is None:
+        return "late" if late else "present"
+
+    early_leave = punch_out < shift_end
+    if late and early_leave:
+        return "late_and_early_leave"
+    if late:
+        return "late"
+    if early_leave:
+        return "early_leave"
+    return "on_time"
+
+
+def _record_date(record):
+    value = record.get("date")
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value or "")
+
+
+def resolve_month_period_end(year, month, records, now=None):
+    """Resolve a stable month cutoff shared by attendance and KPI reports."""
+    import calendar
+
+    now = now or datetime.now()
+    month_start = datetime(year, month, 1)
+    last_day = calendar.monthrange(year, month)[1]
+    month_end = datetime(year, month, last_day, 23, 59, 59)
+
+    latest_record_end = None
+    record_dates = sorted(
+        value for value in (_record_date(record) for record in records) if value
+    )
+    if record_dates:
+        try:
+            latest_record_end = datetime.strptime(
+                record_dates[-1], "%Y-%m-%d"
+            ) + timedelta(days=1, seconds=-1)
+        except ValueError:
+            latest_record_end = None
+
+    requested_month = (year, month)
+    current_month = (now.year, now.month)
+    if requested_month < current_month:
+        period_end = month_end
+    elif requested_month == current_month:
+        period_end = max(now, latest_record_end or month_start)
+    else:
+        period_end = latest_record_end or month_start
+    return min(period_end, month_end)
+
+
+def _percentage(numerator, denominator):
+    if denominator <= 0:
+        return 0.0
+    return min(100.0, round(numerator / denominator * 100, 1))
+
+
+def calculate_period_metrics(employees, schedules, records, period_end):
+    """Calculate schedule-based attendance metrics up to a precise cutoff."""
+    employee_map = {row["id"]: row for row in employees}
+    counters = {
+        employee_id: {
+            "scheduled_days": 0,
+            "attended_days": 0,
+            "on_time_arrivals": 0,
+            "full_checkouts": 0,
+            "late_count": 0,
+            "early_leave_count": 0,
+            "credited_minutes": 0,
+        }
+        for employee_id in employee_map
+    }
+    record_map = {
+        (_record_date(record), record.get("emp_id")): record
+        for record in records
+    }
+    schedule_dates = sorted({_schedule_date(row) for row in schedules if _schedule_date(row)})
+
+    for schedule_date in schedule_dates:
+        try:
+            day_start = datetime.strptime(schedule_date, "%Y-%m-%d")
+        except ValueError:
+            continue
+        if day_start.date() < SYSTEM_ATTENDANCE_START_DATE:
+            continue
+        windows = build_schedule_windows(schedules, schedule_date)
+        for employee_id, window in windows.items():
+            if employee_id not in counters:
+                continue
+            shift_start = day_start + timedelta(minutes=window["start_minutes"])
+            shift_end = day_start + timedelta(minutes=window["end_minutes"])
+            record = record_map.get((schedule_date, employee_id))
+            punch_in = time_to_minutes(record.get("punch_in")) if record else None
+            punch_out = time_to_minutes(record.get("punch_out")) if record else None
+            completed_record = (
+                day_start.date() == period_end.date()
+                and punch_in is not None
+                and punch_out is not None
+            )
+            if shift_end > period_end and not completed_record:
+                continue
+
+            values = counters[employee_id]
+            values["scheduled_days"] += 1
+            if punch_in is None:
+                continue
+
+            values["attended_days"] += 1
+            if punch_in <= window["start_minutes"]:
+                values["on_time_arrivals"] += 1
+            else:
+                values["late_count"] += 1
+
+            if punch_out is None:
+                continue
+            if punch_out >= window["end_minutes"]:
+                values["full_checkouts"] += 1
+            else:
+                values["early_leave_count"] += 1
+
+            overlap_start = max(punch_in, window["start_minutes"])
+            overlap_end = min(punch_out, window["end_minutes"])
+            values["credited_minutes"] += max(0, overlap_end - overlap_start)
+
+    metrics = {}
+    for employee_id, values in counters.items():
+        employee = employee_map[employee_id]
+        scheduled_days = values["scheduled_days"]
+        attended_days = values["attended_days"]
+        punctuality = _percentage(values["on_time_arrivals"], attended_days)
+        shift_completion = _percentage(values["full_checkouts"], attended_days)
+        attendance_rate = _percentage(attended_days, scheduled_days)
+        metrics[employee_id] = {
+            "name": employee.get("name", ""),
+            "role": employee.get("role", ""),
+            "scheduled_days": scheduled_days,
+            "attended_days": attended_days,
+            "attendance_rate": attendance_rate,
+            "attendance_display": (
+                f"{attended_days} / {scheduled_days} ({attendance_rate:.1f}%)"
+            ),
+            "punctuality": punctuality,
+            "punctuality_rate": punctuality,
+            "shift_completion": shift_completion,
+            "shift_completion_rate": shift_completion,
+            "late_count": values["late_count"],
+            "early_leave_count": values["early_leave_count"],
+            "absent_days": max(0, scheduled_days - attended_days),
+            "work_hours": round(values["credited_minutes"] / 60, 2),
+        }
+    return metrics
 
 
 class AttendanceSystem:
@@ -51,8 +306,23 @@ class AttendanceSystem:
         if emp["pin"] != pin:
             return False, "Incorrect PIN", None
 
-        today = datetime.now().strftime("%Y-%m-%d")
-        now = datetime.now().strftime("%H:%M:%S")
+        current_time = operation_now()
+        today = current_time.strftime("%Y-%m-%d")
+        now = current_time.strftime("%H:%M:%S")
+
+        cur.execute(
+            """
+            SELECT schedule_date, time_slot, employee_id, employee_name, role
+            FROM shift_schedule
+            WHERE employee_id=%s AND schedule_date=%s
+            ORDER BY time_slot
+            """,
+            (emp_id, today),
+        )
+        schedule_rows = cur.fetchall()
+        window = build_schedule_windows(schedule_rows, today).get(emp_id)
+        if not window:
+            return False, "No scheduled shift for this employee today", None
 
         # Check existing record for today
         cur.execute("SELECT * FROM attendance_records WHERE emp_id=%s AND date=%s", (emp_id, today))
@@ -60,281 +330,289 @@ class AttendanceSystem:
 
         if record and record.get("punch_in") and not record.get("punch_out"):
             # Punch out
+            updated_record = dict(record)
+            updated_record["punch_out"] = now
+            status = derive_attendance_status(updated_record, window)
             cur.execute(
                 "UPDATE attendance_records SET punch_out=%s, status=%s WHERE id=%s",
-                (now, "on_time" if record.get("status") != "late" else record["status"], record["id"])
+                (now, status, record["id"])
             )
             db.commit()
             record["punch_out"] = now
+            record["status"] = status
             return True, f"Punched OUT at {now}", record
         elif record:
             # Already punched in and out today
             return False, "Already completed punch for today", record
         else:
             # New punch-in
+            status = derive_attendance_status(
+                {"punch_in": now, "punch_out": None},
+                window,
+            )
             cur.execute(
                 "INSERT INTO attendance_records (emp_id, emp_name, emp_role, date, punch_in, status) VALUES (%s, %s, %s, %s, %s, %s)",
-                (emp_id, emp["name"], emp["role"], today, now, "present")
+                (emp_id, emp["name"], emp["role"], today, now, status)
             )
             db.commit()
             new_record = {
                 "id": cur.lastrowid, "emp_id": emp_id, "emp_name": emp["name"],
                 "emp_role": emp["role"], "date": today, "punch_in": now,
-                "punch_out": None, "status": "present"
+                "punch_out": None, "status": status
             }
             return True, f"Punched IN at {now}", new_record
 
-    def get_today_attendance(self, schedule=None):
-        """Get today's attendance status for all employees.
-        
-        Args:
-            schedule: optional list of dicts from S3 schedule API
-                      [{employee_id, date, time_slot, ...}]
-                      If provided, status is checked against shift start time.
-        """
+    def correct_punch(
+        self,
+        emp_id,
+        attendance_date,
+        punch_in,
+        punch_out,
+        reason,
+        corrected_by,
+    ):
+        """Correct one scheduled attendance record and append an audit entry."""
+        reason = str(reason or "").strip()
+        if not reason:
+            return False, "Correction reason is required", None
+        if len(reason) > 255:
+            return False, "Correction reason must not exceed 255 characters", None
+        try:
+            datetime.strptime(str(attendance_date), "%Y-%m-%d")
+        except ValueError:
+            return False, "Attendance date must use YYYY-MM-DD", None
+
+        punch_in_minutes = time_to_minutes(punch_in)
+        punch_out_minutes = time_to_minutes(punch_out)
+        if punch_in_minutes is None or punch_out_minutes is None:
+            return False, "Punch times must use HH:MM", None
+        if punch_out_minutes <= punch_in_minutes:
+            return False, "Punch-out must be later than punch-in", None
+
+        normalized_in = f"{format_time_hhmm(punch_in)}:00"
+        normalized_out = f"{format_time_hhmm(punch_out)}:00"
         db = self._get_db()
         cur = db.cursor(dictionary=True)
-        today = datetime.now().strftime("%Y-%m-%d")
+        try:
+            cur.execute(
+                "SELECT id, name, role FROM employees WHERE id=%s",
+                (emp_id,),
+            )
+            employee = cur.fetchone()
+            if not employee:
+                return False, f"Employee {emp_id} not found", None
 
-        cur.execute("SELECT id, name, role FROM employees WHERE available=1 AND role != %s", ("manager",))
-        employees = cur.fetchall()
+            cur.execute(
+                """
+                SELECT schedule_date, time_slot, employee_id, employee_name, role
+                FROM shift_schedule
+                WHERE employee_id=%s AND schedule_date=%s
+                ORDER BY time_slot
+                """,
+                (emp_id, attendance_date),
+            )
+            schedule_rows = cur.fetchall()
+            window = build_schedule_windows(schedule_rows, attendance_date).get(emp_id)
+            if not window:
+                return (
+                    False,
+                    f"No scheduled shift for this employee on {attendance_date}",
+                    None,
+                )
 
-        cur.execute("SELECT * FROM attendance_records WHERE date=%s", (today,))
-        records = {r["emp_id"]: r for r in cur.fetchall()}
+            status = derive_attendance_status(
+                {"punch_in": normalized_in, "punch_out": normalized_out},
+                window,
+            )
+            cur.execute(
+                "SELECT * FROM attendance_records WHERE emp_id=%s AND date=%s",
+                (emp_id, attendance_date),
+            )
+            previous = cur.fetchone() or {}
+            cur.execute("START TRANSACTION")
+            cur.execute(
+                """
+                INSERT INTO attendance_records
+                    (emp_id, emp_name, emp_role, date, punch_in, punch_out, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    emp_name=VALUES(emp_name),
+                    emp_role=VALUES(emp_role),
+                    punch_in=VALUES(punch_in),
+                    punch_out=VALUES(punch_out),
+                    status=VALUES(status)
+                """,
+                (
+                    emp_id,
+                    employee["name"],
+                    employee["role"],
+                    attendance_date,
+                    normalized_in,
+                    normalized_out,
+                    status,
+                ),
+            )
+            cur.execute(
+                """
+                INSERT INTO attendance_correction_log
+                    (emp_id, attendance_date, previous_punch_in,
+                     previous_punch_out, previous_status, corrected_punch_in,
+                     corrected_punch_out, corrected_status, reason, corrected_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    emp_id,
+                    attendance_date,
+                    previous.get("punch_in"),
+                    previous.get("punch_out"),
+                    previous.get("status"),
+                    normalized_in,
+                    normalized_out,
+                    status,
+                    reason,
+                    str(corrected_by or "manager"),
+                ),
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            if hasattr(cur, "close"):
+                cur.close()
 
-        # Build schedule map: emp_id -> {shift_start, shift_end, time_slot}
-        sched_map = {}
-        if schedule:
-            for s in schedule:
-                eid = s.get("employee_id", "")
-                if eid and s.get("date") == today:
-                    slot = s.get("time_slot", "06:00-13:00")
-                    parts = slot.split("-") if "-" in slot else ["06:00", "13:00"]
-                    shift_start = parts[0]
-                    shift_end = parts[1] if len(parts) > 1 else "13:00"
-                    if eid in sched_map:
-                        existing = sched_map[eid]
-                        parts2 = slot.split("-") if "-" in slot else [slot, slot]
-                        sched_map[eid] = {
-                            "shift_start": min(shift_start, existing["shift_start"]),
-                            "shift_end": max(shift_end, existing["shift_end"]),
-                            "time_slot": existing["time_slot"].split("-")[0] + "-" + (parts2[1] if len(parts2) > 1 else parts2[0]),
-                        }
-                    else:
-                        sched_map[eid] = {
-                            "shift_start": shift_start,
-                            "shift_end": shift_end,
-                            "time_slot": slot,
-                        }
-        result = []
-        for emp in employees:
-            eid = emp["id"]
-            rec = records.get(eid)
-            sched_info = sched_map.get(eid)
+        record = {
+            "emp_id": emp_id,
+            "emp_name": employee["name"],
+            "emp_role": employee["role"],
+            "date": attendance_date,
+            "punch_in": format_time_hhmm(normalized_in),
+            "punch_out": format_time_hhmm(normalized_out),
+            "status": status,
+            "corrected": True,
+            "correction_reason": reason,
+            "corrected_by": str(corrected_by or "manager"),
+        }
+        return (
+            True,
+            f"Attendance corrected for {emp_id} on {attendance_date}",
+            record,
+        )
 
-            if rec:
-                status = self._check_status_with_schedule(rec, sched_info["shift_start"] if sched_info else None)
-                result.append({
-                    "id": eid, "name": emp["name"], "role": emp["role"],
-                    "status": status,
-                    "punch_in": str(rec.get("punch_in", ""))[:5] if rec.get("punch_in") else None,
-                    "punch_out": str(rec.get("punch_out", ""))[:5] if rec.get("punch_out") else None,
-                    "shift_start": sched_info["shift_start"] if sched_info else None,
-                    "shift_end": sched_info["shift_end"] if sched_info else None,
-                    "time_slot": sched_info["time_slot"] if sched_info else None,
-                })
-            else:
-                # No punch record
-                if sched_info:
-                    # Scheduled but no punch = absent
-                    result.append({
-                        "id": eid, "name": emp["name"], "role": emp["role"],
-                        "status": "absent", "punch_in": None, "punch_out": None,
-                        "shift_start": sched_info["shift_start"],
-                        "shift_end": sched_info["shift_end"],
-                        "time_slot": sched_info["time_slot"],
-                    })
-                else:
-                    # Not scheduled and no punch = off_day
-                    result.append({
-                        "id": eid, "name": emp["name"], "role": emp["role"],
-                        "status": "off_day", "punch_in": None, "punch_out": None,
-                        "shift_start": None, "shift_end": None, "time_slot": None,
-                    })
-        return result
+    def get_today_attendance(self, schedule=None):
+        """Return today's attendance for scheduled employees only."""
+        now = operation_now()
+        today = now.strftime("%Y-%m-%d")
+        return self._get_attendance_for_date(today, schedule or [], now)
 
     def get_date_attendance(self, date_str, schedule=None):
+        """Return attendance for employees scheduled on the selected date."""
+        return self._get_attendance_for_date(date_str, schedule or [], operation_now())
+
+    def _get_attendance_for_date(self, date_str, schedule, reference_time):
         db = self._get_db()
         cur = db.cursor(dictionary=True)
-        cur.execute('SELECT id, name, role FROM employees WHERE available=1 AND role != %s', ('manager',))
-        employees = cur.fetchall()
-        cur.execute('SELECT * FROM attendance_records WHERE date=%s', (date_str,))
-        records = {r['emp_id']: r for r in cur.fetchall()}
-        sched_map = {}
-        if schedule:
-            for s in schedule:
-                eid = s.get('employee_id', '')
-                sd = str(s.get('date', ''))
-                if eid and sd == date_str:
-                    slot = s.get('time_slot', '06:00-13:00')
-                    parts = slot.split('-') if '-' in slot else ['06:00', '13:00']
-                    if eid in sched_map:
-                        existing = sched_map[eid]
-                        new_s = parts[0]
-                        new_e = parts[1] if len(parts) > 1 else '13:00'
-                        parts2 = slot.split('-') if '-' in slot else [slot, slot]
-                        sched_map[eid] = {
-                            'shift_start': min(new_s, existing['shift_start']),
-                            'shift_end': max(new_e, existing['shift_end']),
-                            'time_slot': existing['time_slot'].split('-')[0] + '-' + (parts2[1] if len(parts2) > 1 else parts2[0]),
-                        }
-                    else:
-                        sched_map[eid] = {
-                            'shift_start': parts[0],
-                            'shift_end': parts[1] if len(parts) > 1 else '13:00',
-                            'time_slot': slot,
-                        }
+        try:
+            cur.execute(
+                "SELECT id, name, role FROM employees WHERE available=1 AND role != %s",
+                ("manager",),
+            )
+            employees = {row["id"]: row for row in cur.fetchall()}
+            cur.execute("SELECT * FROM attendance_records WHERE date=%s", (date_str,))
+            records = {row["emp_id"]: row for row in cur.fetchall()}
+            cur.execute(
+                """
+                SELECT emp_id, reason, corrected_by, created_at
+                FROM attendance_correction_log
+                WHERE attendance_date=%s
+                ORDER BY id
+                """,
+                (date_str,),
+            )
+            corrections = {row["emp_id"]: row for row in cur.fetchall()}
+        finally:
+            if hasattr(cur, "close"):
+                cur.close()
+
+        windows = build_schedule_windows(schedule, date_str)
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            return []
+
         result = []
-        for emp in employees:
-            eid = emp['id']
-            rec = records.get(eid)
-            sched_info = sched_map.get(eid)
-            if rec:
-                status = self._check_status_with_schedule(rec, sched_info['shift_start'] if sched_info else None)
-                result.append({
-                    'id': eid, 'name': emp['name'], 'role': emp['role'],
-                    'status': status,
-                    'punch_in': str(rec.get('punch_in', ''))[:5] if rec.get('punch_in') else None,
-                    'punch_out': str(rec.get('punch_out', ''))[:5] if rec.get('punch_out') else None,
-                    'shift_start': sched_info['shift_start'] if sched_info else None,
-                    'shift_end': sched_info['shift_end'] if sched_info else None,
-                    'time_slot': sched_info['time_slot'] if sched_info else None,
-                })
+        for employee_id in sorted(windows):
+            window = windows[employee_id]
+            employee = employees.get(employee_id, {})
+            record = records.get(employee_id)
+            correction = corrections.get(employee_id)
+            if record:
+                status = derive_attendance_status(record, window)
             else:
-                if sched_info:
-                    result.append({
-                        'id': eid, 'name': emp['name'], 'role': emp['role'],
-                        'status': 'absent', 'punch_in': None, 'punch_out': None,
-                        'shift_start': sched_info['shift_start'],
-                        'shift_end': sched_info['shift_end'],
-                        'time_slot': sched_info['time_slot'],
-                    })
-                else:
-                    result.append({
-                        'id': eid, 'name': emp['name'], 'role': emp['role'],
-                        'status': 'off_day', 'punch_in': None, 'punch_out': None,
-                        'shift_start': None, 'shift_end': None, 'time_slot': None,
-                    })
+                shift_start = target_date + timedelta(minutes=window["start_minutes"])
+                status = "scheduled" if reference_time < shift_start else "absent"
+
+            result.append(
+                {
+                    "id": employee_id,
+                    "name": employee.get("name") or window["employee_name"],
+                    "role": employee.get("role") or window["role"],
+                    "status": status,
+                    "punch_in": format_time_hhmm(record.get("punch_in")) if record else None,
+                    "punch_out": format_time_hhmm(record.get("punch_out")) if record else None,
+                    "shift_start": window["shift_start"],
+                    "shift_end": window["shift_end"],
+                    "time_slot": window["time_slot"],
+                    "corrected": bool(correction),
+                    "correction_reason": correction.get("reason") if correction else None,
+                    "corrected_by": correction.get("corrected_by") if correction else None,
+                }
+            )
         return result
 
-    def _check_status_with_schedule(self, record, shift_start=None, late_min=15):
-        """Check if punch-in is on time based on shift schedule."""
-        if not shift_start:
-            shift_start = "08:00"
-        punch_in_str = str(record.get("punch_in", ""))
-        if not punch_in_str:
-            return "absent"
-        
-        # Parse times for comparison
-        try:
-            punch_h, punch_m = punch_in_str.split(":")[0], punch_in_str.split(":")[1]
-            shift_h, shift_m = shift_start.split(":")
-            punch_minutes = int(punch_h) * 60 + int(punch_m)
-            shift_minutes = int(shift_h) * 60 + int(shift_m)
-            late_by = punch_minutes - shift_minutes
-        except (ValueError, IndexError):
-            return "present"
-
-        if late_by <= 0:
-            return "on_time"
-        elif late_by <= late_min:
-            return "late"
-        else:
-            return "late"
-
-
-    def get_monthly_metrics(self, year=None, month=None):
-        if year is None: year = datetime.now().year
-        if month is None: month = datetime.now().month
-        import calendar
-        working_days = sum(1 for d in range(1, calendar.monthrange(year, month)[1] + 1)
-                          if datetime(year, month, d).weekday() < 7)
-
-        db = self._get_db()
-        cur = db.cursor(dictionary=True)
-        cur.execute("SELECT id, name, role FROM employees WHERE available=1 AND role != %s", ("manager",))
-        employees = cur.fetchall()
-
+    def get_monthly_metrics(self, year=None, month=None, period_end=None):
+        """Return schedule-based metrics for a month up to a precise cutoff."""
+        now = datetime.now()
+        if year is None:
+            year = now.year
+        if month is None:
+            month = now.month
         month_str = f"{year}-{month:02d}"
-        cur.execute("SELECT * FROM attendance_records WHERE date LIKE %s", (month_str + "%",))
-        all_records = cur.fetchall()
-
-        metrics = {}
-        for emp in employees:
-            emp_recs = [r for r in all_records if r["emp_id"] == emp["id"]]
-            days_present = len(set(r["date"].strftime("%Y-%m-%d") if hasattr(r["date"], "strftime") else str(r["date"]) for r in emp_recs if r.get("punch_in") or r.get("status") in ("on_time", "late", "present")))
-            late_count = sum(1 for r in emp_recs if r.get("status") == "late")
-            on_time = sum(1 for r in emp_recs if r.get("status") == "on_time")
-            absent = working_days - days_present
-            metrics[emp["id"]] = {
-                "name": emp["name"], "role": emp["role"],
-                "attendance_rate": round(days_present / working_days * 100, 1) if working_days > 0 else 0,
-                "punctuality_rate": round(on_time / max(days_present, 1) * 100, 1),
-                "late_count": late_count, "absent_days": max(0, absent),
-                "working_days": working_days, "days_present": days_present,
-            }
-        return metrics
-
-    def get_weekly_attendance(self):
-        today = datetime.now()
-        monday = today - timedelta(days=today.weekday())
-        week_dates = [(monday + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
 
         db = self._get_db()
         cur = db.cursor(dictionary=True)
-        cur.execute("SELECT id, name, role FROM employees WHERE available=1 AND role != %s", ("manager",))
-        employees = cur.fetchall()
-        cur.execute("SELECT * FROM attendance_records WHERE date BETWEEN %s AND %s",
-                    (week_dates[0], week_dates[-1]))
-        all_records = cur.fetchall()
+        try:
+            cur.execute(
+                "SELECT id, name, role FROM employees "
+                "WHERE available=1 AND role != %s",
+                ("manager",),
+            )
+            employees = cur.fetchall()
+            cur.execute(
+                "SELECT * FROM attendance_records WHERE date LIKE %s",
+                (month_str + "%",),
+            )
+            records = cur.fetchall()
+            cur.execute(
+                """
+                SELECT schedule_date, time_slot, employee_id, employee_name, role
+                FROM shift_schedule
+                WHERE schedule_date LIKE %s
+                ORDER BY schedule_date, time_slot, employee_id
+                """,
+                (month_str + "%",),
+            )
+            schedules = cur.fetchall()
+        finally:
+            if hasattr(cur, "close"):
+                cur.close()
 
-        result = {}
-        for emp in employees:
-            row = {"id": emp["id"], "name": emp["name"], "role": emp["role"]}
-            for d in week_dates:
-                day_recs = [r for r in all_records if r["emp_id"] == emp["id"] and str(r["date"]) == d]
-                if day_recs:
-                    latest = day_recs[-1]
-                    row[d] = {
-                        "status": latest.get("status", "present"),
-                        "in": str(latest.get("punch_in", ""))[:5] if latest.get("punch_in") else None,
-                        "out": str(latest.get("punch_out", ""))[:5] if latest.get("punch_out") else None,
-                    }
-                else:
-                    row[d] = {"status": "no_record", "in": None, "out": None}
-            result[emp["id"]] = row
-        return {"week_start": week_dates[0], "week_end": week_dates[-1], "employees": result}
+        if period_end is None:
+            period_end = resolve_month_period_end(year, month, records, now=now)
 
-    def dashboard_format(self):
-        today_data = self.get_today_attendance()
-        weekly_data = self.get_weekly_attendance()
-        monthly = self.get_monthly_metrics()
-        return {
-            "today_attendance": {
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "total": len(today_data),
-                "present": sum(1 for e in today_data if e["status"] in ("on_time", "late", "present")),
-                "absent": sum(1 for e in today_data if e["status"] == "absent"),
-                "late": sum(1 for e in today_data if e["status"] == "late"),
-                "employees": today_data,
-            },
-            "weekly_shift": weekly_data,
-            "monthly_summary": {
-                emp_id: {
-                    "name": m["name"], "role": m["role"],
-                    "attendance_rate": m["attendance_rate"],
-                    "punctuality_rate": m["punctuality_rate"],
-                    "absent_days": m["absent_days"],
-                } for emp_id, m in monthly.items()
-            },
-        }
+        return calculate_period_metrics(
+            employees,
+            schedules,
+            records,
+            period_end,
+        )

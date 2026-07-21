@@ -1,8 +1,10 @@
 ﻿import os, sys, logging
 from datetime import datetime as dt
+from urllib.parse import urlencode
 _PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
@@ -20,7 +22,7 @@ class ForecastUncertaintyAgent(BaseAgent):
 
     async def fetch(self, params):
         date_str = str(params.get("date", "")) if isinstance(params, dict) else ""
-        data = _query_uncertainty(date_str)
+        data = _query_uncertainty(date_str, params)
         return {"success": True, "data": data, "tool": "forecast_uncertainty"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
@@ -112,13 +114,16 @@ class ForecastUncertaintyAgent(BaseAgent):
         )
 
 
-def _query_uncertainty(date_str=""):
+def _query_uncertainty(date_str="", params=None):
     try:
-        from api.module2_forecast import _do_forecast
         if not date_str:
             date_str = dt.now().strftime("%Y-%m-%d")
-        f = _do_forecast(None, 7, use_cache=True, start_date=date_str)
-        forecasts = f.get("forecasts", [])
+        url = (
+            "http://127.0.0.1:8002/s2/forecast?"
+            + urlencode({"days": 7, "date": date_str})
+        )
+        payload = fetch_dashboard_json(url, params, timeout=120)
+        forecasts = payload.get("forecasts", [])
         by_product = {}
         for fc in forecasts:
             pn = fc.get("product_name", "")

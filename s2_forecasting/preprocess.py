@@ -9,12 +9,14 @@ read from the raw data for scenario continuity, but they are not exported into
 the deployed daily 27-feature training CSVs.
 
 Data split (time-series, no shuffle):
-  Train: 2023-01-01 to 2024-12-31
-  Val:   2025-01-01 to 2025-06-30
-  Test:  2025-07-01 to 2026-06-29
+  Train: 2025-06-24 to 2026-01-31
+  Val:   2026-02-01 to 2026-03-31
+  Test:  2026-04-01 to 2026-06-23
 """
 
 import os, warnings
+from numbers import Number
+
 import numpy as np
 import pandas as pd
 from config.settings import BEVERAGE_PRODUCT_TYPES
@@ -26,8 +28,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 RAW_CSV = os.path.join(DATA_DIR, "bakery_sales_raw.csv")
 
-SPLIT_DATE = "2025-01-01"
-SPLIT_DATE_2 = "2025-07-01"
+TRAIN_START_INCLUSIVE = "2025-06-24"
+TRAIN_END_EXCLUSIVE = "2026-02-01"
+VALIDATION_END_EXCLUSIVE = "2026-04-01"
+TEST_END_INCLUSIVE = "2026-06-23"
+OPERATION_START = "2026-06-24"
 
 FEATURE_COLS = FORECAST_FEATURES
 TARGET_COL = "quantity"
@@ -54,6 +59,13 @@ def resolve_product_categories(df_raw, products):
     if "category" not in df_raw.columns:
         return defaults
 
+    missing_categories = df_raw[df_raw["category"].isna()]
+    if not missing_categories.empty:
+        row = missing_categories.iloc[0]
+        raise ValueError(
+            f"Invalid category for {row['product_name']}: {row['category']}"
+        )
+
     category_counts = df_raw.groupby("product_name")["category"].nunique()
     inconsistent = category_counts[category_counts > 1]
     if not inconsistent.empty:
@@ -67,7 +79,24 @@ def resolve_product_categories(df_raw, products):
         .to_dict()
     )
     for product, value in raw_categories.items():
-        category = int(value)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized == "bakery":
+                category = 1
+            elif normalized == "beverage":
+                category = 0
+            elif normalized in ("0", "1"):
+                category = int(normalized)
+            else:
+                raise ValueError(f"Invalid category for {product}: {value}")
+        else:
+            if (
+                not isinstance(value, Number)
+                or isinstance(value, (bool, np.bool_))
+                or value not in (0, 1)
+            ):
+                raise ValueError(f"Invalid category for {product}: {value}")
+            category = int(value)
         if category not in (0, 1):
             raise ValueError(f"Invalid category for {product}: {value}")
         defaults[product] = category
@@ -82,6 +111,9 @@ def run_preprocessing(verbose=True):
     p("  STAGE 1: Load Raw Data")
     p("=" * 50)
     df_raw = pd.read_csv(RAW_CSV, parse_dates=["date"])
+    df_raw = df_raw[df_raw["date"] <= pd.Timestamp(TEST_END_INCLUSIVE)].copy()
+    if df_raw.empty:
+        raise ValueError("No S2 source rows remain before the operation cutoff")
     for col in ["is_day1", "is_top3", "discount_pct", "is_member_day", "is_new_product", "is_competitor", "is_rainy"]:
         if col not in df_raw.columns:
             df_raw[col] = 0
@@ -260,9 +292,19 @@ def run_preprocessing(verbose=True):
     p("=" * 50)
     df["date"] = df["date"].dt.strftime("%Y-%m-%d")
     output_cols = ["date"] + FEATURE_COLS + [TARGET_COL]
-    train_df = df[df["date"] < SPLIT_DATE][output_cols].copy()
-    val_df = df[(df["date"] >= SPLIT_DATE) & (df["date"] < SPLIT_DATE_2)][output_cols].copy()
-    test_df = df[df["date"] >= SPLIT_DATE_2][output_cols].copy()
+    train_df = df[
+        (df["date"] >= TRAIN_START_INCLUSIVE)
+        & (df["date"] < TRAIN_END_EXCLUSIVE)
+    ][output_cols].copy()
+    val_df = df[
+        (df["date"] >= TRAIN_END_EXCLUSIVE)
+        & (df["date"] < VALIDATION_END_EXCLUSIVE)
+    ][output_cols].copy()
+    test_df = df[
+        (df["date"] >= VALIDATION_END_EXCLUSIVE)
+        & (df["date"] <= TEST_END_INCLUSIVE)
+    ][output_cols].copy()
+    assert test_df.empty or test_df["date"].max() <= TEST_END_INCLUSIVE
     p(f"  Train: {len(train_df):,}  |  Val: {len(val_df):,}  |  Test: {len(test_df):,}")
     p(f"  Train: {train_df['date'].min()} to {train_df['date'].max()}")
     p(f"  Test:  {test_df['date'].min()} to {test_df['date'].max()}")

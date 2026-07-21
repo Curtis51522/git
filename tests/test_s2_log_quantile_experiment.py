@@ -76,17 +76,38 @@ def test_log_quantile_metrics_report_candidate_scope():
 def test_experiment_summary_includes_log_quantile_candidate_when_available(tmp_path):
     from s2_forecasting.evaluate_experiments import build_experiment_summary
 
+    provenance = {
+        "run_timestamp": "2026-01-03T00:00:00+00:00",
+        "row_count": 2,
+        "test_period": "2026-01-01 to 2026-01-02",
+    }
     (tmp_path / "metrics.json").write_text(
-        json.dumps({"baseline_MAE": 2.0, "xgboost_test_MAE": 1.8}),
+        json.dumps(
+            {
+                **provenance,
+                "baseline_MAE": 2.0,
+                "xgboost_test_MAE": 1.8,
+            }
+        ),
         encoding="utf-8",
     )
     (tmp_path / "test_metrics.json").write_text(
-        json.dumps({"overall": {"WAPE": 30.0, "MAE": 1.9, "conformal_coverage_80": 78.9}}),
+        json.dumps(
+            {
+                **provenance,
+                "overall": {
+                    "WAPE": 30.0,
+                    "MAE": 1.9,
+                    "conformal_coverage_80": 78.9,
+                },
+            }
+        ),
         encoding="utf-8",
     )
     (tmp_path / "log_quantile_metrics.json").write_text(
         json.dumps(
             {
+                **provenance,
                 "id": "CandidateA_LogQuantile",
                 "name": "Log-scale quantile candidate",
                 "role": "candidate_probabilistic_forecast",

@@ -15,7 +15,7 @@ CREATE TABLE `attendance_records` (
   `status` varchar(20) DEFAULT 'present',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
-  KEY `idx_emp_date` (`emp_id`,`date`)
+  UNIQUE KEY `uq_attendance_emp_date` (`emp_id`,`date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `batch_inventory` (
@@ -151,6 +151,70 @@ CREATE TABLE `order_items` (
   `coffee_sugar` varchar(10) DEFAULT NULL,
   `coffee_size` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `attendance_correction_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `emp_id` varchar(20) NOT NULL,
+  `attendance_date` date NOT NULL,
+  `previous_punch_in` time DEFAULT NULL,
+  `previous_punch_out` time DEFAULT NULL,
+  `previous_status` varchar(20) DEFAULT NULL,
+  `corrected_punch_in` time NOT NULL,
+  `corrected_punch_out` time NOT NULL,
+  `corrected_status` varchar(20) NOT NULL,
+  `reason` varchar(255) NOT NULL,
+  `corrected_by` varchar(50) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_attendance_correction_date` (`attendance_date`,`emp_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `sick_leave_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `employee_id` varchar(20) NOT NULL,
+  `leave_date` date NOT NULL,
+  `action` varchar(20) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_sick_leave_date` (`leave_date`,`employee_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `sick_replacements` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `original_employee_id` varchar(20) NOT NULL,
+  `original_employee_name` varchar(50) NOT NULL,
+  `schedule_date` date NOT NULL,
+  `time_slot` varchar(20) NOT NULL,
+  `role` varchar(30) NOT NULL,
+  `demand_level` varchar(20) DEFAULT 'normal',
+  `production_target` int(11) DEFAULT NULL,
+  `replaced_at` datetime NOT NULL,
+  `replacement_employee_id` varchar(20) DEFAULT NULL,
+  `is_undone` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_sick_replacement_date` (`schedule_date`,`original_employee_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `recommendation_events` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `request_id` varchar(50) NOT NULL,
+  `operation_date` date NOT NULL,
+  `shown_at` datetime NOT NULL,
+  `rank_position` int(11) NOT NULL,
+  `bakery_product` varchar(50) NOT NULL,
+  `beverage_product` varchar(50) DEFAULT NULL,
+  `score` decimal(10,4) DEFAULT NULL,
+  `discount_rate` decimal(5,4) NOT NULL DEFAULT 0.0000,
+  `discount_source` varchar(40) DEFAULT NULL,
+  `discount_strategy` varchar(80) DEFAULT NULL,
+  `selected_at` datetime DEFAULT NULL,
+  `purchased_order_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_recommendation_events_date` (`operation_date`),
+  KEY `idx_recommendation_events_request` (`request_id`),
+  KEY `idx_recommendation_events_order` (`purchased_order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `orders` (

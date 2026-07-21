@@ -75,6 +75,31 @@ def test_product_mix_agent_detects_top3_concentration():
     assert "Top 3" in output.opinion
 
 
+def test_product_mix_agent_uses_total_bread_revenue_for_concentration():
+    agent = ProductMixAgent("ProductMixAgent")
+    raw = {
+        "bread_ranking": [
+            {"name": "macaron", "qty": 59, "revenue": 588, "profit": 470},
+            {"name": "mantequilla", "qty": 37, "revenue": 333, "profit": 280},
+            {"name": "bread_coconut", "qty": 32, "revenue": 314, "profit": 260},
+            {"name": "melon_bread", "qty": 18, "revenue": 150, "profit": 110},
+            {"name": "croissant", "qty": 12, "revenue": 85, "profit": 60},
+        ],
+        "beverage_ranking": [],
+        "category": {"Bread": 2254.8, "Beverages": 0},
+        "sold_bread_sku_count": 29,
+        "total_bread_sku": 30,
+        "week_avg": {"bread_avg": []},
+    }
+
+    output = agent.analyze(raw, {"date": "2026-06-30"})
+
+    assert "Top 3 breads = 55% of revenue" in output.opinion
+    assert "84%" not in output.opinion
+    assert output.attribution["root_cause"] == "high_concentration"
+    assert output.attribution["deviation"] == 5
+
+
 def test_promotion_mix_graph_returns_verified_response():
     response = asyncio.run(
         run_s5_graph(
@@ -274,7 +299,8 @@ def test_promotion_mix_uses_real_sold_sku_count_instead_of_top_five_length():
         )
     )
 
-    assert "24 of 30 tracked bread SKUs" in response.summary
+    assert "24 of 30 tracked bread SKUs recorded sales" in response.summary
+    assert "sold across" not in response.summary
     assert "Bread product mix is distributed" in response.summary
     assert "Bread revenue is concentrated" not in response.summary
     assert "reduce dependence on a small group" not in response.summary

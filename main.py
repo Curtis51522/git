@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 import os, sys
 import httpx
 from api.auth import get_current_user, require_manager, validate_auth_configuration
+from api.operation_clock import operation_time_scope, parse_operation_time
 
 validate_auth_configuration()
 
@@ -32,7 +33,9 @@ if sys.platform == "win32":
 async def lifespan(_app):
     from api.freshness_service import update_all_freshness
 
-    update_all_freshness()
+    replay_enabled = os.getenv("BAKERY_OPERATION_REPLAY") == "1"
+    if not replay_enabled:
+        update_all_freshness()
 
     async def periodic_freshness():
         while True:
@@ -42,13 +45,14 @@ async def lifespan(_app):
             except Exception:
                 logger.exception("Periodic freshness update failed")
 
-    task = asyncio.create_task(periodic_freshness())
+    task = None if replay_enabled else asyncio.create_task(periodic_freshness())
     try:
         yield
     finally:
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
+        if task is not None:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(
@@ -63,6 +67,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def apply_operation_time(request: Request, call_next):
+    selected_value = request.headers.get("X-Operation-At")
+    if not selected_value:
+        return await call_next(request)
+
+    try:
+        user = await get_current_user(request)
+    except HTTPException as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+    if user.get("role") != "manager":
+        return JSONResponse(status_code=403, content={"detail": "Manager only"})
+
+    try:
+        selected = parse_operation_time(selected_value)
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    with operation_time_scope(selected):
+        return await call_next(request)
 
 
 BASE = os.path.dirname(os.path.abspath(__file__))

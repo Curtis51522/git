@@ -1,7 +1,7 @@
 import asyncio
 
-from api import module3_scheduling
-from s3_scheduling import scheduler as scheduler_module
+from s5_agent.agents import forecast_overview as forecast_overview_module
+from s5_agent.agents import forecast_uncertainty as forecast_uncertainty_module
 from s5_agent.agents import material_procurement as material_procurement_module
 from s5_agent.agents import production_plan as production_plan_module
 from s5_agent.agents.forecast_accuracy import ForecastAccuracyAgent
@@ -118,22 +118,24 @@ def test_production_advice_uses_full_forecast_l1_agent_outputs():
     assert metrics_by_agent["ProductionPlanAgent"]["demand_gap_units"] == 455
     assert metrics_by_agent["ProductionPlanAgent"]["total_available_units"] == 445
     assert metrics_by_agent["MaterialProcurementAgent"]["low_material_count"] == 1
-    assert result.summary.startswith("The 7-day production plan is economically positive, but it is deliberately conservative against the demand forecast.")
+    assert result.summary.startswith(
+        "The seven-day outlook remains economically positive, although the production plan is intentionally conservative relative to forecast demand."
+    )
     assert "900 units" in result.summary
     assert "25 Day-1 carryover units give 445 units available" in result.summary
     assert "445 units available" in result.summary
     assert "covering 49.4% of bakery forecast demand" in result.summary
     assert "leaving a 455-unit bakery gap" in result.summary
-    assert "Three production choices are visible" in result.summary
-    assert "hold at 420 planned units" in result.summary
-    assert "expand toward 900 bakery forecast units" in result.summary
-    assert "stage production from a 357-unit base" in result.summary
-    assert "The staged option is preferred" in result.summary
-    assert "release extra bake only after the first 1-2 trading days" in result.summary
-    assert "priority should go to croissant and baguette" in result.summary
-    assert "Material constraints should shape the release order" in result.summary
-    assert "No material is critical yet, but 1 low-stock item still needs attention" in result.summary
-    assert "Held-out historical evaluation shows 18.5% error and 82.0% coverage" in result.summary
+    assert "Against this outlook" in result.summary
+    assert "Because forecast error still affects how much demand will materialize" in result.summary
+    assert "early sales should determine whether additional bake capacity is released" in result.summary
+    assert "croissant and baguette should be reviewed first" in result.summary
+    assert "procurement is confirmed" in result.summary
+    assert "no material is critical yet, but 1 low-stock item still needs attention" in result.summary
+    assert "the held-out historical evaluation shows 18.5% error and 82.0% coverage" in result.summary
+    assert "Three production choices are visible" not in result.summary
+    assert "The staged option is preferred" not in result.summary
+    assert "release extra bake only after the first 1-2 trading days" not in result.summary
     assert "recent error" not in result.summary.lower()
     assert "multi-source forecast check" not in result.summary
     assert "croissant, baguette" in result.summary
@@ -167,6 +169,404 @@ def test_forecast_overview_compares_equal_length_windows_for_trend():
 
     assert output.metrics["forecast_trend"] == "stable"
     assert "Trend: stable." in output.claim
+
+
+def test_forecast_agents_read_selected_date_dashboard_sources(monkeypatch):
+    calls = []
+
+    def fake_dashboard_fetch(url, params=None, timeout=10):
+        calls.append((url, dict(params or {}), timeout))
+        if "/s2/forecast" in url:
+            return {
+                "status": "ok",
+                "forecasts": [
+                    {
+                        "forecast_date": "2026-06-30",
+                        "product_name": "croissant",
+                        "predicted_demand": 10,
+                        "lower_bound": 8,
+                        "upper_bound": 13,
+                        "unit_price": 12.0,
+                    }
+                ],
+            }
+        if "/s2/business-events" in url:
+            return {
+                "status": "ok",
+                "events": [],
+                "reserved_scenario_features": {},
+            }
+        if "/s3/plan/7day" in url:
+            return {
+                "status": "ok",
+                "dashboard_7day": {
+                    "dates": ["2026-06-30"],
+                    "grid": [{"date": "2026-06-30", "bake_qty": 9}],
+                    "buffer_applied": 1.05,
+                    "day1_stock_total": 1,
+                },
+                "weekly_summary": {
+                    "total_bake": 9,
+                    "total_revenue": 108.0,
+                    "total_profit": 70.0,
+                    "scenarios": {},
+                    "top_products": [["croissant", 9]],
+                },
+            }
+        if "/s3/materials" in url:
+            return {
+                "status": "ok",
+                "dashboard_materials": {
+                    "stock_data_available": True,
+                    "items": {"Bread Flour": {"alert": "ok"}},
+                },
+            }
+        raise AssertionError(f"Unexpected dashboard URL: {url}")
+
+    for module in (
+        forecast_overview_module,
+        forecast_uncertainty_module,
+        production_plan_module,
+        material_procurement_module,
+    ):
+        monkeypatch.setattr(
+            module,
+            "fetch_dashboard_json",
+            fake_dashboard_fetch,
+            raising=False,
+        )
+
+    params = {
+        "date": "2026-06-30",
+        "_authorization": "Bearer manager-token",
+    }
+    overview = asyncio.run(ForecastOverviewAgent("ForecastOverviewAgent").fetch(params))["data"]
+    uncertainty = asyncio.run(
+        ForecastUncertaintyAgent("ForecastUncertaintyAgent").fetch(params)
+    )["data"]
+    production = asyncio.run(ProductionPlanAgent("ProductionPlanAgent").fetch(params))["data"]
+    materials = asyncio.run(
+        MaterialProcurementAgent("MaterialProcurementAgent").fetch(params)
+    )["data"]
+
+    assert overview["entries"][0]["predicted_qty"] == 10.0
+    assert uncertainty["products"][0]["avg_width"] == 5.0
+    assert production["weekly_summary"]["total_bake"] == 9
+    assert production["day1_stock_total"] == 1
+    assert materials["items"] == {"Bread Flour": {"alert": "ok"}}
+    assert all(call[1]["_authorization"] == "Bearer manager-token" for call in calls)
+    assert all(call[2] >= 60 for call in calls)
+    assert any("/s2/forecast?days=7&date=2026-06-30" in call[0] for call in calls)
+    assert any("/s3/plan/7day?date=2026-06-30" in call[0] for call in calls)
+    assert any("/s3/materials?date=2026-06-30" in call[0] for call in calls)
+
+
+def test_missing_forecast_data_blocks_quantitative_production_advice():
+    raw = {
+        "forecast_overview": {"data": {"entries": []}},
+        "forecast_uncertainty": {"data": {"products": []}},
+        "production": {
+            "data": {
+                "dates": ["2026-06-30"],
+                "grid": [{"date": "2026-06-30", "bake_qty": 100}],
+                "weekly_summary": {
+                    "total_bake": 100,
+                    "total_revenue": 1200.0,
+                    "total_profit": 800.0,
+                    "scenarios": {},
+                    "top_products": [["croissant", 100]],
+                },
+            }
+        },
+        "materials": {
+            "data": {
+                "stock_data_available": True,
+                "items": {"Bread Flour": {"alert": "ok"}},
+            }
+        },
+        "forecast_accuracy": {
+            "data": {"wape": 30.0, "coverage": 78.8, "interval_width": 5.3}
+        },
+    }
+    request = S5Request(
+        query="Generate production advice",
+        module="forecast",
+        params={"date": "2026-06-30", "module": "forecast"},
+        lang="en",
+        force_refresh=True,
+    )
+
+    result = asyncio.run(
+        run_s5_graph("production_advice", request, raw_inputs=raw)
+    )
+
+    assert "Forecast demand data is unavailable" in result.summary
+    assert result.verification_report.passed is False
+    assert all(
+        recommendation.id != "production_plan_action_1"
+        for recommendation in result.recommendations
+    )
+
+
+def test_forecast_recommendation_uses_historical_error_guardrail_not_summed_q90():
+    raw = {
+        "forecast_overview": {
+            "data": {
+                "entries": [
+                    {
+                        "forecast_date": "2026-06-30",
+                        "product_name": "bread_coconut",
+                        "predicted_qty": 433.0,
+                        "lower_bound": 1.0,
+                        "upper_bound": 1447.0,
+                        "unit_price": 12.0,
+                        "category": "bakery",
+                    }
+                ]
+            }
+        },
+        "forecast_uncertainty": {"data": {"products": []}},
+        "production": {
+            "data": {
+                "grid": [{"date": "2026-06-30", "bake_qty": 433}],
+                "dates": ["2026-06-30"],
+                "buffer": 1.05,
+                "day1_stock_total": 0,
+                "weekly_summary": {
+                    "total_bake": 433,
+                    "total_revenue": 4751.5,
+                    "total_profit": 3326.05,
+                    "scenarios": {
+                        "q10": {"profit": -2124.35, "waste": 432, "shortage": 0},
+                        "q50": {"profit": 3326.05, "waste": 0, "shortage": 0},
+                        "q90": {"profit": 446.05, "waste": 0, "shortage": 1041},
+                    },
+                    "top_products": [("bread_coconut", 65)],
+                },
+            }
+        },
+        "materials": {"data": {"items": {}, "stock_data_available": True}},
+        "forecast_accuracy": {
+            "data": {
+                "overall": {
+                    "WAPE": 30.0,
+                    "conformal_coverage_80": 78.8,
+                    "conformal_avg_width": 5.0,
+                }
+            }
+        },
+    }
+    request = S5Request(
+        query="Generate production advice",
+        module="forecast",
+        params={"date": "2026-06-30", "product": "all"},
+    )
+
+    result = asyncio.run(run_s5_graph("production_advice", request, raw_inputs=raw))
+    guardrail = next(
+        recommendation
+        for recommendation in result.recommendations
+        if recommendation.id == "historical_error_guardrail"
+    )
+    production = next(
+        output
+        for output in result.agent_outputs
+        if output.agent_name == "ProductionPlanAgent"
+    )
+
+    assert "85% base bake of 368 units" in guardrail.action
+    assert "303-563 bakery units" in guardrail.action
+    assert "not a prediction interval" in guardrail.action
+    assert "next 65 units up to expected demand flexible" in guardrail.action
+    assert "no more than 130 units above expected demand" in guardrail.action
+    assert "1041" not in guardrail.action
+    assert "Q90" not in guardrail.action
+    assert "summed product-level" in guardrail.rationale
+    assert guardrail.evidence_ids == [
+        "forecast_bakery_units",
+        "forecast_wape",
+        "production_total_bake",
+        "supply_coverage_pct",
+        "demand_gap_units",
+    ]
+    assert "forecast_volatility_risk" not in production.risks
+    assert all("1041" not in rec.action for rec in result.recommendations)
+
+
+def test_forecast_recommendations_start_with_selected_day_operating_advice():
+    raw = {
+        "forecast_overview": {
+            "data": {
+                "entries": [
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "bread_coconut",
+                        "predicted_qty": 30.0,
+                        "unit_price": 12.0,
+                        "category": "bakery",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "macaron",
+                        "predicted_qty": 25.0,
+                        "unit_price": 10.0,
+                        "category": "bakery",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "mantequilla",
+                        "predicted_qty": 20.0,
+                        "unit_price": 9.0,
+                        "category": "bakery",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "croissant_chocolate",
+                        "predicted_qty": 15.0,
+                        "unit_price": 12.0,
+                        "category": "bakery",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "apple_pie",
+                        "predicted_qty": 10.0,
+                        "unit_price": 14.0,
+                        "category": "bakery",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "latte",
+                        "predicted_qty": 8.0,
+                        "unit_price": 16.0,
+                        "category": "beverage",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "cappuccino",
+                        "predicted_qty": 5.0,
+                        "unit_price": 18.0,
+                        "category": "beverage",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "cold_brew",
+                        "predicted_qty": 4.0,
+                        "unit_price": 18.0,
+                        "category": "beverage",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "espresso",
+                        "predicted_qty": 2.0,
+                        "unit_price": 12.0,
+                        "category": "beverage",
+                    },
+                    {
+                        "forecast_date": "2026-07-07",
+                        "product_name": "americano",
+                        "predicted_qty": 1.0,
+                        "unit_price": 14.0,
+                        "category": "beverage",
+                    },
+                    {
+                        "forecast_date": "2026-07-08",
+                        "product_name": "croissant",
+                        "predicted_qty": 100.0,
+                        "unit_price": 12.0,
+                        "category": "bakery",
+                    },
+                ]
+            }
+        },
+        "forecast_uncertainty": {"data": {"products": []}},
+        "production": {
+            "data": {
+                "grid": [
+                    {
+                        "date": "2026-07-07",
+                        "bake_total": 90,
+                        "bake_plan": {"bread_coconut": 55, "macaron": 35},
+                    },
+                    {
+                        "date": "2026-07-08",
+                        "bake_total": 110,
+                        "bake_plan": {"croissant": 110},
+                    },
+                ],
+                "dates": ["2026-07-07", "2026-07-08"],
+                "buffer": 1.05,
+                "day1_stock_total": 0,
+                "weekly_summary": {
+                    "total_bake": 200,
+                    "total_revenue": 2320.0,
+                    "total_profit": 1500.0,
+                    "scenarios": {
+                        "q10": {"profit": 900.0, "waste": 20, "shortage": 0},
+                        "q50": {"profit": 1500.0, "waste": 0, "shortage": 0},
+                        "q90": {"profit": 1700.0, "waste": 0, "shortage": 20},
+                    },
+                    "top_products": [
+                        ("croissant", 110),
+                        ("bread_coconut", 55),
+                        ("macaron", 35),
+                    ],
+                },
+            }
+        },
+        "materials": {"data": {"items": {}, "stock_data_available": True}},
+        "forecast_accuracy": {
+            "data": {
+                "overall": {
+                    "WAPE": 20.0,
+                    "conformal_coverage_80": 80.0,
+                    "conformal_avg_width": 5.0,
+                }
+            }
+        },
+    }
+    request = S5Request(
+        query="Generate production advice",
+        module="forecast",
+        params={"date": "2026-07-07", "product": "all"},
+    )
+
+    result = asyncio.run(run_s5_graph("production_advice", request, raw_inputs=raw))
+    metrics_by_agent = {
+        output.agent_name: output.metrics for output in result.agent_outputs
+    }
+    today = result.recommendations[0]
+
+    assert metrics_by_agent["ForecastOverviewAgent"]["forecast_day1_date"] == "2026-07-07"
+    assert metrics_by_agent["ForecastOverviewAgent"]["forecast_day1_bakery_units"] == 100.0
+    assert metrics_by_agent["ForecastOverviewAgent"]["forecast_day1_beverage_units"] == 20.0
+    assert metrics_by_agent["ProductionPlanAgent"]["production_day1_bake"] == 90
+    assert today.id == "selected_day_production"
+    assert today.time_horizon == "today"
+    assert "For 2026-07-07" in today.action
+    assert "planned bake of 90 bakery units against 100 forecast bakery units" in today.action
+    assert "Prioritize bread coconut, macaron, and mantequilla" in today.action
+    assert "croissant chocolate" not in today.action
+    assert "apple pie" not in today.action
+    assert "20 made-to-order beverage units led by latte, cappuccino, and cold brew" in today.action
+    assert "espresso" not in today.action
+    assert "americano" not in today.action
+    assert "approve production above the 90-unit plan only if early sales run ahead" in today.action
+    assert "selected date's forecast and production plan" in today.rationale
+    assert today.evidence_ids == [
+        "forecast_day1_bakery_units",
+        "forecast_day1_beverage_units",
+        "production_day1_bake",
+    ]
+    assert any(
+        recommendation.id == "historical_error_guardrail"
+        for recommendation in result.recommendations
+    )
+    weekly = next(
+        recommendation
+        for recommendation in result.recommendations
+        if recommendation.id == "historical_error_guardrail"
+    )
+    assert weekly.action.startswith("Across the seven-day horizon")
 
 
 def test_forecast_accuracy_identifies_held_out_historical_evaluation():
@@ -252,6 +652,22 @@ def test_material_procurement_claim_matches_required_stock_threshold():
 def test_material_procurement_reports_unavailable_stock_data_without_false_shortages():
     from s5_agent.graph.builder import _synthesize_forecast_summary
 
+    overview = ForecastOverviewAgent("ForecastOverviewAgent").analyze_for_graph(
+        {
+            "data": {
+                "entries": [
+                    {
+                        "forecast_date": "2026-07-15",
+                        "product_name": "croissant",
+                        "predicted_qty": 10,
+                        "unit_price": 12.0,
+                        "category": "bakery",
+                    }
+                ]
+            }
+        },
+        {"date": "2026-07-15"},
+    )
     output = MaterialProcurementAgent("MaterialProcurementAgent").analyze_for_graph(
         {
             "data": {
@@ -262,7 +678,9 @@ def test_material_procurement_reports_unavailable_stock_data_without_false_short
         },
         {"date": "2026-07-15"},
     )
-    summary = _synthesize_forecast_summary({"materials": output})
+    summary = _synthesize_forecast_summary(
+        {"forecast_overview": overview, "materials": output}
+    )
 
     assert output.metrics["material_stock_data_available"] is False
     assert output.metrics["critical_material_count"] == 0
@@ -271,7 +689,7 @@ def test_material_procurement_reports_unavailable_stock_data_without_false_short
     assert output.risks == ["material_data_gap"]
     assert output.data_quality.freshness == "missing"
     assert "Current material stock could not be verified" in output.claim
-    assert "Material readiness could not be verified" in summary
+    assert "material readiness could not be verified" in summary
     assert "does not show critical or low-stock blockers" not in summary
     assert output.recommendations[0].id == "material_stock_data_check"
 
@@ -386,22 +804,21 @@ def test_forecast_graph_fetches_data_when_raw_inputs_missing(monkeypatch):
         if "85% base bake" in recommendation.action
     )
     assert "against expected bakery demand of 100 units" in hedge.action
-    assert "remaining 63 planned units flexible" in hedge.action
-    assert "Use the first 1-2 trading days as the release gate" in hedge.action
-    assert "do not release the contingency bake automatically" in hedge.action
-    assert "up to 70 additional bake units" in hedge.action
-    assert "only for the high-demand scenario" in hedge.action
-    assert "risk-adjusted capacity signal" not in hedge.action
-    assert "contingency units" not in hedge.action
+    assert "85% base bake of 85 units" in hedge.action
+    assert "81-119 bakery units" in hedge.action
+    assert "next 15 units up to expected demand flexible" in hedge.action
+    assert "no more than 19 units above expected demand" in hedge.action
+    assert "first 1-2 trading days" in hedge.action
+    assert "not a prediction interval" in hedge.action
+    assert "high-demand scenario" not in hedge.action
+    assert "contingency" not in hedge.action
     assert "Prioritize the top forecast driver first" in hedge.action
     assert hedge.evidence_ids == [
-        "scenario_profit_gap",
-        "production_waste_rate_pct",
-        "q90_shortage_units",
+        "forecast_bakery_units",
+        "forecast_wape",
+        "production_total_bake",
         "supply_coverage_pct",
         "demand_gap_units",
-        "forecast_wape",
-        "forecast_coverage",
     ]
 
 
@@ -431,6 +848,7 @@ def test_forecast_production_scope_separates_bakery_from_made_to_order_beverages
                 ]
             }
         },
+        "forecast_uncertainty": {"data": {"products": []}},
         "production": {
             "data": {
                 "grid": [{"date": "2026-07-15", "bake_qty": 80}],
@@ -448,6 +866,16 @@ def test_forecast_production_scope_separates_bakery_from_made_to_order_beverages
                     },
                     "top_products": [("croissant", 80)],
                 },
+            }
+        },
+        "materials": {"data": {"items": {}, "stock_data_available": True}},
+        "forecast_accuracy": {
+            "data": {
+                "overall": {
+                    "WAPE": 20.0,
+                    "conformal_coverage_80": 80.0,
+                    "conformal_avg_width": 5.0,
+                }
             }
         },
     }
@@ -468,62 +896,15 @@ def test_forecast_production_scope_separates_bakery_from_made_to_order_beverages
     assert "including 100 bakery units and 50 made-to-order beverage units" in result.summary
     assert "with no Day-1 carryover stock, the plan provides 80 units available" in result.summary
     assert "with no starting stock" not in result.summary
-    assert "expand toward 100 bakery forecast units" in result.summary
-    assert "Product-level bake priority should go to croissant" in result.summary
-    assert "Product-level bake priority should go to croissant and espresso" not in result.summary
-    assert "The expected-demand scenario shows no planned waste" in result.summary
+    assert "early sales should determine whether additional bake capacity is released" in result.summary
+    assert "croissant should be reviewed first" in result.summary
+    assert "croissant and espresso should be reviewed first" not in result.summary
+    assert "the expected-demand scenario shows no planned waste" in result.summary
     hedge = next(rec for rec in result.recommendations if "85% base bake" in rec.action)
-    assert "up to 20 additional bake units" in hedge.action
-    assert "remaining 12 planned units flexible" in hedge.action
-    assert "only for the high-demand scenario" in hedge.action
-
-
-def test_s5_plan_and_material_queries_start_on_the_selected_date(monkeypatch):
-    captured_starts = []
-    loaded_stock_dates = []
-
-    class FakeScheduler:
-        breads = {"croissant": {}}
-
-        def generate_7day_plan(self, start_date, day1_stock, forecast):
-            captured_starts.append((start_date, dict(day1_stock)))
-            return {
-                "dashboard_7day": {
-                    "dates": [start_date],
-                    "grid": [{"date": start_date, "bake_qty": 3}],
-                    "buffer_applied": 1.05,
-                },
-                "dashboard_materials": {"items": {"Bread Flour": {"alert": "ok"}}},
-                "weekly_summary": {
-                    "total_bake": 3,
-                    "total_revenue": 36.0,
-                    "total_profit": 20.0,
-                    "scenarios": {},
-                    "top_products": [("croissant", 3)],
-                },
-            }
-
-    def load_day1_stock(_breads, start_date):
-        loaded_stock_dates.append(start_date)
-        return {"croissant": 3}
-
-    monkeypatch.setattr(scheduler_module, "Scheduler", FakeScheduler)
-    monkeypatch.setattr(
-        scheduler_module,
-        "generate_7day_s2_forecast",
-        lambda start_date: {start_date: {"croissant": {"q50": 3}}},
-    )
-    monkeypatch.setattr(module3_scheduling, "_load_day1_stock", load_day1_stock)
-    plan = production_plan_module._query_plan("2026-07-15")
-    materials = material_procurement_module._query_materials("2026-07-15")
-
-    assert captured_starts == [
-        ("2026-07-15", {"croissant": 3}),
-        ("2026-07-15", {"croissant": 3}),
-    ]
-    assert loaded_stock_dates == ["2026-07-15", "2026-07-15"]
-    assert plan["day1_stock_total"] == 3
-    assert materials["items"] == {"Bread Flour": {"alert": "ok"}}
+    assert "85% base bake of 68 units" in hedge.action
+    assert "80-120 bakery units" in hedge.action
+    assert "next 32 units up to expected demand flexible" in hedge.action
+    assert "no more than 20 units above expected demand" in hedge.action
 
 
 def test_forecast_summary_translates_accuracy_into_production_strategy():
@@ -582,12 +963,12 @@ def test_forecast_summary_translates_accuracy_into_production_strategy():
     metrics_by_agent = {output.agent_name: output.metrics for output in result.agent_outputs}
     assert metrics_by_agent["ProductionPlanAgent"]["supply_coverage_pct"] == 80.0
     assert metrics_by_agent["ProductionPlanAgent"]["demand_gap_units"] == 100
-    assert "Three production choices are visible" in result.summary
-    assert "stage production from a 255-unit base" in result.summary
-    assert "a 100-unit bakery supply gap remains" in result.summary
-    assert "30.0% historical error rate means the week should not be locked in at once" in result.summary
-    assert "78.5% coverage is useful for release guardrails" in result.summary
-    assert "staged production and material readiness checks should guide extra bake releases" in result.summary
+    assert "a 100-unit bakery gap" in result.summary
+    assert "Because forecast error still affects how much demand will materialize" in result.summary
+    assert "the held-out historical evaluation shows 30.0% error and 78.5% coverage" in result.summary
+    assert "these results support staged production and material-readiness checks" in result.summary
+    assert "Three production choices are visible" not in result.summary
+    assert "stage production from a 255-unit base" not in result.summary
 
 
 def test_forecast_summary_includes_reserved_business_events():
@@ -691,7 +1072,7 @@ def test_forecast_summary_includes_reserved_business_events():
     overview_metrics = metrics_by_agent["ForecastOverviewAgent"]
 
     assert overview_metrics["business_event_count"] == 3
-    assert "Two planned business events are active" in result.summary
+    assert "In addition, two planned business events are active" in result.summary
     assert "New Product Launch" in result.summary
     assert "Bread Roll" in result.summary
     assert "Competitor Activity" in result.summary

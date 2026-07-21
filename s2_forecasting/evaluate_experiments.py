@@ -1,197 +1,296 @@
-"""Build a thesis-ready S2 experiment summary from existing metric files."""
+"""Build a provenance-checked S2 experiment acceptance summary."""
 
+from __future__ import annotations
+
+import hashlib
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+import pandas as pd
+
 from s2_forecasting.feature_contract import FEATURE_GROUPS, FORECAST_FEATURES
+
 
 BASE_DIR = Path(__file__).resolve().parent
 OUT_DIR = BASE_DIR / "outputs"
 SUMMARY_FILENAME = "s2_experiment_results.json"
+PROVENANCE_FIELDS = ("run_timestamp", "row_count", "test_period")
 
 
 def _load_json(path: Path) -> dict:
     if not path.exists():
         return {}
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+    with path.open("r", encoding="utf-8") as file_handle:
+        data = json.load(file_handle)
     return data if isinstance(data, dict) else {}
 
 
 def _pick_metrics(source: Mapping[str, Any], mapping: Mapping[str, str]) -> dict:
-    metrics = {}
-    for output_key, source_key in mapping.items():
-        value = source.get(source_key)
-        if value is not None:
-            metrics[output_key] = value
-    return metrics
+    return {
+        output_key: source[source_key]
+        for output_key, source_key in mapping.items()
+        if source.get(source_key) is not None
+    }
 
 
-def _build_supplementary_experiments(output_path: Path) -> list[dict]:
-    classifier_metrics = _load_json(output_path / "classifier_metrics.json")
-    weekly_metrics = _load_json(output_path / "weekly_metrics.json")
-    experiments = []
-
-    if classifier_metrics:
-        experiments.append(
-            {
-                "id": "AuxClassifier",
-                "name": "Auxiliary high-demand risk classifier",
-                "role": classifier_metrics.get(
-                    "experiment_role",
-                    "auxiliary_high_demand_risk_classifier",
-                ),
-                "scope": classifier_metrics.get("model_scope", "auxiliary_risk_signal"),
-                "description": (
-                    "Classifies product-day high-demand risk using the shared "
-                    "27-feature forecast-time contract. Metrics are classification "
-                    "signals and are not directly comparable with WAPE."
-                ),
-                "validation_design": classifier_metrics.get("validation_design"),
-                "metrics": _pick_metrics(
-                    classifier_metrics,
-                    {
-                        "Accuracy": "test_Accuracy",
-                        "Precision": "test_Precision",
-                        "Recall": "test_Recall",
-                        "F1": "test_F1",
-                        "ROC_AUC": "test_ROC_AUC",
-                    },
-                ),
-            }
-        )
-
-    if weekly_metrics:
-        q50_metrics = weekly_metrics.get("Q50", {})
-        baseline_metrics = weekly_metrics.get("baseline", {})
-        experiments.append(
-            {
-                "id": "WeeklyEventAware",
-                "name": "Weekly event-aware supplementary forecast",
-                "role": weekly_metrics.get(
-                    "experiment_role",
-                    "supplementary_weekly_event_aware_forecast",
-                ),
-                "scope": weekly_metrics.get("model_scope", "weekly_supplementary"),
-                "description": (
-                    "Forecasts weekly product demand with reserved new-product and "
-                    "competitor event fields for supplementary scenario analysis."
-                ),
-                "validation_design": weekly_metrics.get("validation_design"),
-                "metrics": {
-                    "baseline_WAPE": baseline_metrics.get("WAPE"),
-                    "Q50_WAPE": q50_metrics.get("WAPE"),
-                    "Q50_MAE": q50_metrics.get("MAE"),
-                    "Q50_RMSE": q50_metrics.get("RMSE"),
-                    "coverage_Q50_Q90": weekly_metrics.get("coverage_Q50_Q90"),
-                    "interval_width": weekly_metrics.get("interval_width"),
-                },
-            }
-        )
-
-    return experiments
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file_handle:
+        for chunk in iter(lambda: file_handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
-def _build_candidate_experiments(output_path: Path) -> list[dict]:
-    log_quantile_metrics = _load_json(output_path / "log_quantile_metrics.json")
-    scale_conformal_metrics = _load_json(output_path / "scale_conformal_metrics.json")
-    relative_conformal_metrics = _load_json(output_path / "relative_conformal_metrics.json")
-    experiments = []
-
-    candidate_sources = [
-        (
-            log_quantile_metrics,
-            {
-                "id": "CandidateA_LogQuantile",
-                "name": "Log-scale quantile candidate",
-                "role": "candidate_probabilistic_forecast",
-                "scope": "candidate_not_deployed",
-                "description": "Trains Q10/Q50/Q90 quantile models on log1p quantity.",
-                "metric_keys": {
-                    "WAPE": "WAPE",
-                    "MAE": "MAE",
-                    "RMSE": "RMSE",
-                    "raw_Q10Q90_coverage": "raw_Q10Q90_coverage",
-                    "avg_raw_relative_width": "avg_raw_relative_width",
-                    "quantile_crossing_count": "quantile_crossing_count",
-                },
-            },
-        ),
-        (
-            scale_conformal_metrics,
-            {
-                "id": "CandidateB_ScaleConformal",
-                "name": "Demand-scale conformal candidate",
-                "role": "candidate_uncertainty_calibration",
-                "scope": "candidate_not_deployed",
-                "description": "Calibrates conformal width by predicted demand scale.",
-                "metric_keys": {
-                    "WAPE": "WAPE",
-                    "MAE": "MAE",
-                    "RMSE": "RMSE",
-                    "coverage_80": "coverage_80",
-                    "avg_width": "avg_width",
-                    "avg_relative_width": "avg_relative_width",
-                },
-            },
-        ),
-        (
-            relative_conformal_metrics,
-            {
-                "id": "CandidateC_RelativeConformal",
-                "name": "Relative conformal candidate",
-                "role": "candidate_uncertainty_calibration",
-                "scope": "candidate_not_deployed",
-                "description": "Calibrates interval width using normalized residuals.",
-                "metric_keys": {
-                    "WAPE": "WAPE",
-                    "MAE": "MAE",
-                    "RMSE": "RMSE",
-                    "coverage_80": "coverage_80",
-                    "avg_width": "avg_width",
-                    "avg_relative_width": "avg_relative_width",
-                },
-            },
-        ),
+def _source_artifacts(paths: list[Path]) -> list[dict]:
+    return [
+        {"path": path.name, "sha256": _sha256(path)}
+        for path in paths
+        if path.exists()
     ]
 
-    for source, defaults in candidate_sources:
+
+def _extract_provenance(source: Mapping[str, Any], source_path: Path) -> dict:
+    missing = [field for field in PROVENANCE_FIELDS if source.get(field) in (None, "")]
+    if missing:
+        raise ValueError(
+            f"{source_path.name} provenance missing fields: {', '.join(missing)}"
+        )
+    try:
+        row_count = int(source["row_count"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{source_path.name} provenance row_count is invalid") from exc
+    if row_count <= 0:
+        raise ValueError(f"{source_path.name} provenance row_count must be positive")
+    try:
+        datetime.fromisoformat(str(source["run_timestamp"]).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"{source_path.name} provenance run_timestamp is invalid") from exc
+    return {
+        "run_timestamp": str(source["run_timestamp"]),
+        "row_count": row_count,
+        "test_period": str(source["test_period"]),
+        "source_artifacts": _source_artifacts([source_path]),
+    }
+
+
+def _actual_test_contract(output_path: Path, fallback: Mapping[str, Any]) -> dict:
+    test_path = output_path.parent.parent / "data" / "xgboost_test.csv"
+    if not test_path.exists():
+        return {
+            "row_count": int(fallback["row_count"]),
+            "test_period": str(fallback["test_period"]),
+        }
+    test_dates = pd.read_csv(test_path, usecols=["date"])["date"]
+    return {
+        "row_count": int(len(test_dates)),
+        "test_period": f"{test_dates.min()} to {test_dates.max()}",
+    }
+
+
+def _require_contract(provenance: Mapping[str, Any], expected: Mapping[str, Any], label: str) -> None:
+    for field in ("row_count", "test_period"):
+        if provenance[field] != expected[field]:
+            raise ValueError(
+                f"{label} provenance {field}={provenance[field]!r} does not match "
+                f"current test contract {expected[field]!r}"
+            )
+
+
+def _validated_optional_provenance(
+    source: Mapping[str, Any],
+    source_path: Path,
+    expected: Mapping[str, Any],
+    prediction_path: Path | None = None,
+) -> dict:
+    provenance = _extract_provenance(source, source_path)
+    _require_contract(provenance, expected, source_path.name)
+    paths = [source_path]
+    if prediction_path is not None:
+        if not prediction_path.exists():
+            raise ValueError(
+                f"{source_path.name} provenance prediction artifact missing: "
+                f"{prediction_path.name}"
+            )
+        predictions = pd.read_csv(prediction_path, usecols=["date"])
+        prediction_contract = {
+            "row_count": int(len(predictions)),
+            "test_period": (
+                f"{predictions['date'].min()} to {predictions['date'].max()}"
+            ),
+        }
+        _require_contract(prediction_contract, expected, prediction_path.name)
+        paths.append(prediction_path)
+    provenance["source_artifacts"] = _source_artifacts(paths)
+    return provenance
+
+
+def _excluded_entry(experiment_id: str, source_path: Path, reason: str) -> dict:
+    return {
+        "id": experiment_id,
+        "reason": reason,
+        "source_artifacts": _source_artifacts([source_path]),
+    }
+
+
+def _build_candidate_experiments(
+    output_path: Path,
+    expected: Mapping[str, Any],
+) -> tuple[list[dict], list[dict]]:
+    configs = [
+        {
+            "id": "CandidateA_LogQuantile",
+            "metrics_file": "log_quantile_metrics.json",
+            "prediction_file": None,
+            "name": "Log-scale quantile candidate",
+            "role": "candidate_probabilistic_forecast",
+            "scope": "candidate_not_deployed",
+            "description": "Trains Q10/Q50/Q90 quantile models on log1p quantity.",
+            "metric_keys": {
+                "WAPE": "WAPE",
+                "MAE": "MAE",
+                "RMSE": "RMSE",
+                "raw_Q10Q90_coverage": "raw_Q10Q90_coverage",
+                "avg_raw_relative_width": "avg_raw_relative_width",
+                "quantile_crossing_count": "quantile_crossing_count",
+            },
+        },
+        {
+            "id": "CandidateB_ScaleConformal",
+            "metrics_file": "scale_conformal_metrics.json",
+            "prediction_file": "scale_conformal_predictions.csv",
+            "name": "Demand-scale conformal candidate",
+            "role": "candidate_uncertainty_calibration",
+            "scope": "candidate_not_deployed",
+            "description": "Selects scale bins on validation and evaluates test once.",
+            "metric_keys": {
+                "WAPE": "WAPE",
+                "MAE": "MAE",
+                "RMSE": "RMSE",
+                "coverage_80": "coverage_80",
+                "avg_width": "avg_width",
+                "avg_relative_width": "avg_relative_width",
+            },
+        },
+        {
+            "id": "CandidateC_RelativeConformal",
+            "metrics_file": "relative_conformal_metrics.json",
+            "prediction_file": "relative_conformal_predictions.csv",
+            "name": "Relative conformal candidate",
+            "role": "candidate_uncertainty_calibration",
+            "scope": "candidate_not_deployed",
+            "description": "Calibrates interval width using normalized residuals.",
+            "metric_keys": {
+                "WAPE": "WAPE",
+                "MAE": "MAE",
+                "RMSE": "RMSE",
+                "coverage_80": "coverage_80",
+                "avg_width": "avg_width",
+                "avg_relative_width": "avg_relative_width",
+            },
+        },
+    ]
+    experiments = []
+    excluded = []
+    for config in configs:
+        source_path = output_path / config["metrics_file"]
+        source = _load_json(source_path)
         if not source:
+            excluded.append(
+                _excluded_entry(config["id"], source_path, "missing or empty artifact")
+            )
+            continue
+        prediction_path = (
+            output_path / config["prediction_file"]
+            if config["prediction_file"]
+            else None
+        )
+        try:
+            provenance = _validated_optional_provenance(
+                source,
+                source_path,
+                expected,
+                prediction_path,
+            )
+        except ValueError as exc:
+            excluded.append(_excluded_entry(config["id"], source_path, str(exc)))
             continue
         overall = source.get("overall", {})
-        metric_keys = defaults["metric_keys"]
         experiments.append(
             {
-                "id": source.get("id", defaults["id"]),
-                "name": source.get("name", defaults["name"]),
-                "role": source.get("role", defaults["role"]),
-                "scope": source.get("scope", defaults["scope"]),
-                "description": source.get("description", defaults["description"]),
+                "id": source.get("id", config["id"]),
+                "name": source.get("name", config["name"]),
+                "role": source.get("role", config["role"]),
+                "scope": source.get("scope", config["scope"]),
+                "description": source.get("description", config["description"]),
                 "validation_design": source.get("validation_design"),
-                "metrics": {
-                    output_key: overall.get(source_key)
-                    for output_key, source_key in metric_keys.items()
-                },
+                "metrics": _pick_metrics(overall, config["metric_keys"]),
+                "provenance": provenance,
             }
         )
+    return experiments, excluded
 
-    return experiments
+
+def _build_supplementary_experiments(
+    output_path: Path,
+    expected: Mapping[str, Any],
+) -> tuple[list[dict], list[dict]]:
+    configs = [
+        ("AuxClassifier", "classifier_metrics.json"),
+        ("WeeklyEventAware", "weekly_metrics.json"),
+    ]
+    experiments = []
+    excluded = []
+    for experiment_id, filename in configs:
+        source_path = output_path / filename
+        source = _load_json(source_path)
+        if not source:
+            excluded.append(
+                _excluded_entry(experiment_id, source_path, "missing or empty artifact")
+            )
+            continue
+        try:
+            provenance = _validated_optional_provenance(source, source_path, expected)
+        except ValueError as exc:
+            excluded.append(_excluded_entry(experiment_id, source_path, str(exc)))
+            continue
+        experiments.append(
+            {
+                "id": experiment_id,
+                "name": source.get("name", experiment_id),
+                "role": source.get("experiment_role"),
+                "scope": source.get("model_scope"),
+                "validation_design": source.get("validation_design"),
+                "metrics": source.get("overall", {}),
+                "provenance": provenance,
+            }
+        )
+    return experiments, excluded
 
 
 def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
     output_path = Path(output_dir)
-    baseline_metrics = _load_json(output_path / "metrics.json")
-    proposed_metrics = _load_json(output_path / "test_metrics.json")
-    proposed_overall = proposed_metrics.get("overall", {})
-    supplementary_experiments = _build_supplementary_experiments(output_path)
-    candidate_experiments = _build_candidate_experiments(output_path)
+    baseline_path = output_path / "metrics.json"
+    proposed_path = output_path / "test_metrics.json"
+    baseline_metrics = _load_json(baseline_path)
+    proposed_metrics = _load_json(proposed_path)
 
+    baseline_provenance = _extract_provenance(baseline_metrics, baseline_path)
+    proposed_provenance = _extract_provenance(proposed_metrics, proposed_path)
+    expected = _actual_test_contract(output_path, baseline_provenance)
+    _require_contract(baseline_provenance, expected, baseline_path.name)
+    _require_contract(proposed_provenance, expected, proposed_path.name)
+
+    proposed_overall = proposed_metrics.get("overall", {})
     experiments = [
         {
             "id": "B0",
-            "name": "Historical moving-average baseline",
+            "name": baseline_metrics.get(
+                "naive_baseline_name",
+                "B0 lag_7_avg",
+            ),
             "role": "simple_business_baseline",
             "description": "Uses lag_7_avg directly as the demand prediction.",
             "metrics": _pick_metrics(
@@ -203,15 +302,16 @@ def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
                     "R2": "baseline_R2",
                 },
             ),
+            "provenance": baseline_provenance,
         },
         {
             "id": "B1",
-            "name": "Deterministic XGBoost baseline",
-            "role": "point_forecast_ml_baseline",
-            "description": (
-                "Uses the shared S2 forecast-time feature contract with a "
-                "deterministic XGBoost point forecast objective."
+            "name": baseline_metrics.get(
+                "experiment_name",
+                "B1 deterministic XGBoost",
             ),
+            "role": "point_forecast_ml_baseline",
+            "description": "Deterministic XGBoost point forecast baseline.",
             "metrics": _pick_metrics(
                 baseline_metrics,
                 {
@@ -221,15 +321,22 @@ def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
                     "R2": "xgboost_test_R2",
                 },
             ),
+            "provenance": baseline_provenance,
         },
         {
             "id": "Proposed",
             "name": "Tweedie Q50 with conformal interval",
             "role": "probabilistic_decision_support_model",
             "description": (
-                "Uses the shared S2 forecast-time feature contract with a "
-                "Tweedie Q50 point forecast and conformal prediction interval."
+                "Train-only Q50 with independent validation split-conformal "
+                "calibration. Metrics cover the core pre-runtime-bias interval."
             ),
+            "interval_scope": proposed_metrics.get("interval_scope"),
+            "runtime_transform_evaluated": proposed_metrics.get(
+                "runtime_transform_evaluated",
+                False,
+            ),
+            "runtime_transform_note": proposed_metrics.get("runtime_transform_note"),
             "metrics": {
                 "WAPE": proposed_overall.get("WAPE"),
                 "MAE": proposed_overall.get("MAE"),
@@ -237,29 +344,39 @@ def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
                 "coverage_80": proposed_overall.get("conformal_coverage_80"),
                 "avg_interval_width": proposed_overall.get("conformal_avg_width"),
             },
+            "provenance": proposed_provenance,
         },
     ]
+
+    candidate_experiments, candidate_excluded = _build_candidate_experiments(
+        output_path,
+        expected,
+    )
+    supplementary_experiments, supplementary_excluded = (
+        _build_supplementary_experiments(output_path, expected)
+    )
 
     return {
         "module": "S2 demand forecasting",
         "summary_file": SUMMARY_FILENAME,
+        "run_timestamp": datetime.now(timezone.utc).isoformat(),
+        "acceptance_contract": expected,
         "feature_contract": {
             "source": "s2_forecasting.feature_contract",
             "total_features": len(FORECAST_FEATURES),
             "groups": FEATURE_GROUPS,
         },
         "validation_design": {
-            "model_selection": "date-aware rolling-origin cross-validation",
-            "final_evaluation": "chronological holdout test set",
+            "model_selection": "train-only date-aware rolling-origin cross-validation",
+            "calibration": "independent chronological validation split",
+            "final_evaluation": "chronological holdout test set evaluated once",
         },
         "experiments": experiments,
         "candidate_experiments": candidate_experiments,
         "supplementary_experiments": supplementary_experiments,
+        "excluded_artifacts": candidate_excluded + supplementary_excluded,
         "ablation_plan": [
-            {
-                "group": group,
-                "removed_features": features,
-            }
+            {"group": group, "removed_features": features}
             for group, features in FEATURE_GROUPS.items()
             if group not in {"product_identity", "calendar"}
         ],
@@ -270,9 +387,8 @@ def build_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> dict:
                 item["id"] for item in supplementary_experiments
             ],
             "claim": (
-                "S2 improves from a simple historical baseline to a deterministic "
-                "machine-learning baseline, then adds calibrated uncertainty for "
-                "downstream production and inventory decisions."
+                "S2 improves from a lag-7 baseline to a deterministic model, "
+                "then adds leakage-free core conformal uncertainty estimates."
             ),
         },
     }
@@ -283,12 +399,12 @@ def write_experiment_summary(output_dir: os.PathLike | str = OUT_DIR) -> Path:
     output_path.mkdir(parents=True, exist_ok=True)
     summary = build_experiment_summary(output_path)
     out_file = output_path / SUMMARY_FILENAME
-    with out_file.open("w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2, default=str)
+    with out_file.open("w", encoding="utf-8") as file_handle:
+        json.dump(summary, file_handle, indent=2, default=str)
     return out_file
 
 
-def main():
+def main() -> None:
     out_file = write_experiment_summary()
     print(f"Saved S2 experiment summary -> {out_file}")
 

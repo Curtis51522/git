@@ -13,6 +13,13 @@ def test_wastage_queries_exclude_untracked_materials():
     assert "rm.track_inventory = 1" in TREND_SQL
 
 
+def test_wastage_queries_normalize_legacy_negative_rounding_variance():
+    assert "GREATEST(COALESCE(wc.wastage_qty, 0), 0)" in WASTAGE_SQL
+    assert "GREATEST(COALESCE(wc.wastage_rate, 0), 0)" in WASTAGE_SQL
+    assert "GREATEST(COALESCE(mw.wastage_qty, 0), 0)" in TREND_SQL
+    assert "GREATEST(COALESCE(mw.wastage_rate, 0), 0)" in TREND_SQL
+
+
 def test_yield_queries_use_actual_production_transactions():
     assert "FROM material_transactions mt" in yield_agent.YIELD_SQL
     assert "mt.reference LIKE 'production:%'" in yield_agent.YIELD_SQL

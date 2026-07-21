@@ -40,7 +40,7 @@ const result = {
 };
 console.log(JSON.stringify(result));
 """
-    result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
+    result = subprocess.run(["node"], input=script, check=True, capture_output=True, text=True)
     return json.loads(result.stdout)
 
 
@@ -69,6 +69,64 @@ setTimeout(function() {
 }, 0);
 '''
     result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
+    return json.loads(result.stdout)
+
+
+def _loaded_stock_values():
+    source = INDEX_HTML.read_text(encoding="utf-8")
+    load_stock_source = _source_between(source, "function loadStock(){", "function changeQty")
+    script = r'''
+var stockMap = null, freshnessMap = null, currentPanel = 'inventory';
+var window = {_bakeryFreshness: {croissant_chocolate: 'Fresh'}};
+function renderPOS() {}
+function api() {
+  return Promise.resolve({inventory: [
+    {product_name: 'croissant_chocolate', freshness_status: 'Fresh', quantity_remaining: 0},
+    {product_name: 'croissant_chocolate', freshness_status: 'Day-1', quantity_remaining: 5}
+  ]});
+}
+''' + load_stock_source + r'''
+loadStock().then(function() {
+  console.log(JSON.stringify({
+    stock: stockMap.croissant_chocolate,
+    selected: window._bakeryFreshness.croissant_chocolate,
+    defaultFreshness: freshnessMap.croissant_chocolate,
+    fresh: window._freshStock.croissant_chocolate || 0,
+    day1: window._day1Stock.croissant_chocolate || 0
+  }));
+});
+'''
+    result = subprocess.run(["node"], input=script, check=True, capture_output=True, text=True)
+    return json.loads(result.stdout)
+
+
+def _bakery_freshness_stock_guard_values():
+    source = INDEX_HTML.read_text(encoding="utf-8")
+    add_source = _source_between(source, "function selectFreshness", "function handleScan")
+    script = r'''
+var cartItems = [];
+var freshnessMap = {croissant_chocolate: 'Day-1'};
+var window = {
+  _bakeryFreshness: {croissant_chocolate: 'Day-1'},
+  _freshStock: {croissant_chocolate: 2},
+  _day1Stock: {croissant_chocolate: 1}
+};
+var DISCOUNT_RATE = 0.2;
+var alerts = [];
+function t(value) { return value; }
+function alert(value) { alerts.push(value); }
+function renderPOS() {}
+function getBusinessEventForProduct() { return null; }
+var document = {getElementById: function() { return {}; }};
+''' + add_source + r'''
+quickAddBakery('croissant_chocolate', 'Day-1');
+quickAddBakery('croissant_chocolate', 'Day-1');
+quickAddBakery('croissant_chocolate', 'Fresh');
+quickAddBakery('croissant_chocolate', 'Fresh');
+quickAddBakery('croissant_chocolate', 'Fresh');
+console.log(JSON.stringify({cart: cartItems, alerts: alerts}));
+'''
+    result = subprocess.run(["node"], input=script, check=True, capture_output=True, text=True)
     return json.loads(result.stdout)
 
 
@@ -271,7 +329,7 @@ confirmPayment().then(function() {
 def _run_bundle_behavior(scenario):
     source = INDEX_HTML.read_text(encoding="utf-8")
     defaults_source = _source_between(source, "function getDefaultBeverageOptions", "function roundPosMoney")
-    bundle_source = _source_between(source, "function addBundleToCart", "async function getScript")
+    bundle_source = _source_between(source, "async function addBundleToCart", "async function getScript")
     script = r'''
 const PRODUCT_PRICES = {croissant: 10};
 const COFFEE_PRICES = {latte: 18};
@@ -282,12 +340,28 @@ var beverageOptionMap = {latte: {
 }};
 var beverageOptionsReady = true;
 var cartItems = [], bundleRecs = [], freshnessMap = {}, alerts = [], renderCount = 0;
+var selectedRecommendationEventIds = new Set();
+var pendingRecommendationSelections = new Map();
+var recommendationSelectionGeneration = 0;
+var selectionRequests = [];
+var selectionDeferred = null;
+var API = '', token = 'test-token';
 var window = {_bakeryFreshness: {croissant: 'Fresh'}};
 function t(value) { return value; }
 function alert(value) { alerts.push(value); }
 function optionAllowed(allowed, value) { return (allowed || []).indexOf(value) !== -1; }
 function renderPOS() { renderCount += 1; }
 function expect(value, message) { if (!value) throw new Error(message); }
+function deferred() {
+  var resolve;
+  var promise = new Promise(function(done) { resolve = done; });
+  return {promise: promise, resolve: resolve};
+}
+function fetch(url, init) {
+  expect(url === '/s4/combo/select', 'unexpected selection URL');
+  selectionRequests.push(JSON.parse(init.body));
+  return selectionDeferred.promise;
+}
 const document = {getElementById: function() { return {}; }};
 ''' + defaults_source + bundle_source + scenario
     result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
@@ -429,6 +503,62 @@ def test_beverage_pricing_ignores_stale_tray_discount_while_bakery_keeps_discoun
 
 def test_frontend_menu_prices_update_from_backend_for_bakery_and_beverages():
     assert _loaded_price_values() == {"bakery": 11.5, "beverage": 19.5, "menu": 19.5}
+
+
+def test_frontend_uses_only_positive_batches_to_choose_bakery_freshness():
+    assert _loaded_stock_values() == {
+        "stock": 5,
+        "selected": "Day-1",
+        "defaultFreshness": "Day-1",
+        "fresh": 0,
+        "day1": 5,
+    }
+
+
+def test_bakery_cart_cannot_exceed_stock_for_the_selected_freshness():
+    values = _bakery_freshness_stock_guard_values()
+
+    assert values["cart"] == [
+        {
+            "product_name": "croissant_chocolate",
+            "quantity": 1,
+            "confidence": 1,
+            "bbox": [],
+                "tray_color": "yellow",
+                "discount_rate": 0.2,
+                "discount_source": "freshness",
+                "discount_strategy": "clearance",
+                "discount_reason": "Freshness-based discount",
+                "freshness": "Day-1",
+                "status": "confirmed",
+            },
+        {
+            "product_name": "croissant_chocolate",
+            "quantity": 2,
+            "confidence": 1,
+            "bbox": [],
+                "tray_color": "green",
+                "discount_rate": 0,
+                "discount_source": "",
+                "discount_strategy": "",
+                "discount_reason": "",
+                "freshness": "Fresh",
+                "status": "confirmed",
+            },
+    ]
+    assert values["alerts"] == [
+        "No stock available for selected freshness",
+        "No stock available for selected freshness",
+    ]
+
+
+def test_takeaway_payment_total_does_not_charge_for_packaging():
+    source = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "calculateTakeawayPackagingFee" not in source
+    assert "TAKEAWAY_BAG_UNIT_COST" not in source
+    assert "TAKEAWAY_BOX_UNIT_COST" not in source
+    assert "total+=packagingFee" not in source
 
 
 def test_customization_surcharge_uses_cny_one_decimal_in_modal_and_translations():
@@ -624,31 +754,92 @@ console.log(JSON.stringify({alerts: alerts.length, unchanged: JSON.stringify(car
 def test_top3_add_normalizes_legacy_values_and_fails_closed_before_any_cart_mutation():
     result = _run_bundle_behavior(
         r'''
-bundleRecs = [{items: ['croissant', 'latte'], discount_rate: 0.2, discount_source: 's5'}];
+async function run() {
+selectionDeferred = deferred();
+bundleRecs = [{
+  items: ['croissant', 'latte'],
+  recommendation_event_id: 41,
+  discount_rate: 0.2,
+  discount_source: 's5',
+  discount_strategy: 'clearance',
+  discount_reason: 'Day-1 stock'
+}];
 cartItems = [
   {product_name: 'croissant', quantity: 3, tray_color: 'yellow'},
-  {product_name: 'latte', quantity: 1, size: ' Large ', temperature: ' COLD ', sugar: ' LESS ', ice_level: ' LESS '}
+  {
+    product_name: 'latte', quantity: 1,
+    size: ' Large ', temperature: ' COLD ', sugar: ' LESS ', ice_level: ' LESS ',
+    discount_rate: 0.3, discount_source: 'legacy'
+  }
 ];
-addBundleToCart(0);
+var selectionTask = addBundleToCart(0);
 var latte = cartItems.filter(function(item) { return item.product_name === 'latte'; })[0];
+var croissant = cartItems.filter(function(item) { return item.product_name === 'croissant'; })[0];
 expect(latte.size === 'large' && latte.temperature === 'cold' && latte.sugar === 'less' && latte.ice_level === 'less', 'legacy values were not canonicalized');
+expect(latte.discount_rate === 0 && latte.discount_source === undefined, 'beverage discount metadata was not cleared');
+expect(croissant.discount_rate === 0.2 && croissant.discount_source === 's5', 'bakery discount metadata was not retained');
+expect(pendingRecommendationSelections.has(41), 'selection was not pending');
+expect(!selectedRecommendationEventIds.has(41), 'pending selection was marked selected early');
 
-bundleRecs = [{items: ['croissant', 'latte'], discount_rate: 0.2, discount_source: 's5'}];
+selectionDeferred.resolve({ok: true});
+await selectionTask;
+expect(!pendingRecommendationSelections.has(41), 'resolved selection remained pending');
+expect(selectedRecommendationEventIds.has(41), 'resolved selection ID was not retained');
+expect(selectionRequests.length === 1 && selectionRequests[0].recommendation_event_id === 41, 'selection request did not use the persisted event ID');
+
+bundleRecs = [{items: ['croissant', 'latte'], recommendation_event_id: 42, discount_rate: 0.2, discount_source: 's5'}];
 cartItems = [
   {product_name: 'croissant', quantity: 4, tray_color: 'yellow'},
   {product_name: 'latte', quantity: 1, size: {}, temperature: 'cold', sugar: 'less', ice_level: 'less'}
 ];
 var original = JSON.stringify(cartItems);
 var rendersBefore = renderCount;
-addBundleToCart(0);
+await addBundleToCart(0);
 expect(JSON.stringify(cartItems) === original, 'malformed preflight mutated the cart');
 expect(renderCount === rendersBefore, 'malformed preflight rendered a mutation');
 expect(alerts[alerts.length - 1] === 'Beverage options unavailable', 'malformed preflight did not alert');
-console.log(JSON.stringify({canonical: latte, unchanged: JSON.stringify(cartItems) === original}));
+expect(!pendingRecommendationSelections.has(42), 'malformed preflight became pending');
+expect(selectionRequests.length === 1, 'malformed preflight sent a selection request');
+console.log(JSON.stringify({
+  canonical: latte,
+  bakeryDiscount: {
+    rate: croissant.discount_rate,
+    source: croissant.discount_source,
+    strategy: croissant.discount_strategy,
+    reason: croissant.discount_reason
+  },
+  beverageDiscountCleared: latte.discount_rate === 0 && latte.discount_source === undefined,
+  selectionRequest: selectionRequests[0],
+  selected: selectedRecommendationEventIds.has(41),
+  pendingAfterResolve: pendingRecommendationSelections.has(41),
+  malformedPending: pendingRecommendationSelections.has(42),
+  unchanged: JSON.stringify(cartItems) === original
+}));
+}
+run().catch(function(error) { console.error(error.stack || error); process.exit(1); });
 '''
     )
 
-    assert result["canonical"]["size"] == "large"
+    assert result["canonical"] == {
+        "product_name": "latte",
+        "quantity": 1,
+        "size": "large",
+        "temperature": "cold",
+        "sugar": "less",
+        "ice_level": "less",
+        "discount_rate": 0,
+    }
+    assert result["bakeryDiscount"] == {
+        "rate": 0.2,
+        "source": "s5",
+        "strategy": "clearance",
+        "reason": "Day-1 stock",
+    }
+    assert result["beverageDiscountCleared"] is True
+    assert result["selectionRequest"] == {"recommendation_event_id": 41}
+    assert result["selected"] is True
+    assert result["pendingAfterResolve"] is False
+    assert result["malformedPending"] is False
     assert result["unchanged"] is True
 
 

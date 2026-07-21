@@ -15,6 +15,7 @@ from config.settings import (
 )
 from db.mysql_client import get_db, q
 from api.auth import get_current_user, require_manager
+from api.operation_clock import operation_now
 
 from models.schemas import (
     YOLOResult, DeductRequest, DeductResponse, ImageSearchResult,
@@ -150,7 +151,7 @@ async def checkout_scan(file: UploadFile = File(...)):
     if image is None:
         raise HTTPException(400, "Cannot decode image")
     logger.info("Checkout scan: %dx%d", image.shape[1], image.shape[0])
-    img_id = f"checkout_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    img_id = f"checkout_{operation_now(datetime.now).strftime('%Y%m%d_%H%M%S')}"
     results = detect_products(image, scenario="checkout", image_id=img_id)
     aggregated = aggregate_results(results)
     return {"status": "ok", "detections": aggregated}
@@ -370,7 +371,7 @@ def _create_production_batches(items):
                 f"Invalid quantity for '{product_name}': expected a positive integer",
             )
 
-    now = datetime.now()
+    now = operation_now(datetime.now)
     batch_prefix = now.strftime("%Y%m%d%H%M%S%f")
     db = get_db(autocommit=False)
     created = []
@@ -431,7 +432,7 @@ async def inflow_scan(file: UploadFile = File(...)):
     if image is None:
         raise HTTPException(400, "Cannot decode image")
     logger.info("Inflow scan: %dx%d", image.shape[1], image.shape[0])
-    img_id = f"inbound_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    img_id = f"inbound_{operation_now(datetime.now).strftime('%Y%m%d_%H%M%S')}"
     results = detect_products(image, scenario="inbound", image_id=img_id)
     aggregated = aggregate_results(results)
     created = _create_production_batches(aggregated)
@@ -748,7 +749,7 @@ async def get_inflow_history(
     date: str = Query(None),
     limit: int = Query(100, ge=1, le=500),
 ):
-    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    selected_date = date or operation_now(datetime.now).strftime("%Y-%m-%d")
     try:
         start = datetime.strptime(selected_date, "%Y-%m-%d")
     except ValueError as exc:
@@ -756,52 +757,93 @@ async def get_inflow_history(
     if start.strftime("%Y-%m-%d") != selected_date:
         raise HTTPException(400, "Date must use YYYY-MM-DD format")
     end = start + timedelta(days=1)
-    is_today = start.date() == datetime.now().date()
-    boundary = end
+    now = operation_now(datetime.now)
+    is_today = start.date() == now.date()
+    boundary = now if is_today else end
     remaining_label = "Left Now" if is_today else "Left at Close"
+    snapshot_basis = "current_live" if is_today else "historical_close"
 
     db = get_db()
     cursor = db.cursor(dictionary=True)
     try:
         cursor.execute(
             """
-            SELECT inflow.id,
-                   inflow.batch_id,
-                   inflow.product_name,
-                   inflow.quantity AS quantity_baked,
+            WITH bounds AS (
+                SELECT CAST(%s AS DATETIME) AS day_start,
+                       CAST(%s AS DATETIME) AS balance_time
+            )
+            SELECT MIN(it.id) AS id,
+                   bi.batch_id,
+                   bi.product_name,
+                   bi.production_time AS transaction_time,
                    COALESCE(SUM(
-                       CASE WHEN outflow.disposition = 'sold'
-                            THEN ABS(outflow.quantity) ELSE 0 END
+                       CASE WHEN it.transaction_time < bounds.day_start
+                            THEN CASE
+                                WHEN it.transaction_type = 'inflow' THEN ABS(it.quantity)
+                                WHEN it.transaction_type = 'outflow' THEN -ABS(it.quantity)
+                                ELSE 0
+                            END
+                            ELSE 0 END
+                   ), 0) AS quantity_opening,
+                   COALESCE(SUM(
+                       CASE WHEN it.transaction_time >= bounds.day_start
+                                      AND it.transaction_time < bounds.balance_time
+                                      AND it.transaction_type = 'inflow'
+                            THEN ABS(it.quantity) ELSE 0 END
+                   ), 0) AS quantity_baked,
+                   COALESCE(SUM(
+                       CASE WHEN it.transaction_time >= bounds.day_start
+                                      AND it.transaction_time < bounds.balance_time
+                                      AND it.transaction_type = 'outflow'
+                                      AND it.disposition = 'sold'
+                            THEN ABS(it.quantity) ELSE 0 END
                    ), 0) AS quantity_sold,
                    COALESCE(SUM(
-                       CASE WHEN COALESCE(outflow.disposition, '') <> 'sold'
-                                  AND (
-                                      outflow.disposition IN ('non_sellable', 'discarded')
-                                      OR outflow.freshness_status = 'Expired'
-                                  )
-                            THEN ABS(outflow.quantity) ELSE 0 END
+                       CASE WHEN it.transaction_time >= bounds.day_start
+                                      AND it.transaction_time < bounds.balance_time
+                                      AND it.transaction_type = 'outflow'
+                                      AND COALESCE(it.disposition, '') <> 'sold'
+                                   AND (
+                                      it.disposition IN ('non_sellable', 'discarded')
+                                      OR it.freshness_status = 'Expired'
+                                   )
+                            THEN ABS(it.quantity) ELSE 0 END
                    ), 0) AS quantity_discarded,
-                   COALESCE(SUM(ABS(outflow.quantity)), 0) AS quantity_outflow_total,
-                   inflow.transaction_time
-            FROM inventory_transactions inflow
-            JOIN products p ON p.product_name = inflow.product_name
-            LEFT JOIN inventory_transactions outflow
-                   ON outflow.batch_id = inflow.batch_id
-                  AND outflow.transaction_type = 'outflow'
-                  AND outflow.transaction_time < %s
-            WHERE inflow.transaction_type = 'inflow'
-              AND p.category = 'bakery'
-              AND inflow.transaction_time >= %s
-              AND inflow.transaction_time < %s
-            GROUP BY inflow.id, inflow.batch_id, inflow.product_name,
-                     inflow.quantity, inflow.transaction_time
-            ORDER BY inflow.transaction_time, inflow.id
+                   COALESCE(SUM(
+                       CASE WHEN it.transaction_time >= bounds.day_start
+                                      AND it.transaction_time < bounds.balance_time
+                                      AND it.transaction_type = 'outflow'
+                            THEN ABS(it.quantity) ELSE 0 END
+                   ), 0) AS quantity_outflow_total,
+                   COALESCE(SUM(
+                       CASE WHEN it.transaction_time < bounds.balance_time
+                            THEN CASE
+                                WHEN it.transaction_type = 'inflow' THEN ABS(it.quantity)
+                                WHEN it.transaction_type = 'outflow' THEN -ABS(it.quantity)
+                                ELSE 0
+                            END
+                            ELSE 0 END
+                   ), 0) AS quantity_closing
+            FROM batch_inventory bi
+            JOIN products p ON p.product_name = bi.product_name
+            CROSS JOIN bounds
+            LEFT JOIN inventory_transactions it
+                   ON it.batch_id = bi.batch_id
+                  AND it.transaction_time < bounds.balance_time
+            WHERE p.category = 'bakery'
+              AND bi.production_time < bounds.balance_time
+            GROUP BY bi.batch_id, bi.product_name, bi.production_time,
+                     bounds.day_start, bounds.balance_time
+            HAVING quantity_opening > 0
+                OR quantity_baked > 0
+                OR quantity_outflow_total > 0
+                OR quantity_closing > 0
+            ORDER BY bi.production_time, bi.batch_id
             LIMIT %s
             """,
             (
-                boundary.strftime("%Y-%m-%d %H:%M:%S"),
                 start.strftime("%Y-%m-%d %H:%M:%S"),
-                end.strftime("%Y-%m-%d %H:%M:%S"),
+                boundary.strftime("%Y-%m-%d %H:%M:%S"),
                 limit,
             ),
         )
@@ -811,6 +853,7 @@ async def get_inflow_history(
         db.close()
 
     for record in records:
+        quantity_opening = max(int(record.get("quantity_opening") or 0), 0)
         quantity_baked = max(int(record.get("quantity_baked") or 0), 0)
         quantity_sold = max(int(record.get("quantity_sold") or 0), 0)
         quantity_discarded = max(int(record.get("quantity_discarded") or 0), 0)
@@ -823,22 +866,42 @@ async def get_inflow_history(
             0,
         )
         calculated_left = (
-            quantity_baked
+            quantity_opening
+            + quantity_baked
             - quantity_sold
             - quantity_discarded
             - quantity_other_outflow
         )
+        raw_closing = record.pop("quantity_closing", calculated_left)
+        quantity_closing = int(raw_closing or 0)
+        transaction_time = record.get("transaction_time")
+        production_date = (
+            transaction_time.date()
+            if isinstance(transaction_time, datetime)
+            else datetime.strptime(str(transaction_time)[:10], "%Y-%m-%d").date()
+        )
+        fresh_remaining = (
+            max(quantity_closing, 0)
+            if production_date == start.date()
+            else 0
+        )
         record.update(
             {
+                "quantity_opening": quantity_opening,
                 "quantity_baked": quantity_baked,
                 "quantity_sold": quantity_sold,
                 "quantity_discarded": quantity_discarded,
                 "quantity_other_outflow": quantity_other_outflow,
-                "quantity_left": max(calculated_left, 0),
-                "data_quality_issue": calculated_left < 0,
+                "quantity_fresh_remaining": fresh_remaining,
+                "quantity_carried_to_day1": (
+                    fresh_remaining if not is_today else 0
+                ),
+                "quantity_left": max(quantity_closing, 0),
+                "data_quality_issue": (
+                    quantity_closing < 0 or calculated_left != quantity_closing
+                ),
             }
         )
-        transaction_time = record.get("transaction_time")
         if isinstance(transaction_time, datetime):
             record["transaction_time"] = transaction_time.strftime(
                 "%Y-%m-%d %H:%M:%S"
@@ -848,6 +911,8 @@ async def get_inflow_history(
         "date": selected_date,
         "count": len(records),
         "remaining_label": remaining_label,
+        "snapshot_basis": snapshot_basis,
+        "balance_time": boundary.strftime("%Y-%m-%d %H:%M:%S"),
         "records": records,
     }
 

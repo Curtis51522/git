@@ -41,6 +41,8 @@ def test_interval_diagnostics_summarize_overall_product_and_deciles():
     assert overall["sample_count"] == 4
     assert overall["raw_interval_coverage_pct"] == 100.0
     assert overall["conformal_interval_coverage_pct"] == 100.0
+    assert overall["conformal_interval_scope"] == "core_pre_runtime_bias_conformal"
+    assert overall["runtime_transform_evaluated"] is False
     assert overall["high_uncertainty_product_count"] == 2
     assert overall["widest_relative_product"] == "macaron"
 

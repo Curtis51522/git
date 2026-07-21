@@ -14,7 +14,12 @@ def fetch_dashboard_json(
 ) -> dict[str, Any]:
     """Read dashboard JSON while preserving the caller's authorization header."""
     authorization = str((params or {}).get("_authorization", "")).strip()
-    headers = {"Authorization": authorization} if authorization else {}
+    operation_at = str((params or {}).get("_operation_at", "")).strip()
+    headers = {}
+    if authorization:
+        headers["Authorization"] = authorization
+    if operation_at:
+        headers["X-Operation-At"] = operation_at
     request = Request(url, headers=headers, method="GET")
     with urlopen(request, timeout=timeout) as response:
         if response.status != 200:

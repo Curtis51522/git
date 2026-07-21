@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import BEVERAGE_PRODUCT_TYPES, PRODUCT_TYPES, FORECAST_FEATURE_COLS
 from db.mysql_client import get_db, q
 from api.auth import require_manager
+from api.operation_clock import operation_now
 from models.schemas import SalesForecast
 from s2_forecasting.feature_contract import (
     FEATURE_GROUPS,
@@ -42,8 +43,7 @@ BUSINESS_EVENT_TYPES = {
     },
 }
 
-# Frozen training data metadata (lag features + weather monthly averages)
-# Used when live DB has insufficient recent sales data.
+# Frozen training data metadata used when live DB has insufficient recent sales data.
 _frozen_meta = None
 
 def _init_frozen_meta():
@@ -76,7 +76,6 @@ def _init_frozen_meta():
         "last_daily_tickets": float(jun_train.groupby("date")["daily_tickets"].first().mean()),
         "holiday_dates": sorted(train[train["is_holiday"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
         "top3_products": train.groupby("product_id")["quantity"].mean().nlargest(3).index.tolist(),
-        "rainy_dates": set(train[train["is_rainy"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
     }
     logger.info("Frozen meta loaded: %d products, top3=%s", len(_frozen_meta["last_lag"]), _frozen_meta["top3_products"])
 
@@ -111,7 +110,20 @@ def _get_weather(dt_date):
             return temp_mean, temp_range, is_cold, is_hot
     except Exception:
         pass
-    # Fallback: use monthly average from historical data
+    calendar_day = _weather_data[
+        (_weather_data.index.month == dt_date.month)
+        & (_weather_data.index.day == dt_date.day)
+    ]
+    if len(calendar_day) > 0:
+        temp_mean = float(calendar_day["temp_mean"].mean())
+        temp_range = float(
+            (calendar_day["temp_max"] - calendar_day["temp_min"]).mean()
+        )
+        is_cold = 1 if temp_mean < 15 else 0
+        is_hot = 1 if temp_mean > 25 else 0
+        return temp_mean, temp_range, is_cold, is_hot
+
+    # Last fallback: use the broader monthly climatology.
     m = dt_date.month
     month_data = _weather_data[_weather_data.index.month == m]
     if len(month_data) > 0:
@@ -121,6 +133,29 @@ def _get_weather(dt_date):
         is_hot = 1 if temp_mean > 25 else 0
         return temp_mean, temp_range, is_cold, is_hot
     return 20.0, 6.0, 0, 0
+
+
+def _get_is_rainy(dt_date):
+    _init_weather()
+    if _weather_data is None or "precipitation" not in _weather_data.columns:
+        return 0
+    selected = pd.Timestamp(dt_date.strftime("%Y-%m-%d"))
+    if selected in _weather_data.index:
+        return int(float(_weather_data.loc[selected]["precipitation"]) >= 1.0)
+
+    calendar_day = _weather_data[
+        (_weather_data.index.month == dt_date.month)
+        & (_weather_data.index.day == dt_date.day)
+    ]
+    if len(calendar_day) > 0:
+        rainy_share = float((calendar_day["precipitation"] >= 1.0).mean())
+        return int(rainy_share >= 0.5)
+
+    month_data = _weather_data[_weather_data.index.month == dt_date.month]
+    if len(month_data) > 0:
+        rainy_share = float((month_data["precipitation"] >= 1.0).mean())
+        return int(rainy_share >= 0.5)
+    return 0
 
 _model_cache: Dict[str, xgb.XGBRegressor] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -319,7 +354,7 @@ def _build_reserved_scenario_summary(events):
 
 
 def _list_business_events(date: str = ""):
-    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    selected_date = date or operation_now(datetime.now).strftime("%Y-%m-%d")
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute(
@@ -380,13 +415,16 @@ def _get_product_daily_sales(product_name: str) -> dict:
     now = time.time()
     if product_name in _lag_cache and product_name in _lag_cache_ts and (now - _lag_cache_ts[product_name]) < 300:
         return _lag_cache[product_name]
+    db = None
+    c = None
     try:
         db = get_db()
         c = db.cursor(dictionary=True)
         c.execute(
             "SELECT DATE(transaction_time) as dt, SUM(quantity) as qty "
             "FROM inventory_transactions "
-            "WHERE transaction_type='outflow' AND product_name=%s "
+            "WHERE transaction_type='outflow' AND receipt_id IS NOT NULL "
+            "AND product_name=%s "
             "GROUP BY DATE(transaction_time) ORDER BY dt",
             (product_name,)
         )
@@ -394,6 +432,11 @@ def _get_product_daily_sales(product_name: str) -> dict:
     except Exception as e:
         logger.warning("Lag features DB query failed for %s: %s", product_name, e)
         sales = {}
+    finally:
+        if c is not None:
+            c.close()
+        if db is not None:
+            db.close()
     _lag_cache[product_name] = sales
     _lag_cache_ts[product_name] = now
     # Cleanup stale entries (older than 10 min)
@@ -461,6 +504,9 @@ def _get_rolling_avg_from_history(
     return float(np.mean(values)) if values else 0.0
 
 def _get_daily_tickets(forecast_date) -> float:
+    db = None
+    c = None
+    ticket_count = 0.0
     try:
         db = get_db()
         c = db.cursor(dictionary=True)
@@ -468,19 +514,25 @@ def _get_daily_tickets(forecast_date) -> float:
         c.execute(
             "SELECT COUNT(DISTINCT receipt_id) as cnt "
             "FROM inventory_transactions "
-            "WHERE transaction_type='outflow' "
+            "WHERE transaction_type='outflow' AND receipt_id IS NOT NULL "
             "AND DATE(transaction_time) = ("
             "  SELECT MAX(DATE(transaction_time)) FROM inventory_transactions "
-            "  WHERE transaction_type='outflow' AND DATE(transaction_time) < DATE(%s)"
+            "  WHERE transaction_type='outflow' AND receipt_id IS NOT NULL "
+            "  AND DATE(transaction_time) < DATE(%s)"
             ")",
             (fd.strftime("%Y-%m-%d"),)
         )
         row = c.fetchone()
         if row and row["cnt"]:
-            return float(row["cnt"])
+            ticket_count = float(row["cnt"])
     except Exception:
         pass
-    return 0.0
+    finally:
+        if c is not None:
+            c.close()
+        if db is not None:
+            db.close()
+    return ticket_count
 
 def _get_is_holiday(dt_date) -> int:
     try:
@@ -598,9 +650,7 @@ def build_forecast_features(
     discount_pct = 0.0
     is_member_day = 0
 
-    # is_rainy: check weather data from frozen training mapping
-    ds = dt_date.strftime("%Y-%m-%d")
-    is_rainy = 1 if ds in _frozen_meta.get("rainy_dates", set()) else 0
+    is_rainy = _get_is_rainy(dt_date)
 
     # Weather features (always available from historical data)
     temp_mean, temp_range, is_cold_day, is_hot_day = _get_weather(dt_date)
@@ -741,9 +791,9 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
         try:
             today = datetime.strptime(start_date, "%Y-%m-%d")
         except ValueError:
-            today = datetime.now()
+            today = operation_now(datetime.now)
     else:
-        today = datetime.now()
+        today = operation_now(datetime.now)
     forecasts = []
     model_errors = []
 
@@ -935,7 +985,7 @@ async def get_feature_importance():
 
 @router.get("/business-events", dependencies=[Depends(require_manager)])
 async def get_business_events(date: str = ""):
-    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    selected_date = date or operation_now(datetime.now).strftime("%Y-%m-%d")
     try:
         events = _list_business_events(selected_date)
         return {
@@ -1033,7 +1083,7 @@ async def get_today_features(date: str = ""):
         if date:
             forecast_date = _dt.datetime.strptime(date, "%Y-%m-%d")
         else:
-            forecast_date = _dt.datetime.now()
+            forecast_date = operation_now(_dt.datetime.now)
 
         feats = build_forecast_features(forecast_date, "")
         readable = {k: feats.get(k, 0) for k in FORECAST_FEATURE_ORDER}

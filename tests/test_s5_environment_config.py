@@ -47,14 +47,7 @@ def test_s5_runtime_requirements_are_declared():
         "python-dotenv",
         "mysql-connector-python",
         "langgraph",
-        "pyyaml",
     }.issubset(names)
-
-
-def test_project_requirements_include_yaml_loader_dependency():
-    names = _requirement_names(ROOT / "requirements.txt")
-
-    assert "pyyaml" in names
 
 
 def test_s5_manifest_delegates_to_unified_project_requirements():

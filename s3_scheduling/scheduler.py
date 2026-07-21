@@ -89,27 +89,6 @@ def load_products():
     return result
 
 
-def load_s2_predictions(date_str=None):
-    """
-    Load S2 XGBoost quantile predictions for a given date.
-
-    Uses the trained quantile models from s2_forecasting/outputs/.
-    Falls back to sampling from training data if models unavailable.
-
-    Returns: {product_name: {"q10": int, "q50": int, "q90": int}}
-    """
-    if date_str is None:
-        date_str = datetime.now().strftime("%Y-%m-%d")
-
-    # Try real S2 models first
-    preds = _predict_from_api(date_str)
-    if preds:
-        return preds
-
-    # Fallback: sample from training data
-    return _predict_from_training(date_str)
-
-
 def generate_7day_s2_forecast(start_date):
     """
     Generate 7 days of S2 predictions via forecast API.
@@ -120,12 +99,36 @@ def generate_7day_s2_forecast(start_date):
     Returns:
         dict {date: {product_name: {"q50": int, "lower": int, "upper": int}}}
     """
+    from api.module2_forecast import _do_forecast
+
     d0 = datetime.strptime(start_date, "%Y-%m-%d")
-    forecast = {}
-    for i in range(7):
-        ds = (d0 + timedelta(days=i)).strftime("%Y-%m-%d")
-        forecast[ds] = load_s2_predictions(ds)
-    return forecast
+    forecast = {
+        (d0 + timedelta(days=offset)).strftime("%Y-%m-%d"): {}
+        for offset in range(7)
+    }
+    try:
+        response = _do_forecast(None, 7, True, start_date)
+        rows = response.get("forecasts", []) if response.get("status") == "ok" else []
+    except Exception:
+        rows = []
+
+    if rows:
+        for row in rows:
+            forecast_date = str(row.get("forecast_date", ""))
+            product_name = str(row.get("product_name", ""))
+            if forecast_date not in forecast or not product_name:
+                continue
+            forecast[forecast_date][product_name] = {
+                "q10": int(row.get("lower_bound", 0) or 0),
+                "q50": int(row.get("predicted_demand", 0) or 0),
+                "q90": int(row.get("upper_bound", 0) or 0),
+            }
+        return forecast
+
+    return {
+        forecast_date: _predict_from_training(forecast_date)
+        for forecast_date in forecast
+    }
 
 
 # ---- Internal helpers ----
@@ -226,29 +229,6 @@ def _predict_from_models(date_str):
 
     return predictions
 
-
-def _predict_from_api(date_str):
-    """Get S2 predictions by importing the forecast module directly."""
-    try:
-        import sys as _sys
-        _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-        if _base not in _sys.path:
-            _sys.path.insert(0, _base)
-        from api.module2_forecast import _do_forecast
-        from datetime import datetime as _dt
-        data = _do_forecast(None, 1, False, date_str)
-        if data.get("status") != "ok":
-            return None
-        result = {}
-        for f in data.get("forecasts", []):
-            result[f["product_name"]] = {
-                "q50": f["predicted_demand"],
-                "q10": f["lower_bound"],
-                "q90": f["upper_bound"],
-            }
-        return result if result else None
-    except Exception:
-        return None
 
 def _predict_from_training(date_str):
     """Fallback: sample predictions from historical training data."""

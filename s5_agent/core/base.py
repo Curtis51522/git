@@ -23,6 +23,7 @@ class AgentOpinion:
     data: Dict[str, Any] = field(default_factory=dict)
     elapsed_ms: float = 0.0
     tool_calls: List[Dict] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 class BaseAgent:
     def __init__(self, name: str):

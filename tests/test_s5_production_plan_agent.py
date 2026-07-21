@@ -50,7 +50,7 @@ def test_production_plan_agent_returns_graph_output_with_evidence():
     assert output.recommendations[0].evidence_ids == ["production_buffer"]
 
 
-def test_production_plan_hedge_recommendation_explains_base_bake_and_contingency():
+def test_production_plan_keeps_marginal_scenarios_as_diagnostics_only():
     agent = ProductionPlanAgent("ProductionPlanAgent")
     raw = {
         "data": {
@@ -76,25 +76,13 @@ def test_production_plan_hedge_recommendation_explains_base_bake_and_contingency
     }
 
     output = agent.analyze_for_graph(raw, {"date": "2026-07-07", "product": "all"})
-    hedge = output.recommendations[0]
-
     assert output.metrics["waste_rate_pct"] == 31.6
+    assert output.metrics["scenario_profit_gap"] == 7547.0
+    assert output.metrics["q90_shortage_units"] == 754
     assert "The 7-day plan calls for 1750 bake units" in output.claim
     assert "A 105% buffer lifts total available supply" in output.claim
     assert "equal to a 31.6% waste rate" in output.claim
     assert "Q50" not in output.claim
     assert "Q10" not in output.claim
-    assert "Start with an 85% base bake of 1487 units" in hedge.action
-    assert "Keep the remaining planned bake flexible" in hedge.action
-    assert "release additional capacity" in hedge.action
-    assert "expected demand path" in hedge.action
-    assert "Q50" not in hedge.action
-    assert "Q10" not in hedge.action
-    assert "staged production" in hedge.rationale
-    assert "committing the full 1750 units upfront" in hedge.rationale
-    assert f"limits exposure to the downside scenario, which still projects {chr(165)}2103 profit" in str(hedge.expected_impact)
-    assert "keeps the 31.6% expected-demand waste exposure visible" in str(hedge.expected_impact)
-    assert f"protects against the {chr(165)}2103 downside case" not in str(hedge.expected_impact)
-    assert "Q50" not in hedge.rationale
-    assert "Q10" not in hedge.rationale
-    assert hedge.evidence_ids == ["scenario_profit_gap", "production_waste_rate_pct"]
+    assert "forecast_volatility_risk" not in output.risks
+    assert not any("base bake" in rec.action for rec in output.recommendations)

@@ -6,6 +6,147 @@ from s5_agent.graph.runner import run_s5_graph
 from s5_agent.graph.state import S5Request
 
 
+def test_inventory_flow_reconciliation_includes_opening_stock():
+    result = inventory_module._summarize_inflow_history(
+        {
+            "inflow_history": {
+                "date": "2026-07-15",
+                "records": [
+                    {
+                        "product_name": "bagel",
+                        "quantity_opening": 2,
+                        "quantity_baked": 3,
+                        "quantity_sold": 4,
+                        "quantity_discarded": 0,
+                        "quantity_other_outflow": 0,
+                        "quantity_left": 1,
+                    }
+                ],
+            }
+        },
+        target_products=None,
+    )
+
+    assert result["flow_opening_units"] == 2
+    assert result["flow_baked_units"] == 3
+    assert result["flow_left_units"] == 1
+    assert result["flow_balance_issue_count"] == 0
+    assert result["flow_per_product"]["bagel"]["opening"] == 2
+
+
+def test_inventory_snapshot_includes_flow_products_that_closed_at_zero():
+    raw = {
+        "status": "ok",
+        "bread_stock": [
+            {
+                "product_name": "apple_pie",
+                "fresh_qty": 1,
+                "day1_qty": 0,
+                "total_qty": 1,
+            }
+        ],
+        "baking_materials": [],
+        "beverage_materials": [],
+        "packaging_materials": [],
+        "inflow_history": {
+            "status": "ok",
+            "date": "2026-07-16",
+            "records": [
+                {
+                    "product_name": "apple_pie",
+                    "quantity_opening": 0,
+                    "quantity_baked": 6,
+                    "quantity_sold": 5,
+                    "quantity_discarded": 0,
+                    "quantity_other_outflow": 0,
+                    "quantity_left": 1,
+                    "data_quality_issue": False,
+                },
+                {
+                    "product_name": "bagel",
+                    "quantity_opening": 0,
+                    "quantity_baked": 5,
+                    "quantity_sold": 5,
+                    "quantity_discarded": 0,
+                    "quantity_other_outflow": 0,
+                    "quantity_left": 0,
+                    "data_quality_issue": False,
+                },
+                {
+                    "product_name": "croissant",
+                    "quantity_opening": 1,
+                    "quantity_baked": 4,
+                    "quantity_sold": 5,
+                    "quantity_discarded": 0,
+                    "quantity_other_outflow": 0,
+                    "quantity_left": 0,
+                    "data_quality_issue": False,
+                },
+            ],
+        },
+    }
+
+    result = InventoryAgent().analyze(
+        raw,
+        {"product": "all", "date": "2026-07-16"},
+    )
+
+    assert result["data"]["product_count"] == 3
+    assert result["data"]["zero_stock_products"] == ["bagel", "croissant"]
+    assert result["data"]["per_product"]["bagel"]["qty"] == 0
+    assert result["data"]["per_product"]["croissant"]["qty"] == 0
+
+
+def test_inventory_summary_flags_expired_stock_pending_disposal():
+    raw = {
+        "status": "ok",
+        "bread_stock": [
+            {
+                "product_name": "bagel",
+                "fresh_qty": 3,
+                "day1_qty": 0,
+                "total_qty": 3,
+            }
+        ],
+        "overdue_total": 4,
+        "overdue_stock": [
+            {
+                "product_name": "brownie",
+                "overdue_qty": 4,
+                "oldest_production_date": "2026-06-30",
+            }
+        ],
+        "baking_materials": [],
+        "beverage_materials": [],
+        "packaging_materials": [],
+    }
+    request = S5Request(
+        query="Check inventory",
+        module="inventory",
+        params={"product": "all", "date": "2026-07-02"},
+    )
+
+    result = asyncio.run(
+        run_s5_graph(
+            "inventory_diagnosis",
+            request,
+            raw_inputs={"inventory": raw},
+        )
+    )
+
+    finished_stock = next(
+        output
+        for output in result.agent_outputs
+        if output.agent_name == "FinishedStockAgent"
+    )
+    assert finished_stock.metrics["overdue_stock_total"] == 4
+    assert finished_stock.metrics["overdue_stock_products"] == ["brownie"]
+    assert "expired_stock_pending_disposal_risk" in finished_stock.risks
+    assert "4 expired units remain pending disposal" in result.summary
+    recommendation_ids = [item.id for item in result.recommendations]
+    assert "inventory_expired_stock_audit" in recommendation_ids
+
+
 def test_run_s5_graph_returns_inventory_diagnosis_response(monkeypatch):
     monkeypatch.setattr(InventoryAgent, "_query_db_freshness", lambda self, product_filter=None: None)
     raw = {
@@ -61,6 +202,32 @@ def test_inventory_graph_fetches_data_when_raw_inputs_missing(monkeypatch):
 
     assert result.summary != "No stock data for croissant"
     assert result.agent_outputs[0].metrics["inventory"] == 80
+
+
+def test_historical_inventory_fetch_does_not_fall_back_to_current_stock(monkeypatch):
+    calls = []
+
+    def fake_fetch(url, params, timeout=10):
+        calls.append(url)
+        return {}
+
+    monkeypatch.setattr(inventory_module, "fetch_dashboard_json", fake_fetch)
+
+    agent = InventoryAgent()
+    params = {
+        "date": "2026-06-30",
+        "module": "inventory",
+        "product": "all",
+    }
+    raw = asyncio.run(agent.fetch(params))
+    output = agent.analyze_for_graph(raw, params)
+
+    assert len(calls) == 1
+    assert calls[0].endswith("/s4/inventory/dashboard?date=2026-06-30")
+    assert raw["bread_stock"] == []
+    assert output.metrics["snapshot_date"] == "2026-06-30"
+    assert output.metrics["product_count"] == 0
+    assert "inventory_data_gap" in output.risks
 
 
 def test_inventory_fetch_adds_selected_date_inflow_history(monkeypatch):
@@ -250,6 +417,38 @@ def test_inventory_summary_reports_thin_stock_without_low_risk_label(monkeypatch
     assert "bread roll and cornbread" in zero_stock_rec.action
     assert "macaron" not in zero_stock_rec.action
     assert "1 product with only one unit" in thin_stock_rec.action
+
+
+def test_inventory_summary_omits_additional_when_no_product_has_zero_stock(
+    monkeypatch,
+):
+    raw = {
+        "status": "ok",
+        "bread_stock": [
+            {"product_name": "bagel", "fresh_qty": 1, "day1_qty": 0, "total_qty": 1},
+            {"product_name": "donut", "fresh_qty": 1, "day1_qty": 0, "total_qty": 1},
+            {"product_name": "muffin", "fresh_qty": 2, "day1_qty": 0, "total_qty": 2},
+        ],
+        "baking_materials": [],
+        "beverage_materials": [],
+        "packaging_materials": [],
+    }
+    request = S5Request(
+        query="Check inventory",
+        module="inventory",
+        params={"product": "all", "date": "2026-06-30"},
+    )
+
+    result = asyncio.run(
+        run_s5_graph(
+            "inventory_diagnosis",
+            request,
+            raw_inputs={"inventory": raw},
+        )
+    )
+
+    assert "2 products have only 1 unit each" in result.summary
+    assert "2 additional products" not in result.summary
 
 
 def test_inventory_summary_explains_stock_with_inflow_movements(monkeypatch):
@@ -501,3 +700,66 @@ def test_inventory_summary_includes_raw_material_reorder_risk(monkeypatch):
     assert "Bread Flour is at or below its reorder point" in result.summary
     assert "material_shortage_risk" in finished_stock.risks
     assert any(rec.id == "inventory_material_restock_check" for rec in result.recommendations)
+
+
+def test_inventory_agent_deduplicates_shared_material_groups(monkeypatch):
+    monkeypatch.setattr(
+        InventoryAgent,
+        "_query_db_freshness",
+        lambda self, product_filter=None: None,
+    )
+    raw = {
+        "status": "ok",
+        "bread_stock": [
+            {
+                "product_name": "macaron",
+                "fresh_qty": 2,
+                "day1_qty": 0,
+                "total_qty": 2,
+            }
+        ],
+        "baking_materials": [
+            {
+                "material_name": "Milk",
+                "stock": 10.0,
+                "reorder_point": 2.0,
+                "unit": "L",
+            }
+        ],
+        "beverage_materials": [
+            {
+                "material_name": "Milk",
+                "stock": 10.0,
+                "reorder_point": 2.0,
+                "unit": "L",
+            },
+            {
+                "material_name": "Coffee Beans",
+                "stock": 4.0,
+                "reorder_point": 2.0,
+                "unit": "kg",
+            },
+        ],
+        "coffee_materials": [
+            {
+                "material_name": "Legacy Duplicate",
+                "stock": 1.0,
+                "reorder_point": 1.0,
+                "unit": "kg",
+            }
+        ],
+        "packaging_materials": [
+            {
+                "material_name": "Packaging Bag",
+                "stock": 20.0,
+                "reorder_point": 5.0,
+                "unit": "pcs",
+            }
+        ],
+    }
+
+    result = InventoryAgent().analyze(raw, {"product": "all"})
+
+    assert [
+        item["material_name"] for item in result["data"]["raw_materials"]
+    ] == ["Coffee Beans", "Milk", "Packaging Bag"]

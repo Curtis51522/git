@@ -24,6 +24,47 @@ def make_scheduler():
     return scheduler
 
 
+def test_generate_7day_forecast_uses_one_continuous_s2_request(monkeypatch):
+    from api import module2_forecast
+
+    calls = []
+
+    def fake_forecast(product, days, use_cache, start_date):
+        calls.append((product, days, use_cache, start_date))
+        return {
+            "status": "ok",
+            "forecasts": [
+                {
+                    "forecast_date": "2026-06-30",
+                    "product_name": "croissant",
+                    "predicted_demand": 10,
+                    "lower_bound": 8,
+                    "upper_bound": 13,
+                },
+                {
+                    "forecast_date": "2026-07-01",
+                    "product_name": "croissant",
+                    "predicted_demand": 12,
+                    "lower_bound": 9,
+                    "upper_bound": 15,
+                },
+            ],
+        }
+
+    monkeypatch.setattr(module2_forecast, "_do_forecast", fake_forecast)
+    result = scheduler_module.generate_7day_s2_forecast("2026-06-30")
+
+    assert calls == [(None, 7, True, "2026-06-30")]
+    assert len(result) == 7
+    assert result["2026-06-30"]["croissant"] == {
+        "q10": 8,
+        "q50": 10,
+        "q90": 13,
+    }
+    assert result["2026-07-01"]["croissant"]["q50"] == 12
+    assert result["2026-07-06"] == {}
+
+
 def test_actual_replay_carries_only_unsold_fresh_stock_forward():
     scheduler = make_scheduler()
 
@@ -241,7 +282,7 @@ def test_rolling_plan_carries_unsold_fresh_but_not_expired_day1_stock():
     )
 
 
-def test_day1_loader_aggregates_only_real_bakery_batches(monkeypatch):
+def test_day1_loader_reconstructs_selected_date_opening_stock(monkeypatch):
     from api import module3_scheduling
 
     class Cursor:
@@ -281,8 +322,15 @@ def test_day1_loader_aggregates_only_real_bakery_batches(monkeypatch):
 
     assert result == {"croissant": 3, "baguette": 0}
     assert "JOIN products" in database.cursor_instance.sql
+    assert "LEFT JOIN inventory_transactions" in database.cursor_instance.sql
     assert "p.category = 'bakery'" in database.cursor_instance.sql
-    assert database.cursor_instance.params == ("2026-07-15",)
+    assert "it.transaction_time < %s" in database.cursor_instance.sql
+    assert "it.transaction_type = 'inflow' THEN ABS(it.quantity)" in database.cursor_instance.sql
+    assert "it.transaction_type = 'outflow' THEN -ABS(it.quantity)" in database.cursor_instance.sql
+    assert database.cursor_instance.params == (
+        "2026-07-15 00:00:00",
+        "2026-07-15",
+    )
     assert database.cursor_instance.closed
     assert database.closed
 

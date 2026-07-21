@@ -2,6 +2,7 @@ import asyncio
 from datetime import date, datetime
 
 import numpy as np
+import pandas as pd
 
 
 def test_forecast_feature_contract_is_canonical():
@@ -133,11 +134,145 @@ def test_build_forecast_features_covers_contract(monkeypatch):
     assert set(features) == set(FORECAST_FEATURES)
 
 
+def test_forecast_weather_uses_exact_date_then_same_calendar_day_climatology(
+    monkeypatch,
+):
+    from api import module2_forecast
+
+    weather = pd.DataFrame(
+        [
+            {
+                "date": pd.Timestamp("2024-07-01"),
+                "temp_mean": 27.0,
+                "temp_max": 31.0,
+                "temp_min": 24.0,
+                "precipitation": 2.0,
+            },
+            {
+                "date": pd.Timestamp("2025-07-01"),
+                "temp_mean": 29.0,
+                "temp_max": 33.0,
+                "temp_min": 25.0,
+                "precipitation": 6.0,
+            },
+            {
+                "date": pd.Timestamp("2026-07-01"),
+                "temp_mean": 30.0,
+                "temp_max": 34.0,
+                "temp_min": 27.0,
+                "precipitation": 0.0,
+            },
+            {
+                "date": pd.Timestamp("2025-07-02"),
+                "temp_mean": 10.0,
+                "temp_max": 12.0,
+                "temp_min": 8.0,
+                "precipitation": 0.0,
+            },
+        ]
+    ).set_index("date")
+    monkeypatch.setattr(module2_forecast, "_weather_data", weather)
+
+    exact = module2_forecast._get_weather(date(2026, 7, 1))
+    fallback = module2_forecast._get_weather(date(2027, 7, 1))
+
+    assert exact == (30.0, 7.0, 0, 1)
+    assert fallback == (28.666666666666668, 7.333333333333333, 0, 1)
+    assert module2_forecast._get_is_rainy(date(2026, 7, 1)) == 0
+    assert module2_forecast._get_is_rainy(date(2027, 7, 1)) == 1
+
+
 def test_forecast_category_uses_real_product_type():
     from api import module2_forecast
 
     assert module2_forecast._get_category_id("americano") == 1
     assert module2_forecast._get_category_id("macaron") == 0
+
+
+def test_sales_history_uses_only_receipt_linked_outflows(monkeypatch):
+    from api import module2_forecast
+
+    class Cursor:
+        def __init__(self):
+            self.executions = []
+            self.closed = False
+
+        def execute(self, sql, params):
+            self.executions.append((" ".join(sql.split()), params))
+
+        def fetchall(self):
+            return [{"dt": date(2026, 7, 15), "qty": 12}]
+
+        def close(self):
+            self.closed = True
+
+    class Database:
+        def __init__(self):
+            self.cursor_instance = Cursor()
+            self.closed = False
+
+        def cursor(self, dictionary=False):
+            assert dictionary is True
+            return self.cursor_instance
+
+        def close(self):
+            self.closed = True
+
+    database = Database()
+    monkeypatch.setattr(module2_forecast, "get_db", lambda: database)
+    monkeypatch.setattr(module2_forecast, "_lag_cache", {})
+    monkeypatch.setattr(module2_forecast, "_lag_cache_ts", {})
+
+    result = module2_forecast._get_product_daily_sales("macaron")
+
+    assert result == {"2026-07-15": 12}
+    sql, params = database.cursor_instance.executions[0]
+    assert "receipt_id IS NOT NULL" in sql
+    assert params == ("macaron",)
+    assert database.cursor_instance.closed is True
+    assert database.closed is True
+
+
+def test_daily_tickets_ignores_dates_with_only_non_sale_outflows(monkeypatch):
+    from api import module2_forecast
+
+    class Cursor:
+        def __init__(self):
+            self.executions = []
+            self.closed = False
+
+        def execute(self, sql, params):
+            self.executions.append((" ".join(sql.split()), params))
+
+        def fetchone(self):
+            return {"cnt": 37}
+
+        def close(self):
+            self.closed = True
+
+    class Database:
+        def __init__(self):
+            self.cursor_instance = Cursor()
+            self.closed = False
+
+        def cursor(self, dictionary=False):
+            assert dictionary is True
+            return self.cursor_instance
+
+        def close(self):
+            self.closed = True
+
+    database = Database()
+    monkeypatch.setattr(module2_forecast, "get_db", lambda: database)
+
+    result = module2_forecast._get_daily_tickets(date(2026, 7, 18))
+
+    assert result == 37.0
+    sql, params = database.cursor_instance.executions[0]
+    assert sql.count("receipt_id IS NOT NULL") == 2
+    assert params == ("2026-07-18",)
+    assert database.cursor_instance.closed is True
+    assert database.closed is True
 
 
 def test_day1_feature_uses_dated_bakery_batch_inventory(monkeypatch):

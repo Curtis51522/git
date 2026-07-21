@@ -8,6 +8,7 @@ CANONICAL_SCHEMA = Path("schema.sql")
 EXPECTED_TABLES = frozenset(
     {
         "attendance_records",
+        "attendance_correction_log",
         "batch_inventory",
         "business_events",
         "detection_log",
@@ -23,8 +24,11 @@ EXPECTED_TABLES = frozenset(
         "product_recipes",
         "products",
         "raw_materials",
+        "recommendation_events",
         "receipts",
         "shift_schedule",
+        "sick_leave_log",
+        "sick_replacements",
         "users",
     }
 )
@@ -75,7 +79,7 @@ def test_canonical_schema_is_mysql_structure_only():
     tables = re.findall(r"CREATE TABLE `([^`]+)`", source)
 
     assert "canonical MySQL schema" in source
-    assert len(tables) == 19
+    assert len(tables) == 23
     assert set(tables) == EXPECTED_TABLES
     assert "CREATE DATABASE IF NOT EXISTS `bakery_ai`" in source
     assert "USE `bakery_ai`;" in source
@@ -94,6 +98,25 @@ def test_canonical_schema_keeps_safe_defaults():
     password_line = next(line for line in users.splitlines() if "password_hash" in line)
     assert "default" not in password_line
     assert "`wastage_pct` decimal(5,2) default 0.05" in products
+
+
+def test_attendance_schema_allows_one_record_per_employee_date():
+    attendance = _table_sql("attendance_records")
+
+    assert "unique key `uq_attendance_emp_date` (`emp_id`,`date`)" in attendance
+    assert "key `idx_emp_date` (`emp_id`,`date`)" not in attendance
+
+
+def test_attendance_corrections_and_sick_replacements_are_persisted():
+    corrections = _table_sql("attendance_correction_log")
+    sick_log = _table_sql("sick_leave_log")
+    replacements = _table_sql("sick_replacements")
+
+    assert "`attendance_date` date not null" in corrections
+    assert "`reason` varchar(255) not null" in corrections
+    assert "`corrected_by` varchar(50) not null" in corrections
+    assert "`leave_date` date not null" in sick_log
+    assert "`replacement_employee_id` varchar(20)" in replacements
 
 
 def test_canonical_schema_uses_mysql_native_json_columns():
@@ -206,7 +229,8 @@ def test_revenue_views_apply_expired_cost_consistently():
     assert '"expired_cost"' in hourly
     assert "_get_expired_cost_by_period" in historical
     assert "_get_order_adjustments_by_period" in historical
-    assert '"Order adjustments"' in historical
+    assert '"order_adjustments"' in historical
+    assert '"__order_adjustments__"' not in historical
 
 
 def test_daily_revenue_exposes_promotion_loss_inputs():
@@ -243,6 +267,16 @@ def test_expired_inventory_records_cost_snapshot():
     assert 'select("product_name,material_cost")' in source
     assert '"unit_price": product_costs.get(' in expiration
     assert '"unit_price": 0' not in expiration
+
+
+def test_future_production_batch_remains_fresh_before_production_date():
+    assert (
+        freshness_service.get_freshness(
+            "2026-07-18 05:00:00",
+            "2026-07-17",
+        )
+        == "Fresh"
+    )
 
 
 class _FreshnessResult:
@@ -360,8 +394,14 @@ def test_freshness_aging_uses_remaining_inventory_only(monkeypatch):
 
     assert result["expired_cleared"] == 1
     assert [row["batch_id"] for row in tables["batch_inventory"]] == [
-        "sold-out"
+        "sold-out",
+        "remaining",
     ]
+    expired_batch = tables["batch_inventory"][1]
+    assert expired_batch["quantity"] == 0
+    assert expired_batch["quantity_remaining"] == 0
+    assert expired_batch["freshness_status"] == "Expired"
+    assert expired_batch["tray_color"] == "black"
     assert tables["inventory_transactions"] == [
         {
             "transaction_type": "outflow",
@@ -371,8 +411,41 @@ def test_freshness_aging_uses_remaining_inventory_only(monkeypatch):
             "unit_price": 1.48,
             "discount_applied": 1.0,
             "freshness_status": "Expired",
+            "disposition": "discarded",
+            "reason": "day1_unsold",
+            "performed_by": "freshness_service",
         }
     ]
+
+
+def test_freshness_aging_never_moves_day1_inventory_back_to_fresh(monkeypatch):
+    tables = {
+        "batch_inventory": [
+            {
+                "batch_id": "day1-batch",
+                "product_name": "baguette",
+                "quantity": 1,
+                "quantity_remaining": 1,
+                "production_time": "2026-07-17 05:00:00",
+                "freshness_status": "Day-1",
+                "tray_color": "yellow",
+            },
+        ],
+        "products": [],
+        "inventory_transactions": [],
+    }
+    monkeypatch.setattr(freshness_service, "get_db", lambda: object())
+    monkeypatch.setattr(
+        freshness_service,
+        "q",
+        lambda _db, table: _FreshnessQuery(tables, table),
+    )
+
+    result = freshness_service.update_all_freshness("2026-07-17")
+
+    assert result["updated"] == 0
+    assert tables["batch_inventory"][0]["freshness_status"] == "Day-1"
+    assert tables["batch_inventory"][0]["tray_color"] == "yellow"
 
 
 def test_sellable_batches_filter_on_remaining_inventory(monkeypatch):

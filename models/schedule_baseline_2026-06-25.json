@@ -2,54 +2,44 @@
   "week_start": "2026-06-25",
   "employees": {
     "E004": {
-      "name": "Siti",
+      "name": "Liu Yang",
       "role": "baker",
-      "shifts": 5
-    },
-    "E007": {
-      "name": "Kumar",
-      "role": "baker",
-      "shifts": 5
-    },
-    "E008": {
-      "name": "David",
-      "role": "baker",
-      "shifts": 5
-    },
-    "E009": {
-      "name": "Chen",
-      "role": "barista",
-      "shifts": 6
-    },
-    "E002": {
-      "name": "Mei",
-      "role": "cashier",
-      "shifts": 6
-    },
-    "E003": {
-      "name": "Raj",
-      "role": "cashier",
-      "shifts": 5
-    },
-    "E010": {
-      "name": "Fatima",
-      "role": "manager",
-      "shifts": 5
-    },
-    "E005": {
-      "name": "Ahmad",
-      "role": "baker",
-      "shifts": 5
-    },
-    "E001": {
-      "name": "Ali",
-      "role": "baker",
-      "shifts": 4
+      "shifts": 1
     },
     "E006": {
-      "name": "Priya",
+      "name": "Zhao Min",
       "role": "baker",
-      "shifts": 4
+      "shifts": 1
+    },
+    "E003": {
+      "name": "Wang Lei",
+      "role": "barista",
+      "shifts": 1
+    },
+    "E007": {
+      "name": "Huang Jian",
+      "role": "cashier",
+      "shifts": 1
+    },
+    "E001": {
+      "name": "Zhang Wei",
+      "role": "baker",
+      "shifts": 1
+    },
+    "E008": {
+      "name": "Wu Tao",
+      "role": "baker",
+      "shifts": 1
+    },
+    "E009": {
+      "name": "Lin Yue",
+      "role": "barista",
+      "shifts": 1
+    },
+    "E002": {
+      "name": "Li Na",
+      "role": "cashier",
+      "shifts": 1
     }
   }
 }

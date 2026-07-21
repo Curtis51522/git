@@ -24,12 +24,13 @@ class FakeResponse:
         return json.dumps(self.payload).encode("utf-8")
 
 
-def test_dashboard_api_forwards_authorization_with_standard_library(monkeypatch):
+def test_dashboard_api_forwards_request_context_with_standard_library(monkeypatch):
     captured = {}
 
     def fake_urlopen(request, timeout):
         captured["url"] = request.full_url
         captured["authorization"] = request.get_header("Authorization")
+        captured["operation_at"] = request.get_header("X-operation-at")
         captured["timeout"] = timeout
         return FakeResponse({"data": {"today_revenue": 2984.0}})
 
@@ -37,13 +38,17 @@ def test_dashboard_api_forwards_authorization_with_standard_library(monkeypatch)
 
     result = dashboard_api.fetch_dashboard_json(
         "http://127.0.0.1:8002/s4/revenue/daily?date=2026-06-30",
-        {"_authorization": "Bearer manager-token"},
+        {
+            "_authorization": "Bearer manager-token",
+            "_operation_at": "2026-07-24T19:25:00",
+        },
     )
 
     assert result == {"data": {"today_revenue": 2984.0}}
     assert captured == {
         "url": "http://127.0.0.1:8002/s4/revenue/daily?date=2026-06-30",
         "authorization": "Bearer manager-token",
+        "operation_at": "2026-07-24T19:25:00",
         "timeout": 10,
     }
 

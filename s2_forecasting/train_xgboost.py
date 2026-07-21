@@ -73,6 +73,7 @@ Author: Bakery AI System
 """;
 
 import os, warnings, json, joblib
+from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -83,13 +84,17 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import GridSearchCV
 import xgboost as xgb
 from s2_forecasting.feature_contract import FORECAST_FEATURES
-from s2_forecasting.train_quantile import build_date_aware_cv
+from s2_forecasting.train_quantile import (
+    build_date_aware_cv,
+    build_deployment_refit_frame,
+)
 
 warnings.filterwarnings("ignore")
 np.random.seed(42)
 
 EXPERIMENT_ROLE = "deterministic_xgboost_baseline"
-BASELINE_NAME = "B1 deterministic XGBoost"
+EXPERIMENT_NAME = "B1 deterministic XGBoost"
+NAIVE_BASELINE_NAME = "B0 lag_7_avg"
 BASELINE_DESCRIPTION = (
     "Deterministic XGBoost baseline using the shared S2 forecast-time feature "
     "contract; B0 is the lag_7_avg historical moving-average predictor."
@@ -218,8 +223,8 @@ def tune_hyperparameters(train_df, val_df):
 # ============================================================
 # TRAIN FINAL MODEL
 # ============================================================
-def train_final_model(train_df, best_params):
-    """Train XGBoost on full train set with best hyperparameters."""
+def train_final_model(train_df, best_params, *, save_model=True):
+    """Train XGBoost with best hyperparameters."""
     print("\n--- Training Final Model ---")
     X_train, y_train = get_xy(train_df)
 
@@ -232,8 +237,9 @@ def train_final_model(train_df, best_params):
     )
     model.fit(X_train, y_train)
 
-    joblib.dump(model, os.path.join(OUT_DIR, "xgboost_model.pkl"))
-    print("  Model saved to outputs/xgboost_model.pkl")
+    if save_model:
+        joblib.dump(model, os.path.join(OUT_DIR, "xgboost_model.pkl"))
+        print("  Model saved to outputs/xgboost_model.pkl")
     return model
 
 
@@ -396,10 +402,11 @@ def main():
         json.dump(best_params, f, indent=2, default=str)
 
     # ----- Train -----
-    model = train_final_model(train, best_params)
+    evaluation_fit = pd.concat([train, val], ignore_index=True)
+    model = train_final_model(evaluation_fit, best_params, save_model=False)
 
     # ----- Evaluate on Train (overfitting check) -----
-    X_train, y_train = get_xy(train)
+    X_train, y_train = get_xy(evaluation_fit)
     y_train_pred = model.predict(X_train)
     y_train_pred = np.maximum(y_train_pred, 0)
     train_metrics = compute_metrics(y_train, y_train_pred, prefix="xgboost_train_")
@@ -437,13 +444,31 @@ def main():
     # ----- Per-product -----
     per_product_metrics(test, y_pred)
 
+    deployment_refit = build_deployment_refit_frame(train, val, test)
+    train_final_model(deployment_refit, best_params, save_model=True)
+
     # ----- Save all metrics -----
     all_metrics = {**baseline_metrics, **train_metrics, **test_metrics, **gap_metrics}
     for k, v in ablation_results.items():
         all_metrics.update(v)
     all_metrics["experiment_role"] = EXPERIMENT_ROLE
-    all_metrics["baseline_name"] = BASELINE_NAME
+    all_metrics["experiment_name"] = EXPERIMENT_NAME
+    all_metrics["naive_baseline_name"] = NAIVE_BASELINE_NAME
+    all_metrics["run_timestamp"] = datetime.now(timezone.utc).isoformat()
+    all_metrics["row_count"] = int(len(test))
+    all_metrics["test_period"] = f"{test['date'].min()} to {test['date'].max()}"
+    all_metrics["split_provenance"] = (
+        "Task 5 consumed the approved Task 4 chronological split files; "
+        "Task 5 did not regenerate them."
+    )
     all_metrics["validation_design"] = VALIDATION_DESIGN
+    all_metrics["evaluation_fit_period"] = (
+        f"{evaluation_fit['date'].min()} to {evaluation_fit['date'].max()}"
+    )
+    all_metrics["deployment_refit_period"] = (
+        f"{deployment_refit['date'].min()} to {deployment_refit['date'].max()}"
+    )
+    all_metrics["deployment_refit_held_out_metric_claim"] = False
     all_metrics["features"] = len(FEATURES)
     all_metrics["feature_contract"] = "s2_forecasting.feature_contract.FORECAST_FEATURES"
     all_metrics["best_params"] = str(best_params)

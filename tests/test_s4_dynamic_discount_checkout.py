@@ -46,6 +46,38 @@ def test_freshness_discount_wins_when_dynamic_rate_is_lower():
     assert resolved["source"] == "freshness"
 
 
+def test_business_event_discount_is_clamped_to_server_validated_rate():
+    from api.module4_frontend.bff import _resolve_checkout_discount
+
+    resolved = _resolve_checkout_discount(
+        item={"discount_rate": 0.25},
+        allowed_dynamic={},
+        freshness_rate=0.0,
+        allowed_event={
+            "discount_pct": 12,
+            "source": "business_event",
+            "strategy": "new_product_launch",
+            "reason": "Active New Product Launch",
+        },
+    )
+
+    assert resolved == {
+        "rate": 0.12,
+        "source": "business_event",
+        "strategy": "new_product_launch",
+        "reason": "Active New Product Launch",
+    }
+
+
+def test_checkout_loads_active_business_event_discounts_from_database():
+    source = BFF_SOURCE.read_text(encoding="utf-8")
+    checkout_source = source[source.index("async def checkout_complete") :]
+
+    assert "_load_active_business_event_discounts" in source
+    assert "event_discounts =" in checkout_source
+    assert "allowed_event=event_discounts.get(product_name, {})" in checkout_source
+
+
 def test_frontend_carries_dynamic_discount_metadata_to_checkout():
     html = INDEX_HTML.read_text(encoding="utf-8")
     confirm_payment = _function_source(html, "async function confirmPayment()", "function showReceipt")
@@ -54,6 +86,22 @@ def test_frontend_carries_dynamic_discount_metadata_to_checkout():
     assert "discount_source:ci.discount_source||''" in confirm_payment
     assert "discount_strategy:ci.discount_strategy||''" in confirm_payment
     assert "discount_reason:ci.discount_reason||''" in confirm_payment
+
+
+def test_frontend_applies_active_business_event_discount_to_product_and_cart():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    quick_add = _function_source(
+        html,
+        "function quickAddBakery(name,fresh)",
+        "function handleScan",
+    )
+
+    assert "getBusinessEventForProduct(name)" in quick_add
+    assert "discountSource='business_event'" in quick_add
+    assert "discount_source:discountSource" in quick_add
+    assert "Math.max(discountRate,eventDiscount/100)" in html
+    assert "Number(rc.discount_rate||0)" in html
+    assert "rc.discount_source||" in html
 
 
 def test_checkout_persists_applied_discount_in_order_items_and_receipt_json():

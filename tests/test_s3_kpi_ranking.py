@@ -34,34 +34,68 @@ class FakeAttendance:
         return True, "ok", {"id": 1}
 
 
-def test_collect_attendance_uses_real_punch_hours_and_caps_attendance_rate():
+def test_collect_attendance_uses_schedule_windows_for_all_attendance_kpis():
     collector = KPIDataCollector()
     records = [
         {
             "emp_id": "E001",
             "status": "on_time",
-            "date": date(2026, 6, 1),
+            "date": date(2026, 6, 24),
             "punch_in": timedelta(hours=6),
             "punch_out": timedelta(hours=14),
         },
         {
             "emp_id": "E001",
             "status": "late",
-            "date": date(2026, 6, 2),
+            "date": date(2026, 6, 25),
             "punch_in": timedelta(hours=6, minutes=30),
-            "punch_out": timedelta(hours=13),
+            "punch_out": timedelta(hours=12, minutes=30),
         },
     ]
-    scheduled_days = [{"employee_id": "E001", "sched_days": 1}]
-    collector._get_db = lambda: FakeDb([records, scheduled_days])
+    schedules = [
+        {
+            "schedule_date": date(2026, 6, 24),
+            "time_slot": "06:00-13:00",
+            "employee_id": "E001",
+            "employee_name": "Alice",
+            "role": "baker",
+        },
+        {
+            "schedule_date": date(2026, 6, 25),
+            "time_slot": "06:00-13:00",
+            "employee_id": "E001",
+            "employee_name": "Alice",
+            "role": "baker",
+        },
+    ]
+    collector._get_db = lambda: FakeDb([records, schedules])
 
     result = collector._collect_attendance(
         [{"id": "E001", "name": "Alice", "role": "baker"}],
         "2026-06",
     )
 
-    assert result["E001"]["work_hours"] == 14.5
+    assert result["E001"]["work_hours"] == 13.0
     assert result["E001"]["attendance_rate"] == 100.0
+    assert result["E001"]["punctuality"] == 50.0
+    assert result["E001"]["shift_completion"] == 50.0
+
+
+def test_kpi_config_includes_shift_completion_with_balanced_internal_weights():
+    expected_weights = {
+        "work_hours": 0.20,
+        "hours_vs_avg": 0.10,
+        "attendance_rate": 0.20,
+        "punctuality": 0.15,
+        "shift_completion": 0.20,
+        "waste_rate": 0.15,
+    }
+
+    assert kpi_config.SHARED_KPIS["shift_completion"]["cross_role"] is True
+    assert {
+        name: kpi_config.SHARED_KPIS[name]["weight"]
+        for name in expected_weights
+    } == expected_weights
 
 
 def test_successful_attendance_punch_invalidates_kpi_cache(monkeypatch):

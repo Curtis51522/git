@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -121,6 +122,7 @@ async def _stock_data_quality_node(state: S5GraphState | dict[str, Any]) -> dict
     zero_count = _int_value(metrics.get("zero_stock_product_count"))
     low_count = _int_value(metrics.get("low_stock_product_count"))
     flow_balance_issue_count = _int_value(metrics.get("flow_balance_issue_count"))
+    overdue_stock_total = _int_value(metrics.get("overdue_stock_total"))
 
     if not inventory or product_count == 0:
         status = "missing"
@@ -151,6 +153,12 @@ async def _stock_data_quality_node(state: S5GraphState | dict[str, Any]) -> dict
         )
         confidence = min(confidence, 0.72)
         risks.append("inventory_flow_data_gap")
+    if overdue_stock_total:
+        claim += (
+            f" {overdue_stock_total} expired finished-product units remain pending disposal verification."
+        )
+        confidence = min(confidence, 0.78)
+        risks.append("expired_stock_pending_disposal_risk")
 
     output = AgentOutput(
         agent_name="StockDataQualityAgent",
@@ -161,6 +169,7 @@ async def _stock_data_quality_node(state: S5GraphState | dict[str, Any]) -> dict
             "zero_stock_product_count": zero_count,
             "low_stock_product_count": low_count,
             "flow_balance_issue_count": flow_balance_issue_count,
+            "overdue_stock_total": overdue_stock_total,
         },
         evidence_items=[
             EvidenceItem(
@@ -183,6 +192,12 @@ async def _stock_data_quality_node(state: S5GraphState | dict[str, Any]) -> dict
                 description="Baked-product flow records that do not reconcile",
                 value=flow_balance_issue_count,
             ),
+            EvidenceItem(
+                id="overdue_stock_total",
+                source="inventory_quality",
+                description="Expired finished-product units pending disposal verification",
+                value=overdue_stock_total,
+            ),
         ],
         risks=risks,
         data_quality=DataQuality(
@@ -195,6 +210,10 @@ async def _stock_data_quality_node(state: S5GraphState | dict[str, Any]) -> dict
             ) + (
                 ["Baked-product inflow and outflow records do not reconcile."]
                 if flow_balance_issue_count
+                else []
+            ) + (
+                ["Expired positive balances require disposal-record verification."]
+                if overdue_stock_total
                 else []
             ),
             source_status={
@@ -209,6 +228,10 @@ async def _stock_data_quality_node(state: S5GraphState | dict[str, Any]) -> dict
         ) + (
             ["Baked-product inflow and outflow records do not reconcile."]
             if flow_balance_issue_count
+            else []
+        ) + (
+            ["Expired positive balances require disposal-record verification."]
+            if overdue_stock_total
             else []
         ),
     )
@@ -231,10 +254,33 @@ async def _inventory_recommendation_node(state: S5GraphState | dict[str, Any]) -
     critical_materials = inventory_metrics.get("critical_materials", []) or []
     high_sell_through_products = inventory_metrics.get("high_sell_through_products", []) or []
     slow_moving_products = inventory_metrics.get("slow_moving_products", []) or []
+    overdue_stock_total = _int_value(
+        inventory_metrics.get("overdue_stock_total")
+    )
+    overdue_stock_products = (
+        inventory_metrics.get("overdue_stock_products", []) or []
+    )
     flow_balance_issue_count = _int_value(
         inventory_metrics.get("flow_balance_issue_count")
     )
     recommendations = []
+    if overdue_stock_total:
+        product_scope = (
+            _natural_names(overdue_stock_products)
+            if overdue_stock_products
+            else "the affected batches"
+        )
+        recommendations.append(
+            Recommendation(
+                id="inventory_expired_stock_audit",
+                action=f"Remove the {overdue_stock_total} expired units for {product_scope} from physical stock and verify the disposal outflow records.",
+                urgency="high",
+                time_horizon="today",
+                rationale="These units are older than Day-1 and are excluded from sellable finished-product stock.",
+                expected_impact="Prevents expired products from being sold while preserving a complete stock audit trail.",
+                evidence_ids=["overdue_stock_total"],
+            )
+        )
     if flow_balance_issue_count:
         recommendations.append(
             Recommendation(
@@ -768,7 +814,21 @@ def _evidence_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
 
 def _verify_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
     graph_state = _normalize_state(state)
-    return {"verification_report": verify_outputs(list(graph_state.agent_outputs.values()))}
+    report = verify_outputs(list(graph_state.agent_outputs.values()))
+    if graph_state.template_id == "production_advice" and not _forecast_data_available(
+        graph_state.agent_outputs.get("forecast_overview")
+    ):
+        warnings = list(report.data_quality_warnings)
+        warning = "Forecast demand data is unavailable for the selected horizon."
+        if warning not in warnings:
+            warnings.append(warning)
+        report = report.model_copy(
+            update={
+                "passed": False,
+                "data_quality_warnings": warnings,
+            }
+        )
+    return {"verification_report": report}
 
 
 def _synthesize_node(state: S5GraphState | dict[str, Any]) -> dict[str, Any]:
@@ -1412,10 +1472,15 @@ def _synthesize_promotion_mix_summary(outputs: dict[str, Any]) -> str:
                 f"Bread generated {_money(bread_revenue)} and beverages generated {_money(beverage_revenue)}, with beverages contributing {beverage_share:.1f}% of tracked product revenue."
             )
         if top_product:
-            sku_text = f" across {sold_skus} of {total_skus} tracked bread SKUs" if sold_skus and total_skus else ""
-            sentences.append(
-                f"Within bread, {top_product} led the mix with {_number(top_product_units)} units sold{sku_text}."
-            )
+            if sold_skus and total_skus:
+                sentences.append(
+                    f"{sold_skus} of {total_skus} tracked bread SKUs recorded sales; "
+                    f"{top_product} led the mix with {_number(top_product_units)} units sold."
+                )
+            else:
+                sentences.append(
+                    f"Within bread, {top_product} led the mix with {_number(top_product_units)} units sold."
+                )
         if top3_bread_share:
             if "product_concentration" in product_mix.risks:
                 sentences.append(
@@ -1661,12 +1726,10 @@ def _merge_recommendations(outputs: dict[str, Any]) -> list[Any]:
     trend = outputs.get("revenue_trend")
     benchmark = outputs.get("revenue_benchmark")
     order_behavior = outputs.get("order_behavior")
-    product_mix = outputs.get("revenue_product_mix")
     hourly_revenue = outputs.get("hourly_revenue")
     profit_metrics = profit.metrics if profit else {}
     trend_metrics = trend.metrics if trend else {}
     order_metrics = order_behavior.metrics if order_behavior else {}
-    product_metrics = product_mix.metrics if product_mix else {}
     hourly_metrics = hourly_revenue.metrics if hourly_revenue else {}
     orders = _int_value(profit_metrics.get("orders"))
     revenue_trend_pct = _float_value(trend_metrics.get("revenue_trend_pct"))
@@ -1710,13 +1773,11 @@ def _merge_recommendations(outputs: dict[str, Any]) -> list[Any]:
                 )
             if recommendation.id == "peak_profit_window_protection":
                 peak_hour = str(hourly_metrics.get("peak_profit_hour") or "")
-                top_product = str(product_metrics.get("top_product") or "").title()
-                product_phrase = top_product if top_product else "the leading high-margin item"
                 recommendation = recommendation.model_copy(
                     update={
                         "action": (
-                            f"Before {peak_hour}, pre-stage {product_phrase}, beverage pairing options, "
-                            "and service coverage for the peak profit window."
+                            f"Before {peak_hour}, confirm stock for the products selling in that hour, "
+                            "beverage pairing availability, and service coverage for the peak profit window."
                         ),
                         "expected_impact": (
                             "Protects the strongest intraday profit window from stock or queue delays "
@@ -1794,6 +1855,8 @@ def _synthesize_inventory_summary(outputs: dict[str, Any]) -> str:
     flow_date = str(metrics.get("flow_date") or snapshot_date).strip()
     high_sell_through_products = metrics.get("high_sell_through_products", []) or []
     slow_moving_products = metrics.get("slow_moving_products", []) or []
+    overdue_stock_total = _int_value(metrics.get("overdue_stock_total"))
+    overdue_stock_products = metrics.get("overdue_stock_products", []) or []
 
     paragraphs = []
     if product_count == 0:
@@ -1837,8 +1900,9 @@ def _synthesize_inventory_summary(outputs: dict[str, Any]) -> str:
         if low_count:
             product_word = "product has" if low_count == 1 else "products have"
             unit_word = "unit" if low_count == 1 else "unit each"
+            additional = "additional " if zero_count else ""
             stock_risk.append(
-                f"{low_count} additional {product_word} only 1 {unit_word}."
+                f"{low_count} {additional}{product_word} only 1 {unit_word}."
             )
         if stock_risk:
             stock_risk.append(
@@ -1876,6 +1940,18 @@ def _synthesize_inventory_summary(outputs: dict[str, Any]) -> str:
                     f"All {raw_material_count} dashboard materials are above their configured reorder points."
                 )
         paragraphs.append(" ".join(operations))
+
+    if overdue_stock_total:
+        product_context = (
+            f" for {_natural_names(overdue_stock_products)}"
+            if overdue_stock_products
+            else ""
+        )
+        unit_word = "unit" if overdue_stock_total == 1 else "units"
+        paragraphs.append(
+            f"Separately, {overdue_stock_total} expired {unit_word} remain pending disposal{product_context}. "
+            "They are excluded from sellable stock and should be matched to disposal outflow records before the inventory review is closed."
+        )
 
     if flow_record_count:
         flow_scope = f" for {flow_date}" if flow_date else ""
@@ -2283,56 +2359,147 @@ def _synthesize_revenue_summary(outputs: dict[str, Any]) -> str:
     return " ".join(sentences).replace("\n\n ", "\n\n")
 
 
+def _forecast_data_available(overview: Any) -> bool:
+    return bool(
+        overview
+        and overview.data_quality.freshness != "missing"
+        and overview.data_quality.completeness > 0
+    )
+
+
 def _forecast_recommendations(outputs: dict[str, Any]) -> list[Any]:
     overview = outputs.get("forecast_overview")
+    if not _forecast_data_available(overview):
+        return [
+            Recommendation(
+                id="forecast_data_check",
+                action="Verify the Forecast BI feed for the selected seven-day horizon, then rerun the production analysis.",
+                urgency="high",
+                time_horizon="today",
+                rationale="Forecast demand is unavailable, so production quantities cannot be reconciled safely.",
+                expected_impact="Prevents missing forecast data from being treated as zero demand.",
+                evidence_ids=["forecast_total_units"],
+            )
+        ]
     production = outputs.get("production")
     accuracy = outputs.get("forecast_accuracy")
     forecast_units = _int_value(overview.metrics.get("forecast_bakery_units")) if overview else 0
     total_bake = _int_value(production.metrics.get("total_bake")) if production else 0
-    profit_gap = _int_value(production.metrics.get("scenario_profit_gap")) if production else 0
-    base_units = int(total_bake * 0.85) if total_bake else 0
-    remaining_plan_units = max(total_bake - base_units, 0)
-    contingency_units = _int_value(production.metrics.get("q90_shortage_units")) if production else 0
+    wape = float(accuracy.metrics.get("forecast_wape", 0.0) or 0.0) if accuracy else 0.0
+    planning_basis = min(total_bake, forecast_units) if total_bake and forecast_units else 0
+    base_units = int(planning_basis * 0.85) if planning_basis else 0
     top_products = overview.metrics.get("top_bakery_products", []) if overview else []
     top_driver = _names(top_products[:1]) if isinstance(top_products, list) else ""
-    evidence_ids = ["scenario_profit_gap", "production_waste_rate_pct"]
-    if production:
-        evidence_ids.extend(["q90_shortage_units", "supply_coverage_pct", "demand_gap_units"])
-    if accuracy:
-        evidence_ids.extend(["forecast_wape", "forecast_coverage"])
 
     recommendations = []
+    day1_date = str(overview.metrics.get("forecast_day1_date", "") or "") if overview else ""
+    day1_plan_date = str(production.metrics.get("production_day1_date", "") or "") if production else ""
+    day1_forecast_units = _int_value(overview.metrics.get("forecast_day1_bakery_units")) if overview else 0
+    day1_beverage_units = _int_value(overview.metrics.get("forecast_day1_beverage_units")) if overview else 0
+    day1_plan_units = _int_value(production.metrics.get("production_day1_bake")) if production else 0
+    day1_bakery_products = overview.metrics.get("forecast_day1_top_bakery_products", []) if overview else []
+    day1_beverage_products = overview.metrics.get("forecast_day1_top_beverage_products", []) if overview else []
+    if (
+        day1_date
+        and day1_date == day1_plan_date
+        and day1_forecast_units > 0
+        and day1_plan_units > 0
+    ):
+        execution_clauses = []
+        bakery_priorities = _natural_names(day1_bakery_products[:3])
+        beverage_priorities = _natural_names(day1_beverage_products[:3])
+        if bakery_priorities:
+            execution_clauses.append(f"Prioritize {bakery_priorities}")
+        if day1_beverage_units > 0:
+            beverage_clause = (
+                f"prepare ingredients and service capacity for {day1_beverage_units} "
+                "made-to-order beverage units"
+            )
+            if beverage_priorities:
+                beverage_clause += f" led by {beverage_priorities}"
+            execution_clauses.append(beverage_clause)
+        execution_clauses.append(
+            f"approve production above the {day1_plan_units}-unit plan only if early sales "
+            "run ahead of the day's forecast pace"
+        )
+        if len(execution_clauses) == 1:
+            execution_text = execution_clauses[0]
+        else:
+            execution_text = (
+                ", ".join(execution_clauses[:-1])
+                + ", and "
+                + execution_clauses[-1]
+            )
+        recommendations.append(
+            Recommendation(
+                id="selected_day_production",
+                action=(
+                    f"For {day1_date}, use the planned bake of {day1_plan_units} bakery units "
+                    f"against {day1_forecast_units} forecast bakery units. "
+                    f"{execution_text}."
+                ),
+                urgency="high",
+                time_horizon="today",
+                rationale=(
+                    "This operating advice uses the selected date's forecast and production plan "
+                    "rather than a weekly average."
+                ),
+                expected_impact=(
+                    "Turns the weekly strategy into a first-day operating checkpoint without "
+                    "treating made-to-order beverages as pre-produced stock."
+                ),
+                evidence_ids=[
+                    "forecast_day1_bakery_units",
+                    "forecast_day1_beverage_units",
+                    "production_day1_bake",
+                ],
+            )
+        )
+    if forecast_units and base_units and wape > 0:
+        error_rate = wape / 100.0
+        lower_guardrail = max(0, math.floor(forecast_units * (1.0 - error_rate)))
+        upper_guardrail = math.ceil(forecast_units * (1.0 + error_rate))
+        units_to_expected = max(forecast_units - base_units, 0)
+        units_above_expected = max(upper_guardrail - forecast_units, 0)
+        priority_sentence = (
+            f" Prioritize the top forecast driver first ({top_driver}) when releasing extra bake."
+            if top_driver
+            else " Prioritize the top forecast driver first when releasing extra bake."
+        )
+        recommendations.append(
+            Recommendation(
+                id="historical_error_guardrail",
+                action=(
+                    f"Across the seven-day horizon, start with an 85% base bake of {base_units} units "
+                    "against expected bakery demand of "
+                    f"{forecast_units} units. Treat {lower_guardrail}-{upper_guardrail} bakery units as a "
+                    f"historical-error operating guardrail, not a prediction interval. Keep the next "
+                    f"{units_to_expected} units up to expected demand flexible, and release no more than "
+                    f"{units_above_expected} units above expected demand only if the first 1-2 trading days "
+                    f"track close to forecast.{priority_sentence}"
+                ),
+                urgency="high",
+                time_horizon="this_week",
+                rationale=(
+                    f"Held-out historical error is {wape:.1f}%, so the operating guardrail is derived "
+                    "from expected bakery demand instead of summed product-level Q10/Q90 bounds."
+                ),
+                expected_impact=(
+                    f"Keeps the initial bake conservative while limiting above-expected release to "
+                    f"{units_above_expected} units and requiring early-sales evidence."
+                ),
+                evidence_ids=[
+                    "forecast_bakery_units",
+                    "forecast_wape",
+                    "production_total_bake",
+                    "supply_coverage_pct",
+                    "demand_gap_units",
+                ],
+            )
+        )
     for output in outputs.values():
         for recommendation in output.recommendations:
-            if "base bake" in recommendation.action and forecast_units and base_units:
-                priority_sentence = (
-                    f" Prioritize the top forecast driver first ({top_driver}) when releasing extra bake."
-                    if top_driver
-                    else " Prioritize the top forecast driver first when releasing extra bake."
-                )
-                capacity_clause = (
-                    f"reserve up to {contingency_units} additional bake units only for the high-demand scenario"
-                    if contingency_units > 0
-                    else "keep any additional high-demand capacity conditional"
-                )
-                action = (
-                    f"Start with an 85% base bake of {base_units} units against expected bakery demand of "
-                    f"{forecast_units} units. Keep the remaining {remaining_plan_units} planned units flexible, and "
-                    f"{capacity_clause}; this reserve is not an automatic bake target. Use the first 1-2 trading days "
-                    f"as the release gate: if actual "
-                    f"sales track close to forecast, release extra capacity; if sales are weak, do not "
-                    f"release the contingency bake automatically.{priority_sentence}"
-                )
-                recommendations.append(
-                    recommendation.model_copy(
-                        update={
-                            "action": action,
-                            "evidence_ids": list(dict.fromkeys(evidence_ids)),
-                        }
-                    )
-                )
-            else:
-                recommendations.append(recommendation)
+            recommendations.append(recommendation)
     business_events = []
     if overview:
         business_events = [
@@ -2368,7 +2535,17 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
     materials = outputs.get("materials")
     accuracy = outputs.get("forecast_accuracy")
 
-    sentences = ["The 7-day production plan is economically positive, but it is deliberately conservative against the demand forecast."]
+    if not _forecast_data_available(overview):
+        return (
+            "Forecast demand data is unavailable for the selected seven-day horizon. "
+            "The production plan cannot be reconciled against demand, so quantitative "
+            "bake, revenue, coverage, and procurement advice has been withheld. Verify "
+            "the Forecast BI feed and rerun the analysis before locking the plan."
+        )
+
+    sentences = [
+        "The seven-day outlook remains economically positive, although the production plan is intentionally conservative relative to forecast demand."
+    ]
     forecast_units = _int_value(overview.metrics.get("forecast_total_units")) if overview else 0
     bakery_forecast_units = _int_value(overview.metrics.get("forecast_bakery_units")) if overview else 0
     beverage_forecast_units = _int_value(overview.metrics.get("forecast_beverage_units")) if overview else 0
@@ -2402,7 +2579,9 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
         ]
         event_sentence = _business_event_summary_sentence(business_events)
         if event_sentence:
-            sentences.append(event_sentence)
+            sentences.append(
+                f"In addition, {event_sentence[0].lower()}{event_sentence[1:]}"
+            )
 
     if production:
         metrics = production.metrics
@@ -2423,48 +2602,38 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
             else f"covering {coverage_pct:.1f}% of bakery forecast demand with no expected bakery gap"
         )
         sentences.append(
-            f"The production plan bakes {_number(total_bake)} units for "
+            f"Against this outlook, the production plan bakes {_number(total_bake)} units for "
             f"{_money(metrics.get('total_revenue'))} projected plan revenue and {_money(metrics.get('total_profit'))} "
             f"planned profit after waste and shortage risk allowances; {stock_clause}, {coverage_clause}."
         )
         if bakery_forecast_units and total_bake:
-            base_units = int(total_bake * 0.85)
             top_products = _natural_names(overview.metrics.get("top_bakery_products", [])) if overview else ""
             material_watchlist = []
             if materials:
                 material_watchlist = list(materials.metadata.get("critical_materials", [])) + list(
                     materials.metadata.get("low_materials", [])
                 )
-            if supply_gap:
-                sentences.append(
-                    f"Three production choices are visible: hold at {total_bake} planned units and accept that a {supply_gap}-unit bakery supply gap remains, "
-                    f"expand toward {bakery_forecast_units} bakery forecast units with higher waste exposure, or stage production from a {base_units}-unit base with conditional release capacity."
-                )
-            else:
-                sentences.append(
-                    f"The plan covers expected bakery demand, so the operational choice is whether to commit the full {total_bake} units upfront or stage production from a {base_units}-unit base with conditional release capacity."
-                )
-            sentences.append(
-                "The staged option is preferred because it preserves upside capacity while using early demand evidence to control waste; "
-                "release extra bake only after the first 1-2 trading days confirm that sales are tracking close to forecast."
+            decision = (
+                "Because forecast error still affects how much demand will materialize, "
+                "early sales should determine whether additional bake capacity is released"
             )
             if top_products:
-                sentences.append(
-                    f"Product-level bake priority should go to {top_products}, because these products drive bakery demand and should be reviewed first when deciding where extra bake capacity is worth using."
-                )
+                decision += f", while {top_products} should be reviewed first"
             if material_watchlist:
-                sentences.append(
-                    "Material constraints should shape the release order, so products depending on low-stock materials should not receive extra bake capacity until procurement is confirmed."
+                decision += (
+                    "; products depending on low-stock materials should wait until "
+                    "procurement is confirmed"
                 )
+            sentences.append(decision + ".")
         if metrics.get("waste_rate_pct") is not None:
             waste_rate_pct = float(metrics.get("waste_rate_pct") or 0.0)
             if waste_rate_pct > 0:
                 sentences.append(
-                    f"Expected-demand waste exposure is {waste_rate_pct}%, so staged release remains the safer operating choice if early sales are weak."
+                    f"Although expected-demand waste exposure is {waste_rate_pct}%, its effect can be limited by keeping later production conditional on observed sales."
                 )
             else:
                 sentences.append(
-                    "The expected-demand scenario shows no planned waste, but staged release remains useful because forecast uncertainty still affects the timing of additional production."
+                    "Although the expected-demand scenario shows no planned waste, uncertainty still affects the timing of additional production."
                 )
 
     if uncertainty:
@@ -2472,7 +2641,7 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
         uncertain_products = _names(metrics.get("top_uncertain_products", []))
         if uncertain_products:
             sentences.append(
-                f"Across all forecast products, uncertainty is concentrated in {uncertain_products}, with an average demand range of {_number(metrics.get('forecast_avg_interval_width'))} units."
+                f"Meanwhile, uncertainty is concentrated in {uncertain_products}, with an average demand range of {_number(metrics.get('forecast_avg_interval_width'))} units across forecast products."
             )
 
     if materials:
@@ -2483,20 +2652,22 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
         total_order = metrics.get("material_total_order", 0)
         if not stock_data_available:
             sentences.append(
-                "Material readiness could not be verified because current raw-material stock data was unavailable. Confirm the inventory feed before locking the production plan."
+                "At the same time, material readiness could not be verified because current raw-material stock data was unavailable, so the inventory feed should be confirmed before the production plan is locked."
             )
         elif low_count or critical_count:
             low_label = "item still needs" if low_count == 1 else "items still need"
             if critical_count:
                 sentences.append(
-                    f"Material readiness needs attention: {critical_count} critical and {low_count} low-stock {low_label} attention, with {_number(total_order)} units to order."
+                    f"At the same time, material readiness needs attention: {critical_count} critical and {low_count} low-stock {low_label} attention, with {_number(total_order)} units to order."
                 )
             else:
                 sentences.append(
-                    f"No material is critical yet, but {low_count} low-stock {low_label} attention, with {_number(total_order)} units to order."
+                    f"At the same time, no material is critical yet, but {low_count} low-stock {low_label} attention, with {_number(total_order)} units to order."
                 )
         else:
-            sentences.append("Material readiness does not show critical or low-stock blockers for this plan.")
+            sentences.append(
+                "At the same time, material readiness does not show critical or low-stock blockers for this plan."
+            )
 
     if accuracy:
         metrics = accuracy.metrics
@@ -2504,9 +2675,8 @@ def _synthesize_forecast_summary(outputs: dict[str, Any]) -> str:
         coverage = metrics.get("forecast_coverage")
         if wape or coverage:
             sentences.append(
-                f"Held-out historical evaluation shows {wape}% error and {coverage}% coverage. "
-                f"The {wape}% historical error rate means the week should not be locked in at once; "
-                f"{coverage}% coverage is useful for release guardrails, so staged production and material readiness checks should guide extra bake releases."
+                f"Finally, the held-out historical evaluation shows {wape}% error and {coverage}% coverage; "
+                "taken together, these results support staged production and material-readiness checks instead of locking the full week at once."
             )
 
     return " ".join(sentences)
@@ -2573,21 +2743,6 @@ def build_profit_graph():
     graph.add_edge("category_mix", "hourly_revenue")
     graph.add_edge("hourly_revenue", "discount_impact")
     graph.add_edge("discount_impact", "evidence")
-    graph.add_edge("evidence", "verify")
-    graph.add_edge("verify", "synthesize")
-    graph.add_edge("synthesize", END)
-    return graph.compile()
-
-
-def build_production_graph():
-    graph = StateGraph(S5GraphState)
-    graph.add_node("production", _production_node)
-    graph.add_node("evidence", _evidence_node)
-    graph.add_node("verify", _verify_node)
-    graph.add_node("synthesize", _synthesize_node)
-
-    graph.set_entry_point("production")
-    graph.add_edge("production", "evidence")
     graph.add_edge("evidence", "verify")
     graph.add_edge("verify", "synthesize")
     graph.add_edge("synthesize", END)

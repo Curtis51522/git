@@ -7,22 +7,22 @@
   "validation_design": "validation normalized-residual calibration with chronological holdout test set",
   "feature_contract": "s2_forecasting.feature_contract.FORECAST_FEATURES",
   "features": 27,
-  "test_period": "2025-07-01 to 2026-06-29",
+  "test_period": "2025-07-01 to 2026-06-23",
   "calibration": {
     "method": "relative conformal calibration",
     "target_coverage_quantile": 0.8,
-    "relative_half_width": 0.486046,
+    "relative_half_width": 0.20158,
     "denominator_floor": 1.0,
     "min_relative_half_width": 0.1,
     "min_absolute_half_width": 0.5
   },
   "overall": {
-    "WAPE": 29.9,
-    "MAE": 1.9,
-    "RMSE": 6.5,
-    "coverage_80": 79.6,
-    "avg_width": 5.8,
-    "avg_relative_width": 0.9784,
-    "bias_q50_minus_actual": -0.5634
+    "WAPE": 9.6,
+    "MAE": 0.5,
+    "RMSE": 0.9,
+    "coverage_80": 88.4,
+    "avg_width": 2.3,
+    "avg_relative_width": 0.4845,
+    "bias_q50_minus_actual": -0.0223
   }
 }

@@ -3,7 +3,6 @@
 import logging
 from typing import Dict, Any
 from urllib.parse import urlencode
-from .base import BaseAgent
 from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.s5_config.settings import (
     S1_INFLOW_HISTORY_URL,
@@ -47,41 +46,67 @@ def _summarize_inflow_history(
             target_products is not None and product_name not in target_products
         ):
             continue
+        opening = _nonnegative_int(record.get("quantity_opening"))
         baked = _nonnegative_int(record.get("quantity_baked"))
         sold = _nonnegative_int(record.get("quantity_sold"))
         discarded = _nonnegative_int(record.get("quantity_discarded"))
         other_outflow = _nonnegative_int(record.get("quantity_other_outflow"))
+        carried_to_day1 = _nonnegative_int(
+            record.get("quantity_carried_to_day1")
+        )
         left = _nonnegative_int(record.get("quantity_left"))
         balance_issue = bool(record.get("data_quality_issue")) or (
-            baked != sold + discarded + other_outflow + left
+            opening + baked != sold + discarded + other_outflow + left
         )
         totals = per_product.setdefault(
             product_name,
-            {"baked": 0, "sold": 0, "discarded": 0, "other_outflow": 0, "left": 0},
+            {
+                "opening": 0,
+                "baked": 0,
+                "sold": 0,
+                "discarded": 0,
+                "other_outflow": 0,
+                "carried_to_day1": 0,
+                "left": 0,
+            },
         )
+        totals["opening"] += opening
         totals["baked"] += baked
         totals["sold"] += sold
         totals["discarded"] += discarded
         totals["other_outflow"] += other_outflow
+        totals["carried_to_day1"] += carried_to_day1
         totals["left"] += left
         record_count += 1
         balance_issue_count += int(balance_issue)
 
+    opening_units = sum(item["opening"] for item in per_product.values())
     baked_units = sum(item["baked"] for item in per_product.values())
+    available_units = opening_units + baked_units
     sold_units = sum(item["sold"] for item in per_product.values())
     discarded_units = sum(item["discarded"] for item in per_product.values())
     other_outflow_units = sum(item["other_outflow"] for item in per_product.values())
+    carried_to_day1_units = sum(
+        item["carried_to_day1"] for item in per_product.values()
+    )
     left_units = sum(item["left"] for item in per_product.values())
-    sell_through_pct = round(sold_units / baked_units * 100, 1) if baked_units else 0.0
-    discard_rate_pct = round(discarded_units / baked_units * 100, 1) if baked_units else 0.0
+    sell_through_pct = (
+        round(sold_units / available_units * 100, 1) if available_units else 0.0
+    )
+    discard_rate_pct = (
+        round(discarded_units / available_units * 100, 1)
+        if available_units
+        else 0.0
+    )
 
     high_sell_through_products = []
     slow_moving_products = []
     minimum_baked = int(THRESHOLDS["inventory_flow_min_baked_units"])
     for product_name, item in per_product.items():
         product_baked = item["baked"]
+        product_available = item["opening"] + product_baked
         product_sell_through = (
-            item["sold"] / product_baked * 100 if product_baked else 0.0
+            item["sold"] / product_available * 100 if product_available else 0.0
         )
         if (
             product_baked >= minimum_baked
@@ -100,7 +125,10 @@ def _summarize_inflow_history(
         key=lambda product_name: (
             -(
                 per_product[product_name]["sold"]
-                / per_product[product_name]["baked"]
+                / (
+                    per_product[product_name]["opening"]
+                    + per_product[product_name]["baked"]
+                )
             ),
             -per_product[product_name]["sold"],
             product_name,
@@ -109,10 +137,13 @@ def _summarize_inflow_history(
 
     return {
         "flow_record_count": record_count,
+        "flow_opening_units": opening_units,
         "flow_baked_units": baked_units,
+        "flow_available_units": available_units,
         "flow_sold_units": sold_units,
         "flow_discarded_units": discarded_units,
         "flow_other_outflow_units": other_outflow_units,
+        "flow_carried_to_day1_units": carried_to_day1_units,
         "flow_left_units": left_units,
         "flow_sell_through_pct": sell_through_pct,
         "flow_discard_rate_pct": discard_rate_pct,
@@ -139,9 +170,9 @@ def _format_opinion(total_qty, fresh, day1, waste_risk, per_product, params, pro
     return f"Stock {total_qty} (fresh={fresh}, day-1={day1}), waste_risk={waste_risk}"
 
 
-class InventoryAgent(BaseAgent):
+class InventoryAgent:
     def __init__(self):
-        super().__init__("inventory")
+        self.name = "inventory"
         self._fetch_ok = False
 
     async def fetch(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -154,7 +185,14 @@ class InventoryAgent(BaseAgent):
                 url = S4_DASHBOARD_URL
             payload = fetch_dashboard_json(url, params)
             if not payload:
-                payload = fetch_dashboard_json(S1_INVENTORY_URL, params)
+                if selected_date:
+                    payload = {
+                        "status": "unavailable",
+                        "bread_stock": [],
+                        "snapshot_date": selected_date,
+                    }
+                else:
+                    payload = fetch_dashboard_json(S1_INVENTORY_URL, params)
             if payload.get("status") == "ok" and "bread_stock" in payload:
                 history_url = S1_INFLOW_HISTORY_URL
                 if selected_date:
@@ -230,6 +268,36 @@ class InventoryAgent(BaseAgent):
         else:
             target_products = {product}
 
+        overdue_stock = []
+        for item in raw.get("overdue_stock", []) or []:
+            if not isinstance(item, dict):
+                continue
+            product_name = str(item.get("product_name") or "").strip()
+            if not product_name or (
+                target_products is not None
+                and product_name not in target_products
+            ):
+                continue
+            overdue_stock.append(
+                {
+                    "product_name": product_name,
+                    "overdue_qty": _nonnegative_int(item.get("overdue_qty")),
+                    "oldest_production_date": str(
+                        item.get("oldest_production_date") or ""
+                    ),
+                }
+            )
+        overdue_stock_total = sum(
+            item["overdue_qty"] for item in overdue_stock
+        )
+        if not overdue_stock and target_products is None:
+            overdue_stock_total = _nonnegative_int(raw.get("overdue_total"))
+        overdue_stock_products = sorted(
+            item["product_name"]
+            for item in overdue_stock
+            if item["overdue_qty"] > 0
+        )
+
         flow_metrics = _summarize_inflow_history(raw, target_products)
         has_dashboard_stock = "bread_stock" in raw
         dashboard_stock = raw.get("bread_stock", [])
@@ -250,6 +318,15 @@ class InventoryAgent(BaseAgent):
                     "fresh": p_fresh,
                     "day1": p_day1,
                     "selling_price": item.get("selling_price", THRESHOLDS["inventory_default_price"]),
+                }
+            for pname, movement in flow_metrics.get("flow_per_product", {}).items():
+                if pname in per_product or _nonnegative_int(movement.get("left")) > 0:
+                    continue
+                per_product[pname] = {
+                    "qty": 0,
+                    "fresh": 0,
+                    "day1": 0,
+                    "selling_price": THRESHOLDS["inventory_default_price"],
                 }
         elif db_data:
             for pname, pdata in db_data.items():
@@ -281,15 +358,28 @@ class InventoryAgent(BaseAgent):
                         freshness_counts["Fresh"] += max(0, pqty // 2)
                         freshness_counts["Day-1"] += pqty - max(0, pqty // 2)
 
-        for item in [*raw.get("baking_materials", []), *raw.get("coffee_materials", [])]:
+        beverage_materials = raw.get("beverage_materials")
+        if beverage_materials is None:
+            beverage_materials = raw.get("coffee_materials", [])
+        material_by_name = {}
+        grouped_materials = [
+            *raw.get("baking_materials", []),
+            *beverage_materials,
+            *raw.get("packaging_materials", []),
+        ]
+        for item in grouped_materials:
             stock = float(item.get("stock", item.get("stock_quantity", 0)) or 0)
             reorder_point = float(item.get("reorder_point", 0) or 0)
-            raw_materials.append({
-                "material_name": str(item.get("material_name", "unknown")),
+            material_name = str(item.get("material_name", "unknown"))
+            material_by_name[material_name] = {
+                "material_name": material_name,
                 "stock": stock,
                 "reorder_point": reorder_point,
                 "unit": str(item.get("unit", "")),
-            })
+            }
+        raw_materials = [
+            material_by_name[name] for name in sorted(material_by_name)
+        ]
 
         fresh = freshness_counts.get("Fresh", 0)
         day1 = freshness_counts.get("Day-1", 0)
@@ -348,6 +438,9 @@ class InventoryAgent(BaseAgent):
                 "raw_materials": raw_materials,
                 "low_stock_materials": low_stock_materials,
                 "critical_materials": critical_materials,
+                "overdue_stock_total": overdue_stock_total,
+                "overdue_stock_products": overdue_stock_products,
+                "overdue_stock": overdue_stock,
                 "snapshot_date": str(params.get("date") or "").strip(),
                 "snapshot_basis": (
                     "selected_date_dashboard"
@@ -375,6 +468,8 @@ class InventoryAgent(BaseAgent):
         raw_materials = data.get("raw_materials", []) or []
         low_stock_materials = data.get("low_stock_materials", []) or []
         critical_materials = data.get("critical_materials", []) or []
+        overdue_stock_total = int(data.get("overdue_stock_total", 0) or 0)
+        overdue_stock_products = data.get("overdue_stock_products", []) or []
         flow_record_count = int(data.get("flow_record_count", 0) or 0)
         flow_baked_units = int(data.get("flow_baked_units", 0) or 0)
         flow_sold_units = int(data.get("flow_sold_units", 0) or 0)
@@ -423,6 +518,8 @@ class InventoryAgent(BaseAgent):
             risks.append("inventory_expiry_risk")
         if low_stock_materials:
             risks.append("material_shortage_risk")
+        if overdue_stock_total:
+            risks.append("expired_stock_pending_disposal_risk")
         if high_sell_through_products:
             risks.append("high_sell_through_stock_risk")
         if slow_moving_products:
@@ -449,6 +546,10 @@ class InventoryAgent(BaseAgent):
             limitations.append(
                 "No baked-product inflow records were available to explain the selected-date stock movement."
             )
+        if overdue_stock_total:
+            limitations.append(
+                "Expired positive balances are excluded from sellable stock and require disposal-record verification."
+            )
 
         return AgentOutput(
             agent_name="InventoryAgent",
@@ -473,6 +574,8 @@ class InventoryAgent(BaseAgent):
                 "low_stock_materials": low_stock_materials,
                 "critical_material_count": len(critical_materials),
                 "critical_materials": critical_materials,
+                "overdue_stock_total": overdue_stock_total,
+                "overdue_stock_products": overdue_stock_products,
                 "snapshot_date": data.get("snapshot_date", ""),
                 "snapshot_basis": data.get("snapshot_basis", "current_batch_inventory"),
                 "flow_record_count": flow_record_count,
@@ -527,6 +630,13 @@ class InventoryAgent(BaseAgent):
                     source="inventory",
                     description="Raw materials at or below their reorder point",
                     value=len(low_stock_materials),
+                ),
+                EvidenceItem(
+                    id="overdue_stock_total",
+                    source="inventory",
+                    description="Expired finished-product units pending disposal verification",
+                    value=overdue_stock_total,
+                    metadata={"products": overdue_stock_products},
                 ),
                 EvidenceItem(
                     id="flow_baked_units",

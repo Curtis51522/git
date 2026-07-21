@@ -9,29 +9,72 @@ class FakeResponse:
 
 
 class FakeCursor:
-    def __init__(self, rows):
+    def __init__(self, connection, rows):
+        self.connection = connection
         self.rows = rows
+        self.lastrowid = None
+        self.rowcount = 0
+        self.closed = False
 
     def execute(self, sql, params=None):
         self.sql = sql
         self.params = params
+        if "INSERT INTO recommendation_events" in sql:
+            self.connection.next_event_id += 1
+            self.lastrowid = self.connection.next_event_id
+            self.rowcount = 1
+            self.connection.event_inserts.append(
+                {"id": self.lastrowid, "params": params}
+            )
 
     def fetchall(self):
         return self.rows
 
     def close(self):
-        pass
+        self.closed = True
 
 
 class FakeDB:
-    def __init__(self):
+    def __init__(self, autocommit):
+        self.autocommit = autocommit
         self.calls = 0
+        self.cursors = []
+        self.event_inserts = []
+        self.next_event_id = 700
+        self.commits = 0
+        self.rollbacks = 0
+        self.closed = False
 
     def cursor(self, dictionary=False):
         self.calls += 1
         if self.calls == 1:
-            return FakeCursor([("croissant",)])
-        return FakeCursor([("latte", 18.0)])
+            rows = [("croissant",)]
+        elif self.calls == 2:
+            rows = [("latte", 18.0)]
+        else:
+            rows = []
+        cursor = FakeCursor(self, rows)
+        self.cursors.append(cursor)
+        return cursor
+
+    def commit(self):
+        self.commits += 1
+
+    def rollback(self):
+        self.rollbacks += 1
+
+    def close(self):
+        self.closed = True
+
+
+class FakeDBFactory:
+    def __init__(self):
+        self.connections = []
+
+    def __call__(self, *, autocommit=True):
+        connection = FakeDB(autocommit=autocommit)
+        self.connections.append(connection)
+        return connection
 
 
 def test_combo_returns_business_event_context_without_scoring_boost(monkeypatch):
@@ -66,7 +109,8 @@ def test_combo_returns_business_event_context_without_scoring_boost(monkeypatch)
     fake_pairing = types.SimpleNamespace(
         get_pairing_matrix=lambda: {"croissant": {"latte": 0.9}}
     )
-    monkeypatch.setattr(bff, "get_db", lambda: FakeDB())
+    db_factory = FakeDBFactory()
+    monkeypatch.setattr(bff, "get_db", db_factory)
     monkeypatch.setattr(bff, "q", fake_q)
     monkeypatch.setitem(sys.modules, "api.freshness_service", fake_freshness)
     monkeypatch.setitem(sys.modules, "api.module4_frontend.pairing_llm", fake_pairing)
@@ -93,3 +137,22 @@ def test_combo_returns_business_event_context_without_scoring_boost(monkeypatch)
     assert rec["business_event_context"]["discount_pct"] == 10.0
     assert "business_event_boost" not in rec
     assert "business_event_score" not in rec["scoring_breakdown"]
+
+    transactional_connections = [
+        connection
+        for connection in db_factory.connections
+        if connection.autocommit is False
+    ]
+    assert len(transactional_connections) == 1
+    assert all(connection.closed for connection in db_factory.connections)
+    connection = transactional_connections[0]
+    assert connection.autocommit is False
+    assert connection.commits == 1
+    assert connection.rollbacks == 0
+    assert connection.closed is True
+    assert all(cursor.closed for cursor in connection.cursors)
+    assert len(connection.event_inserts) == len(result["recommendations"])
+    assert [event["id"] for event in connection.event_inserts] == [
+        recommendation["recommendation_event_id"]
+        for recommendation in result["recommendations"]
+    ]

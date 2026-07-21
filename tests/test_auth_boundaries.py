@@ -50,6 +50,7 @@ STAFF_ROUTES = {
     ("/s4/beverages/options", "GET"),
     ("/s4/checkout/complete", "POST"),
     ("/s4/combo", "POST"),
+    ("/s4/combo/select", "POST"),
     ("/s4/orders/receipt", "GET"),
     ("/s4/orders/today", "GET"),
     ("/s4/products", "GET"),
@@ -78,6 +79,7 @@ MANAGER_ROUTES = {
     ("/s2/forecast/refresh", "GET"),
     ("/s2/sales_history", "GET"),
     ("/s3/attendance", "GET"),
+    ("/s3/attendance/correct", "POST"),
     ("/s3/attendance/history", "GET"),
     ("/s3/eval", "GET"),
     ("/s3/kpi", "GET"),
@@ -314,10 +316,15 @@ def test_frontend_applies_role_visibility_on_login_and_session_restore():
     assert "sessionStorage.setItem('bakery_role',role)" in login
     assert "sessionStorage.setItem('bakery_username',username)" in login
     assert "applyRoleVisibility()" in login
+    assert "await showPanel('pos');loadPrices();" in login
+    assert "showPanel('pos');loadStock()" not in login
     assert "sessionStorage.removeItem('bakery_token')" in logout
     assert "sessionStorage.removeItem('bakery_role')" in logout
     assert "sessionStorage.removeItem('bakery_username')" in logout
     assert "canAccessPanel(panel)" in show_panel
+    assert show_panel.index("var container=getPanelContainer(panel)") < show_panel.index(
+        "if(panel==='pos'){await loadStock();"
+    )
 
 
 def test_frontend_clears_password_after_login_and_logout():
@@ -378,5 +385,6 @@ def test_frontend_refreshes_stock_when_pos_is_opened():
         load_stock_start : source.index("function changeQty", load_stock_start)
     ]
 
-    assert "loadStock()" in show_panel
+    assert "if(panel==='pos'){await loadStock();" in show_panel
+    assert "return api('/s1/batch_inventory',{force:true})" in load_stock
     assert "api('/s1/batch_inventory',{force:true})" in load_stock

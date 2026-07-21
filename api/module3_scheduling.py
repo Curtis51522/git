@@ -1,18 +1,20 @@
 """
-S3 Shift Scheduling -- Demand-driven CP-SAT solver (9 employees, 4 roles (1 dual-role)).
+S3 Shift Scheduling -- Demand-driven CP-SAT solver.
 
 Connects to S2 forecast to determine required staff per shift.
-- Baker: 4 bakers, 2 per slot, 6:00-19:00
-- Cashier: 3 cashiers, coverage-driven  
+- Baker: 2 per slot for routine demand, 3 per slot for high demand
+- Cashier: 1 per slot
 - Barista: 2 baristas, 1 per slot
 - Manager: 1 manager, optional per slot
 
-Model: 10 employees, each with exactly ONE role. 2 shifts/day (7h each).
+Model: 9 operational employees with primary and approved secondary roles.
+Two overlapping 7-hour shifts cover 06:00-19:00.
 """
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
+from contextvars import copy_context
 import json
 import hashlib
 from ortools.sat.python import cp_model
@@ -21,9 +23,9 @@ from datetime import datetime, timedelta
 import sys, os, logging
 logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import COFFEE_DEMAND_RATIO
 from db.mysql_client import get_db, q
 from api.auth import get_current_user, require_manager
+from api.operation_clock import operation_now
 import asyncio, concurrent.futures
 
 router = APIRouter(prefix="/s3", tags=["Module 3 - Shift Scheduling"])
@@ -156,12 +158,13 @@ def _fetch_weekday_demand_baselines(start_date: str, lookback_days: int = 180) -
         c.execute(
             "SELECT WEEKDAY(dt) AS weekday, AVG(day_units) AS avg_units "
             "FROM ("
-            "  SELECT DATE(transaction_time) AS dt, SUM(quantity) AS day_units "
-            "  FROM inventory_transactions "
-            "  WHERE transaction_type='outflow' "
-            "    AND DATE(transaction_time) >= %s "
-            "    AND DATE(transaction_time) < %s "
-            "  GROUP BY DATE(transaction_time)"
+            "  SELECT o.order_date AS dt, SUM(oi.quantity) AS day_units "
+            "  FROM orders o "
+            "  JOIN order_items oi ON oi.order_id = o.id "
+            "  WHERE o.order_date >= %s "
+            "    AND o.order_date < %s "
+            "    AND LOWER(COALESCE(o.state, 'completed')) NOT IN ('refunded', 'cancelled') "
+            "  GROUP BY o.order_date"
             ") daily "
             "GROUP BY WEEKDAY(dt)",
             (history_start, start_date),
@@ -176,39 +179,70 @@ def _fetch_weekday_demand_baselines(start_date: str, lookback_days: int = 180) -
         return {}
 
 
+def _fetch_product_categories() -> Dict[str, str]:
+    db = get_db()
+    c = db.cursor(dictionary=True)
+    c.execute("SELECT product_name, category FROM products")
+    return {
+        str(row["product_name"]).strip().lower(): str(row["category"]).strip().lower()
+        for row in c.fetchall()
+        if row.get("product_name") and row.get("category")
+    }
+
+
+def _aggregate_forecast_rows(
+    forecasts: List[dict],
+    start_date: str,
+    product_categories: Dict[str, str],
+) -> Dict[str, dict]:
+    daily = {}
+    for forecast in forecasts:
+        forecast_date = forecast.get("forecast_date", "")
+        if forecast_date < start_date:
+            continue
+
+        freshness = forecast.get("freshness_status", "Fresh")
+        if freshness not in ("Fresh", "Total"):
+            continue
+
+        if forecast_date not in daily:
+            daily[forecast_date] = {
+                "total_units": 0,
+                "baker_units": 0,
+                "coffee_units": 0,
+            }
+
+        demand = int(forecast.get("predicted_demand", 0))
+        product_name = str(forecast.get("product_name", "")).strip().lower()
+        category = product_categories.get(product_name)
+        if category == "beverage":
+            daily[forecast_date]["coffee_units"] += demand
+        elif category == "bakery":
+            daily[forecast_date]["baker_units"] += demand
+        else:
+            logger.warning("S3 forecast product has no category mapping: %s", product_name)
+        daily[forecast_date]["total_units"] += demand
+
+    return daily
+
+
 def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
     """Fetch S2 forecast, aggregate by date, and compute data-driven demand levels.
 
     Within-week relative ranking via S2 forecast: top 1/3 = high, bottom 1/3 = low, middle = normal.
 
-    Returns: {date: {"total_units": int, "coffee_units": int, "demand_level": str}}
+    Returns: {date: {"total_units": int, "baker_units": int,
+    "coffee_units": int, "demand_level": str}}
     """
     try:
         from api.module2_forecast import _do_forecast
         forecast_data = _do_forecast(None, days, start_date=start_date)
         forecasts = forecast_data.get("forecasts", [])
-
-        daily = {}
-        for f in forecasts:
-            d = f.get("forecast_date", "")
-            if d < start_date:
-                continue
-            if d not in daily:
-                daily[d] = {"total_units": 0, "baker_units": 0, "coffee_units": 0}
-
-            demand = int(f.get("predicted_demand", 0))
-            freshness = f.get("freshness_status", "Fresh")
-
-            # Only count Fresh demand for production planning
-            if freshness in ("Fresh", "Total"):
-                daily[d]["baker_units"] += demand
-
-            daily[d]["total_units"] += demand if freshness in ("Fresh", "Total") else 0
-
-            # Estimate coffee demand as proportional to total bakery demand
-            # ~60% of bakery customers also buy coffee
-            if freshness in ("Fresh", "Total"):
-                daily[d]["coffee_units"] += int(demand * COFFEE_DEMAND_RATIO)
+        daily = _aggregate_forecast_rows(
+            forecasts,
+            start_date,
+            _fetch_product_categories(),
+        )
 
         weekday_baselines = _fetch_weekday_demand_baselines(start_date)
         for d, item in daily.items():
@@ -244,7 +278,7 @@ def solve_shift_schedule(
       5. Maximum 5 consecutive working days
       6. Weekly hours: 7h min, 56h max
       7. Unavailable dates honoured
-      8. Per-slot coverage minimums met
+      8. Per-slot staffing matches the demand requirement
 
     Soft objective: minimize (max_weekly_hours - min_weekly_hours) spread.
     """
@@ -290,8 +324,6 @@ def solve_shift_schedule(
     cashier_r = ROLES.index("cashier")
     barista_r = ROLES.index("barista")
     baker_count = sum(1 for i in range(N) if emp_of[i].role == "baker")
-    dual_baristas = [i for i in range(N) if "cashier" in (getattr(emp_of[i], "secondary_roles", []) or [])]
-
     # ---------- Build daily demand ----------
     high_day_count = 0
     daily_demand = {}
@@ -307,12 +339,12 @@ def solve_shift_schedule(
         level = fc.get("demand_level", "normal")
 
         if level == "high":
-            req = {"baker": 4, "cashier": 2, "barista": 1, "_level": "high"}
+            req = {"baker": 3, "cashier": 1, "barista": 1, "_level": "high"}
             high_day_count += 1
         elif level == "low":
             req = {"baker": 2, "cashier": 1, "barista": 1, "_level": "low"}
         else:
-            req = {"baker": 3, "cashier": 1, "barista": 1, "_level": "normal"}
+            req = {"baker": 2, "cashier": 1, "barista": 1, "_level": "normal"}
 
         daily_demand[d] = req
 
@@ -352,13 +384,10 @@ def solve_shift_schedule(
         for s in range(S):
             # Baker coverage
             if bn > 0:
-                model.Add(sum(shift[(e, d, s, baker_r)] for e in range(N)) >= bn)
-            # Cashier coverage (dedicated + dual-role)
+                model.Add(sum(shift[(e, d, s, baker_r)] for e in range(N)) == bn)
+            # Cashier coverage, including employees assigned through a secondary role
             if cn > 0:
-                dedicated = sum(shift[(e, d, s, cashier_r)] for e in range(N))
-                dual = sum(shift[(e, d, s, barista_r)] for e in dual_baristas)
-                model.Add(dedicated + dual >= cn)
-                model.Add(dedicated >= 1)
+                model.Add(sum(shift[(e, d, s, cashier_r)] for e in range(N)) == cn)
             # Barista coverage
             if barn > 0:
                 model.Add(sum(shift[(e, d, s, barista_r)] for e in range(N)) == barn)
@@ -390,7 +419,7 @@ def solve_shift_schedule(
         for d in range(num_days - 5):
             model.Add(sum(works[(e, d + k)] for k in range(6)) <= 5)
 
-    # ---- C6: Weekly hours 7-56h ----
+    # ---- C6: Weekly hours 7-56h for a full-week schedule ----
     slot_hours = [SLOT_HOURS.get(TIME_SLOTS[s], 7) for s in range(S)]
     sick_by_role = {}
     for e in range(N):
@@ -412,7 +441,7 @@ def solve_shift_schedule(
             shift[(e, d, s, r)] * slot_hours[s]
             for d in range(num_days) for s in range(S) for r in range(R)
         )
-        model.Add(weekly_hours >= 7)
+        model.Add(weekly_hours >= (7 if num_days >= 7 else 0))
         max_h = 56
         sick_in_role = sick_by_role.get(emp.role, 0)
         if sick_in_role > 0:
@@ -608,9 +637,15 @@ def _is_past_date(date_str):
     """Check if a date is in the past (before today)."""
     try:
         d = datetime.strptime(date_str, "%Y-%m-%d").date()
-        return d < datetime.now().date()
+        return d < operation_now().date()
     except Exception:
         return False
+
+
+async def _run_s3_task(task, payload):
+    loop = asyncio.get_running_loop()
+    context = copy_context()
+    return await loop.run_in_executor(_s3_executor, context.run, task, payload)
 
 def _persist_schedule(results, base, num_days):
     db = get_db()
@@ -664,6 +699,13 @@ def _build_schedule_response(results):
         "employee_summary": emp_summary,
     }
 
+
+def _open_schedule_dates(base: datetime, days: int) -> set:
+    return {
+        (base + timedelta(days=offset)).strftime("%Y-%m-%d")
+        for offset in range(days)
+    }
+
 def _solve_impl(payload: dict) -> dict:
     start_date = payload.get("start_date", datetime.now().strftime("%Y-%m-%d"))
     if _is_past_date(start_date):
@@ -711,8 +753,7 @@ def _solve_impl(payload: dict) -> dict:
 
 @router.post("/solve", dependencies=[Depends(require_manager)])
 async def solve_schedule(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _solve_impl, payload)
+    return await _run_s3_task(_solve_impl, payload)
 
 
 
@@ -900,8 +941,7 @@ def _resync_impl(payload: dict) -> dict:
 
 @router.post("/resync", dependencies=[Depends(require_manager)])
 async def resync_schedule(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _resync_impl, payload)
+    return await _run_s3_task(_resync_impl, payload)
 
 
 # ======================================================================
@@ -1012,8 +1052,7 @@ def _sick_impl(payload: dict) -> dict:
 
 @router.post("/sick", dependencies=[Depends(require_manager)])
 async def mark_sick(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _sick_impl, payload)
+    return await _run_s3_task(_sick_impl, payload)
 
 
 # ======================================================================
@@ -1080,8 +1119,7 @@ def _unsick_impl(payload: dict) -> dict:
 
 @router.post("/unsick", dependencies=[Depends(require_manager)])
 async def unmark_sick(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _unsick_impl, payload)
+    return await _run_s3_task(_unsick_impl, payload)
 
 # ======================================================================
 # GET /s3/kpi -- Scheduling KPIs
@@ -1108,7 +1146,7 @@ async def get_kpi(
         rows = r.data if r.data else []
 
         if not rows:
-            n_working = sum(1 for i in range(days) if (base + timedelta(days=i)).weekday() != 0)
+            n_working = len(_open_schedule_dates(base, days))
             return {
                 "status": "ok",
                 "period": {"start": start_date, "end": end_date, "days": days, "working_days": n_working},
@@ -1119,12 +1157,8 @@ async def get_kpi(
                 "message": "No schedule for this period. Run /s3/solve first.",
             }
 
-        # ---- working days (exclude Monday) ----
-        expected_dates = set()
-        for i in range(days):
-            d = base + timedelta(days=i)
-            if d.weekday() != 0:
-                expected_dates.add(d.strftime("%Y-%m-%d"))
+        # ---- open business days ----
+        expected_dates = _open_schedule_dates(base, days)
         n_working = len(expected_dates)
 
         # ---- Employee hours ----
@@ -1281,7 +1315,7 @@ async def get_prep_checklist():
             })
     return {
         "status": "ok",
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        "date": operation_now().strftime("%Y-%m-%d"),
         "items": items,
         "acknowledged": False,
     }
@@ -1302,7 +1336,7 @@ async def acknowledge_prep():
             updated += 1
     return {
         "status": "ok",
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        "date": operation_now().strftime("%Y-%m-%d"),
         "batches_updated": updated,
         "message": f"Prep checklist acknowledged. {updated} batches moved to Discount Area.",
     }
@@ -1317,20 +1351,41 @@ def _load_day1_stock(breads, start_date):
     db = None
     cursor = None
     try:
+        selected_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        now = operation_now()
+        balance_time = (
+            now
+            if selected_date == now.date()
+            else datetime.combine(selected_date, datetime.min.time())
+        )
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
             """
             SELECT bi.product_name,
-                   SUM(COALESCE(bi.quantity_remaining, bi.quantity)) AS units
+                   COALESCE(SUM(
+                       CASE
+                           WHEN it.transaction_type = 'inflow'
+                               THEN ABS(it.quantity)
+                           WHEN it.transaction_type = 'outflow'
+                               THEN -ABS(it.quantity)
+                           ELSE 0
+                       END
+                   ), 0) AS units
             FROM batch_inventory bi
             JOIN products p ON p.product_name = bi.product_name
+            LEFT JOIN inventory_transactions it
+                   ON it.batch_id = bi.batch_id
+                  AND it.transaction_time < %s
             WHERE p.category = 'bakery'
-              AND COALESCE(bi.quantity_remaining, bi.quantity) > 0
               AND DATE(bi.production_time) = DATE(%s) - INTERVAL 1 DAY
             GROUP BY bi.product_name
+            HAVING units > 0
             """,
-            (start_date,),
+            (
+                balance_time.strftime("%Y-%m-%d %H:%M:%S"),
+                start_date,
+            ),
         )
         for product_name, units in cursor.fetchall():
             if product_name in day1_stock:
@@ -1461,42 +1516,94 @@ def _get_attendance():
     return _attendance_system
 
 
+def _attendance_summary(employees):
+    attended_statuses = {
+        "on_time",
+        "late",
+        "early_leave",
+        "late_and_early_leave",
+        "present",
+    }
+    return {
+        "total": len(employees),
+        "present": sum(row["status"] in attended_statuses for row in employees),
+        "absent": sum(row["status"] == "absent" for row in employees),
+        "late": sum(
+            row["status"] in {"late", "late_and_early_leave"}
+            for row in employees
+        ),
+        "early_leave": sum(
+            row["status"] in {"early_leave", "late_and_early_leave"}
+            for row in employees
+        ),
+        "scheduled": sum(row["status"] == "scheduled" for row in employees),
+    }
+
+
+def _attach_attendance_metrics(employees, metrics):
+    metric_fields = (
+        "scheduled_days",
+        "attended_days",
+        "attendance_rate",
+        "attendance_display",
+        "punctuality_rate",
+        "shift_completion_rate",
+        "late_count",
+        "early_leave_count",
+        "absent_days",
+    )
+    result = []
+    for employee in employees:
+        row = dict(employee)
+        employee_metrics = metrics.get(employee["id"], {})
+        for field in metric_fields:
+            if field in employee_metrics:
+                row[field] = employee_metrics[field]
+        result.append(row)
+    return result
+
+
 @router.get("/attendance", dependencies=[Depends(require_manager)])
 async def get_attendance_dashboard(date: str = ""):
-    """Shift+KPI Dashboard Panel 1: Today attendance + weekly grid + monthly summary.
+    """Return schedule-based attendance and month-to-date employee metrics.
     If date is provided and not today, returns historical attendance for that date."""
     att = _get_attendance()
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    selected_time = operation_now()
+    today_str = selected_time.strftime("%Y-%m-%d")
     target_date = date if date else today_str
 
-    # Try to get schedule for the target date
     schedule = []
     try:
-        sched_resp = await get_schedule(date=target_date, days=7)
+        sched_resp = await get_schedule(date=target_date, days=1)
         schedule = sched_resp.get("schedule", [])
     except Exception:
         pass
 
-    result = att.dashboard_format()
-
-    # If requesting a historical date, use get_date_attendance
     if date and date != today_str:
         employees = att.get_date_attendance(date, schedule)
-        result["today_attendance"] = {
-            "date": date,
-            "employees": employees,
-        }
+        selected = datetime.strptime(date, "%Y-%m-%d")
+        period_end = selected + timedelta(days=1, seconds=-1)
     else:
-        result["today_attendance"] = {
-            "date": today_str,
-            "employees": att.get_today_attendance(schedule),
-        }
+        employees = att.get_today_attendance(schedule)
+        selected = datetime.strptime(today_str, "%Y-%m-%d")
+        period_end = selected_time
 
-    result["today_attendance"]["total"] = len(result["today_attendance"]["employees"])
-    result["today_attendance"]["present"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] in ("on_time", "late", "present"))
-    result["today_attendance"]["absent"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] == "absent")
-    result["today_attendance"]["late"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] == "late")
-    return {"status": "ok", **result}
+    metrics = att.get_monthly_metrics(
+        selected.year,
+        selected.month,
+        period_end=period_end,
+    )
+    employees = _attach_attendance_metrics(employees, metrics)
+    summary = _attendance_summary(employees)
+    return {
+        "status": "ok",
+        "today_attendance": {
+            "date": target_date,
+            "employees": employees,
+            **summary,
+        },
+        "monthly_summary": metrics,
+    }
 
 
 @router.post("/attendance/punch", dependencies=[Depends(get_current_user)])
@@ -1510,13 +1617,31 @@ async def punch_attendance(emp_id: str = "", pin: str = ""):
     return {"status": "ok" if success else "error", "message": msg, "record": record}
 
 
+@router.post("/attendance/correct")
+async def correct_attendance(payload: dict, user=Depends(require_manager)):
+    """Correct a scheduled attendance record with manager audit metadata."""
+    global _kpi_cache
+    att = _get_attendance()
+    success, msg, record = att.correct_punch(
+        payload.get("employee_id", ""),
+        payload.get("date", ""),
+        payload.get("punch_in", ""),
+        payload.get("punch_out", ""),
+        payload.get("reason", ""),
+        user.get("sub", "manager"),
+    )
+    if success:
+        _kpi_cache = None
+    return {"status": "ok" if success else "error", "message": msg, "record": record}
+
+
 # ======================================================================
 
 @router.get("/attendance/history", dependencies=[Depends(require_manager)])
 async def get_attendance_history(date: str = ""):
     """Get attendance for a specific historical date."""
     if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = operation_now().strftime("%Y-%m-%d")
     att = _get_attendance()
     schedule = []
     try:
@@ -1525,17 +1650,21 @@ async def get_attendance_history(date: str = ""):
     except Exception:
         pass
     employees = att.get_date_attendance(date, schedule)
-    present = sum(1 for e in employees if e["status"] in ("on_time", "late", "present"))
-    absent = sum(1 for e in employees if e["status"] == "absent")
-    late = sum(1 for e in employees if e["status"] == "late")
+    selected = datetime.strptime(date, "%Y-%m-%d")
+    period_end = selected + timedelta(days=1, seconds=-1)
+    metrics = att.get_monthly_metrics(
+        selected.year,
+        selected.month,
+        period_end=period_end,
+    )
+    employees = _attach_attendance_metrics(employees, metrics)
+    summary = _attendance_summary(employees)
     return {
         "status": "ok",
         "date": date,
-        "total": len(employees),
-        "present": present,
-        "absent": absent,
-        "late": late,
         "employees": employees,
+        "monthly_summary": metrics,
+        **summary,
     }
 
 # KPI Ranking endpoint (Z-Score + BSC + Cross-Role)

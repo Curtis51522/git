@@ -1,11 +1,13 @@
 import asyncio
+from datetime import date as date_type
 
 from fastapi.testclient import TestClient
 from s5_agent.agents.inventory import InventoryAgent
+from s5_agent.agents.recommendation import RecommendationAgent
+from s5_agent.core.base import AgentOpinion
 from s5_agent.graph.registry import module_to_template, supported_templates
 from s5_agent.graph.runner import run_s5_graph
 from s5_agent.graph.state import S5Request
-from s5_agent.graph.template_loader import load_template
 from s5_agent.schemas.response import S5AnalysisResponse
 from s5_agent.schemas.verification import VerificationReport
 from s5_agent.server import app
@@ -40,23 +42,6 @@ def test_registry_rejects_non_langgraph_modules():
         assert "Unsupported S5 module" in str(exc)
     else:
         raise AssertionError("schedule must not map to a legacy S5 template")
-
-
-def test_load_inventory_diagnosis_template_returns_id_and_agents():
-    template = load_template("inventory_diagnosis")
-
-    assert template["id"] == "inventory_diagnosis"
-    assert template["agents"] == ["InventoryAgent"]
-
-
-def test_load_declared_non_inventory_templates():
-    profit_template = load_template("profit_root_cause")
-    production_template = load_template("production_advice")
-
-    assert profit_template["id"] == "profit_root_cause"
-    assert production_template["id"] == "production_advice"
-    assert "summary" in profit_template["outputs"]
-    assert "recommendations" in production_template["outputs"]
 
 
 def test_run_s5_graph_accepts_declared_templates(monkeypatch):
@@ -131,12 +116,13 @@ def test_inventory_module_uses_langgraph_runner(monkeypatch):
     assert "verification_report" in body
 
 
-def test_module_analysis_forwards_the_manager_authorization_header(monkeypatch):
+def test_module_analysis_forwards_dashboard_request_context(monkeypatch):
     captured = {}
 
     async def fake_run_s5_graph(template_id, request, raw_inputs=None):
         captured["template_id"] = template_id
         captured["authorization"] = request.params.get("_authorization")
+        captured["operation_at"] = request.params.get("_operation_at")
         return S5AnalysisResponse(
             summary="Authorized dashboard response",
             verification_report=VerificationReport(passed=True),
@@ -148,7 +134,10 @@ def test_module_analysis_forwards_the_manager_authorization_header(monkeypatch):
     client = TestClient(app)
     response = client.post(
         "/analyze/module",
-        headers={"Authorization": "Bearer manager-token"},
+        headers={
+            "Authorization": "Bearer manager-token",
+            "X-Operation-At": "2026-07-24T19:25:00",
+        },
         json={"module": "revenue", "date": "2026-06-30"},
     )
 
@@ -156,7 +145,30 @@ def test_module_analysis_forwards_the_manager_authorization_header(monkeypatch):
     assert captured == {
         "template_id": "profit_root_cause",
         "authorization": "Bearer manager-token",
+        "operation_at": "2026-07-24T19:25:00",
     }
+
+
+def test_module_analysis_cache_records_the_effective_analysis_date(monkeypatch):
+    from s5_agent import server
+
+    async def fake_run_s5_graph(template_id, request, raw_inputs=None):
+        return S5AnalysisResponse(
+            summary="Date-aware dashboard response",
+            verification_report=VerificationReport(passed=True),
+            metadata={"template": template_id},
+        )
+
+    monkeypatch.setattr(server, "run_s5_graph", fake_run_s5_graph)
+    monkeypatch.setattr(server, "_response_cache", {})
+
+    response = TestClient(app).post(
+        "/analyze/module",
+        json={"module": "revenue", "date": "2026-06-30"},
+    )
+
+    assert response.status_code == 200
+    assert next(iter(server._response_cache.values()))["date"] == "2026-06-30"
 
 
 def test_analyze_module_routes_promotion_mix_to_langgraph(monkeypatch):
@@ -288,3 +300,51 @@ def test_legacy_analyze_and_template_routes_are_not_exposed():
 
     assert analyze_response.status_code == 404
     assert templates_response.status_code == 404
+
+
+def test_recommendation_agent_returns_structured_priority_metadata():
+    opinion = RecommendationAgent("RecommendationAgent").analyze(
+        None,
+        {},
+        context="macaron Day-1 3 units",
+    )
+
+    assert isinstance(opinion, AgentOpinion)
+    assert opinion.metadata["priority_recommendations"][0]["product"] == "macaron"
+
+
+def test_priorities_ignore_historical_revenue_analysis(monkeypatch):
+    from s5_agent import server
+
+    today = date_type.today().isoformat()
+    monkeypatch.setattr(
+        server,
+        "_response_cache",
+        {
+            "current": {
+                "intent": "profit_root_cause",
+                "date": today,
+                "summary": "current marker",
+                "recommendations": [],
+            },
+            "historical": {
+                "intent": "profit_root_cause",
+                "date": "2026-06-30",
+                "summary": "historical marker",
+                "recommendations": [],
+            },
+        },
+    )
+    captured = {}
+
+    def fake_build(context):
+        captured["context"] = context
+        return []
+
+    monkeypatch.setattr(server, "_build_priority_recommendations", fake_build)
+
+    response = TestClient(app).get("/priorities")
+
+    assert response.status_code == 200
+    assert "current marker" in captured["context"]
+    assert "historical marker" not in captured["context"]

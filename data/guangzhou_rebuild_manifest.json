@@ -1,0 +1,146 @@
+{
+  "approved_ranges": {
+    "bakery_single_product_share_max": 0.15,
+    "bakery_top3_share": [
+      0.35,
+      0.45
+    ],
+    "bakery_top7_share": [
+      0.55,
+      0.65
+    ],
+    "basket_mean": [
+      1.7,
+      1.9
+    ],
+    "daily_orders": {
+      "friday": [
+        120,
+        155
+      ],
+      "weekday": [
+        110,
+        145
+      ],
+      "weekend": [
+        135,
+        175
+      ]
+    },
+    "minimum_bakery_product_daily_average": 2.0,
+    "minimum_beverage_product_daily_average": 3.0,
+    "payment_shares": {
+      "card": [
+        0.05,
+        0.1
+      ],
+      "cash": [
+        0.02,
+        0.05
+      ],
+      "qr": [
+        0.85,
+        0.92
+      ]
+    },
+    "takeaway_share": [
+      0.75,
+      0.85
+    ]
+  },
+  "basket_shares": {
+    "one_item": 0.534183,
+    "three_plus": 0.172291,
+    "two_item": 0.293527
+  },
+  "channel_shares": {
+    "delivery": 0.0,
+    "dine_in": 0.200563,
+    "takeaway": 0.799437
+  },
+  "created_at": "2026-07-19T16:03:17.867459Z",
+  "date_range": {
+    "end": "2026-06-23",
+    "start": "2025-06-24"
+  },
+  "order_count": 48987,
+  "output_sha256": "17c493d683857fdd57bdf3fb07cd78432c1e2a92a9f61f372d822887c8027188",
+  "payment_shares": {
+    "card": 0.075204,
+    "cash": 0.035377,
+    "qr": 0.88942
+  },
+  "product_concentration": {
+    "bakery_max_share": 0.142098,
+    "bakery_top3_share": 0.422569,
+    "beverage_share": 0.259516,
+    "top_products": [
+      {
+        "product_name": "croissant",
+        "share": 0.105221,
+        "units": 9117
+      },
+      {
+        "product_name": "croissant_chocolate",
+        "share": 0.105187,
+        "units": 9114
+      },
+      {
+        "product_name": "baguette",
+        "share": 0.102498,
+        "units": 8881
+      },
+      {
+        "product_name": "donut",
+        "share": 0.046811,
+        "units": 4056
+      },
+      {
+        "product_name": "pancake",
+        "share": 0.034093,
+        "units": 2954
+      },
+      {
+        "product_name": "latte",
+        "share": 0.029049,
+        "units": 2517
+      },
+      {
+        "product_name": "americano",
+        "share": 0.028668,
+        "units": 2484
+      },
+      {
+        "product_name": "cream_horn",
+        "share": 0.028518,
+        "units": 2471
+      },
+      {
+        "product_name": "cookie",
+        "share": 0.02471,
+        "units": 2141
+      },
+      {
+        "product_name": "cappuccino",
+        "share": 0.022736,
+        "units": 1970
+      }
+    ]
+  },
+  "revenue_cny": "1082499.4",
+  "row_counts": {
+    "output": 83898,
+    "source": 112546
+  },
+  "schema_version": 1,
+  "seed": 20260718,
+  "source_sha256": "7dc882a3b848acc74fa0e464539d3061137001d5c2ef7a4f908ce557ac895101",
+  "unit_count": 86646,
+  "weather": {
+    "maximum_temp_mean": 32.4,
+    "minimum_temp_mean": 8.3,
+    "rain_threshold_mm": 1.0,
+    "rainy_days": 169
+  },
+  "weather_sha256": "ae3fda526ef5dd06babf887ce62384c3556aa9621df0db24b550189dd6174017"
+}
