@@ -1,13 +1,9 @@
-﻿# s5_agent/core/base.py
-import asyncio, logging, time, os, sys
-from typing import Dict, Any, Optional, List
+# s5_agent/core/base.py
+import asyncio, logging, time
+from typing import Dict, Any, List
 from dataclasses import dataclass, field
 
-_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path:
-    sys.path.insert(0, _PARENT)
-
-from s5_agent.core.tool import Tool, ToolResult, ToolRegistry
+from s5_agent.core.tool import ToolRegistry
 
 logger = logging.getLogger("s5.agent")
 
@@ -23,6 +19,7 @@ class AgentOpinion:
     data: Dict[str, Any] = field(default_factory=dict)
     elapsed_ms: float = 0.0
     tool_calls: List[Dict] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 class BaseAgent:
     def __init__(self, name: str):

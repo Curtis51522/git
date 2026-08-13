@@ -1,0 +1,17 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Bakery AI</title>
+  <defs>
+    <linearGradient id="orange" x1="8" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E36020"/>
+      <stop offset="1" stop-color="#C94412"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#orange)"/>
+  <rect x="2.6" y="2.6" width="58.8" height="58.8" rx="15.4" stroke="#FFF8EE" stroke-opacity=".30" stroke-width="1.2"/>
+  <rect x="10.5" y="6.5" width="43" height="51" rx="21.5" stroke="#FFF8EE" stroke-width="1.15"/>
+  <path d="M16.5 51V27.5C16.5 18.1 22.9 12 32 12C41.1 12 47.5 18.1 47.5 27.5V51" stroke="#FFF8EE" stroke-width="2" stroke-linecap="round"/>
+  <path d="M21 25.5C21 18.8 25.5 14.8 32 14.8C38.5 14.8 43 18.8 43 25.5" stroke="#FFF8EE" stroke-opacity=".82" stroke-width="1"/>
+  <path d="M20.5 27V40M20.5 27H25C29.5 27 29.5 33.5 25 33.5H20.5M25 33.5C30.5 33.5 30.5 40 25 40H20.5M34 40L39.5 27L45 40M36.2 34.5H42.8" stroke="#FFF8EE" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="30.8" y="29.3" width="2.4" height="2.4" rx=".35" fill="#FFF8EE"/>
+  <path d="M24 47C25 43.5 27.8 42 32 42C36.2 42 39 43.5 40 47C37.2 45.8 34.5 45.2 32 45.2C29.5 45.2 26.8 45.8 24 47Z" stroke="#FFF8EE" stroke-width="1.6" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,115 @@
+name: bakery-ai
+
+services:
+  mysql:
+    image: mysql:8.4
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-bakery_ai}"
+      MYSQL_USER: "${MYSQL_USER:-bakery_app}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}"
+      TZ: "${BAKERY_TIME_ZONE:-Asia/Shanghai}"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deployment/database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          MYSQL_PWD="$${MYSQL_ROOT_PASSWORD}"
+          mysql --host=127.0.0.1 --user=root --database="$${MYSQL_DATABASE}"
+          --batch --skip-column-names
+          --execute="SELECT COUNT(*) FROM deployment_ready WHERE marker_key = 'release-snapshot' AND schema_version = '1';"
+          | grep -qx 1
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  app:
+    image: bakery-ai:local
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-bakery_ai}"
+      MYSQL_USER: "${MYSQL_USER:-bakery_app}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}"
+      MYSQL_SESSION_TIME_ZONE: "${MYSQL_SESSION_TIME_ZONE:-+08:00}"
+      TZ: "${BAKERY_TIME_ZONE:-Asia/Shanghai}"
+      BAKERY_ENV: production
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET}"
+      S5_BASE_URL: http://s5:8001
+      BAKERY_FIXED_BUSINESS_DATE: "${BAKERY_FIXED_BUSINESS_DATE:-}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_BASE_URL: "${LLM_BASE_URL:-}"
+      LLM_MODEL: "${LLM_MODEL:-}"
+    command:
+      - hypercorn
+      - main:app
+      - --bind
+      - 0.0.0.0:8002
+    ports:
+      - name: bakery-web
+        target: 8002
+        published: "${BAKERY_HOST_PORT_RANGE:-8002}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  s5:
+    image: bakery-ai:local
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-bakery_ai}"
+      MYSQL_USER: "${MYSQL_USER:-bakery_app}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}"
+      MYSQL_SESSION_TIME_ZONE: "${MYSQL_SESSION_TIME_ZONE:-+08:00}"
+      TZ: "${BAKERY_TIME_ZONE:-Asia/Shanghai}"
+      BAKERY_API_BASE: http://app:8002
+      S5_HOST: 0.0.0.0
+      S5_PORT: "8001"
+    command:
+      - uvicorn
+      - s5_agent.server:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  mysql-data:

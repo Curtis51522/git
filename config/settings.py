@@ -1,34 +1,46 @@
 import os
+import secrets
+from pathlib import Path
+
 from dotenv import load_dotenv
-from s2_forecasting.feature_contract import FORECAST_FEATURES
+
 load_dotenv()
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
+BAKERY_ENV = os.getenv("BAKERY_ENV", "development").strip().lower()
+_JWT_SECRET_FROM_ENV = os.getenv("JWT_SECRET", "").strip()
+JWT_SECRET_IS_EPHEMERAL = not bool(_JWT_SECRET_FROM_ENV)
+JWT_SECRET = _JWT_SECRET_FROM_ENV or secrets.token_urlsafe(48)
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 480
-YOLO_MODEL_PATH = "models/yolo/best.pt"
+ALLOW_LEGACY_PLAINTEXT_LOGIN = os.getenv(
+    "BAKERY_ALLOW_LEGACY_PLAINTEXT_LOGIN",
+    "0",
+) == "1"
+S5_BASE_URL = os.getenv("S5_BASE_URL", "http://127.0.0.1:8001").rstrip("/")
+S5_DISCOUNT_URL = os.getenv("S5_DISCOUNT_URL", f"{S5_BASE_URL}/discounts")
+S5_DISCOUNT_TIMEOUT_SECONDS = float(os.getenv("S5_DISCOUNT_TIMEOUT_SECONDS", "5"))
+YOLO_MODEL_PATH = str(_PROJECT_ROOT / "models" / "yolo" / "best.pt")
 YOLO_CONFIDENCE_THRESHOLD = 0.5
-PRODUCT_TYPES = [
-    # 30 Breads
+BAKERY_PRODUCT_TYPES = [
     "apple_pie", "bagel", "baguette", "bread_coconut", "bread_roll", "brioche",
     "brownie", "chiffon", "chocolate_cake", "chocopie", "cookie", "cornbread",
     "cream_horn", "croissant", "croissant_chocolate", "donut", "eggtart",
     "flatbread", "macaron", "mantequilla", "melon_bread", "muffin", "pancake",
     "pandesal", "pizza_bread", "pullman", "soboru_bread", "sourdough",
     "stickbread", "tostada",
-    # 15 Beverages
+]
+BEVERAGE_PRODUCT_TYPES = [
     "americano", "cappuccino", "caramel_macchiato", "chai_latte", "cold_brew",
     "earl_grey", "english_breakfast", "espresso", "flat_white", "hot_chocolate",
     "latte", "lemonade", "matcha_latte", "milk_tea", "mocha",
 ]
-
-FORECAST_FEATURE_COLS = FORECAST_FEATURES
+PRODUCT_TYPES = BAKERY_PRODUCT_TYPES + BEVERAGE_PRODUCT_TYPES
 
 INTENT_CONFIDENCE_THRESHOLD = 0.75
 MAX_RETRIES = 2
-MODEL_CACHE_DIR = "models"
-CACHE_MANIFEST = "models/cache.json"
 COLD_START_WEEKS = 4
 MIN_TRAINING_DAYS = 30
 

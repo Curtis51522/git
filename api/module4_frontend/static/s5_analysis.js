@@ -4,8 +4,8 @@ function injectS5Button(parentId, moduleId, dateSelector, resultDivId, style) {
   style = style || '';
   var btn = document.createElement('button');
   btn.className = 'btn btn-sm';
-  btn.style.cssText = 'margin-left:8px;background:#8b6914;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer' + (style ? ';' + style : '');
-  btn.textContent = '\uD83D\uDD0D ' + t('AI Analysis');
+  btn.style.cssText = 'margin-left:8px;background:#0071e3;color:#fff;border:none;border-radius:11px;padding:8px 16px;font-size:13px;font-weight:650;cursor:pointer' + (style ? ';' + style : '');
+  btn.textContent = t('AI Analysis');
   btn.onclick = function() { runModuleS5Analysis(moduleId, dateSelector, resultDivId); };
   parent.appendChild(btn);
 }
@@ -15,7 +15,7 @@ function injectS5ResultDiv(targetId, resultDivId) {
   if (!target) return;
   var div = document.createElement('div');
   div.id = resultDivId;
-  div.style.cssText = 'display:none;background:#fdfaf5;border:1px solid #d4c5a9;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(139,105,20,0.08)';
+  div.style.cssText = 'display:none;background:#fbfbfd;border:1px solid rgba(29,29,31,0.09);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 14px 34px -30px rgba(17,17,20,0.42)';
   target.parentNode.insertBefore(div, target);
 }
 
@@ -49,17 +49,23 @@ function labelS5Token(value) {
     forecast_uncertainty_hotspots: 'Demand uncertainty hotspots',
     forecast_volatility_risk: 'Large profit swing risk',
     material_shortage_risk: 'Low-stock material risk',
+    material_data_gap: 'Raw-material stock data unavailable',
     overproduction_risk: 'Overproduction risk',
     stockout_risk: 'Stockout risk',
+    widespread_low_stock_risk: 'Widespread low-stock risk',
+    inventory_data_gap: 'Inventory data gap',
+    inventory_expiry_risk: 'Day-1 stock risk',
     scenario_profit_gap: 'Profit swing between downside and expected demand',
     production_waste_rate_pct: 'Expected waste exposure',
+    q90_shortage_units: 'High-demand capacity gap',
     production_total_bake: 'Planned bake units',
     supply_coverage_pct: 'Supply coverage rate',
     demand_gap_units: 'Forecast demand gap',
     total_available_units: 'Total available supply',
     material_low_count: 'Low-stock materials',
     material_critical_count: 'Critical material blockers',
-    material_total_order: 'Material order requirement',
+    material_order_by_unit: 'Material order requirement by unit',
+    material_stock_data_available: 'Raw-material stock data status',
     material_count_checked: 'Materials checked',
     wasted_material_count: 'Materials with recorded waste',
     total_waste_cost: 'Recorded waste cost',
@@ -71,7 +77,7 @@ function labelS5Token(value) {
     forecast_total_units: 'Forecast demand units',
     forecast_total_revenue: 'Forecast revenue',
     forecast_avg_interval_width: 'Demand uncertainty range',
-    forecast_wape: 'Recent forecast error',
+    forecast_wape: 'Held-out historical forecast error',
     forecast_coverage: 'Forecast coverage',
     profit_margin_pct: 'Profit margin',
     revenue: 'Revenue',
@@ -81,6 +87,10 @@ function labelS5Token(value) {
     revenue_trend_pct: 'Revenue trend',
     order_change_pct: 'Order change',
     average_order_value_change_pct: 'Average order value change',
+    items_per_order: 'Items per order',
+    items_per_order_change_pct: 'Items per order change',
+    revenue_per_item: 'Revenue per item',
+    revenue_per_item_change_pct: 'Revenue per item change',
     top_product_revenue_share_pct: 'Top product revenue share',
     top3_product_revenue_share_pct: 'Top product concentration',
     category_revenue_split: 'Category revenue split',
@@ -89,6 +99,7 @@ function labelS5Token(value) {
     low_revenue_hours: 'Low revenue hours',
     discount_rate_pct: 'Discount rate',
     revenue_decline: 'Revenue decline risk',
+    basket_size_weakness: 'Basket size weakness',
     order_value_shift: 'Order value shift risk',
     low_sample_size: 'Low sample size',
     possible_data_gap: 'Possible data gap',
@@ -101,9 +112,21 @@ function labelS5Token(value) {
     top3_bread_revenue_share_pct: 'Top 3 bread concentration',
     bread_revenue_share_pct: 'Bread revenue share',
     beverage_revenue_share_pct: 'Beverage revenue share',
+    expired_cost: 'Closing unsold-product cost',
+    expired_cost_revenue_pct: 'Closing loss share of revenue',
+    profit_margin_before_expiry_pct: 'Profit margin before closing loss',
+    expired_products: 'Products discarded at closing',
     top_product_name: 'Top product',
     promotion_no_broad_discount: 'No broad discount decision',
-    promotion_mid_tier_bundle: 'Targeted bundle opportunity'
+    promotion_mid_tier_bundle: 'Targeted bundle opportunity',
+    inventory_total: 'Finished-product stock',
+    inventory_record_status: 'Inventory record status',
+    zero_stock_product_count: 'Products with no stock',
+    low_stock_product_count: 'Products with one unit left',
+    thin_stock_product_share_pct: 'Products with zero or one unit',
+    units_per_product: 'Average units per product',
+    low_stock_material_count: 'Raw-material reorder status',
+    inventory_recommendation_basis: 'Inventory recommendation basis'
   };
   var key = String(value || '');
   if (labels[key]) return labels[key];
@@ -139,7 +162,7 @@ function collectS5Details(data) {
     var ids = Array.isArray(recommendations[j].evidence_ids) ? recommendations[j].evidence_ids : [];
     for (var e = 0; e < ids.length; e++) recommendationEvidenceIds.push(ids[e]);
   }
-  var evidenceIds = agentEvidenceIds.concat(recommendationEvidenceIds);
+  var evidenceIds = recommendationEvidenceIds.concat(agentEvidenceIds);
 
   return {
     confidence: confidenceCount ? confidenceTotal / confidenceCount : null,
@@ -171,7 +194,7 @@ async function runModuleS5Analysis(moduleId, dateSelector, resultDivId) {
   if (!resDiv) return;
   var forceRefresh = arguments[3] || false;
   resDiv.style.display = 'block';
-  resDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#8b6914"><span class="spinner"></span> ' + t('Analyzing...') + '</div>';
+  resDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#0071e3"><span class="spinner"></span> ' + t('Analyzing...') + '</div>';
   try {
     var hdrs = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token};
     var dateEl = document.getElementById(dateSelector);
@@ -181,26 +204,26 @@ async function runModuleS5Analysis(moduleId, dateSelector, resultDivId) {
     resDiv.setAttribute('data-s5-date-selector', dateSelector);
     resDiv.setAttribute('data-s5-lang', lang);
     var r = await fetch(S5_API + '/analyze/module', {method: 'POST', headers: hdrs, body: JSON.stringify({module: moduleId, date: date, lang: lang, force_refresh: forceRefresh})});
-    if (!r.ok) { var txt = await r.text(); throw new Error(txt); }
+    if (!r.ok) { if(r.status===401&&handleUnauthorizedResponse(r))return; var txt = await r.text(); throw new Error(txt); }
     var d = await r.json();
-    var refreshBtn = forceRefresh ? '' : '<button onclick="runModuleS5Analysis(\'' + moduleId + '\', \'' + dateSelector + '\', \'' + resultDivId + '\', true)" title="' + t('Regenerate') + '" style="background:none;border:none;color:#8b6914;cursor:pointer;font-size:16px;margin-right:6px">&#x21bb;</button>';
-    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e0d5c7"><h4 style="margin:0;color:#5d4037;font-size:15px">\uD83E\uDDE0 ' + t('AI Analysis') + (forceRefresh ? ' <span style="font-size:11px;color:#e67e22">(' + t('refreshed') + ')</span>' : '') + '</h4><div>' + refreshBtn + '<button onclick="document.getElementById(\'' + resultDivId + '\').style.display=\'none\'" style="background:none;border:none;color:#999;cursor:pointer;font-size:18px">&times;</button></div></div>';
+    var refreshBtn = forceRefresh ? '' : '<button onclick="runModuleS5Analysis(\'' + moduleId + '\', \'' + dateSelector + '\', \'' + resultDivId + '\', true)" title="' + t('Regenerate') + '" style="background:none;border:none;color:#0071e3;cursor:pointer;font-size:16px;margin-right:6px">&#x21bb;</button>';
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(29,29,31,0.09)"><h4 style="margin:0;color:#1d1d1f;font-size:15px">' + t('AI Analysis') + (forceRefresh ? ' <span style="font-size:11px;color:#a65a00">(' + t('refreshed') + ')</span>' : '') + '</h4><div>' + refreshBtn + '<button onclick="document.getElementById(\'' + resultDivId + '\').style.display=\'none\'" style="background:none;border:none;color:#6e6e73;cursor:pointer;font-size:18px">&times;</button></div></div>';
     var summaryHtml = escapeS5Html(d.summary)
       .replace(/\n\n/g, '</p><p style="font-size:14px;color:#3d322b;line-height:1.8;margin-bottom:6px">')
       .replace(/\n/g, '<br>')
-      .replace(/^(BOTTOM LINE|WHY THIS HAPPENED|WHAT TO DO)/gm, '<strong style="color:#5d4037;font-size:15px"></strong>');
+      .replace(/^(BOTTOM LINE|WHY THIS HAPPENED|WHAT TO DO)/gm, '<strong style="color:#1d1d1f;font-size:15px"></strong>');
     html += '<div style="margin-bottom:12px"><p style="font-size:14px;color:#3d322b;line-height:1.8;margin-bottom:6px">' + summaryHtml + '</p></div>';
-    html += renderS5Details(d);
     if (d.recommendations && d.recommendations.length > 0) {
-      html += '<div><strong style="font-size:13px;color:#5d4037">' + t('Recommendations') + '</strong><div style="margin-top:6px">';
+      html += '<div><strong style="font-size:13px;color:#1d1d1f">' + t('Recommendations') + '</strong><div style="margin-top:6px">';
       for (var i = 0; i < Math.min(d.recommendations.length, 4); i++) {
         var rec = d.recommendations[i];
         var urgColor = rec.urgency === 'high' ? '#c0392b' : rec.urgency === 'medium' ? '#e67e22' : '#27ae60';
         var urgBg = rec.urgency === 'high' ? '#fdedec' : rec.urgency === 'medium' ? '#fef5e7' : '#eafaf1';
-        html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:#3d322b"><span style="background:' + urgBg + ';color:' + urgColor + ';border-radius:3px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0">' + escapeS5Html(formatS5TimeLabel(rec.time_horizon || rec.urgency || 'medium').toUpperCase()) + '</span><div><div>' + escapeS5Html(rec.action) + '</div>' + (rec.rationale ? '<div style="color:#6b5b4f;font-size:11px;margin-top:2px">' + escapeS5Html(rec.rationale) + '</div>' : '') + (rec.expected_impact ? '<div style="color:#27ae60;font-size:11px;margin-top:1px">' + escapeS5Html(rec.expected_impact) + '</div>' : '') + '</div></div>';
+        html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;color:#3d322b"><span style="background:' + urgBg + ';color:' + urgColor + ';border-radius:3px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0">' + escapeS5Html(formatS5TimeLabel(rec.time_horizon || rec.urgency || 'medium').toUpperCase()) + '</span><div><div>' + escapeS5Html(rec.action) + '</div>' + (rec.rationale ? '<div style="color:#6b5b4f;font-size:12px;line-height:1.5;margin-top:3px">' + escapeS5Html(rec.rationale) + '</div>' : '') + (rec.expected_impact ? '<div style="color:#27ae60;font-size:12px;line-height:1.5;margin-top:2px">' + escapeS5Html(rec.expected_impact) + '</div>' : '') + '</div></div>';
       }
       html += '</div></div>';
     }
+    html += renderS5Details(d);
     resDiv.innerHTML = html;
   } catch (ex) {
     resDiv.innerHTML = '<div style="color:#c0392b;text-align:center;padding:12px">' + escapeS5Html(t('Analysis failed')) + ': ' + escapeS5Html(ex.message) + '</div>';

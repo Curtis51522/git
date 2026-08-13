@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """XGBoost Weekly Quantile Regression (2026-06-30)
 ==================================================
 Predicts weekly total quantity per product.
@@ -149,7 +149,6 @@ def per_product_wape(test_df, models):
     model = models[0.50]
     test_df = test_df.copy()
     X_test = test_df[WEEKLY_FEATURES]
-    y_test = test_df[TARGET].values
     test_df["pred_q50"] = np.maximum(model.predict(X_test), 0)
 
     results = []
@@ -168,7 +167,6 @@ def per_product_wape(test_df, models):
     df_p.to_csv(os.path.join(OUT_DIR, "weekly_per_product.csv"), index=False)
 
     # Coarsen: bread vs beverage
-    test_df["category"] = (test_df["product_id"] >= 30).astype(int)
     for cat, label in [(0, "Bakery"), (1, "Beverage")]:
         sub = test_df[test_df["category"] == cat]
         yt = sub[TARGET].values

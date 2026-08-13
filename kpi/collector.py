@@ -11,25 +11,26 @@ Metrics computed:
   2. revenue_growth       - Revenue contribution MoM change
   3. work_hours           - Total punch hours this month
   4. hours_vs_avg         - Hours vs 9-person avg
-  5. attendance_rate      - Actual / expected working days
+  5. attendance_rate      - Attended / completed scheduled shifts
   6. waste_rate           - Material wastage (baker/barista only)
-  7. punctuality          - On-time punch rate (cross-role)
+  7. punctuality          - On-time arrival rate (cross-role)
+  8. shift_completion     - Full-shift completion rate (cross-role)
 """
 
-import os, sys, calendar, logging
+import logging
 from datetime import datetime, timedelta
-from collections import defaultdict
+from pathlib import Path
 
-_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _PARENT not in sys.path:
-    sys.path.insert(0, _PARENT)
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+from kpi.attendance import calculate_period_metrics, resolve_month_period_end
 
 logger = logging.getLogger('kpi.collector')
 
 
 class KPIDataCollector:
     def __init__(self, data_dir=None):
-        self.data_dir = data_dir or os.path.join(_PARENT, "data")
+        self.data_dir = Path(data_dir) if data_dir else _PROJECT_ROOT / "data"
 
     def _get_db(self):
         from db.mysql_client import get_db
@@ -111,7 +112,7 @@ class KPIDataCollector:
 
 
     # ==================================================================
-    # Metric 5: Attendance Rate  +  Metric 7: Punctuality
+    # Schedule-based attendance metrics
     # ==================================================================
 
     def _collect_attendance(self, employees, month_str):
@@ -126,71 +127,30 @@ class KPIDataCollector:
             records = cur.fetchall()
             cur.close()
 
-            year, mon = int(month_str[:4]), int(month_str[5:7])
-            # Get scheduled working days per employee from shift_schedule table
             cur2 = db.cursor(dictionary=True)
             cur2.execute(
-                "SELECT employee_id, COUNT(DISTINCT schedule_date) as sched_days FROM shift_schedule WHERE schedule_date LIKE %s GROUP BY employee_id",
-                (month_str + "%",)
+                """
+                SELECT schedule_date, time_slot, employee_id, employee_name, role
+                FROM shift_schedule
+                WHERE schedule_date LIKE %s
+                ORDER BY schedule_date, time_slot, employee_id
+                """,
+                (month_str + "%",),
             )
-            sched_rows = cur2.fetchall()
+            schedules = cur2.fetchall()
             cur2.close()
-            sched_days_map = {r['employee_id']: r['sched_days'] for r in sched_rows}
-            # Fallback: use calendar days if schedule table is empty
-            calendar_days = calendar.monthrange(year, mon)[1]
 
-            for emp in employees:
-                eid = emp["id"]
-                emp_recs = [r for r in records if r["emp_id"] == eid]
-                # Only count present days (exclude absent)
-                present_recs = [r for r in emp_recs if r.get("status") != "absent"]
-                date_strs = set()
-                for r in present_recs:
-                    d = r["date"]
-                    date_strs.add(d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d))
-                days_present = len(date_strs)
-
-                on_time_count = sum(1 for r in present_recs if r.get("status") == "on_time")
-                total_present = len(present_recs)
-                punct = round(on_time_count / max(total_present, 1) * 100, 1)
-
-                work_hours = round(sum(self._record_work_hours(r) for r in present_recs), 2)
-
-                emp_working_days = sched_days_map.get(eid, calendar_days)
-                attendance_rate = round(days_present / max(emp_working_days, 1) * 100, 1)
-                kpis[eid] = {
-                    "attendance_rate": min(100.0, attendance_rate),
-                    "punctuality": punct,
-                    "work_hours": work_hours,
-                }
+            year, month = (int(part) for part in month_str.split("-"))
+            period_end = resolve_month_period_end(year, month, records)
+            kpis = calculate_period_metrics(
+                employees,
+                schedules,
+                records,
+                period_end,
+            )
         except Exception as e:
             logger.warning('Attendance collection failed: %s', e)
         return kpis
-
-    def _record_work_hours(self, record):
-        punch_in = self._time_to_minutes(record.get("punch_in"))
-        punch_out = self._time_to_minutes(record.get("punch_out"))
-        if punch_in is None or punch_out is None:
-            return 8.0
-        if punch_out < punch_in:
-            punch_out += 24 * 60
-        return max(0.0, (punch_out - punch_in) / 60.0)
-
-    def _time_to_minutes(self, value):
-        if value is None:
-            return None
-        if isinstance(value, timedelta):
-            return value.total_seconds() / 60.0
-        if hasattr(value, "hour") and hasattr(value, "minute"):
-            return value.hour * 60 + value.minute + getattr(value, "second", 0) / 60.0
-        text = str(value)
-        if not text:
-            return None
-        try:
-            parts = text.split(":")
-            return int(parts[0]) * 60 + int(parts[1]) + (int(parts[2]) / 60.0 if len(parts) > 2 else 0.0)
-        except (ValueError, IndexError):
-            return None
 
     # ==================================================================
     # Metric 1: Revenue Contribution  +  Metric 2: Revenue Growth

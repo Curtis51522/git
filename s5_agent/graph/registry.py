@@ -15,7 +15,3 @@ def module_to_template(module: str) -> str:
     except KeyError as exc:
         supported = ", ".join(sorted(_MODULE_TO_TEMPLATE))
         raise ValueError(f"Unsupported S5 module: {module}. Supported modules: {supported}") from exc
-
-
-def supported_templates() -> list[str]:
-    return sorted(set(_MODULE_TO_TEMPLATE.values()))

@@ -1,14 +1,10 @@
-import json
-import os, sys, logging
-from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
-
-_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
+import logging
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
+from s5_agent.core.dashboard_api import fetch_dashboard_json
+from s5_agent.s5_config.settings import api_url
 logger = logging.getLogger("s5.agent.forecast_accuracy")
 
 
@@ -23,7 +19,7 @@ class ForecastAccuracyAgent(BaseAgent):
         return _query_accuracy()
 
     async def fetch(self, params):
-        data = _query_accuracy()
+        data = _query_accuracy(params)
         return {"success": True, "data": data, "tool": "forecast_accuracy"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
@@ -40,7 +36,7 @@ class ForecastAccuracyAgent(BaseAgent):
         avg_width = overall.get("conformal_avg_width", 0)
 
         opinion = (
-            f"Forecast reliability: recent error {wape:.1f}%, "
+            f"Held-out historical evaluation: error {wape:.1f}%, "
             f"coverage {coverage:.1f}%, average demand range {avg_width:.1f} units."
         )
 
@@ -63,21 +59,21 @@ class ForecastAccuracyAgent(BaseAgent):
             EvidenceItem(
                 id="forecast_wape",
                 source="forecast_accuracy",
-                description="Weighted absolute percentage error for recent forecasts",
+                description="Weighted absolute percentage error on the held-out historical evaluation set",
                 value=round(wape, 2),
                 metadata={"date": params.get("date", "")},
             ),
             EvidenceItem(
                 id="forecast_coverage",
                 source="forecast_accuracy",
-                description="Recent forecast interval coverage rate",
+                description="Forecast interval coverage rate on the held-out historical evaluation set",
                 value=round(coverage, 2),
                 metadata={"date": params.get("date", "")},
             ),
             EvidenceItem(
                 id="forecast_accuracy_interval_width",
                 source="forecast_accuracy",
-                description="Average recent forecast interval width",
+                description="Average forecast interval width on the held-out historical evaluation set",
                 value=round(avg_width, 2),
                 metadata={"date": params.get("date", "")},
             ),
@@ -103,13 +99,13 @@ class ForecastAccuracyAgent(BaseAgent):
         )
 
 
-def _query_accuracy():
+def _query_accuracy(params=None):
     try:
-        with urlopen("http://127.0.0.1:8002/s2/accuracy", timeout=10) as response:
-            if response.status != 200:
-                return {"overall": {}}
-            payload = json.loads(response.read().decode("utf-8"))
-            return payload.get("metrics", {})
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as e:
+        payload = fetch_dashboard_json(
+            api_url("s2/accuracy"),
+            params or {},
+        )
+        return payload.get("metrics", {})
+    except (OSError, TimeoutError, ValueError) as e:
         logger.warning("ForecastAccuracy fetch failed: %s", e)
         return {"overall": {}}

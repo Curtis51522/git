@@ -1,8 +1,6 @@
-﻿import os, sys, logging
+import logging
 from datetime import datetime as dt, timedelta
 from collections import defaultdict
-_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
 from s5_agent.core.base import BaseAgent, AgentOpinion
 from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
@@ -18,8 +16,8 @@ SELECT
     rm.unit_price,
     COALESCE(wc.theoretical_consumed, 0) AS theoretical_consumed,
     COALESCE(wc.actual_consumed, 0) AS actual_consumed,
-    COALESCE(wc.wastage_qty, 0) AS wastage_qty,
-    COALESCE(wc.wastage_rate, 0) AS wastage_rate,
+    GREATEST(COALESCE(wc.wastage_qty, 0), 0) AS wastage_qty,
+    GREATEST(COALESCE(wc.wastage_rate, 0), 0) AS wastage_rate,
     wc.check_date
 FROM raw_materials rm
 LEFT JOIN (
@@ -37,21 +35,24 @@ LEFT JOIN (
         GROUP BY mw.material_name
     ) wc2 ON wc1.id = wc2.max_id
 ) wc ON rm.material_name = wc.material_name
-ORDER BY COALESCE(wc.wastage_qty, 0) DESC
+WHERE rm.track_inventory = 1
+ORDER BY GREATEST(COALESCE(wc.wastage_qty, 0), 0) DESC
 """
 
 TREND_SQL = """
 SELECT
-    id,
-    material_name,
-    check_date,
-    COALESCE(wastage_qty, 0) AS wastage_qty,
-    COALESCE(wastage_rate, 0) AS wastage_rate,
-    COALESCE(theoretical_consumed, 0) AS theoretical_consumed,
-    COALESCE(actual_consumed, 0) AS actual_consumed
-FROM material_wastage_log
-WHERE check_date >= %s AND check_date <= %s
-ORDER BY material_name, check_date
+    mw.id,
+    mw.material_name,
+    mw.check_date,
+    GREATEST(COALESCE(mw.wastage_qty, 0), 0) AS wastage_qty,
+    GREATEST(COALESCE(mw.wastage_rate, 0), 0) AS wastage_rate,
+    COALESCE(mw.theoretical_consumed, 0) AS theoretical_consumed,
+    COALESCE(mw.actual_consumed, 0) AS actual_consumed
+FROM material_wastage_log mw
+JOIN raw_materials rm ON rm.material_name = mw.material_name
+WHERE rm.track_inventory = 1
+  AND mw.check_date >= %s AND mw.check_date <= %s
+ORDER BY mw.material_name, mw.check_date
 """
 
 ROOT_CAUSE_MAP = {
@@ -167,7 +168,6 @@ class WastageAgent(BaseAgent):
         materials_checked = len(latest_materials) if latest_materials else len(material_analysis)
         total_today_cost = sum(m["today_cost"] for m in material_analysis)
         rising = [m for m in material_analysis if m["direction"] == "rising" and m["today_rate"] >= 0.01]
-        stable = [m for m in material_analysis if m["direction"] in ("stable", "falling")]
         has_any_wastage = any(m["today_rate"] > 0 for m in material_analysis)
 
         if not has_any_wastage:

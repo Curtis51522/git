@@ -1,12 +1,12 @@
-﻿import os, sys, logging
-from datetime import datetime as dt, timedelta
-_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
+import logging
+from datetime import datetime as dt
+from urllib.parse import urlencode
 from s5_agent.core.base import BaseAgent, AgentOpinion
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
-from db.mysql_client import get_db
+from s5_agent.s5_config.settings import api_url
 logger = logging.getLogger("s5.agent.forecast_overview")
 
 class ForecastOverviewAgent(BaseAgent):
@@ -21,7 +21,7 @@ class ForecastOverviewAgent(BaseAgent):
 
     async def fetch(self, params):
         date_str = str(params.get("date", "")) if isinstance(params, dict) else ""
-        data = _query_forecast_overview(date_str)
+        data = _query_forecast_overview(date_str, params)
         return {"success": True, "data": data, "tool": "forecast_overview"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
@@ -54,20 +54,9 @@ class ForecastOverviewAgent(BaseAgent):
             total_rev += rev
 
         sorted_days = sorted(by_day.items())
-        if len(sorted_days) >= 2:
-            first3 = sum(v["rev"] for _, v in sorted_days[:3])
-            last3 = sum(v["rev"] for _, v in sorted_days[3:]) if len(sorted_days) >= 6 else first3
-            if last3 > first3 * 1.05:
-                direction = "rising"
-            elif last3 < first3 * 0.95:
-                direction = "falling"
-            else:
-                direction = "stable"
-        else:
-            direction = "unknown"
+        direction = _classify_revenue_trend(sorted_days, "rev")
 
         peak_day = max(sorted_days, key=lambda x: x[1]["rev"])
-        valley_day = min(sorted_days, key=lambda x: x[1]["rev"])
 
         sorted_prods = sorted(by_product.items(), key=lambda x: x[1]["qty"], reverse=True)
         top5 = sorted_prods[:5]
@@ -108,32 +97,45 @@ class ForecastOverviewAgent(BaseAgent):
         by_product = {}
         total_units = 0.0
         total_revenue = 0.0
+        beverage_names = _get_beverage_names()
         for entry in entries:
             day = entry.get("forecast_date", "")
             product = entry.get("product_name", "")
+            category = str(entry.get("category", "")).strip().lower()
+            if category not in {"bakery", "beverage"}:
+                category = "beverage" if product in beverage_names else "bakery"
             quantity = float(entry.get("predicted_qty", 0.0) or 0.0)
             price = float(entry.get("unit_price", 0.0) or 0.0)
             revenue = quantity * price
-            by_day.setdefault(day, {"units": 0.0, "revenue": 0.0})
+            by_day.setdefault(
+                day,
+                {
+                    "units": 0.0,
+                    "revenue": 0.0,
+                    "bakery_units": 0.0,
+                    "beverage_units": 0.0,
+                    "products": {},
+                },
+            )
             by_day[day]["units"] += quantity
             by_day[day]["revenue"] += revenue
-            by_product.setdefault(product, {"units": 0.0, "revenue": 0.0})
+            by_day[day][f"{category}_units"] += quantity
+            by_day[day]["products"].setdefault(
+                product,
+                {"units": 0.0, "category": category},
+            )
+            by_day[day]["products"][product]["units"] += quantity
+            by_product.setdefault(
+                product,
+                {"units": 0.0, "revenue": 0.0, "category": category},
+            )
             by_product[product]["units"] += quantity
             by_product[product]["revenue"] += revenue
             total_units += quantity
             total_revenue += revenue
 
         sorted_days = sorted(by_day.items())
-        trend = "unknown"
-        if len(sorted_days) >= 2:
-            first_half = sum(value["revenue"] for _, value in sorted_days[: max(len(sorted_days) // 2, 1)])
-            second_half = sum(value["revenue"] for _, value in sorted_days[max(len(sorted_days) // 2, 1):])
-            if second_half > first_half:
-                trend = "rising"
-            elif second_half < first_half:
-                trend = "falling"
-            else:
-                trend = "stable"
+        trend = _classify_revenue_trend(sorted_days, "revenue")
 
         peak_day = max(sorted_days, key=lambda item: item[1]["revenue"])[0] if sorted_days else ""
         top_products = sorted(
@@ -142,6 +144,59 @@ class ForecastOverviewAgent(BaseAgent):
             reverse=True,
         )[:5]
         top_product_names = [name for name, _ in top_products if name]
+        bakery_products = {
+            name: values
+            for name, values in by_product.items()
+            if values["category"] == "bakery"
+        }
+        beverage_products = {
+            name: values
+            for name, values in by_product.items()
+            if values["category"] == "beverage"
+        }
+        bakery_units = sum(values["units"] for values in bakery_products.values())
+        bakery_revenue = sum(values["revenue"] for values in bakery_products.values())
+        beverage_units = sum(values["units"] for values in beverage_products.values())
+        beverage_revenue = sum(values["revenue"] for values in beverage_products.values())
+        top_bakery_products = [
+            name
+            for name, _ in sorted(
+                bakery_products.items(),
+                key=lambda item: item[1]["units"],
+                reverse=True,
+            )[:5]
+        ]
+        top_beverage_products = [
+            name
+            for name, _ in sorted(
+                beverage_products.items(),
+                key=lambda item: item[1]["units"],
+                reverse=True,
+            )[:5]
+        ]
+        first_day = sorted_days[0][0] if sorted_days else ""
+        first_day_values = by_day.get(first_day, {})
+        first_day_products = first_day_values.get("products", {})
+        first_day_top_bakery_products = [
+            name
+            for name, values in sorted(
+                first_day_products.items(),
+                key=lambda item: item[1]["units"],
+                reverse=True,
+            )
+            if values["category"] == "bakery"
+        ][:5]
+        first_day_top_beverage_products = [
+            name
+            for name, values in sorted(
+                first_day_products.items(),
+                key=lambda item: item[1]["units"],
+                reverse=True,
+            )
+            if values["category"] == "beverage"
+        ][:5]
+        first_day_bakery_units = float(first_day_values.get("bakery_units", 0.0) or 0.0)
+        first_day_beverage_units = float(first_day_values.get("beverage_units", 0.0) or 0.0)
         business_events = [
             event for event in (data.get("business_events", []) or [])
             if isinstance(event, dict) and event.get("active", True)
@@ -170,6 +225,34 @@ class ForecastOverviewAgent(BaseAgent):
                 value=peak_day,
                 metadata={"date": params.get("date", "")},
             ),
+            EvidenceItem(
+                id="forecast_bakery_units",
+                source="forecast_overview",
+                description="Forecast demand units for baked products in the planning horizon",
+                value=round(bakery_units, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="forecast_beverage_units",
+                source="forecast_overview",
+                description="Forecast demand units for made-to-order beverages in the planning horizon",
+                value=round(beverage_units, 2),
+                metadata={"date": params.get("date", "")},
+            ),
+            EvidenceItem(
+                id="forecast_day1_bakery_units",
+                source="forecast_overview",
+                description="Forecast bakery demand units for the first day of the selected horizon",
+                value=round(first_day_bakery_units, 2),
+                metadata={"date": first_day},
+            ),
+            EvidenceItem(
+                id="forecast_day1_beverage_units",
+                source="forecast_overview",
+                description="Forecast made-to-order beverage units for the first day of the selected horizon",
+                value=round(first_day_beverage_units, 2),
+                metadata={"date": first_day},
+            ),
         ]
         if business_events:
             evidence_items.append(
@@ -193,9 +276,20 @@ class ForecastOverviewAgent(BaseAgent):
             metrics={
                 "forecast_total_units": round(total_units, 2),
                 "forecast_total_revenue": round(total_revenue, 2),
+                "forecast_bakery_units": round(bakery_units, 2),
+                "forecast_bakery_revenue": round(bakery_revenue, 2),
+                "forecast_beverage_units": round(beverage_units, 2),
+                "forecast_beverage_revenue": round(beverage_revenue, 2),
+                "forecast_day1_date": first_day,
+                "forecast_day1_bakery_units": round(first_day_bakery_units, 2),
+                "forecast_day1_beverage_units": round(first_day_beverage_units, 2),
+                "forecast_day1_top_bakery_products": first_day_top_bakery_products,
+                "forecast_day1_top_beverage_products": first_day_top_beverage_products,
                 "forecast_trend": trend,
                 "forecast_peak_day": peak_day,
                 "top_forecast_products": top_product_names,
+                "top_bakery_products": top_bakery_products,
+                "top_beverage_products": top_beverage_products,
                 "business_event_count": len(business_events),
             },
             evidence_items=evidence_items,
@@ -204,6 +298,11 @@ class ForecastOverviewAgent(BaseAgent):
             data_quality=DataQuality(
                 freshness="fresh" if entries else "missing",
                 completeness=1.0 if entries else 0.0,
+                warnings=(
+                    ["Forecast demand data is unavailable for the selected horizon."]
+                    if not entries
+                    else []
+                ),
                 source_status={
                     "forecast_overview": "fresh" if entries else "missing",
                     "business_events": "fresh" if business_events else "unknown",
@@ -223,45 +322,77 @@ def _get_beverage_names():
             "milk_tea","chai_latte","earl_grey","english_breakfast","lemonade"}
 
 
-def _query_forecast_overview(date_str=""):
+def _classify_revenue_trend(sorted_days, revenue_key):
+    if len(sorted_days) < 2:
+        return "unknown"
+
+    window_size = min(3, len(sorted_days) // 2)
+    first_average = sum(
+        values[revenue_key] for _, values in sorted_days[:window_size]
+    ) / window_size
+    last_average = sum(
+        values[revenue_key] for _, values in sorted_days[-window_size:]
+    ) / window_size
+
+    if last_average > first_average * 1.05:
+        return "rising"
+    if last_average < first_average * 0.95:
+        return "falling"
+    return "stable"
+
+
+def _query_forecast_overview(date_str="", params=None):
     try:
-        from api.module2_forecast import _do_forecast
         if not date_str:
             date_str = dt.now().strftime("%Y-%m-%d")
-        f = _do_forecast(None, 7, use_cache=True, start_date=date_str)
-        forecasts = f.get("forecasts", [])
-
-        db = get_db()
-        cur = db.cursor()
-        cur.execute("SELECT product_name, unit_price FROM products")
-        prices = {str(r[0]): float(r[1] or 0) for r in cur.fetchall()}
-
+        forecast_url = api_url("s2/forecast") + "?" + urlencode(
+            {"days": 7, "date": date_str}
+        )
+        forecast_payload = fetch_dashboard_json(
+            forecast_url,
+            params,
+            timeout=120,
+        )
+        forecasts = forecast_payload.get("forecasts", [])
+        beverage_names = _get_beverage_names()
         entries = []
-        for fc in forecasts:
-            pn = fc.get("product_name", "")
-            entries.append({
-                "forecast_date": fc.get("forecast_date", ""),
-                "product_name": pn,
-                "predicted_qty": float(fc.get("predicted_demand", 0)),
-                "lower_bound": float(fc.get("lower_bound", 0)),
-                "upper_bound": float(fc.get("upper_bound", 0)),
-                "unit_price": prices.get(pn, 0),
-            })
+        for forecast in forecasts:
+            product_name = str(forecast.get("product_name", ""))
+            entries.append(
+                {
+                    "forecast_date": forecast.get("forecast_date", ""),
+                    "product_name": product_name,
+                    "predicted_qty": float(forecast.get("predicted_demand", 0) or 0),
+                    "lower_bound": float(forecast.get("lower_bound", 0) or 0),
+                    "upper_bound": float(forecast.get("upper_bound", 0) or 0),
+                    "unit_price": float(forecast.get("unit_price", 0) or 0),
+                    "category": (
+                        "beverage" if product_name in beverage_names else "bakery"
+                    ),
+                }
+            )
+
         business_events = []
         reserved_scenario_features = {}
         try:
-            from api.module2_forecast import _build_reserved_scenario_summary, _list_business_events
-            business_events = _list_business_events(date_str)
-            reserved_scenario_features = _build_reserved_scenario_summary(business_events)
+            event_url = api_url("s2/business-events") + "?" + urlencode(
+                {"date": date_str}
+            )
+            event_payload = fetch_dashboard_json(event_url, params, timeout=60)
+            business_events = event_payload.get("events", [])
+            reserved_scenario_features = event_payload.get(
+                "reserved_scenario_features",
+                {},
+            )
         except Exception as event_error:
             logger.warning("Business event context fetch failed: %s", event_error)
 
         return {
             "entries": entries,
-            "cached": f.get("cached", False),
+            "cached": forecast_payload.get("cached", False),
             "business_events": business_events,
             "reserved_scenario_features": reserved_scenario_features,
         }
-    except Exception as e:
-        logger.warning("ForecastOverview fetch failed: %s", e)
+    except Exception as error:
+        logger.warning("ForecastOverview fetch failed: %s", error)
         return {"entries": []}

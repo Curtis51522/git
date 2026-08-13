@@ -6,7 +6,7 @@
   "training_time_s": 57091.4,
   "peak_gpu_memory_gb": 2.09,
   "epochs_trained": 200,
-  "model_path": "C:\\Users\\Curtis\\Desktop\\learningmaterials\\SEMESTER3\\bakery-ai-system\\runs\\detect\\ablation_epochs\\weights\\best.pt",
+  "model_path": "runs/detect/ablation_epochs/weights/best.pt",
   "per_class_ap50": {
     "donut": 0.9903,
     "eggtart": 0.995,

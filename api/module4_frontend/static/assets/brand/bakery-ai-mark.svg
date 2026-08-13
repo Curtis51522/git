@@ -1,0 +1,42 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Bakery AI maison mark</title>
+  <desc>A burnt-orange bakery seal combining an oven arch, BA monogram, croissant, wheat and a precise AI node.</desc>
+  <defs>
+    <linearGradient id="maison-orange" x1="14" y1="8" x2="84" y2="91" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E36020"/>
+      <stop offset="1" stop-color="#C94412"/>
+    </linearGradient>
+    <filter id="maison-shadow" x="-10" y="-8" width="116" height="120" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#6F250B" flood-opacity=".24"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#maison-shadow)">
+    <rect x="4" y="4" width="88" height="88" rx="24" fill="url(#maison-orange)"/>
+    <rect x="4.75" y="4.75" width="86.5" height="86.5" rx="23.25" stroke="#FFF8EE" stroke-opacity=".30" stroke-width="1.5"/>
+  </g>
+
+  <g stroke="#FFF8EE" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="16.5" y="10.5" width="63" height="75" rx="31.5" stroke-width="1.7"/>
+
+    <!-- Baker's oven arch -->
+    <path d="M25 76V40C25 26.2 34.6 17 48 17C61.4 17 71 26.2 71 40V76" stroke-width="2.35"/>
+    <path d="M31 40C31 29.9 38 23 48 23C58 23 65 29.9 65 40" stroke-width="1.3" opacity=".88"/>
+    <path d="M34 28L29.5 24.5M42 24L40.5 18.8M54 24L55.5 18.8M62 28L66.5 24.5" stroke-width="1.35" opacity=".90"/>
+
+    <!-- Custom BA monogram -->
+    <path d="M31.5 37V59M31.5 37H38C44.2 37 44.2 46 38 46H31.5M38 46C46 46 46 58.5 38 58.5H31.5" stroke-width="2.6"/>
+    <path d="M51.5 59L60 37L68.5 59M55.4 49.5H64.6" stroke-width="2.6"/>
+
+    <!-- AI node -->
+    <rect x="46.2" y="41.2" width="3.6" height="3.6" rx=".5" fill="#FFF8EE" stroke="none"/>
+
+    <!-- Laminated croissant -->
+    <path d="M37 69.5C38.5 63.7 42.3 61 48 61C53.7 61 57.5 63.7 59 69.5C55.2 67.5 51.5 66.5 48 66.5C44.5 66.5 40.8 67.5 37 69.5Z" stroke-width="2.1"/>
+    <path d="M42 63.2L44.2 67M48 61.4V66.4M54 63.2L51.8 67" stroke-width="1.2"/>
+
+    <!-- Wheat stems -->
+    <path d="M28 78C26.2 74.7 25.5 71.2 26 67.5M68 78C69.8 74.7 70.5 71.2 70 67.5" stroke-width="1.35"/>
+    <path d="M26.3 70C23.8 68.9 23 67.2 23 65.5C25.4 66.2 26.7 67.6 26.3 70ZM26.8 74.1C24.3 73.6 23 72.3 22.6 70.6C25.1 70.8 26.6 71.8 26.8 74.1ZM69.7 70C72.2 68.9 73 67.2 73 65.5C70.6 66.2 69.3 67.6 69.7 70ZM69.2 74.1C71.7 73.6 73 72.3 73.4 70.6C70.9 70.8 69.4 71.8 69.2 74.1Z" fill="#FFF8EE" stroke="none"/>
+  </g>
+</svg>

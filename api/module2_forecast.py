@@ -1,4 +1,4 @@
-import os, sys, asyncio, time, math
+import os, asyncio, time, math
 import json
 import logging
 import numpy as np
@@ -6,14 +6,14 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 from collections import OrderedDict
 import pandas as pd
-import xgboost as xgb
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import PRODUCT_TYPES, FORECAST_FEATURE_COLS
-from db.mysql_client import get_db, q
+from config.settings import BEVERAGE_PRODUCT_TYPES, PRODUCT_TYPES
+from db.mysql_client import get_db
+from api.auth import require_manager
+from api.operation_clock import operation_now
 from models.schemas import SalesForecast
 from s2_forecasting.feature_contract import (
     FEATURE_GROUPS,
@@ -41,8 +41,7 @@ BUSINESS_EVENT_TYPES = {
     },
 }
 
-# Frozen training data metadata (lag features + weather monthly averages)
-# Used when live DB has insufficient recent sales data.
+# Frozen training data metadata used when live DB has insufficient recent sales data.
 _frozen_meta = None
 
 def _init_frozen_meta():
@@ -75,7 +74,6 @@ def _init_frozen_meta():
         "last_daily_tickets": float(jun_train.groupby("date")["daily_tickets"].first().mean()),
         "holiday_dates": sorted(train[train["is_holiday"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
         "top3_products": train.groupby("product_id")["quantity"].mean().nlargest(3).index.tolist(),
-        "rainy_dates": set(train[train["is_rainy"]==1]["date"].dt.strftime("%Y-%m-%d").unique().tolist()),
     }
     logger.info("Frozen meta loaded: %d products, top3=%s", len(_frozen_meta["last_lag"]), _frozen_meta["top3_products"])
 
@@ -110,7 +108,20 @@ def _get_weather(dt_date):
             return temp_mean, temp_range, is_cold, is_hot
     except Exception:
         pass
-    # Fallback: use monthly average from historical data
+    calendar_day = _weather_data[
+        (_weather_data.index.month == dt_date.month)
+        & (_weather_data.index.day == dt_date.day)
+    ]
+    if len(calendar_day) > 0:
+        temp_mean = float(calendar_day["temp_mean"].mean())
+        temp_range = float(
+            (calendar_day["temp_max"] - calendar_day["temp_min"]).mean()
+        )
+        is_cold = 1 if temp_mean < 15 else 0
+        is_hot = 1 if temp_mean > 25 else 0
+        return temp_mean, temp_range, is_cold, is_hot
+
+    # Last fallback: use the broader monthly climatology.
     m = dt_date.month
     month_data = _weather_data[_weather_data.index.month == m]
     if len(month_data) > 0:
@@ -121,7 +132,29 @@ def _get_weather(dt_date):
         return temp_mean, temp_range, is_cold, is_hot
     return 20.0, 6.0, 0, 0
 
-_model_cache: Dict[str, xgb.XGBRegressor] = {}
+
+def _get_is_rainy(dt_date):
+    _init_weather()
+    if _weather_data is None or "precipitation" not in _weather_data.columns:
+        return 0
+    selected = pd.Timestamp(dt_date.strftime("%Y-%m-%d"))
+    if selected in _weather_data.index:
+        return int(float(_weather_data.loc[selected]["precipitation"]) >= 1.0)
+
+    calendar_day = _weather_data[
+        (_weather_data.index.month == dt_date.month)
+        & (_weather_data.index.day == dt_date.day)
+    ]
+    if len(calendar_day) > 0:
+        rainy_share = float((calendar_day["precipitation"] >= 1.0).mean())
+        return int(rainy_share >= 0.5)
+
+    month_data = _weather_data[_weather_data.index.month == dt_date.month]
+    if len(month_data) > 0:
+        rainy_share = float((month_data["precipitation"] >= 1.0).mean())
+        return int(rainy_share >= 0.5)
+    return 0
+
 _executor = ThreadPoolExecutor(max_workers=2)
 
 # Forecast cache (keyed by "product:days", TTL 1 hour)
@@ -145,22 +178,8 @@ def _cache_set(key: str, data: dict):
         if len(_forecast_cache) > _MAX_CACHE_SIZE:
             _forecast_cache.popitem(last=False)
 
-# Unified model (single XGBoost model for all 45 products with product_id feature)
-_unified_model = None
 _unified_quantile = {}
 _product_id_map = None
-_product_bounds = None
-
-def _get_unified_model():
-    global _unified_model
-    if _unified_model is None:
-        path = os.path.join(MODEL_DIR, "xgboost_model.pkl")
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Unified model not found at {path}")
-        import joblib
-        _unified_model = joblib.load(path)
-        logger.info("Loaded unified model from %s", path)
-    return _unified_model
 
 def _get_unified_quantile(q: str):
     global _unified_quantile
@@ -185,6 +204,20 @@ def _get_product_id_map():
             _product_id_map = {p: i for i, p in enumerate(sorted(PRODUCT_TYPES))}
     return _product_id_map
 
+
+def _get_category_id(product_name: str) -> int:
+    return int(product_name in BEVERAGE_PRODUCT_TYPES)
+
+
+def _compute_bias_factor(
+    actual_total: float,
+    predicted_total: float,
+    completed_days: int,
+) -> float:
+    if completed_days < 3 or predicted_total <= 0:
+        return 1.0
+    return min(max(actual_total / predicted_total, 0.75), 1.5)
+
 _conformal_calibration = None
 
 def _get_conformal_half(product_name: str) -> float:
@@ -200,20 +233,6 @@ def _get_conformal_half(product_name: str) -> float:
     pid_map = _get_product_id_map()
     pid = pid_map.get(product_name, -1)
     return _conformal_calibration.get("per_product", {}).get(str(pid), _conformal_calibration.get("global", 1.0))
-
-def _get_product_bounds():
-    global _product_bounds
-    if _product_bounds is None:
-        bounds_path = os.path.join(MODEL_DIR, "product_bounds.json")
-        if os.path.exists(bounds_path):
-            with open(bounds_path) as f:
-                _product_bounds = json.load(f)
-            logger.info("Loaded product bounds from %s", bounds_path)
-        else:
-            _product_bounds = {}
-            logger.warning("product_bounds.json not found")
-    return _product_bounds
-
 
 def _build_interval_context(prediction: float, lower_bound: int, upper_bound: int) -> dict:
     interval_width = max(upper_bound - lower_bound, 0)
@@ -304,7 +323,7 @@ def _build_reserved_scenario_summary(events):
 
 
 def _list_business_events(date: str = ""):
-    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    selected_date = date or operation_now(datetime.now).strftime("%Y-%m-%d")
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute(
@@ -365,13 +384,16 @@ def _get_product_daily_sales(product_name: str) -> dict:
     now = time.time()
     if product_name in _lag_cache and product_name in _lag_cache_ts and (now - _lag_cache_ts[product_name]) < 300:
         return _lag_cache[product_name]
+    db = None
+    c = None
     try:
         db = get_db()
         c = db.cursor(dictionary=True)
         c.execute(
             "SELECT DATE(transaction_time) as dt, SUM(quantity) as qty "
             "FROM inventory_transactions "
-            "WHERE transaction_type='outflow' AND product_name=%s "
+            "WHERE transaction_type='outflow' AND receipt_id IS NOT NULL "
+            "AND product_name=%s "
             "GROUP BY DATE(transaction_time) ORDER BY dt",
             (product_name,)
         )
@@ -379,6 +401,11 @@ def _get_product_daily_sales(product_name: str) -> dict:
     except Exception as e:
         logger.warning("Lag features DB query failed for %s: %s", product_name, e)
         sales = {}
+    finally:
+        if c is not None:
+            c.close()
+        if db is not None:
+            db.close()
     _lag_cache[product_name] = sales
     _lag_cache_ts[product_name] = now
     # Cleanup stale entries (older than 10 min)
@@ -392,56 +419,63 @@ def _get_lag(product_name: str, forecast_date, days_back: int) -> float:
     """Get sales from 'days_back' days before forecast_date, skipping closed days."""
     if not product_name:
         return 0.0
-    sales = _get_product_daily_sales(product_name)
-    if not sales:
-        return 0.0
-    fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
-    target = fd - timedelta(days=days_back)
-    # Try the exact date first, then back up to find the nearest day with data
-    for _ in range(4):
-        key = target.strftime('%Y-%m-%d')
-        if key in sales:
-            return float(sales[key])
-        target -= timedelta(days=1)
-    return 0.0
+    return _get_lag_from_history(
+        _get_product_daily_sales(product_name),
+        forecast_date,
+        days_back,
+    )
 
-def _get_rolling_7d_mean(product_name: str, forecast_date) -> float:
-    """Average daily sales over the 7 days before forecast_date."""
-    if not product_name:
+
+def _history_rows_before(sales_history: dict, forecast_date):
+    fd = forecast_date.date() if hasattr(forecast_date, "date") else forecast_date
+    rows = []
+    for key, value in sales_history.items():
+        try:
+            row_date = datetime.strptime(str(key), "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if row_date < fd:
+            rows.append((row_date, float(value)))
+    return sorted(rows, key=lambda item: item[0])
+
+
+def _get_lag_from_history(sales_history: dict, forecast_date, days_back: int) -> float:
+    if not sales_history or days_back < 1:
         return 0.0
-    sales = _get_product_daily_sales(product_name)
-    if not sales:
-        return 0.0
-    fd = forecast_date if hasattr(forecast_date, 'date') else forecast_date
-    values = []
-    for d in range(1, 8):
-        target = fd - timedelta(days=d)
-        key = target.strftime('%Y-%m-%d')
-        if key in sales:
-            values.append(sales[key])
-    if not values:
-        return 0.0
-    return float(sum(values) / len(values))
+    fd = forecast_date.date() if hasattr(forecast_date, "date") else forecast_date
+    target = fd - timedelta(days=days_back)
+    candidates = [
+        (row_date, value)
+        for row_date, value in _history_rows_before(sales_history, forecast_date)
+        if row_date <= target
+    ]
+    return candidates[-1][1] if candidates else 0.0
 
 def _get_rolling_avg(product_name: str, forecast_date, window: int) -> float:
     if not product_name or window < 1:
         return 0.0
-    sales = _get_product_daily_sales(product_name)
-    if not sales:
+    return _get_rolling_avg_from_history(
+        _get_product_daily_sales(product_name),
+        forecast_date,
+        window,
+    )
+
+
+def _get_rolling_avg_from_history(
+    sales_history: dict,
+    forecast_date,
+    window: int,
+) -> float:
+    if not sales_history or window < 1:
         return 0.0
-    fd = forecast_date if hasattr(forecast_date, "date") else forecast_date
-    vals = []
-    for d in range(1, window + 1):
-        target = fd - timedelta(days=d)
-        for _ in range(4):
-            key = target.strftime("%Y-%m-%d")
-            if key in sales:
-                vals.append(float(sales[key]))
-                break
-            target -= timedelta(days=1)
-    return float(np.mean(vals)) if vals else 0.0
+    rows = _history_rows_before(sales_history, forecast_date)
+    values = [value for _, value in rows[-window:]]
+    return float(np.mean(values)) if values else 0.0
 
 def _get_daily_tickets(forecast_date) -> float:
+    db = None
+    c = None
+    ticket_count = 0.0
     try:
         db = get_db()
         c = db.cursor(dictionary=True)
@@ -449,19 +483,25 @@ def _get_daily_tickets(forecast_date) -> float:
         c.execute(
             "SELECT COUNT(DISTINCT receipt_id) as cnt "
             "FROM inventory_transactions "
-            "WHERE transaction_type='outflow' "
+            "WHERE transaction_type='outflow' AND receipt_id IS NOT NULL "
             "AND DATE(transaction_time) = ("
             "  SELECT MAX(DATE(transaction_time)) FROM inventory_transactions "
-            "  WHERE transaction_type='outflow' AND DATE(transaction_time) < DATE(%s)"
+            "  WHERE transaction_type='outflow' AND receipt_id IS NOT NULL "
+            "  AND DATE(transaction_time) < DATE(%s)"
             ")",
             (fd.strftime("%Y-%m-%d"),)
         )
         row = c.fetchone()
         if row and row["cnt"]:
-            return float(row["cnt"])
+            ticket_count = float(row["cnt"])
     except Exception:
         pass
-    return 0.0
+    finally:
+        if c is not None:
+            c.close()
+        if db is not None:
+            db.close()
+    return ticket_count
 
 def _get_is_holiday(dt_date) -> int:
     try:
@@ -474,27 +514,54 @@ def _get_is_holiday(dt_date) -> int:
         ds = dt_date.strftime("%Y-%m-%d")
         return 1 if ds in _frozen_meta.get("holiday_dates", []) else 0
 
-def _get_is_day1(product_name: str) -> int:
+def _get_is_day1(product_name: str, forecast_date) -> int:
+    db = None
+    cursor = None
     try:
         db = get_db()
-        c = db.cursor()
-        c.execute(
-            "SELECT stock_day1 FROM products WHERE product_name=%s",
-            (product_name,)
+        cursor = db.cursor()
+        date_str = (
+            forecast_date.strftime("%Y-%m-%d")
+            if hasattr(forecast_date, "strftime")
+            else str(forecast_date)
         )
-        row = c.fetchone()
+        cursor.execute(
+            """
+            SELECT EXISTS(
+                SELECT 1
+                FROM batch_inventory bi
+                JOIN products p ON p.product_name = bi.product_name
+                WHERE bi.product_name = %s
+                  AND p.category = 'bakery'
+                  AND COALESCE(bi.quantity_remaining, bi.quantity) > 0
+                  AND DATE(bi.production_time) = DATE(%s) - INTERVAL 1 DAY
+            )
+            """,
+            (product_name, date_str),
+        )
+        row = cursor.fetchone()
         if row and row[0] and row[0] > 0:
             return 1
     except Exception:
         pass
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
     return 0
 
 
 
 # Feature order matching the deployed S2 Q50 forecast model.
-FORECAST_FEATURE_ORDER = FORECAST_FEATURE_COLS
+FORECAST_FEATURE_ORDER = FORECAST_FEATURES
 
-def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
+def build_forecast_features(
+    forecast_date: datetime,
+    product: str = "",
+    sales_history: dict | None = None,
+    daily_tickets: float | None = None,
+) -> dict:
     _init_frozen_meta()
     dow = forecast_date.weekday()
     dt_date = forecast_date.date() if hasattr(forecast_date, "date") else datetime(forecast_date.year, forecast_date.month, forecast_date.day).date()
@@ -503,19 +570,32 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     # Product ID and category (0=bread, 1=beverage)
     pid_map = _get_product_id_map()
     pid = pid_map.get(product, -1)
-    category = 1 if pid >= 30 else 0
+    category = _get_category_id(product)
 
     # Frozen fallback values: (lag_1, lag_7_avg, lag_30_avg, roll_std_7, roll_std_14, trend_7)
     frozen = _frozen_meta.get("last_lag", {}).get(pid, (0, 0, 0, 0, 0, 0))
 
     # Lag features: live DB first, fall back to frozen
-    lag_1 = _get_lag(product, forecast_date, 1)
+    history = sales_history
+    lag_1 = (
+        _get_lag_from_history(history, forecast_date, 1)
+        if history is not None
+        else _get_lag(product, forecast_date, 1)
+    )
     if lag_1 == 0 and len(frozen) >= 1:
         lag_1 = frozen[0]
-    lag_7 = _get_rolling_avg(product, forecast_date, 7)
+    lag_7 = (
+        _get_rolling_avg_from_history(history, forecast_date, 7)
+        if history is not None
+        else _get_rolling_avg(product, forecast_date, 7)
+    )
     if lag_7 == 0 and len(frozen) >= 2:
         lag_7 = frozen[1]
-    lag_30 = _get_rolling_avg(product, forecast_date, 30)
+    lag_30 = (
+        _get_rolling_avg_from_history(history, forecast_date, 30)
+        if history is not None
+        else _get_rolling_avg(product, forecast_date, 30)
+    )
     if lag_30 == 0 and len(frozen) >= 3:
         lag_30 = frozen[2]
 
@@ -525,19 +605,21 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     trend_7 = lag_1 - lag_7 if (lag_1 > 0 or lag_7 > 0) else (frozen[5] if len(frozen) >= 6 else 0.0)
 
     # daily_tickets: live DB estimate, fallback to frozen
-    daily_tickets = _get_daily_tickets(forecast_date)
-    if daily_tickets == 0:
-        daily_tickets = _frozen_meta.get("last_daily_tickets", 0)
+    ticket_count = (
+        float(daily_tickets)
+        if daily_tickets is not None
+        else _get_daily_tickets(forecast_date)
+    )
+    if ticket_count == 0:
+        ticket_count = _frozen_meta.get("last_daily_tickets", 0)
 
     # Promo / event features (mostly 0 for forecast)
-    is_day1 = _get_is_day1(product)
+    is_day1 = _get_is_day1(product, dt_date)
     is_top3 = 1 if pid in _frozen_meta.get("top3_products", []) else 0
     discount_pct = 0.0
     is_member_day = 0
 
-    # is_rainy: check weather data from frozen training mapping
-    ds = dt_date.strftime("%Y-%m-%d")
-    is_rainy = 1 if ds in _frozen_meta.get("rainy_dates", set()) else 0
+    is_rainy = _get_is_rainy(dt_date)
 
     # Weather features (always available from historical data)
     temp_mean, temp_range, is_cold_day, is_hot_day = _get_weather(dt_date)
@@ -552,7 +634,7 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     features = {
         "product_id": pid,
         "category": category,
-        "daily_tickets": daily_tickets,
+        "daily_tickets": ticket_count,
         "day_of_week": dow,
         "month": m,
         "is_weekend": 1 if dow >= 5 else 0,
@@ -581,6 +663,84 @@ def build_forecast_features(forecast_date: datetime, product: str = "") -> dict:
     return {name: features.get(name, 0) for name in FORECAST_FEATURE_ORDER}
 
 
+def _get_recent_category_bias_factors(
+    start_date: datetime,
+    products: list[str],
+    quantile_models: dict,
+    lookback_days: int = 7,
+) -> dict[str, float]:
+    totals = {
+        "bakery": {"actual": 0.0, "predicted": 0.0, "days": 0},
+        "beverage": {"actual": 0.0, "predicted": 0.0, "days": 0},
+    }
+    histories = {
+        product: {
+            str(key): float(value)
+            for key, value in _get_product_daily_sales(product).items()
+        }
+        for product in products
+    }
+
+    for offset in range(lookback_days, 0, -1):
+        backcast_date = start_date - timedelta(days=offset)
+        date_key = backcast_date.strftime("%Y-%m-%d")
+        ticket_count = _get_daily_tickets(backcast_date)
+        feature_rows = []
+        categories = []
+        day_actual = {"bakery": 0.0, "beverage": 0.0}
+
+        for product in products:
+            category = "beverage" if _get_category_id(product) else "bakery"
+            history = {
+                key: value
+                for key, value in histories[product].items()
+                if datetime.strptime(key, "%Y-%m-%d").date()
+                < backcast_date.date()
+            }
+            feature_rows.append(
+                build_forecast_features(
+                    backcast_date,
+                    product,
+                    sales_history=history,
+                    daily_tickets=ticket_count,
+                )
+            )
+            categories.append(category)
+            day_actual[category] += histories[product].get(date_key, 0.0)
+
+        if not feature_rows:
+            continue
+        X = pd.DataFrame(feature_rows)[FORECAST_FEATURE_ORDER].fillna(0).values
+        raw_quantiles = {
+            name: np.maximum(model.predict(X), 0)
+            for name, model in quantile_models.items()
+        }
+        corrected = enforce_quantile_monotonicity(
+            raw_quantiles["q10"],
+            raw_quantiles["q50"],
+            raw_quantiles["q90"],
+        )
+        day_predicted = {"bakery": 0.0, "beverage": 0.0}
+        for category, prediction in zip(categories, corrected["q50"]):
+            day_predicted[category] += float(prediction)
+
+        for category in totals:
+            if day_actual[category] <= 0:
+                continue
+            totals[category]["actual"] += day_actual[category]
+            totals[category]["predicted"] += day_predicted[category]
+            totals[category]["days"] += 1
+
+    return {
+        category: _compute_bias_factor(
+            values["actual"],
+            values["predicted"],
+            values["days"],
+        )
+        for category, values in totals.items()
+    }
+
+
 def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, start_date: Optional[str] = None) -> dict:
     logger.info("Forecast request: product=%s, days=%d, start=%s", product or "all", days, start_date or "today")
     # --- cache check ---
@@ -600,9 +760,9 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
         try:
             today = datetime.strptime(start_date, "%Y-%m-%d")
         except ValueError:
-            today = datetime.now()
+            today = operation_now(datetime.now)
     else:
-        today = datetime.now()
+        today = operation_now(datetime.now)
     forecasts = []
     model_errors = []
 
@@ -612,6 +772,12 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
         "q90": _get_unified_quantile("q90"),
     }
     pid_map = _get_product_id_map()
+    forecast_ticket_count = _get_daily_tickets(today)
+    bias_factors = _get_recent_category_bias_factors(
+        today,
+        list(pid_map),
+        quantile_models,
+    )
     unit_prices = {}
     try:
         db = get_db()
@@ -626,14 +792,26 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
             model_errors.append(f"Product {prod} not in product_id_map")
             continue
         half_width = _get_conformal_half(prod)
-        pid = pid_map[prod]
+        category = "beverage" if _get_category_id(prod) else "bakery"
+        bias_factor = bias_factors[category]
+        cutoff = today.date()
+        sales_history = {
+            str(key): float(value)
+            for key, value in _get_product_daily_sales(prod).items()
+            if datetime.strptime(str(key), "%Y-%m-%d").date() < cutoff
+        }
         for d in range(0, days):
             forecast_date = today + timedelta(days=d)
-            features = build_forecast_features(forecast_date, prod)
+            features = build_forecast_features(
+                forecast_date,
+                prod,
+                sales_history=sales_history,
+                daily_tickets=forecast_ticket_count,
+            )
             X = pd.DataFrame([features])[FORECAST_FEATURE_ORDER].fillna(0).values
             try:
                 raw_quantiles = {
-                    name: np.maximum(model.predict(X), 0)
+                    name: np.maximum(model.predict(X), 0) * bias_factor
                     for name, model in quantile_models.items()
                 }
                 corrected = enforce_quantile_monotonicity(
@@ -642,8 +820,9 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                     raw_quantiles["q90"],
                 )
                 pred = float(corrected["q50"][0])
-                lower_bound = max(0, round(pred - half_width))
-                upper_bound = max(lower_bound, round(pred + half_width))
+                adjusted_half_width = half_width * bias_factor
+                lower_bound = max(0, round(pred - adjusted_half_width))
+                upper_bound = max(lower_bound, round(pred + adjusted_half_width))
                 interval_context = _build_interval_context(pred, lower_bound, upper_bound)
             except Exception as e:
                 err_msg = f"Prediction failed for {prod} on {forecast_date.strftime('%Y-%m-%d')}: {e}"
@@ -654,6 +833,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
                 upper_bound = 0
                 interval_context = _build_interval_context(pred, lower_bound, upper_bound)
 
+            sales_history[forecast_date.strftime("%Y-%m-%d")] = pred
             forecasts.append(SalesForecast(
                 forecast_date=forecast_date.strftime("%Y-%m-%d"),
                 product_name=prod,
@@ -679,7 +859,7 @@ def _do_forecast(product: Optional[str], days: int, use_cache: bool = True, star
     logger.info("Forecast complete: %d products, %d forecasts", len(products_to_forecast), len(forecasts))
     return response
 
-@router.get("/forecast")
+@router.get("/forecast", dependencies=[Depends(require_manager)])
 async def get_forecast(
     product: Optional[str] = Query(None, description="Product name or empty for all"),
     days: int = Query(7, ge=1, le=7),
@@ -688,7 +868,7 @@ async def get_forecast(
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, _do_forecast, product, days, True, date)
 
-@router.get("/forecast/refresh")
+@router.get("/forecast/refresh", dependencies=[Depends(require_manager)])
 async def refresh_forecast(
     product: Optional[str] = Query(None),
     days: int = Query(7, ge=1, le=7),
@@ -699,23 +879,7 @@ async def refresh_forecast(
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, _do_forecast, product, days, False, date)
 
-@router.get("/sales_history")
-async def get_sales_history(days: int = Query(30, ge=1, le=90)):
-    db = get_db()
-    c = db.cursor(dictionary=True)
-    c.execute(
-        "SELECT * FROM inventory_transactions WHERE transaction_type=%s ORDER BY transaction_time DESC LIMIT 200",
-        ("outflow",)
-    )
-    rows = c.fetchall()
-    for row in rows:
-        for k, v in row.items():
-            if hasattr(v, 'isoformat'):
-                row[k] = v.isoformat()
-    return {"status": "ok", "count": len(rows), "transactions": rows}
-
-
-@router.get("/accuracy")
+@router.get("/accuracy", dependencies=[Depends(require_manager)])
 async def get_accuracy():
     """Return per-product test MAE for prediction intervals."""
     path = os.path.join(MODEL_DIR, "test_metrics.json")
@@ -734,7 +898,7 @@ async def get_accuracy():
         return {"status": "ok", "metrics": _sanitize(metrics)}
     return {"status": "no_data", "message": "test_metrics.json not found"}
 
-@router.get("/features/importance")
+@router.get("/features/importance", dependencies=[Depends(require_manager)])
 async def get_feature_importance():
     """Return deployed S2 Q50 feature importance scores for S2-S5 analysis."""
     try:
@@ -772,9 +936,9 @@ async def get_feature_importance():
         return {"status": "error", "message": str(e)}
 
 
-@router.get("/business-events")
+@router.get("/business-events", dependencies=[Depends(require_manager)])
 async def get_business_events(date: str = ""):
-    selected_date = date or datetime.now().strftime("%Y-%m-%d")
+    selected_date = date or operation_now(datetime.now).strftime("%Y-%m-%d")
     try:
         events = _list_business_events(selected_date)
         return {
@@ -788,7 +952,7 @@ async def get_business_events(date: str = ""):
         return {"status": "error", "message": str(e)}
 
 
-@router.post("/business-events")
+@router.post("/business-events", dependencies=[Depends(require_manager)])
 async def create_business_event(payload: dict):
     try:
         data = _validate_business_event_payload(payload)
@@ -816,7 +980,10 @@ async def create_business_event(payload: dict):
         return {"status": "error", "message": str(e)}
 
 
-@router.put("/business-events/{event_id}")
+@router.put(
+    "/business-events/{event_id}",
+    dependencies=[Depends(require_manager)],
+)
 async def update_business_event(event_id: int, payload: dict):
     try:
         data = _validate_business_event_payload(payload)
@@ -846,7 +1013,10 @@ async def update_business_event(event_id: int, payload: dict):
         return {"status": "error", "message": str(e)}
 
 
-@router.delete("/business-events/{event_id}")
+@router.delete(
+    "/business-events/{event_id}",
+    dependencies=[Depends(require_manager)],
+)
 async def delete_business_event(event_id: int):
     try:
         db = get_db()
@@ -858,7 +1028,7 @@ async def delete_business_event(event_id: int):
         return {"status": "error", "message": str(e)}
 
 
-@router.get("/features/today")
+@router.get("/features/today", dependencies=[Depends(require_manager)])
 async def get_today_features(date: str = ""):
     """Return today's actual feature values for S5 cross-referencing."""
     import datetime as _dt
@@ -866,7 +1036,7 @@ async def get_today_features(date: str = ""):
         if date:
             forecast_date = _dt.datetime.strptime(date, "%Y-%m-%d")
         else:
-            forecast_date = _dt.datetime.now()
+            forecast_date = operation_now(_dt.datetime.now)
 
         feats = build_forecast_features(forecast_date, "")
         readable = {k: feats.get(k, 0) for k in FORECAST_FEATURE_ORDER}

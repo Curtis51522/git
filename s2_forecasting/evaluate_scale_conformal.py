@@ -8,6 +8,7 @@ and evaluates the calibrated widths on the chronological test set.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
@@ -25,11 +26,15 @@ TARGET = "quantity"
 EXPERIMENT_ID = "CandidateB_ScaleConformal"
 EXPERIMENT_ROLE = "candidate_uncertainty_calibration"
 MODEL_SCOPE = "candidate_not_deployed"
-VALIDATION_DESIGN = "validation residual calibration with chronological holdout test set"
+VALIDATION_DESIGN = (
+    "chronological inner validation calibration and later validation selection; "
+    "chosen configuration recalibrated on full validation; test evaluated once"
+)
 DEFAULT_N_BINS = 5
 DEFAULT_BIN_CANDIDATES = [2, 3, 5, 10, 20]
 DEFAULT_COVERAGE_QUANTILE = 0.80
 DEFAULT_MIN_HALF_WIDTH = 0.5
+DEFAULT_SELECTION_FRACTION = 0.30
 
 
 def _wape(actual: pd.Series, predicted: pd.Series) -> float:
@@ -47,6 +52,38 @@ def _coverage(actual: pd.Series, lower: pd.Series, upper: pd.Series) -> float:
 
 def _relative_width(width: pd.Series, q50: pd.Series) -> np.ndarray:
     return np.asarray(width, dtype=float) / np.maximum(np.asarray(q50, dtype=float), 1.0)
+
+
+def _split_metadata(frame: pd.DataFrame, split_name: str) -> dict:
+    return {
+        "split": split_name,
+        "row_count": int(len(frame)),
+        "period": f"{frame['date'].min()} to {frame['date'].max()}",
+    }
+
+
+def split_validation_chronologically(
+    validation_df: pd.DataFrame,
+    selection_fraction: float = DEFAULT_SELECTION_FRACTION,
+    date_col: str = "date",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if date_col not in validation_df.columns:
+        raise ValueError(f"Missing date column: {date_col}")
+    if not 0 < selection_fraction < 1:
+        raise ValueError("selection_fraction must be between 0 and 1")
+
+    dates = pd.to_datetime(validation_df[date_col])
+    unique_dates = pd.Series(dates.dropna().unique()).sort_values().reset_index(drop=True)
+    if len(unique_dates) < 2:
+        raise ValueError("Need at least two validation dates for calibration and selection")
+
+    selection_date_count = max(1, int(np.ceil(len(unique_dates) * selection_fraction)))
+    selection_date_count = min(selection_date_count, len(unique_dates) - 1)
+    selection_dates = set(pd.to_datetime(unique_dates.iloc[-selection_date_count:]))
+    selection_mask = dates.isin(selection_dates)
+    calibration_df = validation_df.loc[~selection_mask].copy()
+    selection_df = validation_df.loc[selection_mask].copy()
+    return calibration_df, selection_df
 
 
 def _fit_bin_edges(q50: np.ndarray, n_bins: int) -> list[tuple[float, float, np.ndarray]]:
@@ -209,29 +246,69 @@ def run_experiment(
 ) -> dict:
     val_df, test_df = load_data(data_dir)
     model = load_q50_model(output_dir)
+    calibration_df, selection_df = split_validation_chronologically(val_df)
+    calibration_features = calibration_df[FORECAST_FEATURES].copy()
+    selection_features = selection_df[FORECAST_FEATURES].copy()
     val_features = val_df[FORECAST_FEATURES].copy()
     test_features = test_df[FORECAST_FEATURES].copy()
+    calibration_q50 = np.maximum(model.predict(calibration_features), 0.0)
+    selection_q50 = np.maximum(model.predict(selection_features), 0.0)
     val_q50 = np.maximum(model.predict(val_features), 0.0)
     test_q50 = np.maximum(model.predict(test_features), 0.0)
 
     test_period = f"{test_df['date'].min()} to {test_df['date'].max()}"
+    selection_period = f"{selection_df['date'].min()} to {selection_df['date'].max()}"
     bin_candidates = [n_bins] if n_bins is not None else DEFAULT_BIN_CANDIDATES
     candidate_results = []
-    prediction_frames = {}
     for candidate_bins in bin_candidates:
         calibration = build_scale_calibration(
-            val_q50,
-            val_df[TARGET].values,
+            calibration_q50,
+            calibration_df[TARGET].values,
             n_bins=candidate_bins,
         )
-        prediction_frame = build_scale_prediction_frame(test_df, test_q50, calibration)
-        metrics = summarize_scale_metrics(prediction_frame, test_period, calibration)
-        metrics["n_bins"] = int(candidate_bins)
-        candidate_results.append(metrics)
-        prediction_frames[int(candidate_bins)] = prediction_frame
+        selection_frame = build_scale_prediction_frame(
+            selection_df,
+            selection_q50,
+            calibration,
+        )
+        candidate_metrics = summarize_scale_metrics(
+            selection_frame,
+            selection_period,
+            calibration,
+        )
+        candidate_metrics["n_bins"] = int(candidate_bins)
+        candidate_metrics["evaluation_split"] = "validation_selection"
+        candidate_results.append(candidate_metrics)
 
-    metrics = select_best_scale_candidate(candidate_results)
-    metrics["sweep"] = [
+    selected_candidate = select_best_scale_candidate(candidate_results)
+    selected_n_bins = int(selected_candidate["n_bins"])
+    final_calibration = build_scale_calibration(
+        val_q50,
+        val_df[TARGET].values,
+        n_bins=selected_n_bins,
+    )
+    prediction_frame = build_scale_prediction_frame(
+        test_df,
+        test_q50,
+        final_calibration,
+    )
+    metrics = summarize_scale_metrics(
+        prediction_frame,
+        test_period,
+        final_calibration,
+    )
+    metrics["run_timestamp"] = datetime.now(timezone.utc).isoformat()
+    metrics["row_count"] = int(len(test_df))
+    metrics["n_bins"] = selected_n_bins
+    metrics["selection"] = {
+        "evaluation_split": "validation_selection",
+        "inner_calibration": _split_metadata(
+            calibration_df,
+            "validation_inner_calibration",
+        ),
+        "selection": _split_metadata(selection_df, "validation_selection"),
+        "selected_n_bins": selected_n_bins,
+        "sweep": [
         {
             "n_bins": item["n_bins"],
             "coverage_80": item["overall"]["coverage_80"],
@@ -239,8 +316,12 @@ def run_experiment(
             "avg_relative_width": item["overall"]["avg_relative_width"],
         }
         for item in candidate_results
-    ]
-    prediction_frame = prediction_frames[int(metrics["n_bins"])]
+        ],
+    }
+    metrics["final_evaluation"] = {
+        "evaluation_split": "test_once",
+        **_split_metadata(test_df, "test"),
+    }
 
     output_dir.mkdir(parents=True, exist_ok=True)
     with (output_dir / "scale_conformal_metrics.json").open("w", encoding="utf-8") as f:

@@ -1,0 +1,236 @@
+{
+  "bakery_product_count": 30,
+  "beverage_product_count": 15,
+  "cost_basis": "recipe_quantity_per_unit_x_raw_material_unit_price",
+  "currency": "CNY",
+  "money_step": "0.1",
+  "product_count": 45,
+  "products": [
+    {
+      "category": "beverage",
+      "product_name": "americano",
+      "unit_cost_cny": "1.6"
+    },
+    {
+      "category": "bakery",
+      "product_name": "apple_pie",
+      "unit_cost_cny": "3.1"
+    },
+    {
+      "category": "bakery",
+      "product_name": "bagel",
+      "unit_cost_cny": "0.4"
+    },
+    {
+      "category": "bakery",
+      "product_name": "baguette",
+      "unit_cost_cny": "1.0"
+    },
+    {
+      "category": "bakery",
+      "product_name": "bread_coconut",
+      "unit_cost_cny": "1.3"
+    },
+    {
+      "category": "bakery",
+      "product_name": "bread_roll",
+      "unit_cost_cny": "1.0"
+    },
+    {
+      "category": "bakery",
+      "product_name": "brioche",
+      "unit_cost_cny": "1.6"
+    },
+    {
+      "category": "bakery",
+      "product_name": "brownie",
+      "unit_cost_cny": "1.0"
+    },
+    {
+      "category": "beverage",
+      "product_name": "cappuccino",
+      "unit_cost_cny": "2.8"
+    },
+    {
+      "category": "beverage",
+      "product_name": "caramel_macchiato",
+      "unit_cost_cny": "3.3"
+    },
+    {
+      "category": "beverage",
+      "product_name": "chai_latte",
+      "unit_cost_cny": "2.1"
+    },
+    {
+      "category": "bakery",
+      "product_name": "chiffon",
+      "unit_cost_cny": "0.4"
+    },
+    {
+      "category": "bakery",
+      "product_name": "chocolate_cake",
+      "unit_cost_cny": "0.6"
+    },
+    {
+      "category": "bakery",
+      "product_name": "chocopie",
+      "unit_cost_cny": "2.8"
+    },
+    {
+      "category": "beverage",
+      "product_name": "cold_brew",
+      "unit_cost_cny": "2.2"
+    },
+    {
+      "category": "bakery",
+      "product_name": "cookie",
+      "unit_cost_cny": "0.3"
+    },
+    {
+      "category": "bakery",
+      "product_name": "cornbread",
+      "unit_cost_cny": "0.9"
+    },
+    {
+      "category": "bakery",
+      "product_name": "cream_horn",
+      "unit_cost_cny": "3.7"
+    },
+    {
+      "category": "bakery",
+      "product_name": "croissant",
+      "unit_cost_cny": "1.5"
+    },
+    {
+      "category": "bakery",
+      "product_name": "croissant_chocolate",
+      "unit_cost_cny": "2.0"
+    },
+    {
+      "category": "bakery",
+      "product_name": "donut",
+      "unit_cost_cny": "0.6"
+    },
+    {
+      "category": "beverage",
+      "product_name": "earl_grey",
+      "unit_cost_cny": "0.3"
+    },
+    {
+      "category": "bakery",
+      "product_name": "eggtart",
+      "unit_cost_cny": "1.3"
+    },
+    {
+      "category": "beverage",
+      "product_name": "english_breakfast",
+      "unit_cost_cny": "0.3"
+    },
+    {
+      "category": "beverage",
+      "product_name": "espresso",
+      "unit_cost_cny": "1.6"
+    },
+    {
+      "category": "beverage",
+      "product_name": "flat_white",
+      "unit_cost_cny": "3.0"
+    },
+    {
+      "category": "bakery",
+      "product_name": "flatbread",
+      "unit_cost_cny": "0.3"
+    },
+    {
+      "category": "beverage",
+      "product_name": "hot_chocolate",
+      "unit_cost_cny": "2.9"
+    },
+    {
+      "category": "beverage",
+      "product_name": "latte",
+      "unit_cost_cny": "3.6"
+    },
+    {
+      "category": "beverage",
+      "product_name": "lemonade",
+      "unit_cost_cny": "0.3"
+    },
+    {
+      "category": "bakery",
+      "product_name": "macaron",
+      "unit_cost_cny": "1.1"
+    },
+    {
+      "category": "bakery",
+      "product_name": "mantequilla",
+      "unit_cost_cny": "0.9"
+    },
+    {
+      "category": "beverage",
+      "product_name": "matcha_latte",
+      "unit_cost_cny": "1.8"
+    },
+    {
+      "category": "bakery",
+      "product_name": "melon_bread",
+      "unit_cost_cny": "1.3"
+    },
+    {
+      "category": "beverage",
+      "product_name": "milk_tea",
+      "unit_cost_cny": "1.7"
+    },
+    {
+      "category": "beverage",
+      "product_name": "mocha",
+      "unit_cost_cny": "3.9"
+    },
+    {
+      "category": "bakery",
+      "product_name": "muffin",
+      "unit_cost_cny": "0.8"
+    },
+    {
+      "category": "bakery",
+      "product_name": "pancake",
+      "unit_cost_cny": "0.7"
+    },
+    {
+      "category": "bakery",
+      "product_name": "pandesal",
+      "unit_cost_cny": "0.5"
+    },
+    {
+      "category": "bakery",
+      "product_name": "pizza_bread",
+      "unit_cost_cny": "1.4"
+    },
+    {
+      "category": "bakery",
+      "product_name": "pullman",
+      "unit_cost_cny": "0.9"
+    },
+    {
+      "category": "bakery",
+      "product_name": "soboru_bread",
+      "unit_cost_cny": "1.1"
+    },
+    {
+      "category": "bakery",
+      "product_name": "sourdough",
+      "unit_cost_cny": "1.6"
+    },
+    {
+      "category": "bakery",
+      "product_name": "stickbread",
+      "unit_cost_cny": "0.4"
+    },
+    {
+      "category": "bakery",
+      "product_name": "tostada",
+      "unit_cost_cny": "0.7"
+    }
+  ],
+  "schema_version": 1
+}

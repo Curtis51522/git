@@ -1,11 +1,12 @@
-﻿import os, sys, logging
+import logging
 from datetime import datetime as dt
-_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
+from urllib.parse import urlencode
 from s5_agent.core.base import BaseAgent, AgentOpinion
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.core.tool import Tool
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
+from s5_agent.s5_config.settings import api_url
 logger = logging.getLogger("s5.agent.forecast_uncertainty")
 
 class ForecastUncertaintyAgent(BaseAgent):
@@ -20,7 +21,7 @@ class ForecastUncertaintyAgent(BaseAgent):
 
     async def fetch(self, params):
         date_str = str(params.get("date", "")) if isinstance(params, dict) else ""
-        data = _query_uncertainty(date_str)
+        data = _query_uncertainty(date_str, params)
         return {"success": True, "data": data, "tool": "forecast_uncertainty"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
@@ -36,17 +37,17 @@ class ForecastUncertaintyAgent(BaseAgent):
         top_uncertain = prods_sorted[:5]
         avg_width = sum(p["avg_width"] for p in products) / max(len(products), 1)
         top_str = "; ".join(
-            f"{p['name']} ({chr(165)}{p['avg_price']:.0f}, {chr(165)}{p['avg_qty']:.0f} predicted, {chr(165)}{p['avg_width']:.0f} range)"
+            f"{p['name']} ({p['avg_qty']:.0f} units predicted, {p['avg_width']:.0f}-unit range)"
             for p in top_uncertain
         )
 
         high_risk = [p for p in top_uncertain if p["avg_qty"] > avg_width * 2]
         risk_note = ""
         if high_risk:
-            risk_note = f" High-risk (demand > 2x uncertainty): " + ", ".join(p["name"] for p in high_risk)
+            risk_note = " High-risk (demand > 2x uncertainty): " + ", ".join(p["name"] for p in high_risk)
 
         opinion = (
-            f"Forecast uncertainty: avg interval width {chr(165)}{avg_width:.0f}. "
+            f"Forecast uncertainty: average interval width {avg_width:.0f} units. "
             f"Most uncertain products: {top_str}.{risk_note}"
         )
 
@@ -112,13 +113,15 @@ class ForecastUncertaintyAgent(BaseAgent):
         )
 
 
-def _query_uncertainty(date_str=""):
+def _query_uncertainty(date_str="", params=None):
     try:
-        from api.module2_forecast import _do_forecast
         if not date_str:
             date_str = dt.now().strftime("%Y-%m-%d")
-        f = _do_forecast(None, 7, use_cache=True, start_date=date_str)
-        forecasts = f.get("forecasts", [])
+        url = api_url("s2/forecast") + "?" + urlencode(
+            {"days": 7, "date": date_str}
+        )
+        payload = fetch_dashboard_json(url, params, timeout=120)
+        forecasts = payload.get("forecasts", [])
         by_product = {}
         for fc in forecasts:
             pn = fc.get("product_name", "")

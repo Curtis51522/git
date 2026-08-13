@@ -1,0 +1,3464 @@
+/*
+ * Bakery AI · Desktop Operations Experience
+ * Titanium workstation, culinary copper, cobalt interaction, semantic green.
+ * Desktop-only: the system intentionally preserves dense operational layouts.
+ */
+
+:root {
+  --work-canvas: #e8ecf2;
+  --work-canvas-deep: #dfe4ec;
+  --work-surface: #f8f9fb;
+  --work-surface-strong: #ffffff;
+  --work-surface-muted: #eff2f6;
+  --work-graphite: #1d222b;
+  --work-graphite-2: #2b313c;
+  --work-ink: #202631;
+  --work-ink-2: #485365;
+  --work-ink-3: #748094;
+  --work-line: rgba(37, 47, 62, 0.10);
+  --work-line-strong: rgba(37, 47, 62, 0.17);
+  --work-blue: #2d6cdf;
+  --work-blue-hover: #245ab9;
+  --work-blue-soft: #e7efff;
+  --work-copper: #c46f46;
+  --work-copper-deep: #9a4e2e;
+  --work-copper-soft: #faeee8;
+  --work-green: #2a8a66;
+  --work-green-soft: #e6f3ed;
+  --work-amber: #d4932f;
+  --work-red: #c74646;
+  --work-red-soft: #faeaea;
+  --work-shadow-1: 0 1px 2px rgba(17, 25, 39, 0.04);
+  --work-shadow-2: 0 18px 44px -34px rgba(17, 25, 39, 0.48);
+  --work-shadow-3: 0 34px 76px -48px rgba(17, 25, 39, 0.64);
+}
+
+html,
+body {
+  min-width: 1180px;
+}
+
+body,
+#dashboard,
+#dashboard .main {
+  background: var(--work-canvas) !important;
+  color: var(--work-ink) !important;
+}
+
+#dashboard {
+  position: relative;
+}
+
+#dashboard::before {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(720px 420px at 8% -4%, rgba(78, 127, 224, 0.10), transparent 69%),
+    radial-gradient(620px 360px at 93% 5%, rgba(196, 111, 70, 0.08), transparent 72%);
+}
+
+#dashboard > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* App shell: a dark global layer, visibly separate from operational modules. */
+.topnav {
+  min-height: 72px !important;
+  padding: 10px 18px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background:
+    linear-gradient(180deg, rgba(45, 51, 62, 0.98), rgba(26, 30, 37, 0.99)) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.07) inset,
+    0 18px 34px -28px rgba(10, 15, 24, 0.92) !important;
+  color: #f7f9fc !important;
+  backdrop-filter: blur(20px) saturate(130%);
+}
+
+.topnav h2 {
+  margin-right: 8px !important;
+  color: #f7f9fc !important;
+  font-size: 15px !important;
+  letter-spacing: -0.01em;
+}
+
+.topnav .brand-symbol {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.13) inset,
+    0 12px 22px -14px rgba(0, 0, 0, 0.92);
+}
+
+.topnav nav {
+  gap: 5px !important;
+}
+
+.topnav nav button {
+  min-height: 44px;
+  padding-inline: 14px !important;
+  border: 1px solid transparent !important;
+  color: rgba(235, 239, 247, 0.66) !important;
+  font-size: 12px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0.01em;
+}
+
+.topnav nav button:hover {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+.topnav nav button.active {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  background: #f7f9fc !important;
+  color: var(--work-blue) !important;
+  box-shadow:
+    0 1px 0 #ffffff inset,
+    0 8px 18px -13px rgba(0, 0, 0, 0.88) !important;
+}
+
+.topnav .role-badge {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(246, 248, 252, 0.82) !important;
+}
+
+#user-display {
+  color: rgba(235, 239, 247, 0.62) !important;
+}
+
+.topnav .lang-toggle {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  background: rgba(0, 0, 0, 0.16) !important;
+}
+
+.topnav .lang-toggle button {
+  color: rgba(235, 239, 247, 0.66) !important;
+}
+
+.topnav .lang-toggle button.active {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--work-graphite) !important;
+}
+
+.topnav .logout-btn {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(246, 248, 252, 0.84) !important;
+}
+
+.topnav .logout-btn:hover {
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #fff !important;
+}
+
+.topbar {
+  min-height: 44px;
+  border-bottom: 1px solid var(--work-line) !important;
+  background: rgba(238, 241, 246, 0.88) !important;
+}
+
+#panel-title {
+  color: var(--work-ink-2) !important;
+}
+
+#panel-title::before {
+  background: var(--work-blue) !important;
+  box-shadow: 0 0 0 4px rgba(45, 108, 223, 0.10) !important;
+}
+
+.content {
+  padding: 20px 22px 32px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 240px) !important;
+}
+
+.panel,
+.chart-panel,
+.table-panel,
+.kpi-card {
+  border-color: var(--work-line) !important;
+  background: var(--work-surface) !important;
+  color: var(--work-ink) !important;
+  box-shadow: var(--work-shadow-2) !important;
+}
+
+.chart-panel,
+.table-panel {
+  border-radius: 20px !important;
+}
+
+.chart-panel h4,
+.panel h4,
+.table-panel h4 {
+  color: var(--work-ink) !important;
+  border-bottom-color: var(--work-line) !important;
+}
+
+.kpi-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 108px;
+  overflow: hidden;
+  border-radius: 20px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.90) inset,
+    var(--work-shadow-2) !important;
+}
+
+.kpi-card .kpi-value {
+  color: var(--work-ink) !important;
+  font-size: clamp(20px, 1.65vw, 30px) !important;
+  letter-spacing: -0.035em;
+}
+
+.kpi-card .kpi-label {
+  color: var(--work-ink-3) !important;
+}
+
+.kpi-eyebrow {
+  display: block;
+  margin-bottom: 14px;
+  color: currentColor;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.16em;
+  opacity: 0.62;
+}
+
+.kpi-detail {
+  margin-top: 8px;
+  color: currentColor;
+  font-size: 11px;
+  line-height: 1.45;
+  opacity: 0.72;
+}
+
+/* POS: three materially different zones. */
+.pos-command-deck {
+  grid-template-columns: minmax(248px, 276px) minmax(560px, 1fr) minmax(316px, 354px) !important;
+  gap: 18px !important;
+}
+
+.pos-scan-column {
+  gap: 12px !important;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 28px;
+  background:
+    radial-gradient(280px 190px at 12% 0%, rgba(69, 117, 210, 0.18), transparent 75%),
+    linear-gradient(165deg, #303641, #1d222a 68%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 28px 56px -42px rgba(8, 13, 22, 0.92);
+}
+
+.pos-scan-column > .pos-camera-panel {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+}
+
+.pos-scan-column > .pos-camera-panel > h4 {
+  border-bottom-color: rgba(255, 255, 255, 0.09) !important;
+  color: #f4f7fb !important;
+}
+
+.pos-scan-column .scan-action {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.065) !important;
+  color: rgba(247, 249, 252, 0.84) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset !important;
+}
+
+.pos-scan-column .scan-action:hover {
+  border-color: rgba(116, 164, 255, 0.38) !important;
+  background: rgba(68, 116, 210, 0.18) !important;
+  color: #fff !important;
+}
+
+.pos-scan-column .scan-action-icon {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #dfe9ff;
+}
+
+.pos-scan-column .pos-quiet-state {
+  color: rgba(238, 242, 249, 0.50) !important;
+}
+
+.pos-scan-column .pos-inflow-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  box-shadow: none !important;
+}
+
+.pos-scan-column .pos-inflow-panel h4 {
+  color: #f4f7fb !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.pos-scan-column .inflow-state-btn {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(8, 13, 22, 0.20);
+  color: rgba(238, 242, 249, 0.72);
+}
+
+.pos-scan-column .inflow-state-btn.active {
+  background: rgba(255, 255, 255, 0.11);
+  color: #fff;
+}
+
+.pos-scan-column > .pos-hitl-panel {
+  border-color: rgba(60, 122, 236, 0.13) !important;
+  background: #eef3fc !important;
+  box-shadow: 0 14px 30px -24px rgba(8, 13, 22, 0.82) !important;
+}
+
+.pos-bakery-panel {
+  position: relative;
+  overflow: hidden;
+  border-top: 3px solid var(--work-copper) !important;
+  background:
+    radial-gradient(500px 210px at 8% -10%, rgba(196, 111, 70, 0.11), transparent 75%),
+    var(--work-surface) !important;
+}
+
+.pos-bakery-panel > h4::before,
+.pos-drinks-panel > h4::before {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 9px;
+  border-radius: 3px;
+  background: var(--work-copper);
+  box-shadow: 0 0 0 5px rgba(196, 111, 70, 0.10);
+  content: "";
+}
+
+.pos-bakery-panel .bakery-product-card {
+  border-color: rgba(154, 78, 46, 0.11) !important;
+  background: rgba(255, 253, 251, 0.92) !important;
+}
+
+.pos-bakery-panel .product-render-stage {
+  background:
+    radial-gradient(circle at 38% 26%, #ffffff, #f5e8df 92%) !important;
+}
+
+.pos-drinks-panel {
+  border-top: 3px solid var(--work-blue) !important;
+  background:
+    radial-gradient(520px 220px at 8% -12%, rgba(45, 108, 223, 0.10), transparent 75%),
+    var(--work-surface) !important;
+}
+
+.pos-drinks-panel > h4::before {
+  background: var(--work-blue);
+  box-shadow: 0 0 0 5px rgba(45, 108, 223, 0.10);
+}
+
+.pos-drinks-panel .drink-filter {
+  margin-bottom: 14px;
+  border-color: rgba(45, 108, 223, 0.10) !important;
+  background: rgba(45, 108, 223, 0.055);
+}
+
+.pos-drinks-panel .drink-filter-btn.active {
+  color: var(--work-blue) !important;
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 8px 18px -14px rgba(45, 108, 223, 0.55) !important;
+}
+
+.pos-drinks-grid {
+  display: block !important;
+  max-height: 520px !important;
+  padding: 0 6px 6px 0 !important;
+  overflow-y: auto;
+}
+
+.drink-category-group {
+  position: relative;
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid var(--work-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.drink-category-group:last-child {
+  margin-bottom: 0;
+}
+
+.drink-category-group[hidden] {
+  display: none !important;
+}
+
+.drink-category-heading {
+  display: flex;
+  min-height: 30px;
+  padding: 0 4px 8px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--work-ink-2);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+}
+
+.drink-category-heading small {
+  display: grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--work-surface-muted);
+  color: var(--work-ink-3);
+}
+
+.drink-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
+}
+
+.drink-category-group .drink-product-card {
+  min-height: 124px !important;
+  border-color: rgba(45, 108, 223, 0.10) !important;
+  background: rgba(249, 251, 255, 0.94) !important;
+}
+
+.drink-category-tea_milk_tea {
+  border-color: rgba(42, 138, 102, 0.13);
+  background: rgba(236, 247, 241, 0.54);
+}
+
+.drink-category-tea_milk_tea .drink-product-card {
+  border-color: rgba(42, 138, 102, 0.12) !important;
+  background: rgba(247, 252, 249, 0.94) !important;
+}
+
+.drink-category-other {
+  border-color: rgba(196, 111, 70, 0.13);
+  background: rgba(250, 238, 232, 0.52);
+}
+
+.drink-category-other .drink-product-card {
+  border-color: rgba(196, 111, 70, 0.12) !important;
+  background: rgba(255, 250, 247, 0.95) !important;
+}
+
+.pos-cart-panel {
+  border-left: 3px solid var(--work-graphite-2) !important;
+  background: #f3f5f8 !important;
+}
+
+.pos-ai-rail {
+  gap: 14px !important;
+}
+
+.pos-workspace .pos-ai-card {
+  border-radius: 26px !important;
+  background:
+    radial-gradient(300px 180px at 92% 0%, rgba(80, 129, 226, 0.12), transparent 75%),
+    rgba(250, 251, 253, 0.96) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.96) inset,
+    0 28px 62px -40px rgba(24, 35, 57, 0.56) !important;
+}
+
+.pos-workspace .pos-ai-primary::before {
+  background: linear-gradient(
+    132deg,
+    rgba(45, 108, 223, 0.64),
+    rgba(42, 138, 102, 0.30) 42%,
+    rgba(196, 111, 70, 0.45) 74%,
+    rgba(124, 91, 201, 0.42)
+  ) !important;
+}
+
+.pos-ai-stage {
+  border: 1px solid rgba(45, 108, 223, 0.10);
+  background:
+    radial-gradient(circle at 50% 72%, rgba(45, 108, 223, 0.10), transparent 55%),
+    #f0f3f8 !important;
+}
+
+.pos-workspace .pos-ai-primary .pos-ai-action {
+  border-color: var(--work-blue) !important;
+  background: var(--work-blue) !important;
+  color: #fff !important;
+  box-shadow: 0 14px 28px -20px rgba(45, 108, 223, 0.90) !important;
+}
+
+/* Forecast: a hero signal, a value outlook, then supporting operating metrics. */
+.forecast-kpi-layout {
+  display: grid !important;
+  grid-template-columns: 1.45fr 1.1fr repeat(4, minmax(126px, 0.72fr)) !important;
+  gap: 12px !important;
+}
+
+.forecast-kpi-demand {
+  min-height: 142px;
+  grid-row: span 2;
+  border-color: rgba(45, 108, 223, 0.28) !important;
+  background:
+    radial-gradient(260px 160px at 92% 4%, rgba(255, 255, 255, 0.24), transparent 70%),
+    linear-gradient(145deg, #336fd8, #244f9c) !important;
+  color: #f6f9ff !important;
+}
+
+.forecast-kpi-demand .kpi-value,
+.forecast-kpi-demand .kpi-label {
+  color: #fff !important;
+}
+
+.forecast-kpi-demand .kpi-value {
+  font-size: clamp(28px, 2.2vw, 42px) !important;
+}
+
+.forecast-kpi-demand .kpi-label {
+  opacity: 0.72;
+}
+
+.forecast-kpi-revenue {
+  min-height: 142px;
+  grid-row: span 2;
+  border-color: rgba(196, 111, 70, 0.26) !important;
+  background:
+    radial-gradient(260px 160px at 90% 0%, rgba(255, 255, 255, 0.26), transparent 72%),
+    linear-gradient(145deg, #d08057, #a75636) !important;
+  color: #fff8f3 !important;
+}
+
+.forecast-kpi-revenue .kpi-value,
+.forecast-kpi-revenue .kpi-label {
+  color: #fff !important;
+}
+
+.forecast-kpi-revenue .kpi-value {
+  font-size: clamp(27px, 2vw, 39px) !important;
+}
+
+.forecast-kpi-plan,
+.forecast-kpi-coverage,
+.forecast-kpi-gap,
+.forecast-kpi-material {
+  min-height: 65px;
+  padding-block: 12px !important;
+}
+
+.forecast-kpi-coverage {
+  border-left: 3px solid var(--work-green) !important;
+}
+
+.forecast-kpi-gap {
+  border-left: 3px solid var(--work-red) !important;
+}
+
+.forecast-kpi-material {
+  border-left: 3px solid var(--work-amber) !important;
+}
+
+.forecast-demand-panel {
+  border-top: 3px solid var(--work-blue) !important;
+}
+
+.forecast-event-panel {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(196, 111, 70, 0.16);
+  border-radius: 14px;
+  background: var(--work-copper-soft);
+}
+
+.forecast-event-title {
+  color: var(--work-copper-deep);
+  font-size: 11px;
+  font-weight: 740;
+  letter-spacing: 0.04em;
+}
+
+.forecast-production-panel {
+  border-top: 3px solid var(--work-graphite-2) !important;
+}
+
+.forecast-material-panel {
+  border-top: 3px solid var(--work-copper) !important;
+}
+
+/* Inventory: product stock and asset value are visually dominant. */
+.inventory-toolbar,
+.revenue-toolbar {
+  display: flex;
+  margin-bottom: 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inventory-toolbar #inv-stock-s5-btn,
+.revenue-ai-actions .btn {
+  min-height: 42px;
+  border: 1px solid var(--work-blue) !important;
+  border-radius: 12px !important;
+  background: var(--work-blue) !important;
+  color: #fff !important;
+  box-shadow: 0 13px 26px -20px rgba(45, 108, 223, 0.88);
+}
+
+.inventory-kpi-layout {
+  display: grid !important;
+  grid-template-columns: 1.45fr repeat(3, minmax(132px, 0.72fr)) 1.25fr !important;
+  gap: 12px !important;
+  margin-bottom: 14px;
+}
+
+.inventory-kpi-stock {
+  min-height: 142px;
+  border-color: rgba(42, 138, 102, 0.23) !important;
+  background:
+    radial-gradient(250px 140px at 95% 0%, rgba(255, 255, 255, 0.24), transparent 72%),
+    linear-gradient(145deg, #32906d, #24684f) !important;
+  color: #f4fff9 !important;
+}
+
+.inventory-kpi-stock .kpi-value,
+.inventory-kpi-stock .kpi-label {
+  color: #fff !important;
+}
+
+.inventory-kpi-stock .kpi-value {
+  font-size: clamp(30px, 2.4vw, 44px) !important;
+}
+
+.inventory-kpi-stock .kpi-change {
+  display: flex;
+  margin-top: 10px;
+  align-items: center;
+  gap: 6px;
+  color: rgba(246, 255, 250, 0.76) !important;
+}
+
+.fresh-key,
+.day1-key {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.66);
+  border-radius: 3px;
+  background: #57c193;
+}
+
+.day1-key {
+  margin-left: 8px;
+  background: #e49a6f;
+}
+
+.inventory-kpi-value {
+  min-height: 142px;
+  border-color: rgba(31, 38, 49, 0.26) !important;
+  background:
+    radial-gradient(250px 150px at 92% 2%, rgba(83, 116, 172, 0.27), transparent 72%),
+    linear-gradient(145deg, #343b48, #1d222b) !important;
+  color: #f4f7fb !important;
+}
+
+.inventory-kpi-value .kpi-value,
+.inventory-kpi-value .kpi-label {
+  color: #fff !important;
+}
+
+.inventory-kpi-baking,
+.inventory-kpi-beverage,
+.inventory-kpi-packaging {
+  min-height: 142px;
+}
+
+.inventory-kpi-baking {
+  border-top: 3px solid var(--work-copper) !important;
+}
+
+.inventory-kpi-beverage {
+  border-top: 3px solid var(--work-blue) !important;
+}
+
+.inventory-kpi-packaging {
+  border-top: 3px solid var(--work-amber) !important;
+}
+
+.inventory-kpi-overdue {
+  border: 1px solid rgba(199, 70, 70, 0.24) !important;
+  background: var(--work-red-soft) !important;
+  color: var(--work-red) !important;
+}
+
+.inventory-stock-panel {
+  border-top: 3px solid var(--work-green) !important;
+  background:
+    radial-gradient(520px 220px at 8% -6%, rgba(42, 138, 102, 0.08), transparent 74%),
+    var(--work-surface) !important;
+}
+
+.inventory-ratio-panel {
+  border-top: 3px solid var(--work-copper) !important;
+}
+
+.inventory-consumption-panel {
+  border-top: 3px solid var(--work-blue) !important;
+}
+
+/* Revenue: coherent category palette and an asymmetric executive strip. */
+.revenue-ai-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.revenue-kpi-layout {
+  display: grid !important;
+  grid-template-columns: 1.45fr 1.2fr repeat(4, minmax(118px, 0.72fr)) 1.15fr !important;
+  gap: 12px !important;
+  margin-bottom: 14px;
+}
+
+.revenue-kpi-today {
+  min-height: 148px;
+  border-color: rgba(45, 108, 223, 0.28) !important;
+  background:
+    radial-gradient(260px 150px at 94% 0%, rgba(255, 255, 255, 0.23), transparent 70%),
+    linear-gradient(145deg, #316fdc, #244f9f) !important;
+  color: #f6f9ff !important;
+}
+
+.revenue-kpi-today .kpi-value,
+.revenue-kpi-today .kpi-label {
+  color: #fff !important;
+}
+
+.revenue-kpi-today .kpi-change {
+  color: rgba(245, 249, 255, 0.78) !important;
+}
+
+.revenue-kpi-today .kpi-change.kpi-down {
+  color: #ffd6d1 !important;
+}
+
+.revenue-kpi-today .kpi-change.kpi-up {
+  color: #d8ffec !important;
+}
+
+.revenue-kpi-today .kpi-value {
+  font-size: clamp(30px, 2.35vw, 44px) !important;
+}
+
+.revenue-kpi-profit {
+  min-height: 148px;
+  border-color: rgba(42, 138, 102, 0.26) !important;
+  background:
+    radial-gradient(250px 150px at 92% 0%, rgba(255, 255, 255, 0.23), transparent 72%),
+    linear-gradient(145deg, #32906d, #24684f) !important;
+  color: #f5fff9 !important;
+}
+
+.revenue-kpi-profit .kpi-value,
+.revenue-kpi-profit .kpi-label {
+  color: #fff !important;
+}
+
+.revenue-kpi-profit .kpi-change {
+  color: rgba(245, 255, 250, 0.78) !important;
+}
+
+.revenue-kpi-profit .kpi-change.kpi-down {
+  color: #ffd6d1 !important;
+}
+
+.revenue-kpi-profit .kpi-change.kpi-up {
+  color: #d8ffec !important;
+}
+
+.revenue-kpi-orders,
+.revenue-kpi-average,
+.revenue-kpi-discount,
+.revenue-kpi-margin {
+  min-height: 148px;
+}
+
+.revenue-kpi-orders {
+  border-top: 3px solid var(--work-graphite-2) !important;
+}
+
+.revenue-kpi-average {
+  border-top: 3px solid var(--work-blue) !important;
+}
+
+.revenue-kpi-discount {
+  border-top: 3px solid var(--work-red) !important;
+}
+
+.revenue-kpi-discount .kpi-value {
+  color: var(--work-red) !important;
+}
+
+.revenue-kpi-margin {
+  border-top: 3px solid var(--work-green) !important;
+}
+
+.revenue-kpi-mtd {
+  min-height: 148px;
+  border-top: 3px solid var(--work-copper) !important;
+  background:
+    radial-gradient(220px 120px at 90% 0%, rgba(196, 111, 70, 0.09), transparent 70%),
+    var(--work-surface) !important;
+}
+
+.revenue-hourly-panel {
+  border-top: 3px solid var(--work-blue) !important;
+}
+
+.revenue-loss-panel {
+  border-left: 3px solid var(--work-red) !important;
+}
+
+.revenue-mix-bakery {
+  border-top: 3px solid var(--work-copper) !important;
+}
+
+.revenue-mix-service {
+  border-top: 3px solid var(--work-green) !important;
+}
+
+.revenue-mix-payment {
+  border-top: 3px solid var(--work-blue) !important;
+}
+
+.revenue-trend-panel {
+  border-top: 3px solid var(--work-copper) !important;
+}
+
+.revenue-orders-panel {
+  border-top: 3px solid var(--work-graphite-2) !important;
+}
+
+/* Forecast, inventory, and revenue tables read like instruments, not card soup. */
+#panel-forecast table thead tr,
+#panel-inventory table thead tr,
+#panel-revenue table thead tr,
+#panel-forecast table thead th,
+#panel-inventory table thead th,
+#panel-revenue table thead th {
+  background: #e9edf3 !important;
+  color: var(--work-ink-2) !important;
+}
+
+#panel-forecast table tbody tr:hover,
+#panel-inventory table tbody tr:hover,
+#panel-revenue table tbody tr:hover {
+  background: rgba(45, 108, 223, 0.035) !important;
+}
+
+/* Login: editorial story + a full 3D product constellation. */
+#login-page {
+  --login-x: 50%;
+  --login-y: 48%;
+  min-width: 1040px;
+  min-height: 720px;
+  padding: 24px 32px 28px;
+  background:
+    radial-gradient(720px 660px at var(--login-x) var(--login-y), rgba(78, 132, 238, 0.24), transparent 64%),
+    radial-gradient(680px 500px at 18% 100%, rgba(196, 111, 70, 0.18), transparent 66%),
+    linear-gradient(132deg, #f9fafc 0%, #e9edf5 50%, #dfe5ef 100%) !important;
+}
+
+#login-page::before {
+  opacity: 0.78;
+  background:
+    linear-gradient(90deg, rgba(43, 58, 82, 0.042) 1px, transparent 1px),
+    linear-gradient(rgba(43, 58, 82, 0.038) 1px, transparent 1px),
+    radial-gradient(circle at 26% 56%, rgba(45, 108, 223, 0.08), transparent 34%) !important;
+  background-size: 72px 72px, 72px 72px, 100% 100% !important;
+  mask-image: linear-gradient(90deg, #000 0 63%, transparent 92%);
+}
+
+#login-page::after {
+  position: absolute;
+  z-index: 1;
+  top: 12%;
+  bottom: 8%;
+  left: 52%;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(transparent, rgba(44, 60, 85, 0.12), transparent);
+  content: "";
+}
+
+#login-page .cinematic-header {
+  width: min(1640px, 100%);
+  height: 48px;
+}
+
+.cinematic-brand-name {
+  color: var(--work-graphite);
+  font-weight: 740;
+  letter-spacing: 0.11em;
+}
+
+.cinematic-system-state {
+  color: rgba(32, 38, 49, 0.46);
+}
+
+.login-composition {
+  grid-template-columns: minmax(620px, 1.16fr) minmax(390px, 0.84fr) !important;
+  width: min(1640px, 100%) !important;
+  height: calc(100% - 48px) !important;
+  gap: clamp(36px, 5vw, 92px) !important;
+  align-items: center !important;
+}
+
+.login-story {
+  z-index: 4;
+  align-self: start !important;
+  padding: clamp(76px, 10vh, 126px) 0 0 clamp(6px, 1.3vw, 22px) !important;
+}
+
+.login-story-kicker {
+  color: rgba(32, 38, 49, 0.56) !important;
+}
+
+.login-story-kicker::before {
+  background: var(--work-blue) !important;
+}
+
+.login-story h2 {
+  max-width: 760px !important;
+  color: var(--work-graphite) !important;
+  font-size: clamp(58px, 5.4vw, 92px) !important;
+  line-height: 0.88 !important;
+  letter-spacing: -0.067em !important;
+}
+
+.login-story h2 span:last-child {
+  color: rgba(32, 38, 49, 0.40) !important;
+}
+
+.login-story-copy {
+  max-width: 500px;
+  color: rgba(32, 38, 49, 0.60) !important;
+  font-size: 14px !important;
+}
+
+.login-module-rail {
+  color: rgba(32, 38, 49, 0.42) !important;
+}
+
+#login-page .login-experience {
+  position: relative;
+  z-index: 6;
+}
+
+#login-page .login-experience .login-visual {
+  position: fixed !important;
+  z-index: 3;
+  top: auto !important;
+  right: auto !important;
+  bottom: clamp(34px, 5.2vh, 72px) !important;
+  left: clamp(42px, 6.8vw, 132px) !important;
+  display: block !important;
+  width: min(48vw, 720px) !important;
+  height: clamp(330px, 45vh, 520px) !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+  perspective: 1300px;
+  pointer-events: none;
+}
+
+.login-product-stage {
+  inset: 0 !important;
+  transform: rotateX(0deg) rotateY(0deg);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.login-stage-orbit {
+  position: absolute;
+  left: 4%;
+  bottom: 2%;
+  display: block;
+  width: 82%;
+  height: 58%;
+  border: 1px solid rgba(45, 108, 223, 0.14);
+  border-radius: 50%;
+  transform: rotateX(66deg) translateZ(-45px);
+  box-shadow:
+    0 0 0 26px rgba(45, 108, 223, 0.035),
+    0 0 0 64px rgba(45, 108, 223, 0.018);
+}
+
+.login-stage-orbit-inner {
+  left: 20%;
+  bottom: 10%;
+  width: 52%;
+  height: 38%;
+  border-style: dashed;
+  border-color: rgba(196, 111, 70, 0.26);
+  transform: rotateX(67deg) translateZ(-20px) rotateZ(9deg);
+  box-shadow: none;
+}
+
+.login-stage-plinth {
+  position: absolute;
+  left: 13%;
+  right: 8%;
+  bottom: 0;
+  display: block;
+  height: 30%;
+  border: 1px solid rgba(31, 40, 54, 0.12);
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 48% 32%, rgba(255, 255, 255, 0.96), rgba(195, 204, 218, 0.68) 46%, rgba(111, 127, 153, 0.16) 70%, transparent 72%);
+  box-shadow:
+    0 36px 54px -38px rgba(22, 31, 47, 0.62),
+    0 1px 0 #fff inset;
+  transform: rotateX(64deg) translateZ(-20px);
+}
+
+.login-stage-plinth::before,
+.login-stage-plinth::after {
+  position: absolute;
+  border-radius: 50%;
+  content: "";
+}
+
+.login-stage-plinth::before {
+  inset: 15% 13%;
+  border: 1px solid rgba(45, 108, 223, 0.12);
+}
+
+.login-stage-plinth::after {
+  top: 22%;
+  right: 21%;
+  width: 12px;
+  height: 12px;
+  background: var(--work-blue);
+  box-shadow: 0 0 0 8px rgba(45, 108, 223, 0.10);
+}
+
+.login-product-halo {
+  left: 4% !important;
+  right: 7% !important;
+  bottom: -1% !important;
+  height: 42% !important;
+  background:
+    radial-gradient(ellipse, rgba(55, 111, 222, 0.28), rgba(196, 111, 70, 0.13) 44%, transparent 73%) !important;
+  filter: blur(28px) !important;
+}
+
+.login-product {
+  animation: none !important;
+  filter:
+    drop-shadow(0 34px 24px rgba(19, 28, 44, 0.20))
+    drop-shadow(0 8px 7px rgba(19, 28, 44, 0.11)) !important;
+  will-change: transform;
+}
+
+.login-product-bread {
+  z-index: 6;
+  left: 23% !important;
+  bottom: 4% !important;
+  width: min(26vw, 350px) !important;
+  height: min(26vw, 350px) !important;
+  transform: translate3d(0, 0, 88px) rotateY(7deg) rotateZ(-7deg);
+}
+
+.login-product-drink {
+  z-index: 7;
+  right: 8% !important;
+  bottom: 7% !important;
+  width: min(18vw, 255px) !important;
+  height: min(18vw, 255px) !important;
+  transform: translate3d(0, 0, 128px) rotateY(-8deg) rotateZ(3deg);
+}
+
+.login-product-cake {
+  z-index: 2;
+  left: 1%;
+  bottom: 17%;
+  width: min(12vw, 170px);
+  height: min(12vw, 170px);
+  opacity: 0.90;
+  transform: translate3d(0, 0, 18px) rotateY(12deg) rotateZ(-8deg);
+}
+
+.login-product-pie {
+  z-index: 5;
+  left: 7%;
+  bottom: 0;
+  width: min(15vw, 210px);
+  height: min(15vw, 210px);
+  transform: translate3d(0, 0, 54px) rotateY(11deg) rotateZ(-11deg);
+}
+
+.login-product-matcha {
+  z-index: 4;
+  right: -4%;
+  bottom: 29%;
+  width: min(12vw, 168px);
+  height: min(12vw, 168px);
+  opacity: 0.92;
+  transform: translate3d(0, 0, 66px) rotateY(-12deg) rotateZ(7deg);
+}
+
+.login-stage-chip {
+  position: absolute;
+  z-index: 9;
+  display: inline-flex;
+  min-height: 28px;
+  padding: 0 10px;
+  align-items: center;
+  border: 1px solid rgba(32, 38, 49, 0.11);
+  border-radius: 9px;
+  background: rgba(248, 250, 253, 0.74);
+  color: rgba(32, 38, 49, 0.54);
+  box-shadow: 0 12px 24px -18px rgba(21, 30, 45, 0.64);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.15em;
+  backdrop-filter: blur(14px);
+}
+
+.login-stage-chip-one {
+  top: 29%;
+  left: 10%;
+  transform: translateZ(80px);
+}
+
+.login-stage-chip-two {
+  right: 3%;
+  bottom: 8%;
+  transform: translateZ(110px);
+}
+
+#login-page .login-console {
+  z-index: 8;
+  isolation: isolate;
+  max-width: 470px;
+  max-height: none !important;
+  padding: 44px 42px 34px !important;
+  border: 1px solid rgba(43, 55, 74, 0.10) !important;
+  border-radius: 30px !important;
+  background:
+    radial-gradient(260px 190px at 90% 0%, rgba(82, 130, 224, 0.11), transparent 75%),
+    rgba(249, 250, 252, 0.88) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.96) inset,
+    0 42px 92px -52px rgba(15, 24, 40, 0.68),
+    -18px 22px 52px -44px rgba(45, 108, 223, 0.54) !important;
+  backdrop-filter: blur(28px) saturate(150%);
+}
+
+#login-page .login-console::before {
+  border-color: rgba(43, 55, 74, 0.055);
+}
+
+#login-page .login-console #signin-btn {
+  min-height: 52px !important;
+  background: var(--work-blue) !important;
+  border-color: var(--work-blue) !important;
+  box-shadow:
+    0 16px 30px -20px rgba(45, 108, 223, 0.90),
+    0 1px 0 rgba(255, 255, 255, 0.26) inset !important;
+}
+
+#login-page .login-console #signin-btn:hover {
+  background: var(--work-blue-hover) !important;
+}
+
+@media (max-width: 1360px) {
+  .pos-command-deck {
+    grid-template-columns: minmax(232px, 250px) minmax(500px, 1fr) minmax(294px, 316px) !important;
+    gap: 13px !important;
+  }
+
+  .pos-workspace .pos-catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
+  }
+
+  .drink-category-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .forecast-kpi-layout,
+  .revenue-kpi-layout {
+    gap: 9px !important;
+  }
+
+  .login-composition {
+    grid-template-columns: minmax(600px, 1.1fr) minmax(390px, 0.9fr) !important;
+    gap: 34px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-product-stage,
+  .login-product {
+    transform: none !important;
+    will-change: auto;
+  }
+}
+
+/* July 24 precision pass: composition, localization, product framing, AI signal. */
+@media (min-height: 851px) {
+  #login-page .login-experience .login-visual {
+    bottom: clamp(96px, 12vh, 164px) !important;
+    left: clamp(195px, 17vw, 300px) !important;
+  }
+
+  #login-page .login-product-stage {
+    scale: 1.1;
+    transform-origin: 48% 68%;
+  }
+}
+
+@media (min-width: 1800px) and (min-height: 851px) {
+  #login-page .login-experience .login-visual {
+    left: max(370px, calc((100vw - 1640px) / 2 + 300px)) !important;
+  }
+
+  #login-page .login-product-stage {
+    scale: 1.18;
+  }
+}
+
+@media (max-height: 850px) {
+  #login-page .login-experience .login-visual {
+    bottom: clamp(28px, 5vh, 44px) !important;
+    left: clamp(54px, 8vw, 116px) !important;
+  }
+}
+
+.pos-workspace .pos-scan-column,
+.pos-workspace .pos-panel,
+.pos-workspace .pos-catalog-grid,
+.pos-workspace .drink-category-grid,
+.pos-workspace .drink-btn,
+.pos-workspace .pos-product-main,
+.pos-workspace .product-card-top,
+.pos-workspace .drink-card-top,
+.pos-workspace .product-card-copy,
+.pos-workspace .drink-name {
+  min-width: 0;
+}
+
+.pos-workspace .product-card-copy,
+.pos-workspace .drink-product-card .drink-name {
+  overflow: hidden;
+}
+
+.pos-workspace .product-card-copy .drink-name,
+.pos-workspace .drink-product-card .drink-name {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+html[lang="en"] .pos-scan-column .scan-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html[lang="en"] .pos-scan-column .scan-action {
+  min-width: 0;
+  padding: 8px 6px;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+html[lang="en"] .pos-scan-column .inflow-state-btn {
+  min-width: 0;
+  padding-inline: 7px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+html[lang="en"] .pos-workspace .drink-name {
+  font-size: 11.5px !important;
+  line-height: 1.18;
+}
+
+html[lang="en"] .pos-workspace .product-card-top,
+html[lang="en"] .pos-workspace .drink-card-top {
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+}
+
+html[lang="en"] .pos-workspace .product-render-stage {
+  width: 70px;
+  height: 70px;
+  flex-basis: 70px;
+}
+
+html[lang="en"] .pos-workspace .drink-product-card .drink-card-top {
+  grid-template-columns: 58px minmax(0, 1fr);
+}
+
+html[lang="en"] .pos-workspace .drink-product-card .product-render-stage {
+  width: 56px;
+  height: 56px;
+  flex-basis: 56px;
+}
+
+html[lang="en"] .pos-workspace .drink-product-card .drink-name {
+  font-size: 10.5px !important;
+}
+
+html[lang="en"] .pos-workspace .pos-ai-action,
+html[lang="en"] .topnav nav button,
+html[lang="en"] .topnav .logout-btn {
+  white-space: nowrap;
+}
+
+#user-display {
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pos-workspace .product-render-stage {
+  padding: 4px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pos-workspace .product-render-stage::after {
+  left: 20%;
+  right: 20%;
+  bottom: 7px;
+}
+
+.pos-workspace .product-render {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+  transform: translate3d(0, -1px, 18px);
+}
+
+.pos-workspace .bakery-product-card:hover .product-render,
+.pos-workspace .drink-product-card:hover .product-render {
+  transform: translate3d(0, -3px, 24px) rotate(-1deg) scale(1.025);
+}
+
+.pos-workspace .pos-ai-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(79, 117, 232, 0.28) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.98) inset,
+    0 24px 58px -38px rgba(25, 39, 70, 0.62),
+    0 0 34px rgba(65, 123, 255, 0.12),
+    -9px 7px 30px rgba(153, 89, 223, 0.08) !important;
+}
+
+.pos-workspace .pos-ai-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.pos-workspace .pos-ai-primary::before,
+.pos-workspace .pos-ai-reason::before {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: linear-gradient(
+    128deg,
+    rgba(56, 124, 255, 0.94),
+    rgba(45, 205, 202, 0.62) 31%,
+    rgba(190, 99, 255, 0.72) 64%,
+    rgba(255, 126, 89, 0.68)
+  ) !important;
+  content: "";
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.pos-workspace .pos-ai-card::after {
+  position: absolute;
+  z-index: 0;
+  top: -112px;
+  right: -78px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 42%, rgba(50, 139, 255, 0.27), transparent 42%),
+    radial-gradient(circle at 66% 48%, rgba(185, 76, 234, 0.22), transparent 45%),
+    radial-gradient(circle at 48% 72%, rgba(42, 205, 190, 0.18), transparent 48%);
+  filter: blur(15px);
+  opacity: 0.72;
+  content: "";
+  pointer-events: none;
+  animation: ai-chroma-breathe 5.8s ease-in-out infinite;
+}
+
+.pos-workspace .ai-intelligence-mark {
+  box-shadow:
+    0 0 0 4px rgba(76, 137, 255, 0.09),
+    0 0 24px rgba(75, 132, 255, 0.32),
+    8px 8px 24px -12px rgba(176, 78, 225, 0.54) !important;
+}
+
+.pos-workspace .pos-ai-stage {
+  border-color: rgba(77, 127, 235, 0.20) !important;
+  background:
+    radial-gradient(circle at 50% 68%, rgba(53, 127, 255, 0.17), transparent 44%),
+    radial-gradient(circle at 78% 22%, rgba(181, 83, 222, 0.13), transparent 46%),
+    radial-gradient(circle at 16% 24%, rgba(45, 195, 187, 0.11), transparent 42%),
+    #f0f3f8 !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.98) inset,
+    0 16px 34px -26px rgba(22, 36, 67, 0.62),
+    0 0 28px rgba(56, 122, 245, 0.12) !important;
+}
+
+.pos-workspace .pos-ai-primary .pos-ai-action {
+  background: linear-gradient(112deg, #256cdf, #4d60df 58%, #7856d9) !important;
+  box-shadow:
+    0 14px 28px -18px rgba(45, 108, 223, 0.94),
+    0 0 24px rgba(75, 100, 232, 0.20) !important;
+}
+
+.pos-workspace .pos-ai-reason .pos-ai-action {
+  border-color: rgba(80, 116, 224, 0.26) !important;
+  background:
+    linear-gradient(100deg, rgba(61, 126, 238, 0.08), rgba(166, 82, 221, 0.08)),
+    rgba(251, 252, 255, 0.88) !important;
+  color: #274577 !important;
+  box-shadow:
+    0 12px 24px -20px rgba(55, 91, 172, 0.72),
+    0 0 18px rgba(98, 86, 217, 0.10) !important;
+}
+
+.pos-workspace .ai-reason-heading i {
+  box-shadow:
+    0 0 0 4px rgba(58, 126, 234, 0.09),
+    0 0 14px rgba(74, 126, 238, 0.34);
+}
+
+@keyframes ai-chroma-breathe {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+  50% {
+    opacity: 0.88;
+    transform: translate3d(-12px, 10px, 0) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pos-workspace .pos-ai-card::after {
+    animation: none;
+  }
+}
+
+/* Desktop POS workspace: scan, catalog, checkout, and AI remain visible together. */
+.pos-checkout-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 1025px) {
+  #panel-pos,
+  .pos-workspace {
+    min-width: 0;
+  }
+
+  .pos-command-deck {
+    grid-template-columns:
+      72px
+      minmax(300px, 1fr)
+      minmax(276px, 296px)
+      minmax(238px, 254px) !important;
+    height: calc(100dvh - 152px);
+    min-height: 560px;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .pos-scan-column,
+  .pos-catalog-column,
+  .pos-checkout-column,
+  .pos-ai-rail {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .pos-scan-column {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    order: 1 !important;
+  }
+
+  .pos-catalog-column {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    order: 2 !important;
+  }
+
+  .pos-checkout-column {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    order: 3 !important;
+  }
+
+  .pos-ai-rail {
+    grid-column: 4 !important;
+    grid-row: 1 !important;
+    order: 4 !important;
+  }
+
+  .pos-scan-column,
+  .pos-ai-rail {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .pos-catalog-column {
+    display: grid;
+    grid-template-rows: minmax(0, 1.08fr) minmax(0, .92fr);
+    overflow: hidden;
+    gap: 14px !important;
+  }
+
+  .pos-catalog-panel {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden !important;
+  }
+
+  .pos-catalog-panel > h4,
+  .pos-drinks-panel .drink-filter {
+    flex: 0 0 auto;
+  }
+
+  .pos-catalog-panel .pos-catalog-grid {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .pos-bakery-panel .pos-bakery-grid,
+  .pos-drinks-panel .pos-drinks-grid {
+    max-height: none !important;
+  }
+
+  .pos-drinks-panel .pos-drinks-grid {
+    display: block !important;
+    overflow-y: auto !important;
+  }
+
+  .pos-checkout-column {
+    position: sticky;
+    top: 0;
+    overflow: hidden;
+  }
+
+  .pos-checkout-column .pos-service-mode {
+    flex: 0 0 auto;
+  }
+
+  .pos-checkout-column .pos-cart-panel {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pos-checkout-column .pos-cart-panel > h4,
+  .pos-checkout-column .pos-cart-actions {
+    flex: 0 0 auto;
+  }
+
+  .pos-checkout-column .cart-summary {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .pos-checkout-column .pos-cart-actions {
+    margin-top: 10px;
+  }
+
+  .pos-ai-rail {
+    position: sticky;
+    top: 0;
+  }
+}
+
+@media (min-width: 1025px) and (max-width: 1599px) {
+  .pos-scan-column {
+    padding: 6px !important;
+    border-radius: 22px;
+    gap: 8px !important;
+  }
+
+  .pos-scan-column > .pos-camera-panel,
+  .pos-scan-column > .pos-inflow-panel,
+  .pos-scan-column > .pos-hitl-panel {
+    min-width: 0;
+    padding: 6px !important;
+  }
+
+  .pos-scan-column > .pos-camera-panel > h4,
+  .pos-scan-column > .pos-inflow-panel > h4,
+  .pos-scan-column .pos-quiet-state,
+  .pos-scan-column .inflow-tray-illustration,
+  .pos-scan-column .hit-log {
+    display: none !important;
+  }
+
+  .pos-scan-column .scan-actions,
+  .pos-scan-column .inflow-state-switch,
+  .pos-scan-column .inflow-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100%;
+    gap: 6px !important;
+  }
+
+  .pos-scan-column .scan-action {
+    width: 100%;
+    min-height: 54px !important;
+    padding: 5px !important;
+  }
+
+  .pos-scan-column .scan-action > span:last-child,
+  .pos-scan-column .inflow-state-btn span {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+  }
+
+  .pos-scan-column .scan-action-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .pos-scan-column .inflow-visual-row {
+    display: block !important;
+  }
+
+  .pos-scan-column .inflow-state-btn {
+    min-height: 40px;
+    padding: 4px !important;
+    justify-content: center;
+  }
+
+  .pos-scan-column .inflow-actions .btn {
+    min-width: 0 !important;
+    min-height: 40px;
+    padding: 5px 2px !important;
+    font-size: 9px !important;
+    line-height: 1.1;
+  }
+
+  .pos-scan-column > .pos-hitl-panel h4 {
+    display: grid !important;
+    min-height: 40px;
+    margin: 0 !important;
+    padding: 0 !important;
+    place-items: center;
+    border: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .pos-scan-column > .pos-hitl-panel h4 .detect-tag {
+    font-size: 10px !important;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1599px) {
+  .pos-command-deck {
+    grid-template-columns:
+      84px
+      minmax(420px, 1fr)
+      322px
+      280px !important;
+    gap: 10px !important;
+  }
+}
+
+@media (min-width: 1600px) {
+  .pos-command-deck {
+    grid-template-columns:
+      minmax(220px, 248px)
+      minmax(640px, 1fr)
+      minmax(340px, 370px)
+      minmax(300px, 330px) !important;
+    gap: 14px !important;
+  }
+}
+
+/*
+ * POS detail pass · 2026-07-23
+ * Keeps the approved four-column composition while resolving AI clipping,
+ * simplifying image recognition controls, and giving the global shell depth.
+ */
+.topnav {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-bottom-color: rgba(133, 158, 194, 0.19) !important;
+  background:
+    radial-gradient(310px 96px at 2% -36%, rgba(226, 112, 68, 0.28), transparent 72%),
+    radial-gradient(520px 132px at 53% -88%, rgba(85, 145, 235, 0.20), transparent 76%),
+    linear-gradient(180deg, #313946 0%, #222a35 49%, #171d25 100%) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 -1px 0 rgba(3, 8, 15, 0.48) inset,
+    0 16px 34px -28px rgba(5, 12, 22, 0.92) !important;
+}
+
+.topnav::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    linear-gradient(108deg, transparent 0 12%, rgba(255, 255, 255, 0.055) 20%, transparent 34%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+  background-size: auto, 72px 100%;
+  content: "";
+  pointer-events: none;
+}
+
+.topnav::after {
+  position: absolute;
+  z-index: 0;
+  right: 18px;
+  bottom: 0;
+  left: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(140, 183, 255, 0.24), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.topnav > * {
+  position: relative;
+  z-index: 1;
+}
+
+.topnav h2 {
+  color: #f8fafc !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.42);
+}
+
+.topnav .brand-symbol {
+  border: 1px solid rgba(255, 210, 183, 0.30) !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.02));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.24) inset,
+    0 0 0 1px rgba(16, 21, 29, 0.38),
+    0 10px 24px -13px rgba(0, 0, 0, 0.96),
+    0 0 24px rgba(224, 105, 62, 0.11) !important;
+}
+
+.topnav nav button {
+  border: 1px solid transparent !important;
+  color: rgba(231, 237, 247, 0.67) !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
+}
+
+.topnav nav button:hover {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.045)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset !important;
+}
+
+.topnav nav button.active {
+  border-color: rgba(185, 211, 255, 0.54) !important;
+  background:
+    radial-gradient(110px 46px at 50% 0%, rgba(255, 255, 255, 0.96), transparent 86%),
+    linear-gradient(180deg, #eff6ff, #d9e9ff) !important;
+  color: #155fbf !important;
+  text-shadow: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.98) inset,
+    0 0 0 1px rgba(71, 126, 207, 0.12),
+    0 9px 20px -13px rgba(47, 108, 202, 0.82) !important;
+}
+
+.topnav .role-badge {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.045)) !important;
+  color: rgba(247, 249, 253, 0.84) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+.topnav #user-display {
+  color: rgba(229, 235, 244, 0.64) !important;
+}
+
+.topnav .lang-toggle {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  background: rgba(4, 9, 16, 0.24) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.055) inset,
+    0 8px 18px -16px rgba(0, 0, 0, 0.94);
+}
+
+.topnav .lang-toggle button {
+  color: rgba(232, 237, 245, 0.66) !important;
+}
+
+.topnav .lang-toggle button.active {
+  background: linear-gradient(180deg, #ffffff, #e9eef5) !important;
+  color: #202832 !important;
+  box-shadow:
+    0 1px 0 #ffffff inset,
+    0 5px 12px -8px rgba(0, 0, 0, 0.82) !important;
+}
+
+.topnav .logout-btn {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)) !important;
+  color: rgba(243, 246, 251, 0.78) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset;
+}
+
+.topnav .logout-btn:hover {
+  border-color: rgba(255, 255, 255, 0.20) !important;
+  background: rgba(255, 255, 255, 0.105) !important;
+  color: #fff !important;
+}
+
+.pos-scan-column .scan-actions {
+  gap: 10px !important;
+}
+
+.pos-scan-column .scan-action {
+  position: relative;
+  min-height: 68px !important;
+  padding: 8px !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  border-radius: 18px !important;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.035)) !important;
+}
+
+.pos-scan-column .scan-action::after {
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  border-radius: 13px;
+  content: "";
+  pointer-events: none;
+}
+
+.pos-scan-column .scan-action:hover,
+.pos-scan-column .scan-action:focus-visible {
+  border-color: rgba(113, 169, 255, 0.48) !important;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(111, 169, 255, 0.24), transparent 68%),
+    rgba(61, 105, 183, 0.18) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.10) inset,
+    0 10px 22px -17px rgba(21, 98, 218, 0.84) !important;
+}
+
+.pos-scan-column .scan-action-label {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.pos-scan-column .scan-action-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: #dfe9fb !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 28px 28px !important;
+  box-shadow: none !important;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 28px 28px;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: 28px 28px;
+}
+
+.pos-scan-column .scan-lucide-scan {
+  -webkit-mask-image: url("/assets/ui/scan-line.svg");
+  mask-image: url("/assets/ui/scan-line.svg");
+}
+
+.pos-scan-column .scan-lucide-upload {
+  -webkit-mask-image: url("/assets/ui/image-up.svg");
+  mask-image: url("/assets/ui/image-up.svg");
+}
+
+.pos-scan-column .scan-action:hover .scan-action-icon,
+.pos-scan-column .scan-action:focus-visible .scan-action-icon {
+  background-color: #ffffff !important;
+}
+
+@media (min-width: 1025px) {
+  .pos-ai-rail {
+    display: grid !important;
+    grid-template-rows: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    overflow: hidden !important;
+  }
+
+  .pos-workspace .pos-ai-card {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    padding: 12px !important;
+  }
+
+  .pos-workspace .ai-intelligence-heading,
+  .pos-workspace .ai-reason-heading,
+  .pos-workspace .pos-ai-action {
+    flex: 0 0 auto;
+  }
+
+  .pos-workspace .pos-ai-stage {
+    height: 112px;
+    flex: 0 0 112px;
+    margin-bottom: 9px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-grid,
+  .pos-workspace .pos-script-area {
+    min-height: 0;
+    flex: 1 1 auto;
+    padding-right: 4px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: rgba(87, 117, 180, 0.42) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-grid::-webkit-scrollbar,
+  .pos-workspace .pos-script-area::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-grid::-webkit-scrollbar-thumb,
+  .pos-workspace .pos-script-area::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(47, 117, 232, 0.56), rgba(125, 86, 218, 0.44));
+  }
+
+  .pos-workspace .pos-ai-card .bundle-grid::-webkit-scrollbar-track,
+  .pos-workspace .pos-script-area::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+.pos-workspace .pos-ai-card .bundle-card {
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 8px;
+  padding: 9px;
+}
+
+.pos-workspace .pos-ai-card .bundle-visuals span {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.pos-workspace .pos-ai-card .bundle-visuals img {
+  width: 42px;
+  height: 42px;
+}
+
+.pos-workspace .pos-ai-card .bundle-products {
+  margin-block: 3px 5px;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.28;
+}
+
+.pos-workspace .pos-ai-card .bundle-meta {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.pos-workspace .pos-ai-card .bundle-save {
+  white-space: nowrap;
+}
+
+.pos-workspace .pos-ai-reason {
+  overflow: hidden;
+}
+
+.pos-workspace .pos-ai-reason .pos-script-area:empty::before {
+  display: block;
+  padding: 18px 6px;
+  color: rgba(86, 91, 103, 0.60);
+  font-size: 10px;
+  text-align: center;
+  content: "AI insights appear here";
+}
+
+html[lang="zh"] .pos-workspace .pos-ai-reason .pos-script-area:empty::before {
+  content: "推荐解释将在这里显示";
+}
+
+.pos-workspace .ai-explain-card {
+  margin-top: 7px;
+  padding: 10px;
+}
+
+.pos-workspace .ai-explain-card strong,
+.pos-workspace .ai-explain-reasons,
+.pos-workspace .ai-explain-meta {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.pos-workspace .ai-score-row {
+  grid-template-columns: 7px minmax(62px, 80px) minmax(28px, 1fr) 30px;
+  gap: 5px;
+}
+
+.pos-workspace .ai-score-row > span {
+  min-width: 0;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 1025px) and (max-width: 1599px) {
+  .pos-workspace .pos-ai-stage {
+    height: 96px;
+    flex-basis: 96px;
+  }
+
+  .pos-workspace .ai-product-token {
+    transform: scale(0.86);
+  }
+}
+
+@media (min-width: 1600px) {
+  .pos-workspace .ai-score-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 9px;
+  }
+
+  .pos-workspace .ai-score-row {
+    display: grid;
+    grid-template-columns: 6px minmax(0, 1fr) 27px;
+    grid-template-rows: auto 4px;
+    gap: 2px 5px;
+  }
+
+  .pos-workspace .ai-score-dot {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .pos-workspace .ai-score-row > span {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .pos-workspace .ai-score-row > em {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .pos-workspace .ai-score-track {
+    grid-column: 2 / 4;
+    grid-row: 2;
+    height: 4px;
+  }
+}
+
+@media (min-width: 1600px) and (max-height: 1300px) {
+  .pos-ai-rail {
+    grid-template-rows: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  }
+
+  .pos-workspace .pos-ai-card {
+    padding: 10px !important;
+  }
+
+  .pos-workspace .ai-intelligence-heading {
+    margin-bottom: 7px;
+  }
+
+  .pos-workspace .pos-ai-stage {
+    height: 82px;
+    flex-basis: 82px;
+    margin-bottom: 7px;
+  }
+
+  .pos-workspace .pos-ai-stage::before {
+    width: 166px;
+    height: 86px;
+  }
+
+  .pos-workspace .pos-ai-stage::after {
+    width: 112px;
+    height: 62px;
+  }
+
+  .pos-workspace .ai-product-token {
+    width: 54px;
+    height: 54px;
+    border-radius: 17px;
+  }
+
+  .pos-workspace .ai-product-token img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .pos-workspace .ai-product-token-1 {
+    left: 14px;
+    top: 18px;
+  }
+
+  .pos-workspace .ai-product-token-2 {
+    top: 8px;
+  }
+
+  .pos-workspace .ai-product-token-3 {
+    right: 14px;
+    top: 18px;
+  }
+
+  .pos-workspace .ai-stage-core {
+    bottom: 8px;
+    width: 9px;
+    height: 9px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-grid {
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-card {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 7px;
+    padding: 7px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-visuals span {
+    width: 34px;
+    height: 34px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-visuals img {
+    width: 38px;
+    height: 38px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-products {
+    margin-block: 2px 3px;
+    font-size: 10.5px;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-price {
+    font-size: 13px;
+  }
+
+  .pos-workspace .ai-reason-heading {
+    margin-bottom: 8px;
+    padding-bottom: 7px;
+  }
+
+  .pos-workspace .pos-ai-reason .pos-ai-action {
+    min-height: 42px !important;
+  }
+
+  .pos-workspace .ai-explain-card {
+    margin-top: 6px;
+    padding: 8px;
+  }
+
+  .pos-workspace .ai-score-list {
+    margin-top: 6px;
+    gap: 4px 8px;
+  }
+}
+
+/*
+ * Desktop display adaptation · 2026-07-23
+ * Wide monitors keep the approved four-column command deck. Compact desktop
+ * windows promote scanning to a horizontal utility bar so the catalog,
+ * checkout, and AI assistant keep usable widths instead of being compressed.
+ */
+@media (min-width: 1025px) and (max-width: 1679px) {
+  .pos-command-deck {
+    grid-template-columns:
+      minmax(390px, 1fr)
+      clamp(260px, 22vw, 322px)
+      clamp(276px, 20vw, 312px) !important;
+    grid-template-rows: 112px minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .pos-scan-column {
+    display: grid !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    grid-template-columns: 136px minmax(500px, 1fr) 170px;
+    height: auto !important;
+    min-height: 0;
+    align-items: stretch;
+    gap: 8px !important;
+    padding: 8px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border-radius: 22px;
+    scrollbar-gutter: stable;
+  }
+
+  .pos-catalog-column {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    height: auto !important;
+  }
+
+  .pos-checkout-column {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    height: auto !important;
+  }
+
+  .pos-ai-rail {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+    height: auto !important;
+  }
+
+  .pos-scan-column > .pos-camera-panel,
+  .pos-scan-column > .pos-inflow-panel,
+  .pos-scan-column > .pos-hitl-panel {
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 7px !important;
+    overflow: hidden;
+    border-radius: 15px !important;
+  }
+
+  .pos-scan-column > .pos-camera-panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .pos-scan-column > .pos-camera-panel > h4,
+  .pos-scan-column > .pos-inflow-panel > h4 {
+    display: flex !important;
+    min-height: 20px;
+    margin: 0 0 5px !important;
+    padding: 0 0 5px !important;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #f4f7fb !important;
+    font-size: 10px !important;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .pos-scan-column .scan-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100%;
+    min-height: 0;
+    gap: 6px !important;
+    margin: 0 !important;
+  }
+
+  .pos-scan-column .scan-action {
+    width: 100%;
+    min-height: 48px !important;
+    padding: 4px !important;
+    border-radius: 13px !important;
+  }
+
+  .pos-scan-column .scan-action-icon {
+    width: 30px !important;
+    height: 30px !important;
+    background-size: 25px 25px !important;
+    -webkit-mask-size: 25px 25px;
+    mask-size: 25px 25px;
+  }
+
+  .pos-scan-column .pos-inflow-panel {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr) minmax(176px, 224px);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    column-gap: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .pos-scan-column > .pos-inflow-panel > h4 {
+    min-width: 72px;
+    margin: 0 !important;
+    padding: 0 8px 0 0 !important;
+    border: 0 !important;
+  }
+
+  .pos-scan-column .inflow-visual-row {
+    display: contents !important;
+    margin: 0 !important;
+  }
+
+  .pos-scan-column .inflow-tray-illustration {
+    display: none !important;
+  }
+
+  .pos-scan-column .inflow-state-switch,
+  .pos-scan-column .inflow-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: 1fr !important;
+    width: 100%;
+    gap: 6px !important;
+    margin: 0 !important;
+  }
+
+  .pos-scan-column .inflow-state-btn,
+  .pos-scan-column .inflow-actions .btn {
+    width: 100%;
+    min-width: 0 !important;
+    min-height: 46px !important;
+    padding: 5px 7px !important;
+    justify-content: center;
+    font-size: 10px !important;
+    line-height: 1.1;
+  }
+
+  .pos-scan-column .inflow-state-btn span {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip-path: none !important;
+  }
+
+  .pos-scan-column > .pos-hitl-panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .pos-scan-column > .pos-hitl-panel h4 {
+    display: flex !important;
+    min-height: 22px;
+    margin: 0 0 5px !important;
+    padding: 0 0 5px !important;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(29, 29, 31, 0.08) !important;
+    color: var(--work-ink) !important;
+    font-size: 10px !important;
+  }
+
+  .pos-scan-column > .pos-hitl-panel h4 .detect-tag {
+    font-size: 9px !important;
+  }
+
+  .pos-scan-column .hit-log {
+    display: block !important;
+    min-height: 0;
+    padding: 7px !important;
+    overflow: auto;
+    font-size: 9px;
+    line-height: 1.25;
+  }
+
+  .pos-workspace .pos-ai-card,
+  .pos-workspace .pos-ai-stage,
+  .pos-workspace .bundle-card,
+  .pos-workspace .ai-explain-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .pos-workspace .ai-product-token {
+    overflow: hidden;
+  }
+
+  .pos-workspace .ai-product-token img,
+  .pos-workspace .bundle-visuals img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .pos-workspace .bundle-visuals {
+    width: 58px;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 1680px) {
+  .pos-command-deck {
+    grid-template-columns:
+      minmax(220px, 248px)
+      minmax(640px, 1fr)
+      minmax(340px, 370px)
+      minmax(300px, 330px) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (min-width: 1025px) and (max-height: 800px) {
+  .topnav {
+    min-height: 58px !important;
+    padding: 6px 14px !important;
+  }
+
+  .topnav .brand-symbol {
+    width: 32px !important;
+    height: 32px !important;
+    flex-basis: 32px !important;
+  }
+
+  .topnav nav button,
+  .topnav .logout-btn {
+    min-height: 36px;
+    padding-block: 6px !important;
+  }
+
+  .topnav .lang-toggle button {
+    min-height: 32px;
+  }
+
+  .topbar {
+    min-height: 36px;
+    padding-block: 5px !important;
+  }
+
+  .content {
+    padding: 10px 14px 16px !important;
+  }
+
+  .pos-command-deck {
+    height: calc(100dvh - 114px);
+    min-height: 0;
+  }
+
+  .pos-ai-rail {
+    grid-template-rows: minmax(0, 1.18fr) minmax(0, 0.82fr);
+  }
+
+  .pos-workspace .pos-ai-card {
+    padding: 9px !important;
+  }
+
+  .pos-workspace .ai-intelligence-heading {
+    margin-bottom: 6px;
+  }
+
+  .pos-workspace .pos-ai-stage {
+    height: 70px;
+    flex-basis: 70px;
+    margin-bottom: 6px;
+  }
+
+  .pos-workspace .pos-ai-card .pos-ai-action {
+    min-height: 38px !important;
+  }
+
+  .pos-workspace .pos-ai-card .bundle-grid {
+    min-height: 58px;
+    margin-top: 6px;
+  }
+
+  .pos-workspace .ai-reason-heading {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+
+  .pos-workspace .pos-script-area {
+    min-height: 48px;
+  }
+}
+
+@media (min-width: 1025px) and (max-width: 1679px) and (max-height: 800px) {
+  .pos-command-deck {
+    grid-template-rows: 96px minmax(0, 1fr) !important;
+  }
+
+  .pos-scan-column {
+    padding: 6px !important;
+  }
+
+  .pos-scan-column > .pos-camera-panel,
+  .pos-scan-column > .pos-inflow-panel,
+  .pos-scan-column > .pos-hitl-panel {
+    padding: 6px !important;
+  }
+
+  .pos-scan-column .scan-action {
+    min-height: 42px !important;
+  }
+
+  .pos-scan-column .inflow-state-btn,
+  .pos-scan-column .inflow-actions .btn {
+    min-height: 40px !important;
+  }
+}
+
+/*
+ * Unified desktop canvas · laptop and external displays use one composition.
+ * Smaller desktop viewports show the same 2560-wide four-column workspace at
+ * a uniform scale instead of switching to a different responsive arrangement.
+ */
+html[data-desktop-fit="true"],
+html[data-desktop-fit="true"] body {
+  width: 100%;
+  height: 100%;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+#dashboard[data-desktop-fit="true"] {
+  width: var(--desktop-fit-width);
+  height: var(--desktop-fit-height);
+  overflow: hidden;
+  transform: scale(var(--desktop-fit-scale));
+  transform-origin: 0 0;
+}
+
+#dashboard[data-desktop-fit="true"] .topnav {
+  min-height: 72px !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  padding: 10px 18px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .topnav .brand-symbol {
+  width: 40px !important;
+  height: 40px !important;
+  flex-basis: 40px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .topnav nav {
+  width: auto !important;
+  flex-basis: auto !important;
+  order: initial !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .topnav nav button,
+#dashboard[data-desktop-fit="true"] .topnav .logout-btn {
+  min-height: 44px !important;
+  padding-block: 8px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .topnav .lang-toggle button {
+  min-height: 36px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .main {
+  height: calc(var(--desktop-fit-height) - 72px);
+  overflow: hidden;
+}
+
+#dashboard[data-desktop-fit="true"] .topbar {
+  min-height: 44px !important;
+  padding-block: 6px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .content {
+  width: 100%;
+  height: calc(var(--desktop-fit-height) - 116px);
+  padding: 20px 22px 32px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  box-sizing: border-box;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-command-deck {
+  grid-template-columns:
+    minmax(220px, 248px)
+    minmax(640px, 1fr)
+    minmax(340px, 370px)
+    minmax(300px, 330px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  height: calc(var(--desktop-fit-height) - 152px);
+  min-height: 560px;
+  align-items: stretch !important;
+  gap: 14px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column {
+  display: flex !important;
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  height: 100% !important;
+  min-height: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px !important;
+  padding: 10px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-radius: 28px;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-catalog-column {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  height: 100% !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-checkout-column {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  height: 100% !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-ai-rail {
+  grid-column: 4 !important;
+  grid-row: 1 !important;
+  height: 100% !important;
+  grid-template-rows: minmax(0, 0.92fr) minmax(0, 1.08fr) !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-camera-panel,
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-inflow-panel,
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-hitl-panel {
+  display: block;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 13px 14px !important;
+  overflow: visible;
+  border-radius: 18px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-camera-panel > h4,
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-inflow-panel > h4,
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-hitl-panel > h4 {
+  display: flex !important;
+  min-height: 28px;
+  margin: 0 0 12px !important;
+  padding: 0 0 10px !important;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom-width: 1px !important;
+  font-size: 13px !important;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .scan-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  width: 100%;
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .scan-action {
+  width: 100%;
+  min-height: 68px !important;
+  padding: 8px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 18px !important;
+  text-align: center !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .scan-action-icon {
+  width: 34px !important;
+  height: 34px !important;
+  flex: 0 0 34px !important;
+  margin: 0 auto !important;
+  place-self: center !important;
+  background-size: 28px 28px !important;
+  -webkit-mask-size: 28px 28px;
+  mask-size: 28px 28px;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .pos-quiet-state,
+#dashboard[data-desktop-fit="true"] .pos-scan-column .inflow-tray-illustration,
+#dashboard[data-desktop-fit="true"] .pos-scan-column .hit-log {
+  display: block !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .inflow-visual-row {
+  display: grid !important;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 10px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .inflow-state-switch {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  width: 100%;
+  gap: 7px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .inflow-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  width: 100%;
+  gap: 8px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .inflow-state-btn,
+#dashboard[data-desktop-fit="true"] .pos-scan-column .inflow-actions .btn {
+  width: 100%;
+  min-width: 0 !important;
+  min-height: 44px !important;
+  padding: 6px 10px !important;
+  justify-content: flex-start;
+  font-size: 11px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .inflow-state-btn span {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+  clip-path: none !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-hitl-panel h4 .detect-tag {
+  font-size: 10px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .hit-log {
+  min-height: 48px;
+  padding: 10px !important;
+  overflow: auto;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card {
+  padding: 10px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .ai-intelligence-heading {
+  margin-bottom: 7px;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-stage {
+  height: 112px;
+  flex-basis: 112px;
+  margin-bottom: 9px;
+  overflow: visible;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .pos-ai-action {
+  min-height: 42px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .bundle-grid,
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-script-area {
+  min-height: 0;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .ai-score-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 9px;
+}
+
+/*
+ * Laptop readability pass.
+ * The workspace keeps the wide-screen four-column geometry, while essential
+ * operating copy is enlarged inside that logical canvas before it is scaled.
+ */
+#dashboard[data-desktop-fit="true"] .topnav .brand,
+#dashboard[data-desktop-fit="true"] .topnav nav button,
+#dashboard[data-desktop-fit="true"] .topnav .role-badge,
+#dashboard[data-desktop-fit="true"] .topnav #user-display,
+#dashboard[data-desktop-fit="true"] .topnav .logout-btn,
+#dashboard[data-desktop-fit="true"] .topnav .lang-toggle button {
+  font-size: 16px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .topbar,
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-panel > h4,
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-orders-header h4 {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .product-card-copy .drink-name,
+#dashboard[data-desktop-fit="true"] .pos-workspace .drink-product-card .drink-name {
+  font-size: 17px !important;
+  line-height: 1.18 !important;
+  font-weight: 700 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .drink-desc {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .drink-price {
+  font-size: 17px !important;
+  font-weight: 740 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .freshness-choice,
+#dashboard[data-desktop-fit="true"] .pos-workspace .freshness-unavailable,
+#dashboard[data-desktop-fit="true"] .pos-workspace .drink-category-tab,
+#dashboard[data-desktop-fit="true"] .pos-workspace .drink-category-heading {
+  font-size: 12px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .detect-name {
+  font-size: 18px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .detect-meta,
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .detect-status,
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .cart-row,
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .btn,
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .checkout-btn {
+  font-size: 15px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .ai-intelligence-heading small,
+#dashboard[data-desktop-fit="true"] .pos-workspace .ai-reason-heading small {
+  font-size: 12px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .ai-intelligence-heading h4,
+#dashboard[data-desktop-fit="true"] .pos-workspace .ai-reason-heading h4 {
+  font-size: 19px !important;
+  line-height: 1.15 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .pos-ai-action {
+  font-size: 16px !important;
+  font-weight: 720 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .bundle-products {
+  font-size: 13px !important;
+  line-height: 1.22 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .bundle-price {
+  font-size: 15px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .bundle-rank,
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .bundle-save,
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-card .bundle-meta,
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-script-area {
+  font-size: 12px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-camera-panel > h4,
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-inflow-panel > h4,
+#dashboard[data-desktop-fit="true"] .pos-scan-column > .pos-hitl-panel > h4 {
+  font-size: 15px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column .pos-quiet-state,
+#dashboard[data-desktop-fit="true"] .pos-scan-column .hit-log {
+  font-size: 12px !important;
+}
+
+/*
+ * POS decision zone · 2026-07-23
+ * Checkout now occupies the focused upper-right position. AI bundle building
+ * receives the wider adjacent lane, while recommendation reasoning spans both
+ * decision columns so its evidence remains readable at the laptop fit scale.
+ */
+@media (min-width: 1025px) {
+  .pos-command-deck {
+    grid-template-rows:
+      minmax(0, 0.62fr)
+      minmax(0, 0.38fr) !important;
+  }
+
+  .pos-scan-column,
+  .pos-catalog-column {
+    grid-row: 1 / 3 !important;
+  }
+
+  .pos-checkout-column {
+    grid-column: 4 !important;
+    grid-row: 1 !important;
+    height: 100% !important;
+  }
+
+  .pos-ai-rail {
+    display: contents !important;
+  }
+
+  .pos-workspace .pos-ai-primary,
+  .pos-workspace .pos-ai-reason {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+  }
+
+  .pos-workspace .pos-ai-primary {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    padding: 14px !important;
+  }
+
+  .pos-workspace .pos-ai-reason {
+    grid-column: 3 / 5 !important;
+    grid-row: 2 !important;
+    padding: 16px !important;
+  }
+
+  .pos-workspace .pos-ai-stage {
+    display: grid !important;
+    height: 136px;
+    flex: 0 0 136px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    justify-items: center;
+    gap: 8px;
+    padding: 12px 18px 22px;
+    overflow: hidden !important;
+    box-sizing: border-box;
+  }
+
+  .pos-workspace .ai-product-token,
+  .pos-workspace .ai-product-token-1,
+  .pos-workspace .ai-product-token-2,
+  .pos-workspace .ai-product-token-3 {
+    position: relative !important;
+    inset: auto !important;
+    width: 76px;
+    height: 76px;
+    place-self: center;
+    border-radius: 22px;
+    transform: translate3d(0, 0, 28px) !important;
+  }
+
+  .pos-workspace .ai-product-token img {
+    width: 82px !important;
+    height: 82px !important;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+  }
+
+  .pos-workspace .pos-ai-primary .bundle-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 8px;
+    margin-top: 9px;
+  }
+
+  .pos-workspace .pos-ai-primary .bundle-card {
+    min-height: 82px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    padding: 9px 10px;
+  }
+
+  .pos-workspace .ai-reason-heading {
+    min-height: 42px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    font-size: 20px;
+    font-weight: 740;
+    letter-spacing: -0.025em;
+  }
+
+  .pos-workspace .ai-reason-heading i {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+
+  .pos-workspace .pos-ai-reason .pos-ai-action {
+    width: 100%;
+    min-height: 48px !important;
+    flex: 0 0 auto;
+    font-size: 16px !important;
+    font-weight: 700;
+  }
+
+  .pos-workspace .pos-ai-reason .pos-script-area {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-content: start;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 0 4px 2px 0;
+  }
+
+  .pos-workspace .pos-ai-reason .pos-script-area:empty {
+    grid-template-columns: 1fr;
+    place-items: center;
+  }
+
+  .pos-workspace .pos-ai-reason .pos-script-area:empty::before {
+    padding: 28px 12px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-card {
+    min-width: 0;
+    margin-top: 0;
+    padding: 13px;
+    border-radius: 17px;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-card strong {
+    font-size: 17px;
+    line-height: 1.28;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-reasons {
+    margin-top: 6px;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-meta,
+  .pos-workspace .pos-ai-reason .ai-explain-card > span {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-list {
+    display: flex !important;
+    margin-top: 8px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-row {
+    display: grid;
+    grid-template-columns: 7px minmax(76px, 92px) minmax(30px, 1fr) 34px;
+    grid-template-rows: auto;
+    gap: 5px;
+    font-size: 12px;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-dot,
+  .pos-workspace .pos-ai-reason .ai-score-row > span,
+  .pos-workspace .pos-ai-reason .ai-score-row > em,
+  .pos-workspace .pos-ai-reason .ai-score-track {
+    grid-row: 1;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-dot {
+    grid-column: 1;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-row > span {
+    grid-column: 2;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-track {
+    grid-column: 3;
+    align-self: center;
+    height: 5px;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-row > em {
+    grid-column: 4;
+  }
+}
+
+#dashboard[data-desktop-fit="true"] .pos-command-deck {
+  grid-template-rows:
+    minmax(0, 0.62fr)
+    minmax(0, 0.38fr) !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-scan-column,
+#dashboard[data-desktop-fit="true"] .pos-catalog-column {
+  grid-row: 1 / 3 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-checkout-column {
+  grid-column: 4 !important;
+  grid-row: 1 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-ai-rail {
+  display: contents !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-primary {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-reason {
+  grid-column: 3 / 5 !important;
+  grid-row: 2 !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-stage {
+  height: 136px;
+  flex-basis: 136px;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-reason .pos-script-area {
+  font-size: 13px !important;
+}
+
+/*
+ * Checkout emphasis and recommendation scanability · 2026-07-23
+ * The payment lane is intentionally darker and more dimensional than the
+ * surrounding work surfaces. Recommendation evidence becomes three full-width
+ * ranked rows so product names stay on one line and the important reasons,
+ * savings, and scores can be scanned without narrow-card wrapping.
+ */
+@media (min-width: 1025px) {
+  .pos-checkout-column {
+    position: relative;
+    isolation: isolate;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 26px;
+    background:
+      radial-gradient(circle at 88% 5%, rgba(245, 158, 11, 0.24), transparent 30%),
+      linear-gradient(155deg, #26364d 0%, #172335 52%, #101a29 100%);
+    box-shadow:
+      0 24px 46px rgba(15, 23, 42, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.17);
+  }
+
+  .pos-checkout-column::before {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(90deg, #f59e0b 0 30%, rgba(245, 158, 11, 0) 58%) top / 100% 3px no-repeat;
+    content: "";
+    pointer-events: none;
+  }
+
+  .pos-checkout-column .pos-service-mode {
+    padding: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 16px;
+    background: rgba(7, 15, 27, 0.38);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .pos-checkout-column .dine-type-btn {
+    min-height: 46px;
+    border: 0 !important;
+    background: transparent !important;
+    color: rgba(255, 255, 255, 0.64) !important;
+    font-weight: 700;
+  }
+
+  .pos-checkout-column .dine-type-btn.active {
+    background: linear-gradient(180deg, #ffffff, #edf3fb) !important;
+    color: #172335 !important;
+    box-shadow:
+      0 8px 18px rgba(2, 8, 23, 0.28),
+      inset 0 1px 0 #ffffff !important;
+  }
+
+  .pos-checkout-column .pos-cart-panel {
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+    border-radius: 20px !important;
+    background: linear-gradient(180deg, #fbfdff 0%, #f2f6fb 100%) !important;
+    box-shadow:
+      0 18px 36px rgba(2, 8, 23, 0.2),
+      inset 0 1px 0 #ffffff;
+  }
+
+  .pos-checkout-column .pos-cart-panel > h4 {
+    display: flex;
+    min-height: 42px;
+    margin: -2px -2px 10px !important;
+    padding: 0 4px 10px !important;
+    align-items: center;
+    gap: 9px;
+    border-bottom: 1px solid #d9e2ee;
+    color: #132238 !important;
+    font-size: 18px !important;
+    font-weight: 780 !important;
+    letter-spacing: -0.02em;
+  }
+
+  .pos-checkout-column .pos-cart-panel > h4::before {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 9px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.14);
+    content: "";
+  }
+
+  .pos-checkout-column .cart-summary {
+    border: 1px solid #dbe4ef !important;
+    border-radius: 16px !important;
+    background: rgba(255, 255, 255, 0.86) !important;
+    box-shadow: inset 0 1px 0 #ffffff;
+  }
+
+  .pos-checkout-column .cart-summary > .cart-row:last-child {
+    margin: 12px -2px -2px;
+    padding: 14px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: #172335;
+    color: #ffffff !important;
+    font-size: 18px !important;
+    font-weight: 780 !important;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
+  }
+
+  .pos-checkout-column .pos-cart-actions {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .pos-checkout-column .pos-cart-actions .btn-outline {
+    min-height: 56px !important;
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+    font-weight: 700;
+  }
+
+  .pos-checkout-column .checkout-btn {
+    position: relative;
+    min-height: 56px !important;
+    border: 1px solid rgba(255, 255, 255, 0.34) !important;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #fb923c 0%, #f97316 42%, #ea580c 100%) !important;
+    color: #ffffff !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.01em;
+    box-shadow:
+      0 13px 24px rgba(234, 88, 12, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.38) !important;
+  }
+
+  .pos-checkout-column .checkout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 17px 28px rgba(234, 88, 12, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.42) !important;
+  }
+
+  .pos-workspace .pos-ai-reason .pos-script-area {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-content: start;
+    gap: 8px;
+    padding: 0 4px 4px 0;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-card {
+    display: grid;
+    min-height: 82px;
+    grid-template-columns:
+      minmax(188px, 0.94fr)
+      minmax(142px, 0.72fr)
+      minmax(260px, 1.34fr);
+    grid-template-areas:
+      "title reasons scores"
+      "meta reasons scores";
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    row-gap: 5px;
+    align-items: center;
+    padding: 11px 13px 11px 16px;
+    overflow: hidden;
+    border: 1px solid rgba(95, 114, 138, 0.19);
+    border-left: 4px solid #2563eb;
+    border-radius: 15px;
+    background:
+      linear-gradient(90deg, rgba(239, 246, 255, 0.98), rgba(255, 255, 255, 0.94) 44%, rgba(248, 250, 252, 0.96));
+    box-shadow:
+      0 8px 20px rgba(30, 64, 175, 0.08),
+      inset 0 1px 0 #ffffff;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-card:nth-child(2) {
+    border-left-color: #14b8a6;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-card:nth-child(3) {
+    border-left-color: #f59e0b;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-card strong {
+    grid-area: title;
+    min-width: 0;
+    overflow: hidden;
+    color: #132238;
+    font-size: 16px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-reasons {
+    display: flex;
+    min-height: 42px;
+    grid-area: reasons;
+    margin: 0;
+    padding: 8px 10px;
+    align-items: center;
+    border: 1px solid rgba(16, 185, 129, 0.18);
+    border-radius: 11px;
+    background: rgba(236, 253, 245, 0.88);
+    color: #047857;
+    font-size: 13px;
+    font-weight: 730;
+    line-height: 1.35;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-explain-meta {
+    grid-area: meta;
+    margin: 0;
+    color: #b45309;
+    font-size: 12px;
+    font-weight: 720;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-list {
+    display: grid !important;
+    grid-area: scores;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+    margin: 0;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-row {
+    display: grid;
+    grid-template-columns: 7px minmax(54px, auto) minmax(24px, 1fr) 30px;
+    gap: 4px;
+    align-items: center;
+    font-size: 11px;
+  }
+
+  .pos-workspace .pos-ai-reason .ai-score-row > span {
+    overflow: hidden;
+    color: #475569;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+#dashboard[data-desktop-fit="true"] .pos-checkout-column {
+  padding: 12px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .pos-cart-panel > h4 {
+  font-size: 18px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-checkout-column .checkout-btn {
+  font-size: 17px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-reason .pos-script-area {
+  grid-template-columns: minmax(0, 1fr) !important;
+  font-size: 13px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-reason .ai-explain-card strong {
+  font-size: 16px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-reason .ai-explain-reasons {
+  font-size: 13px !important;
+}
+
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-reason .ai-explain-meta,
+#dashboard[data-desktop-fit="true"] .pos-workspace .pos-ai-reason .ai-explain-card > span {
+  font-size: 12px !important;
+}

@@ -1,12 +1,12 @@
 """
-s1_recognition/full_train.py ??YOLO11s Ablation Study & Full Training
+s1_recognition/full_train.py -- YOLO11s Ablation Study and Full Training
 ========================================================================
 
 Ablation experiments to isolate the contribution of each training component:
   1. Baseline:    AdamW, 100ep, basic aug  (default YOLO recipe)
   2. Optimizer:   SGD,   100ep, basic aug  (isolates optimizer effect)
   3. Epochs:      SGD,   200ep, basic aug  (isolates extended training)
-  4. Proposed:    SGD,   200ep, full aug   (grid-search recipe + mixup)
+  4. Proposed:    SGD,   200ep, full aug   (extended augmentation + mixup)
 
 All experiments use the same effective learning rate (lr0=0.005, nbs=batch)
 and the same dataset (merged_yolo_30cls, 30 classes).
@@ -18,6 +18,8 @@ Usage
 """
 
 import os, sys, json, time, logging, argparse, platform, shutil
+from pathlib import Path
+
 import torch, yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,6 +32,17 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_DIR = os.path.dirname(_SCRIPT_DIR)
 DEFAULT_DATA_YAML = os.path.join(_PROJECT_DIR, "data", "merged_yolo_30cls", "data.yaml")
 FINAL_MODEL_DIR = os.path.join(_PROJECT_DIR, "models", "yolo")
+
+
+def _portable_model_path(tag: str) -> str:
+    return Path("runs", "detect", tag, "weights", "best.pt").as_posix()
+
+
+def _resolve_project_path(path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return Path(_PROJECT_DIR) / path
 
 # ---- Experiment definitions ----
 # Each dict: name, optimizer, epochs, batch, mixup, multi_scale, label_smoothing, description
@@ -76,7 +89,7 @@ EXPERIMENTS = [
         "hsv_h": 0.015, "hsv_s": 0.4, "hsv_v": 0.3,
         "degrees": 15, "shear": 0.1,
         "warmup_epochs": 5, "close_mosaic": 15, "patience": 50,
-        "desc": "SGD 200ep full aug (grid-search recipe + mixup)",
+        "desc": "SGD 200ep full aug (extended augmentation + mixup)",
     },
 ]
 
@@ -158,7 +171,7 @@ def run_experiment(exp: dict, data_yaml: str) -> dict:
         "training_time_s": round(t_elapsed, 1),
         "peak_gpu_memory_gb": round(peak_mem, 2),
         "epochs_trained": exp["epochs"],
-        "model_path": os.path.join(_PROJECT_DIR, "runs", "detect", exp["tag"], "weights", "best.pt"),
+        "model_path": _portable_model_path(exp["tag"]),
     }
 
     logger.info("%s done: mAP50=%.4f mAP50-95=%.4f time=%.0fs VRAM=%.1fGB",
@@ -252,14 +265,21 @@ def main():
     if len(all_metrics) >= 2:
         print_comparison(all_metrics)
 
-    # Copy proposed model to final location (only if proposed ran successfully)
-    proposed = [m for m in all_metrics if m.get("tag") == "ablation_proposed" and "error" not in m]
-    if proposed:
-        src = proposed[0].get("model_path")
+    # Deploy the successful experiment with the strongest validation mAP50-95.
+    successful = [m for m in all_metrics if "error" not in m and m.get("model_path")]
+    if successful:
+        selected = max(successful, key=lambda item: float(item.get("mAP50_95", -1)))
+        src_value = selected.get("model_path")
+        src = _resolve_project_path(src_value) if src_value else None
         if src and os.path.exists(src):
             os.makedirs(FINAL_MODEL_DIR, exist_ok=True)
             shutil.copy2(src, YOLO_MODEL_PATH)
-            logger.info("Final model: %s", YOLO_MODEL_PATH)
+            logger.info(
+                "Final model: %s selected from %s (mAP50-95=%.4f)",
+                YOLO_MODEL_PATH,
+                selected.get("experiment", selected.get("tag", "unknown")),
+                float(selected.get("mAP50_95", 0)),
+            )
 
     logger.info("ALL DONE")
 

@@ -1,7 +1,7 @@
 """
-KPI Configuration - 7-Metric System with BSC Dimensions
+KPI Configuration - 8-Metric System with BSC Dimensions
 =========================================================
-7 objective metrics, no manager ratings needed.
+8 objective metrics, no manager ratings needed.
 
 Metrics:
   1. revenue_contribution - Personal attributed revenue
@@ -11,10 +11,12 @@ Metrics:
   5. attendance_rate - Actual / expected working days
   6. waste_rate     - Material wastage rate (baker/barista only)
   7. punctuality    - On-time punch rate (cross-role shared)
+  8. shift_completion - Full scheduled shift completion rate
 
 BSC Framework:
   Financial (25%)   - revenue_contribution, revenue_growth
-  Internal (35%)    - work_hours, hours_vs_avg, attendance_rate, punctuality, waste_rate
+  Internal (35%)    - work_hours, hours_vs_avg, attendance_rate, punctuality,
+                      shift_completion, waste_rate
   Customer (20%)    - (reserved for future kpi_ratings)
   Learning (20%)    - (reserved for future kpi_ratings)
 """
@@ -38,18 +40,22 @@ SHARED_KPIS = {
     },
     "work_hours": {
         "name_cn": "Work Hours", "unit": "h", "direction": "higher_better",
-        "bsc_dimension": "Internal Process", "weight": 0.25,
+        "bsc_dimension": "Internal Process", "weight": 0.20,
     },
     "hours_vs_avg": {
         "name_cn": "Hours vs Avg", "unit": "%", "direction": "higher_better",
-        "bsc_dimension": "Internal Process", "weight": 0.15,
+        "bsc_dimension": "Internal Process", "weight": 0.10,
     },
     "attendance_rate": {
         "name_cn": "Attendance Rate", "unit": "%", "direction": "higher_better",
-        "bsc_dimension": "Internal Process", "weight": 0.25,
+        "bsc_dimension": "Internal Process", "weight": 0.20,
     },
     "punctuality": {
         "name_cn": "Punctuality", "unit": "%", "direction": "higher_better",
+        "bsc_dimension": "Internal Process", "weight": 0.15, "cross_role": True,
+    },
+    "shift_completion": {
+        "name_cn": "Shift Completion", "unit": "%", "direction": "higher_better",
         "bsc_dimension": "Internal Process", "weight": 0.20, "cross_role": True,
     },
     "waste_rate": {

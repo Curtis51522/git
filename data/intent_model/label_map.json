@@ -1,1 +1,0 @@
-{"label2id": {"full_diagnosis": 0, "inventory_diagnosis": 1, "production_advice": 2, "profit_root_cause": 3, "promo_evaluation": 4, "staffing_diagnosis": 5, "wastage_root_cause": 6}, "id2label": {"0": "full_diagnosis", "1": "inventory_diagnosis", "2": "production_advice", "3": "profit_root_cause", "4": "promo_evaluation", "5": "staffing_diagnosis", "6": "wastage_root_cause"}}

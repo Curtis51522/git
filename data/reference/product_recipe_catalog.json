@@ -1,0 +1,598 @@
+{
+  "schema_version": 1,
+  "canonical_units": ["kg", "L", "pcs"],
+  "materials": [
+    {"material_name": "All-Purpose Flour", "unit": "kg", "unit_price": "9.00", "category": "flour", "reorder_point": "5.000000", "opening_stock": "60.000000", "track_inventory": true},
+    {"material_name": "Almond Flour", "unit": "kg", "unit_price": "70.00", "category": "flour", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Apples", "unit": "kg", "unit_price": "12.00", "category": "fruit", "reorder_point": "3.000000", "opening_stock": "18.000000", "track_inventory": true},
+    {"material_name": "Baking Powder", "unit": "kg", "unit_price": "25.00", "category": "leavener", "reorder_point": "0.200000", "opening_stock": "2.000000", "track_inventory": true},
+    {"material_name": "Baking Soda", "unit": "kg", "unit_price": "15.00", "category": "leavener", "reorder_point": "0.100000", "opening_stock": "1.000000", "track_inventory": true},
+    {"material_name": "Bread Flour", "unit": "kg", "unit_price": "8.00", "category": "flour", "reorder_point": "5.000000", "opening_stock": "70.000000", "track_inventory": true},
+    {"material_name": "Breadcrumbs", "unit": "kg", "unit_price": "10.00", "category": "bakery", "reorder_point": "0.500000", "opening_stock": "5.000000", "track_inventory": true},
+    {"material_name": "Brown Sugar", "unit": "kg", "unit_price": "8.00", "category": "sweetener", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Butter", "unit": "kg", "unit_price": "60.00", "category": "dairy", "reorder_point": "2.000000", "opening_stock": "25.000000", "track_inventory": true},
+    {"material_name": "Cake Flour", "unit": "kg", "unit_price": "10.00", "category": "flour", "reorder_point": "3.000000", "opening_stock": "25.000000", "track_inventory": true},
+    {"material_name": "Cheese", "unit": "kg", "unit_price": "45.00", "category": "dairy", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Chocolate", "unit": "kg", "unit_price": "45.00", "category": "confectionery", "reorder_point": "0.500000", "opening_stock": "10.000000", "track_inventory": true},
+    {"material_name": "Cinnamon", "unit": "kg", "unit_price": "80.00", "category": "spice", "reorder_point": "0.050000", "opening_stock": "0.500000", "track_inventory": true},
+    {"material_name": "Cocoa Powder", "unit": "kg", "unit_price": "55.00", "category": "confectionery", "reorder_point": "0.500000", "opening_stock": "5.000000", "track_inventory": true},
+    {"material_name": "Coconut Cream", "unit": "L", "unit_price": "18.00", "category": "coconut", "reorder_point": "1.000000", "opening_stock": "6.000000", "track_inventory": true},
+    {"material_name": "Cornmeal", "unit": "kg", "unit_price": "12.00", "category": "flour", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Cornstarch", "unit": "kg", "unit_price": "12.00", "category": "starch", "reorder_point": "0.500000", "opening_stock": "4.000000", "track_inventory": true},
+    {"material_name": "Cream of Tartar", "unit": "kg", "unit_price": "50.00", "category": "leavener", "reorder_point": "0.050000", "opening_stock": "0.500000", "track_inventory": true},
+    {"material_name": "Desiccated Coconut", "unit": "kg", "unit_price": "30.00", "category": "coconut", "reorder_point": "0.500000", "opening_stock": "5.000000", "track_inventory": true},
+    {"material_name": "Eggs", "unit": "kg", "unit_price": "12.00", "category": "dairy", "reorder_point": "3.000000", "opening_stock": "30.000000", "track_inventory": true},
+    {"material_name": "Evaporated Milk", "unit": "L", "unit_price": "12.00", "category": "dairy", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Heavy Cream", "unit": "L", "unit_price": "40.00", "category": "dairy", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Icing Sugar", "unit": "kg", "unit_price": "10.00", "category": "sweetener", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Marshmallow", "unit": "kg", "unit_price": "35.00", "category": "confectionery", "reorder_point": "0.500000", "opening_stock": "4.000000", "track_inventory": true},
+    {"material_name": "Milk", "unit": "L", "unit_price": "8.00", "category": "dairy", "reorder_point": "3.000000", "opening_stock": "25.000000", "track_inventory": true},
+    {"material_name": "Milk Powder", "unit": "kg", "unit_price": "35.00", "category": "dairy", "reorder_point": "0.500000", "opening_stock": "4.000000", "track_inventory": true},
+    {"material_name": "Olive Oil", "unit": "kg", "unit_price": "28.00", "category": "oil", "reorder_point": "0.500000", "opening_stock": "4.000000", "track_inventory": true},
+    {"material_name": "Peanut Butter", "unit": "kg", "unit_price": "30.00", "category": "nut", "reorder_point": "0.500000", "opening_stock": "4.000000", "track_inventory": true},
+    {"material_name": "Puff Pastry", "unit": "kg", "unit_price": "30.00", "category": "bakery", "reorder_point": "2.000000", "opening_stock": "12.000000", "track_inventory": true},
+    {"material_name": "Salt", "unit": "kg", "unit_price": "3.00", "category": "seasoning", "reorder_point": "0.500000", "opening_stock": "5.000000", "track_inventory": true},
+    {"material_name": "Sugar", "unit": "kg", "unit_price": "7.00", "category": "sweetener", "reorder_point": "3.000000", "opening_stock": "25.000000", "track_inventory": true},
+    {"material_name": "Tomato Sauce", "unit": "kg", "unit_price": "15.00", "category": "sauce", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Vegetable Oil", "unit": "kg", "unit_price": "12.00", "category": "oil", "reorder_point": "2.000000", "opening_stock": "15.000000", "track_inventory": true},
+    {"material_name": "Vegetable Shortening", "unit": "kg", "unit_price": "18.00", "category": "oil", "reorder_point": "1.000000", "opening_stock": "6.000000", "track_inventory": true},
+    {"material_name": "Water", "unit": "L", "unit_price": "0.004", "category": "utility", "reorder_point": "0", "opening_stock": "0", "track_inventory": false},
+    {"material_name": "Whole Wheat Flour", "unit": "kg", "unit_price": "10.00", "category": "flour", "reorder_point": "1.000000", "opening_stock": "8.000000", "track_inventory": true},
+    {"material_name": "Yeast", "unit": "kg", "unit_price": "40.00", "category": "leavener", "reorder_point": "0.200000", "opening_stock": "2.000000", "track_inventory": true}
+  ],
+  "products": [
+    {
+      "product_name": "apple_pie",
+      "retail_identity": "Individual apple pie portion with a butter-shortening crust",
+      "portion_weight_g": "180",
+      "source_title": "Apple Pie",
+      "source_url": "https://www.kingarthurbaking.com/recipes/apple-pie-recipe",
+      "source_yield": "One 9-inch pie",
+      "adaptation_note": "The full crust and filling are divided into eight retail portions; optional flavorings are omitted.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.039250", "unit": "kg"},
+        {"material_name": "Vegetable Shortening", "quantity_per_unit": "0.007500", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.017625", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.015000", "unit": "L"},
+        {"material_name": "Apples", "quantity_per_unit": "0.113000", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.018625", "unit": "kg"},
+        {"material_name": "Cornstarch", "quantity_per_unit": "0.001750", "unit": "kg"},
+        {"material_name": "Cinnamon", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000500", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "bagel",
+      "retail_identity": "Plain yeast-raised boiled bagel",
+      "portion_weight_g": "85",
+      "source_title": "A Dozen Simple Bagels",
+      "source_url": "https://www.kingarthurbaking.com/recipes/a-dozen-simple-bagels-recipe",
+      "source_yield": "Twelve bagels",
+      "adaptation_note": "The preferment and final dough are combined and divided by twelve; the boiling sugar is allocated across the batch.",
+      "ingredients": [
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.045000", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.028333", "unit": "L"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000917", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000417", "unit": "kg"},
+        {"material_name": "Brown Sugar", "quantity_per_unit": "0.001000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "baguette",
+      "retail_identity": "Small French baguette",
+      "portion_weight_g": "170",
+      "source_title": "Easy Crusty Baguettes",
+      "source_url": "https://www.kingarthurbaking.com/recipes/easy-crusty-baguettes-recipe",
+      "source_yield": "Three 14-inch baguettes",
+      "adaptation_note": "The source batch is divided by three; instant yeast volume is converted with the source ingredient-weight reference.",
+      "ingredients": [
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.120000", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.075667", "unit": "L"},
+        {"material_name": "Salt", "quantity_per_unit": "0.002000", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000267", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "bread_coconut",
+      "retail_identity": "Soft Filipino coconut-filled bread roll",
+      "portion_weight_g": "95",
+      "source_title": "Filipino Pan de Coco",
+      "source_url": "https://hellobakeph.com/filipino-pan-de-coco-recipe/",
+      "source_yield": "Sixteen rolls",
+      "adaptation_note": "Dough and coconut filling ingredients are combined and divided by sixteen; the upper brown-sugar quantity is used for a bakery-style filling.",
+      "ingredients": [
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.023750", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.004688", "unit": "kg"},
+        {"material_name": "Brown Sugar", "quantity_per_unit": "0.008125", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000625", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.015000", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.003438", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.006875", "unit": "kg"},
+        {"material_name": "Coconut Cream", "quantity_per_unit": "0.010000", "unit": "L"},
+        {"material_name": "Desiccated Coconut", "quantity_per_unit": "0.006875", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "bread_roll",
+      "retail_identity": "Soft enriched dinner roll",
+      "portion_weight_g": "65",
+      "source_title": "Dutch Oven Dinner Rolls",
+      "source_url": "https://www.kingarthurbaking.com/recipes/dutch-oven-dinner-rolls-recipe",
+      "source_yield": "Twelve rolls",
+      "adaptation_note": "The all-purpose flour option is used and the dough plus finishing butter are divided by twelve.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.030000", "unit": "kg"},
+        {"material_name": "Milk Powder", "quantity_per_unit": "0.002333", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.002083", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000667", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.018917", "unit": "L"},
+        {"material_name": "Butter", "quantity_per_unit": "0.009500", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000500", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "brioche",
+      "retail_identity": "Individual butter-and-egg brioche",
+      "portion_weight_g": "75",
+      "source_title": "Brioche Professional Formula",
+      "source_url": "https://www.kingarthurbaking.com/pro/formulas/brioche",
+      "source_yield": "20.05 kilograms of dough",
+      "adaptation_note": "The professional baker percentages are normalized to one 75-gram dough piece.",
+      "ingredients": [
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.032538", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000813", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.003905", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.016269", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.002278", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.002928", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.016269", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "brownie",
+      "retail_identity": "Individual chewy chocolate brownie square",
+      "portion_weight_g": "70",
+      "source_title": "Our Ultimate Chewy Brownies",
+      "source_url": "https://www.kingarthurbaking.com/recipes/our-ultimate-chewy-brownies-recipe",
+      "source_yield": "One 9-inch square pan",
+      "adaptation_note": "The pan is portioned into sixteen retail squares; optional chips are omitted to preserve the base brownie identity.",
+      "ingredients": [
+        {"material_name": "Cocoa Powder", "quantity_per_unit": "0.004000", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.007063", "unit": "kg"},
+        {"material_name": "Vegetable Oil", "quantity_per_unit": "0.003125", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.024813", "unit": "kg"},
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.007500", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.009375", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000375", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "chiffon",
+      "retail_identity": "Individual plain chiffon cake portion",
+      "portion_weight_g": "75",
+      "source_title": "How to Make the Perfect Chiffon Cake",
+      "source_url": "https://www.justonecookbook.com/perfect-chiffon-cake/",
+      "source_yield": "One 17-centimeter chiffon cake",
+      "adaptation_note": "The 17-centimeter cake formula is divided into eight retail portions and uses cake flour as specified by the source method.",
+      "ingredients": [
+        {"material_name": "Cake Flour", "quantity_per_unit": "0.006250", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.018750", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.006250", "unit": "kg"},
+        {"material_name": "Vegetable Oil", "quantity_per_unit": "0.004375", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.006250", "unit": "L"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.000250", "unit": "kg"},
+        {"material_name": "Cream of Tartar", "quantity_per_unit": "0.000125", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000125", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "chocolate_cake",
+      "retail_identity": "Individual rich chocolate cake portion",
+      "portion_weight_g": "85",
+      "source_title": "Simple and Rich Chocolate Cake",
+      "source_url": "https://www.kingarthurbaking.com/recipes/simple-and-rich-chocolate-cake-recipe",
+      "source_yield": "Twenty-four cupcakes",
+      "adaptation_note": "The source cupcake yield is used as the retail portion count; optional frosting is omitted.",
+      "ingredients": [
+        {"material_name": "Cake Flour", "quantity_per_unit": "0.011250", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.016542", "unit": "kg"},
+        {"material_name": "Cocoa Powder", "quantity_per_unit": "0.002667", "unit": "kg"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.000500", "unit": "kg"},
+        {"material_name": "Baking Soda", "quantity_per_unit": "0.000125", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000188", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.008333", "unit": "kg"},
+        {"material_name": "Vegetable Oil", "quantity_per_unit": "0.006208", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.011792", "unit": "L"}
+      ]
+    },
+    {
+      "product_name": "chocopie",
+      "retail_identity": "Chocolate-coated cake sandwich with marshmallow filling",
+      "portion_weight_g": "65",
+      "source_title": "Snack Cake Choco Pies",
+      "source_url": "https://www.emmafontanella.com/snackcakechocopies",
+      "source_yield": "Twelve assembled snack cakes",
+      "adaptation_note": "The cake formula and chocolate shell are divided by twelve; marshmallow filling is standardized to fifteen grams per cake.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.013333", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.006250", "unit": "kg"},
+        {"material_name": "Vegetable Oil", "quantity_per_unit": "0.004417", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.008333", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.008333", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.010000", "unit": "L"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.000667", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000125", "unit": "kg"},
+        {"material_name": "Marshmallow", "quantity_per_unit": "0.015000", "unit": "kg"},
+        {"material_name": "Chocolate", "quantity_per_unit": "0.033333", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "cookie",
+      "retail_identity": "Individual butter sugar cookie",
+      "portion_weight_g": "18",
+      "source_title": "Holiday Butter Cookies",
+      "source_url": "https://www.kingarthurbaking.com/recipes/holiday-butter-cookies-recipe",
+      "source_yield": "Sixty two-inch cookies",
+      "adaptation_note": "The undecorated cookie formula is divided by sixty; optional icing is excluded.",
+      "ingredients": [
+        {"material_name": "Icing Sugar", "quantity_per_unit": "0.002367", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.004250", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.000300", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000050", "unit": "kg"},
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.005500", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "cornbread",
+      "retail_identity": "Individual cornmeal bread portion",
+      "portion_weight_g": "75",
+      "source_title": "Cornbread",
+      "source_url": "https://www.kingarthurbaking.com/recipes/cornbread-recipe",
+      "source_yield": "Twelve muffins",
+      "adaptation_note": "The source muffin yield is used as the retail portion count and optional additions are omitted.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.017500", "unit": "kg"},
+        {"material_name": "Cornmeal", "quantity_per_unit": "0.013000", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.004167", "unit": "kg"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.000667", "unit": "kg"},
+        {"material_name": "Baking Soda", "quantity_per_unit": "0.000104", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.023583", "unit": "L"},
+        {"material_name": "Butter", "quantity_per_unit": "0.004750", "unit": "kg"},
+        {"material_name": "Vegetable Oil", "quantity_per_unit": "0.004167", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.004167", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "cream_horn",
+      "retail_identity": "Puff-pastry horn with dairy cream filling",
+      "portion_weight_g": "105",
+      "source_title": "Cream Horns",
+      "source_url": "https://realfood.tesco.com/recipes/cream-horns.html",
+      "source_yield": "Eight to ten cream horns",
+      "adaptation_note": "The ten-piece yield is used; raspberries and vanilla are omitted to preserve a plain dairy-cream product.",
+      "ingredients": [
+        {"material_name": "Puff Pastry", "quantity_per_unit": "0.037500", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.005000", "unit": "kg"},
+        {"material_name": "Brown Sugar", "quantity_per_unit": "0.010000", "unit": "kg"},
+        {"material_name": "Heavy Cream", "quantity_per_unit": "0.060000", "unit": "L"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.002500", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "croissant",
+      "retail_identity": "Plain laminated butter croissant",
+      "portion_weight_g": "75",
+      "source_title": "Baker's Croissants",
+      "source_url": "https://www.kingarthurbaking.com/recipes/bakers-croissants-recipe",
+      "source_yield": "Twenty-four croissants",
+      "adaptation_note": "Dough and butter-block ingredients are combined and divided by twenty-four; optional milk powder is omitted.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.030000", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.014750", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.004167", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.002083", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.018875", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000750", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000292", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "croissant_chocolate",
+      "retail_identity": "Laminated chocolate croissant",
+      "portion_weight_g": "88",
+      "source_title": "Baker's Croissants",
+      "source_url": "https://www.kingarthurbaking.com/recipes/bakers-croissants-recipe",
+      "source_yield": "Twenty-four croissants",
+      "adaptation_note": "The base croissant formula is divided by twenty-four and twelve grams of chocolate are added per filled croissant.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.030000", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.014750", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.004167", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.002083", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.018875", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000750", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000292", "unit": "kg"},
+        {"material_name": "Chocolate", "quantity_per_unit": "0.012000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "donut",
+      "retail_identity": "Yeast-raised fried doughnut",
+      "portion_weight_g": "70",
+      "source_title": "Yeast-Raised Doughnuts",
+      "source_url": "https://www.kingarthurbaking.com/recipes/yeast-raised-doughnuts-recipe",
+      "source_yield": "Sixteen doughnuts",
+      "adaptation_note": "The dough is divided by sixteen and retained frying-oil uptake is standardized to six grams per doughnut.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.022500", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.003125", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.003125", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.014188", "unit": "L"},
+        {"material_name": "Butter", "quantity_per_unit": "0.001750", "unit": "kg"},
+        {"material_name": "Vegetable Oil", "quantity_per_unit": "0.006000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "eggtart",
+      "retail_identity": "Butter-pastry egg custard tart",
+      "portion_weight_g": "75",
+      "source_title": "Hong Kong Egg Tarts",
+      "source_url": "https://www.kingarthurbaking.com/recipes/hong-kong-egg-tarts-recipe",
+      "source_yield": "Fifteen egg tarts",
+      "adaptation_note": "The complete rough-puff pastry and custard filling are divided by fifteen.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.016000", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000300", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.011333", "unit": "kg"},
+        {"material_name": "Heavy Cream", "quantity_per_unit": "0.003800", "unit": "L"},
+        {"material_name": "Water", "quantity_per_unit": "0.013200", "unit": "L"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.004400", "unit": "kg"},
+        {"material_name": "Evaporated Milk", "quantity_per_unit": "0.011333", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.011667", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "flatbread",
+      "retail_identity": "Yeast-raised olive-oil flatbread",
+      "portion_weight_g": "58",
+      "source_title": "Quick and Easy Flatbreads",
+      "source_url": "https://www.kingarthurbaking.com/recipes/quick-and-easy-flatbreads-recipe",
+      "source_yield": "Eight flatbreads",
+      "adaptation_note": "The complete dough formula is divided by eight and optional toppings are omitted.",
+      "ingredients": [
+        {"material_name": "Water", "quantity_per_unit": "0.021250", "unit": "L"},
+        {"material_name": "Olive Oil", "quantity_per_unit": "0.001750", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000750", "unit": "kg"},
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.031750", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000563", "unit": "kg"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.000500", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "macaron",
+      "retail_identity": "Almond-meringue sandwich macaron",
+      "portion_weight_g": "24",
+      "source_title": "Macarons",
+      "source_url": "https://www.kingarthurbaking.com/recipes/macarons-recipe",
+      "source_yield": "Twenty to twenty-two macarons",
+      "adaptation_note": "The conservative twenty-piece yield is used; French buttercream is represented by its butter, egg, and sugar inputs.",
+      "ingredients": [
+        {"material_name": "Almond Flour", "quantity_per_unit": "0.007200", "unit": "kg"},
+        {"material_name": "Icing Sugar", "quantity_per_unit": "0.009650", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.006500", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000025", "unit": "kg"},
+        {"material_name": "Cream of Tartar", "quantity_per_unit": "0.000025", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.002300", "unit": "L"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.006200", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.006000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "mantequilla",
+      "retail_identity": "Individual enriched butter roll",
+      "portion_weight_g": "62",
+      "source_title": "Soft Dinner Rolls",
+      "source_url": "https://www.kingarthurbaking.com/recipes/soft-dinner-rolls-recipe",
+      "source_yield": "Sixteen rolls",
+      "adaptation_note": "The source roll is mapped to the bakery's butter-roll identity and includes the specified melted-butter finish.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.022500", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.010625", "unit": "L"},
+        {"material_name": "Milk", "quantity_per_unit": "0.004000", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.003125", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.001563", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000500", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.010000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "melon_bread",
+      "retail_identity": "Japanese sweet bun with cookie crust",
+      "portion_weight_g": "105",
+      "source_title": "Melon Pan",
+      "source_url": "https://www.justonecookbook.com/melon-pan/",
+      "source_yield": "Ten melon pan",
+      "adaptation_note": "Bread dough, cookie crust, and coating sugar are combined and divided by ten.",
+      "ingredients": [
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.022500", "unit": "kg"},
+        {"material_name": "Cake Flour", "quantity_per_unit": "0.022500", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000300", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.016100", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000400", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.010000", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.005000", "unit": "L"},
+        {"material_name": "Water", "quantity_per_unit": "0.005000", "unit": "L"},
+        {"material_name": "Butter", "quantity_per_unit": "0.009500", "unit": "kg"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.000200", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "muffin",
+      "retail_identity": "Individual plain butter muffin",
+      "portion_weight_g": "80",
+      "source_title": "Basic Muffins",
+      "source_url": "https://www.kingarthurbaking.com/recipes/basic-muffins-with-berry-and-oatmeal-versions-recipe",
+      "source_yield": "Twelve standard muffins",
+      "adaptation_note": "The plain base formula is divided by twelve and optional fruit and oatmeal variations are excluded.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.020000", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.008250", "unit": "kg"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.001167", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000250", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.018917", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.008333", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.004750", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "pancake",
+      "retail_identity": "One retail serving of two griddle pancakes",
+      "portion_weight_g": "145",
+      "source_title": "Personalized Pancakes",
+      "source_url": "https://www.kingarthurbaking.com/recipes/personalized-pancakes-recipe",
+      "source_yield": "Eight four-inch pancakes",
+      "adaptation_note": "Two pancakes form one retail serving, so the source batch is divided into four servings.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.022500", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.028250", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.012500", "unit": "kg"},
+        {"material_name": "Vegetable Oil", "quantity_per_unit": "0.006250", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.001000", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.003000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "pandesal",
+      "retail_identity": "Filipino breadcrumb-coated bread roll",
+      "portion_weight_g": "58",
+      "source_title": "Soft and Fluffy Pandesal",
+      "source_url": "https://www.kawalingpinoy.com/pandesal/",
+      "source_yield": "Twenty-four rolls",
+      "adaptation_note": "The metric-equivalent dough and breadcrumb coating are divided by twenty-four.",
+      "ingredients": [
+        {"material_name": "Water", "quantity_per_unit": "0.002604", "unit": "L"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000292", "unit": "kg"},
+        {"material_name": "Milk", "quantity_per_unit": "0.009458", "unit": "L"},
+        {"material_name": "Butter", "quantity_per_unit": "0.002363", "unit": "kg"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.004167", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.004125", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.021250", "unit": "kg"},
+        {"material_name": "Breadcrumbs", "quantity_per_unit": "0.002354", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "pizza_bread",
+      "retail_identity": "Individual cheese-and-tomato pizza bread",
+      "portion_weight_g": "105",
+      "source_title": "The Easiest Pizza You'll Ever Make",
+      "source_url": "https://www.kingarthurbaking.com/recipes/the-easiest-pizza-youll-ever-make-recipe",
+      "source_yield": "Four 12-inch pizzas",
+      "adaptation_note": "Each pizza is divided into eight bakery portions; sauce and cheese are standardized to the source's light-topping instruction.",
+      "ingredients": [
+        {"material_name": "Water", "quantity_per_unit": "0.014188", "unit": "L"},
+        {"material_name": "Olive Oil", "quantity_per_unit": "0.000781", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000563", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.000375", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000281", "unit": "kg"},
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.022500", "unit": "kg"},
+        {"material_name": "Tomato Sauce", "quantity_per_unit": "0.015000", "unit": "kg"},
+        {"material_name": "Cheese", "quantity_per_unit": "0.020000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "pullman",
+      "retail_identity": "Packaged portion of enriched Pullman loaf",
+      "portion_weight_g": "72",
+      "source_title": "Golden Spiced Pullman Loaf",
+      "source_url": "https://www.kingarthurbaking.com/recipes/golden-spiced-pullman-loaf-recipe",
+      "source_yield": "One 13-by-4-inch loaf",
+      "adaptation_note": "The plain enriched loaf formula is divided into ten packaged portions and optional spices are omitted.",
+      "ingredients": [
+        {"material_name": "Milk", "quantity_per_unit": "0.022700", "unit": "L"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.002500", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.004300", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000600", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000600", "unit": "kg"},
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.042000", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "soboru_bread",
+      "retail_identity": "Korean sweet bun with streusel topping",
+      "portion_weight_g": "98",
+      "source_title": "Soboru Bread",
+      "source_url": "https://www.bakingschool.co.kr/recipe/recipe/recipe_view/recipe_no/2696/page/1",
+      "source_yield": "Twelve buns",
+      "adaptation_note": "Bread dough and peanut streusel topping are combined and divided by twelve; optional nuts are omitted.",
+      "ingredients": [
+        {"material_name": "Milk", "quantity_per_unit": "0.010833", "unit": "L"},
+        {"material_name": "Eggs", "quantity_per_unit": "0.005667", "unit": "kg"},
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.025000", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000250", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.009167", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.007917", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000500", "unit": "kg"},
+        {"material_name": "Peanut Butter", "quantity_per_unit": "0.000833", "unit": "kg"},
+        {"material_name": "Cake Flour", "quantity_per_unit": "0.010833", "unit": "kg"},
+        {"material_name": "Baking Powder", "quantity_per_unit": "0.000333", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "sourdough",
+      "retail_identity": "Small naturally leavened sourdough loaf",
+      "portion_weight_g": "275",
+      "source_title": "Artisan Sourdough Bread Made with a Stiff Starter",
+      "source_url": "https://www.kingarthurbaking.com/recipes/artisan-sourdough-bread-made-with-a-stiff-starter-recipe",
+      "source_yield": "One large loaf",
+      "adaptation_note": "The large loaf is divided into four small loaves; the stiff starter is expanded into its flour and water components.",
+      "ingredients": [
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.159700", "unit": "kg"},
+        {"material_name": "Whole Wheat Flour", "quantity_per_unit": "0.028250", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.131800", "unit": "L"},
+        {"material_name": "Salt", "quantity_per_unit": "0.003750", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "stickbread",
+      "retail_identity": "Crisp yeast-raised bread stick",
+      "portion_weight_g": "38",
+      "source_title": "Grissini Professional Formula",
+      "source_url": "https://www.kingarthurbaking.com/pro/formulas/grissini",
+      "source_yield": "2.72 kilograms at 38 grams per bread stick",
+      "adaptation_note": "The professional baker percentages are normalized to one 38-gram bread stick.",
+      "ingredients": [
+        {"material_name": "Bread Flour", "quantity_per_unit": "0.021229", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.011039", "unit": "L"},
+        {"material_name": "Olive Oil", "quantity_per_unit": "0.002548", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.002123", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000419", "unit": "kg"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000642", "unit": "kg"}
+      ]
+    },
+    {
+      "product_name": "tostada",
+      "retail_identity": "Butter-and-sugar toasted bread portion",
+      "portion_weight_g": "58",
+      "source_title": "Bread Toast Recipe",
+      "source_url": "https://www.sharmispassions.com/bread-toast-recipe/",
+      "source_yield": "Individual butter-and-sugar toast portions",
+      "adaptation_note": "The butter-and-sugar topping is applied to one internally produced enriched bread portion represented by its direct ingredients.",
+      "ingredients": [
+        {"material_name": "All-Purpose Flour", "quantity_per_unit": "0.025000", "unit": "kg"},
+        {"material_name": "Water", "quantity_per_unit": "0.014000", "unit": "L"},
+        {"material_name": "Milk", "quantity_per_unit": "0.003000", "unit": "L"},
+        {"material_name": "Yeast", "quantity_per_unit": "0.000300", "unit": "kg"},
+        {"material_name": "Salt", "quantity_per_unit": "0.000350", "unit": "kg"},
+        {"material_name": "Butter", "quantity_per_unit": "0.006000", "unit": "kg"},
+        {"material_name": "Sugar", "quantity_per_unit": "0.006000", "unit": "kg"}
+      ]
+    }
+  ]
+}

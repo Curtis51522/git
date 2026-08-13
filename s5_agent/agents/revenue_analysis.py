@@ -4,9 +4,9 @@ import json
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import urlopen
 
-from s5_agent.s5_config.settings import THRESHOLDS
+from s5_agent.core.dashboard_api import fetch_dashboard_json
+from s5_agent.s5_config.settings import THRESHOLDS, api_url
 from s5_agent.schemas.agent_output import AgentOutput, DataQuality
 from s5_agent.schemas.evidence import EvidenceItem
 from s5_agent.schemas.recommendation import Recommendation
@@ -26,6 +26,15 @@ def _float(value: Any) -> float:
         return float(value or 0.0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _int(value: Any) -> int:
@@ -50,6 +59,17 @@ def _series(data: dict[str, Any], key: str) -> list[Any]:
 
 def _pct_change(current: float, baseline: float) -> float:
     return round((current - baseline) / max(baseline, 1.0) * 100, 1)
+
+
+def _recent_baseline(data: dict[str, Any]) -> dict[str, Any]:
+    value = data.get("recent_baseline", {})
+    return value if isinstance(value, dict) else {}
+
+
+def _previous_day_available(data: dict[str, Any]) -> bool:
+    if "previous_day_available" in data:
+        return bool(data.get("previous_day_available"))
+    return data.get("revenue_change") is not None
 
 
 def _total_revenue_series(data: dict[str, Any]) -> list[float]:
@@ -83,11 +103,11 @@ def _display_name(value: Any) -> str:
 async def _fetch_revenue_dashboard(params: dict[str, Any]) -> dict[str, Any]:
     date = str(params.get("date", "")) if isinstance(params, dict) else ""
     try:
-        base_url = "http://127.0.0.1:8002/s4/revenue/daily"
+        base_url = api_url("s4/revenue/daily")
         url = f"{base_url}?{urlencode({'date': date})}" if date else base_url
-        with urlopen(url, timeout=10) as response:
-            if response.status == 200:
-                return json.loads(response.read().decode("utf-8"))
+        payload = fetch_dashboard_json(url, params)
+        if payload:
+            return payload
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
         pass
     return {"success": True, "data": {}, "tool": "revenue_dashboard_fallback"}
@@ -115,51 +135,118 @@ class RevenueTrendAgent:
         orders = _series(data, "orders")
         average_orders = _series(data, "avg_order")
         total_revenue = _total_revenue_series(data)
+        baseline = _recent_baseline(data)
+        baseline_day_count = _int(baseline.get("day_count"))
+        previous_day_available = _previous_day_available(data)
 
         today_revenue = _float(data.get("today_revenue"))
-        current_total = _float(total_revenue[-1]) if total_revenue else today_revenue
-        baseline_total = _avg(total_revenue[:-1]) if len(total_revenue) > 1 else current_total
-        recent_total_pct = _pct_change(current_total, baseline_total) if baseline_total else 0.0
+        current_total = today_revenue or (
+            _float(total_revenue[-1]) if total_revenue else 0.0
+        )
+        baseline_total = _optional_float(baseline.get("avg_revenue"))
+        if baseline_total is None or baseline_total <= 0:
+            baseline_total = (
+                _avg(total_revenue[:-1])
+                if len(total_revenue) > 1
+                else current_total
+            )
+        recent_total_pct = (
+            _pct_change(current_total, baseline_total) if baseline_total else 0.0
+        )
 
         current_bread = _float(bread[-1]) if bread else current_total
-        baseline_bread = _avg(bread[:-1]) if len(bread) > 1 else current_bread
-        recent_bakery_pct = _pct_change(current_bread, baseline_bread) if baseline_bread else recent_total_pct
+        prior_bread = [value for value in bread[:-1] if _float(value) > 0]
+        baseline_bread = _avg(prior_bread) if prior_bread else current_bread
+        recent_bakery_pct = (
+            _pct_change(current_bread, baseline_bread)
+            if baseline_bread
+            else recent_total_pct
+        )
 
-        current_orders = _int(orders[-1]) if orders else 0
-        baseline_orders = _avg(orders[:-1]) if len(orders) > 1 else current_orders
-        if "today_orders" in data:
-            current_orders = _int(data.get("today_orders"))
+        current_orders = (
+            _int(data.get("today_orders"))
+            if "today_orders" in data
+            else (_int(orders[-1]) if orders else 0)
+        )
+        baseline_orders = _optional_float(baseline.get("avg_orders"))
+        if baseline_orders is None or baseline_orders <= 0:
+            baseline_orders = (
+                _avg(orders[:-1]) if len(orders) > 1 else current_orders
+            )
+        recent_order_change_pct = (
+            _pct_change(current_orders, baseline_orders) if baseline_orders else 0.0
+        )
+
+        raw_current_aov = data.get("avg_order")
+        current_aov = (
+            _float(raw_current_aov)
+            if raw_current_aov is not None
+            and not isinstance(raw_current_aov, (list, tuple))
+            else (_float(average_orders[-1]) if average_orders else 0.0)
+        )
+        baseline_aov = _optional_float(baseline.get("avg_order_value"))
+        if baseline_aov is None or baseline_aov <= 0:
+            baseline_aov = (
+                _avg(average_orders[:-1])
+                if len(average_orders) > 1
+                else current_aov
+            )
+        recent_aov_change_pct = (
+            _pct_change(current_aov, baseline_aov) if baseline_aov else 0.0
+        )
+
+        dashboard_revenue_change_pct = _optional_float(data.get("revenue_change"))
+        dashboard_profit_change_pct = _optional_float(data.get("profit_change"))
+        dashboard_order_change_pct = _optional_float(data.get("orders_change"))
+        dashboard_aov_change_pct = _optional_float(data.get("avg_change"))
         order_change_pct = (
-            _float(data.get("orders_change"))
-            if data.get("orders_change") is not None
-            else (_pct_change(current_orders, baseline_orders) if baseline_orders else 0.0)
+            dashboard_order_change_pct
+            if previous_day_available and dashboard_order_change_pct is not None
+            else recent_order_change_pct
         )
-
-        current_aov = _float(average_orders[-1]) if average_orders else 0.0
-        baseline_aov = _avg(average_orders[:-1]) if len(average_orders) > 1 else current_aov
         aov_change_pct = (
-            _float(data.get("avg_change"))
-            if data.get("avg_change") is not None
-            else (_pct_change(current_aov, baseline_aov) if baseline_aov else 0.0)
+            dashboard_aov_change_pct
+            if previous_day_available and dashboard_aov_change_pct is not None
+            else recent_aov_change_pct
         )
-        dashboard_revenue_change_pct = _float(data.get("revenue_change"))
-        dashboard_profit_change_pct = _float(data.get("profit_change"))
+        comparison_revenue_change_pct = (
+            dashboard_revenue_change_pct
+            if previous_day_available and dashboard_revenue_change_pct is not None
+            else recent_total_pct
+        )
 
-        if dashboard_revenue_change_pct > 5:
+        if not previous_day_available:
+            direction = "unavailable"
+        elif comparison_revenue_change_pct > 5:
             direction = "rising"
-        elif dashboard_revenue_change_pct < -5:
+        elif comparison_revenue_change_pct < -5:
             direction = "falling"
         else:
             direction = "stable"
 
-        claim = (
-            f"Revenue dashboard comparison is {direction}: total revenue moved "
-            f"{dashboard_revenue_change_pct:+.1f}% vs yesterday, profit moved "
-            f"{dashboard_profit_change_pct:+.1f}%, orders moved {order_change_pct:+.1f}%, "
-            f"and average order value moved {aov_change_pct:+.1f}%."
-        )
+        if previous_day_available:
+            claim = (
+                "Revenue dashboard changes compared with yesterday: total revenue moved "
+                f"{comparison_revenue_change_pct:+.1f}% vs yesterday, profit moved "
+                f"{(dashboard_profit_change_pct or 0.0):+.1f}%, orders moved "
+                f"{order_change_pct:+.1f}%, and average order value moved "
+                f"{aov_change_pct:+.1f}%."
+            )
+        else:
+            previous_date = str(
+                data.get("previous_day_date") or "the previous day"
+            )
+            claim = (
+                "Previous-day comparison is unavailable because no completed sales were "
+                f"recorded on {previous_date}. Against the previous {baseline_day_count} "
+                f"completed trading days, revenue moved {recent_total_pct:+.1f}%, "
+                f"orders moved {recent_order_change_pct:+.1f}%, and average order value "
+                f"moved {recent_aov_change_pct:+.1f}%."
+            )
 
-        low_sample_collapse = current_orders <= 3 and (dashboard_revenue_change_pct <= -50 or order_change_pct <= -50)
+        low_sample_collapse = current_orders <= 3 and (
+            comparison_revenue_change_pct <= -50 or order_change_pct <= -50
+        )
         risks = []
         recommendations = []
         if low_sample_collapse:
@@ -184,7 +271,7 @@ class RevenueTrendAgent:
                     ],
                 )
             )
-        if dashboard_revenue_change_pct < -10:
+        if comparison_revenue_change_pct < -10:
             risks.append("revenue_decline")
             recommendations.append(
                 Recommendation(
@@ -192,17 +279,31 @@ class RevenueTrendAgent:
                     action="Review product-level sales drivers before setting next week's promotion plan.",
                     urgency="medium",
                     time_horizon="this_week",
-                    rationale="Revenue dashboard data shows a material decline versus yesterday.",
+                    rationale=(
+                        "Revenue dashboard data shows a material decline versus yesterday."
+                        if previous_day_available
+                        else "Revenue dashboard data shows a material decline versus the recent completed-day baseline."
+                    ),
                     expected_impact="Protects margin by targeting the products behind the decline.",
-                    evidence_ids=["dashboard_revenue_change_pct"],
+                    evidence_ids=[
+                        "dashboard_revenue_change_pct"
+                        if previous_day_available
+                        else "recent_total_revenue_change_pct"
+                    ],
                 )
             )
         return AgentOutput(
             agent_name=self.name,
             claim=claim,
-            confidence=0.62 if low_sample_collapse else (0.8 if data else 0.45),
+            confidence=(
+                0.62
+                if low_sample_collapse
+                else (0.8 if previous_day_available else 0.72)
+                if data
+                else 0.45
+            ),
             metrics={
-                "revenue_trend_pct": dashboard_revenue_change_pct,
+                "revenue_trend_pct": comparison_revenue_change_pct,
                 "dashboard_revenue_change_pct": dashboard_revenue_change_pct,
                 "dashboard_profit_change_pct": dashboard_profit_change_pct,
                 "order_change_pct": order_change_pct,
@@ -211,6 +312,12 @@ class RevenueTrendAgent:
                 "recent_total_revenue_change_pct": recent_total_pct,
                 "recent_bakery_revenue_change_pct": recent_bakery_pct,
                 "trend_direction": direction,
+                "previous_day_available": previous_day_available,
+                "previous_day_date": data.get("previous_day_date"),
+                "baseline_day_count": baseline_day_count,
+                "comparison_basis": (
+                    "previous_day" if previous_day_available else "recent_baseline"
+                ),
             },
             evidence_items=[
                 _evidence(
@@ -230,22 +337,34 @@ class RevenueTrendAgent:
                 _evidence(
                     "order_change_pct",
                     "revenue_trend",
-                    "Dashboard order count change compared with yesterday",
+                    (
+                        "Dashboard order count change compared with yesterday"
+                        if previous_day_available
+                        else "Order count change compared with the recent completed-day baseline"
+                    ),
                     order_change_pct,
                     date=params.get("date", ""),
                 ),
                 _evidence(
                     "average_order_value_change_pct",
                     "revenue_trend",
-                    "Dashboard average order value change compared with yesterday",
+                    (
+                        "Dashboard average order value change compared with yesterday"
+                        if previous_day_available
+                        else "Average order value change compared with the recent completed-day baseline"
+                    ),
                     aov_change_pct,
                     date=params.get("date", ""),
                 ),
                 _evidence(
                     "revenue_trend_pct",
                     "revenue_trend",
-                    "Dashboard total revenue change compared with yesterday",
-                    dashboard_revenue_change_pct,
+                    (
+                        "Dashboard total revenue change compared with yesterday"
+                        if previous_day_available
+                        else "Total revenue change compared with the recent completed-day baseline"
+                    ),
+                    comparison_revenue_change_pct,
                     date=params.get("date", ""),
                 ),
             ],
@@ -268,9 +387,19 @@ class RevenueBenchmarkAgent:
     def analyze_for_graph(self, raw: dict[str, Any], params: dict[str, Any]) -> AgentOutput:
         data = _data(raw)
         total_revenue = _total_revenue_series(data)
-        current = _float(total_revenue[-1]) if total_revenue else _float(data.get("today_revenue"))
-        recent_avg = _avg(total_revenue[:-1]) if len(total_revenue) > 1 else current
-        vs_previous = _float(data.get("revenue_change"))
+        baseline = _recent_baseline(data)
+        baseline_day_count = _int(baseline.get("day_count"))
+        current = _float(data.get("today_revenue")) or (
+            _float(total_revenue[-1]) if total_revenue else 0.0
+        )
+        recent_avg = _optional_float(baseline.get("avg_revenue"))
+        if recent_avg is None or recent_avg <= 0:
+            recent_avg = (
+                _avg(total_revenue[:-1])
+                if len(total_revenue) > 1
+                else current
+            )
+        vs_previous = _optional_float(data.get("revenue_change"))
         vs_recent_avg = _pct_change(current, recent_avg) if recent_avg else 0.0
 
         if vs_recent_avg > 5:
@@ -284,7 +413,9 @@ class RevenueBenchmarkAgent:
             agent_name=self.name,
             claim=(
                 f"Recent baseline check is {status}: dashboard total revenue is "
-                f"{vs_recent_avg:+.1f}% against the recent total-revenue average."
+                f"{vs_recent_avg:+.1f}% against the previous "
+                f"{baseline_day_count or max(len(total_revenue) - 1, 1)} completed "
+                "trading-day average."
             ),
             confidence=0.76 if data else 0.45,
             metrics={
@@ -293,6 +424,9 @@ class RevenueBenchmarkAgent:
                 "dashboard_revenue_change_pct": vs_previous,
                 "recent_total_revenue_change_pct": vs_recent_avg,
                 "benchmark_status": status,
+                "baseline_day_count": (
+                    baseline_day_count or max(len(total_revenue) - 1, 1)
+                ),
             },
             evidence_items=[
                 _evidence(
@@ -310,7 +444,7 @@ class RevenueBenchmarkAgent:
                     date=params.get("date", ""),
                 ),
             ],
-            risks=["revenue_benchmark_drop"] if vs_recent_avg < -15 else [],
+            risks=[],
             recommendations=[],
             data_quality=DataQuality(
                 freshness="fresh" if data else "unknown",
@@ -330,24 +464,62 @@ class OrderBehaviorAgent:
         data = _data(raw)
         orders = _series(data, "orders")
         average_orders = _series(data, "avg_order")
-        current_orders = _int(orders[-1]) if orders else 0
-        if "today_orders" in data:
-            current_orders = _int(data.get("today_orders"))
-        baseline_orders = _avg(orders[:-1]) if len(orders) > 1 else current_orders
-        order_change_pct = (
-            _float(data.get("orders_change"))
-            if data.get("orders_change") is not None
-            else (_pct_change(current_orders, baseline_orders) if baseline_orders else 0.0)
+        baseline = _recent_baseline(data)
+        previous_day_available = _previous_day_available(data)
+        current_orders = (
+            _int(data.get("today_orders"))
+            if "today_orders" in data
+            else (_int(orders[-1]) if orders else 0)
         )
-        current_aov = _float(average_orders[-1]) if average_orders else 0.0
-        baseline_aov = _avg(average_orders[:-1]) if len(average_orders) > 1 else current_aov
-        aov_change_pct = (
-            _float(data.get("avg_change"))
-            if data.get("avg_change") is not None
-            else (_pct_change(current_aov, baseline_aov) if baseline_aov else 0.0)
+        baseline_orders = _optional_float(baseline.get("avg_orders"))
+        if baseline_orders is None or baseline_orders <= 0:
+            baseline_orders = (
+                _avg(orders[:-1]) if len(orders) > 1 else current_orders
+            )
+        baseline_order_change_pct = (
+            _pct_change(current_orders, baseline_orders) if baseline_orders else 0.0
+        )
+        dashboard_order_change_pct = _optional_float(data.get("orders_change"))
+        order_change_pct = (
+            dashboard_order_change_pct
+            if previous_day_available and dashboard_order_change_pct is not None
+            else baseline_order_change_pct
         )
 
-        if order_change_pct > 5 and aov_change_pct < 5:
+        raw_current_aov = data.get("avg_order")
+        current_aov = (
+            _float(raw_current_aov)
+            if raw_current_aov is not None
+            and not isinstance(raw_current_aov, (list, tuple))
+            else (_float(average_orders[-1]) if average_orders else 0.0)
+        )
+        baseline_aov = _optional_float(baseline.get("avg_order_value"))
+        if baseline_aov is None or baseline_aov <= 0:
+            baseline_aov = (
+                _avg(average_orders[:-1])
+                if len(average_orders) > 1
+                else current_aov
+            )
+        baseline_aov_change_pct = (
+            _pct_change(current_aov, baseline_aov) if baseline_aov else 0.0
+        )
+        dashboard_aov_change_pct = _optional_float(data.get("avg_change"))
+        aov_change_pct = (
+            dashboard_aov_change_pct
+            if previous_day_available and dashboard_aov_change_pct is not None
+            else baseline_aov_change_pct
+        )
+        comparison_basis = (
+            "previous_day" if previous_day_available else "recent_baseline"
+        )
+
+        if order_change_pct < -5 and aov_change_pct < -5:
+            driver = "volume-and-basket-contraction"
+        elif order_change_pct < -5 and aov_change_pct <= 5:
+            driver = "volume-contraction"
+        elif order_change_pct <= 5 and aov_change_pct < -5:
+            driver = "basket-contraction"
+        elif order_change_pct > 5 and aov_change_pct < 5:
             driver = "volume-led"
         elif order_change_pct <= 5 and aov_change_pct > 5:
             driver = "basket-led"
@@ -356,10 +528,37 @@ class OrderBehaviorAgent:
         else:
             driver = "stable"
 
+        items_per_order = _optional_float(data.get("items_per_order"))
+        items_per_order_change_pct = _optional_float(
+            data.get("items_per_order_change")
+        )
+        revenue_per_item = _optional_float(data.get("revenue_per_item"))
+        revenue_per_item_change_pct = _optional_float(
+            data.get("revenue_per_item_change")
+        )
+        previous_items_per_order = None
+        if (
+            items_per_order is not None
+            and items_per_order_change_pct is not None
+            and items_per_order_change_pct > -100
+        ):
+            previous_items_per_order = round(
+                items_per_order / (1 + items_per_order_change_pct / 100),
+                2,
+            )
+
         risks = []
         recommendations = []
         low_sample_collapse = current_orders <= 3 and order_change_pct <= -50
-        if not low_sample_collapse and abs(order_change_pct - aov_change_pct) > 15:
+        opposing_movements = (
+            order_change_pct < 0 < aov_change_pct
+            or order_change_pct > 0 > aov_change_pct
+        )
+        if (
+            not low_sample_collapse
+            and opposing_movements
+            and abs(order_change_pct - aov_change_pct) > 15
+        ):
             risks.append("order_value_shift")
             if order_change_pct < 0 < aov_change_pct:
                 action = (
@@ -407,6 +606,12 @@ class OrderBehaviorAgent:
                 "order_volume_driver": driver,
                 "order_change_pct": order_change_pct,
                 "average_order_value_change_pct": aov_change_pct,
+                "comparison_basis": comparison_basis,
+                "items_per_order": items_per_order,
+                "previous_items_per_order": previous_items_per_order,
+                "items_per_order_change_pct": items_per_order_change_pct,
+                "revenue_per_item": revenue_per_item,
+                "revenue_per_item_change_pct": revenue_per_item_change_pct,
             },
             evidence_items=[
                 _evidence(
@@ -428,6 +633,20 @@ class OrderBehaviorAgent:
                     "order_behavior",
                     "Average order value compared with the recent baseline",
                     aov_change_pct,
+                    date=params.get("date", ""),
+                ),
+                _evidence(
+                    "items_per_order",
+                    "order_behavior",
+                    "Average number of products in each order",
+                    items_per_order,
+                    date=params.get("date", ""),
+                ),
+                _evidence(
+                    "revenue_per_item",
+                    "order_behavior",
+                    "Average revenue per sold product",
+                    revenue_per_item,
                     date=params.get("date", ""),
                 ),
             ],
@@ -610,11 +829,11 @@ class HourlyRevenueAgent:
     async def fetch(self, params: dict[str, Any]) -> dict[str, Any]:
         date = str(params.get("date", "")) if isinstance(params, dict) else ""
         try:
-            base_url = "http://127.0.0.1:8002/s4/revenue/hourly"
+            base_url = api_url("s4/revenue/hourly")
             url = f"{base_url}?{urlencode({'date': date})}" if date else base_url
-            with urlopen(url, timeout=10) as response:
-                if response.status == 200:
-                    return json.loads(response.read().decode("utf-8"))
+            payload = fetch_dashboard_json(url, params)
+            if payload:
+                return payload
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
             pass
         return {"success": True, "data": {"hours": [], "bread": [], "beverages": []}, "tool": "hourly_revenue_fallback"}
@@ -631,6 +850,8 @@ class HourlyRevenueAgent:
         margin_values = data.get("margin", []) if isinstance(data.get("margin", []), list) else []
         totals = []
         for index, hour in enumerate(hours):
+            if str(hour) == "Closing adjustment":
+                continue
             if revenue_values:
                 total = _float(revenue_values[index] if index < len(revenue_values) else 0.0)
             else:
@@ -650,6 +871,8 @@ class HourlyRevenueAgent:
 
         profit_totals = []
         for index, hour in enumerate(hours):
+            if str(hour) == "Closing adjustment":
+                continue
             profit_totals.append((str(hour), _float(profit_values[index] if index < len(profit_values) else 0.0)))
         total_profit = sum(value for _, value in profit_totals)
         profit_available = bool(profit_values) and total_profit > 0

@@ -1,9 +1,0 @@
-{
-  "baseline_wape": 40.58,
-  "Q10_wape": 54.05,
-  "Q50_wape": 34.35,
-  "Q90_wape": 44.33,
-  "coverage_Q10_Q90": 0.7801,
-  "coverage_Q50_Q90": 0.3564,
-  "interval_width_Q50_Q90": 3.49
-}

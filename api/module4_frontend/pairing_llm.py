@@ -1,32 +1,45 @@
 """
-LLM-generated bread-coffee pairing matrix.
+Optional LLM-generated bread-beverage pairing matrix.
 
-On first use, calls DeepSeek to score all 6 breads x 8 coffees based on
-flavor profiles. Result is cached in memory for instant retrieval.
+On first use, an OpenAI-compatible provider can score the catalog based on
+flavor profiles. The result is cached in memory for instant retrieval.
 
-Fallback: hardcoded matrix if DeepSeek unavailable.
+Fallback: hardcoded matrix if the provider is unavailable.
 """
 
 import json
 import logging
-import httpx, os
 
-def _call_deepseek(prompt: str, system: str = "", max_tokens: int = 2000) -> str:
-    key = os.getenv("DEEPSEEK_API_KEY", "")
-    if not key:
-        raise RuntimeError("DEEPSEEK_API_KEY not set")
-    url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1") + "/chat/completions"
+import httpx
+
+from config.llm_provider import get_llm_provider_config
+
+
+PAIRING_LLM_TIMEOUT_SECONDS = 5
+
+def _call_llm(prompt: str, system: str = "", max_tokens: int = 2000) -> str:
+    provider = get_llm_provider_config()
+    if not provider.configured:
+        raise RuntimeError("LLM provider is not configured")
+    url = f"{provider.base_url}/chat/completions"
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
-    resp = httpx.post(url,
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={"model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"), "messages": messages,
-              "max_tokens": max_tokens, "temperature": 0.3},
-        timeout=30)
+    resp = httpx.post(
+        url,
+        headers={"Authorization": f"Bearer {provider.api_key}", "Content-Type": "application/json"},
+        json={
+            "model": provider.model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": 0.3,
+        },
+        timeout=PAIRING_LLM_TIMEOUT_SECONDS,
+    )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
+
 
 logger = logging.getLogger("s4.pairing")
 
@@ -35,8 +48,6 @@ _pairing_cache: dict | None = None
 
 def _load_bakery_products():
     """Load all bakery products from DB for pairing matrix generation."""
-    import sys, os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
     from db.mysql_client import get_db
     db = get_db()
     cur = db.cursor()
@@ -56,12 +67,8 @@ def _get_bakery():
     if _BAKERY_CACHE is None:
         _BAKERY_CACHE = _load_bakery_products()
     return _BAKERY_CACHE
-BAKERY = None  # Use _get_bakery() instead
-
 def _load_coffee_products():
     """Load all beverage products from DB for pairing matrix generation."""
-    import sys, os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
     from db.mysql_client import get_db
     db = get_db()
     cur = db.cursor()
@@ -81,8 +88,6 @@ def _get_coffee():
     if _COFFEE_CACHE is None:
         _COFFEE_CACHE = _load_coffee_products()
     return _COFFEE_CACHE
-COFFEE = None  # Use _get_coffee() instead
-
 # Hardcoded fallback matrix
 def _build_fallback_matrix():
     """Build a knowledge-based pairing matrix using real food pairing principles.
@@ -98,8 +103,6 @@ def _build_fallback_matrix():
     SWEET = {"donut","brownie","chocolate_cake","chocopie","cookie","macaron",
              "apple_pie","cream_horn","eggtart","chiffon","pancake","muffin","melon_bread"}
     BUTTERY = {"croissant","croissant_chocolate","brioche","mantequilla"}
-    PLAIN = {"baguette","sourdough","pullman","bagel","bread_roll","flatbread",
-             "cornbread","pandesal","stickbread","soboru_bread","tostada","pizza_bread"}
     COCONUT = {"bread_coconut"}
     
     BOLD_COFFEE = {"espresso","americano"}
@@ -181,7 +184,7 @@ def _build_fallback_matrix():
             matrix[bk][c["key"]] = _pair_score(bk, c["key"])
     return matrix
 def generate_pairing_matrix() -> dict:
-    """Call DeepSeek to score every bread x coffee pair (0.0-1.0)."""
+    """Use the optional provider to score every product pair (0.0-1.0)."""
     try:
         prompt = _build_pairing_prompt()
         system = (
@@ -190,7 +193,7 @@ def generate_pairing_matrix() -> dict:
             "Consider flavor complementarity, texture contrast, and traditional pairing wisdom. "
             "Return ONLY valid JSON with no commentary."
         )
-        response = _call_deepseek(prompt, system, max_tokens=2000)
+        response = _call_llm(prompt, system, max_tokens=2000)
         matrix = json.loads(response)
         # Validate structure
         for bread in _get_bakery():
@@ -202,10 +205,10 @@ def generate_pairing_matrix() -> dict:
                 if ck not in matrix[bk]:
                     matrix[bk][ck] = 0.3
                 matrix[bk][ck] = max(0.0, min(1.0, float(matrix[bk][ck])))
-        logger.info("Pairing matrix generated by DeepSeek")
+        logger.info("Pairing matrix generated by the configured LLM provider")
         return matrix
     except Exception as e:
-        logger.warning("DeepSeek pairing matrix unavailable (%s), using fallback", e)
+        logger.warning("LLM pairing matrix unavailable (%s), using fallback", e)
         return _build_fallback_matrix()
 
 def get_pairing_matrix(force_refresh: bool = False) -> dict:
@@ -227,7 +230,7 @@ def _build_pairing_prompt() -> str:
     lines.append("\nReturn JSON like:")
     example = {}
     for b in _get_bakery()[:2]:
-        example[b["key"]] = {c["key"]: 0.5 for c in COFFEE[:2]}
+        example[b["key"]] = {c["key"]: 0.5 for c in _get_coffee()[:2]}
     lines.append(json.dumps(example, indent=2))
     lines.append("\nInclude ALL breads and ALL coffees listed above. Scores must be 0.0-1.0.")
     return "\n".join(lines)

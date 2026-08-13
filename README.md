@@ -14,45 +14,113 @@ Scope: 30 bread and pastry products, 15 beverage menu items, 10 employees, and 2
 | S4 | Unified web POS and manager dashboard | FastAPI, HTML, CSS, JavaScript, JWT | Integrated |
 | S5 | Dashboard-embedded multi-agent analysis and decision support | FastAPI, LangGraph, evidence-grounded rule synthesis | Integrated |
 
+## Training Data
+
+The complete 36,969-image, 30-class S1 training dataset is retained under
+`data/merged_yolo_30cls/` with its labels and `data.yaml` configuration.
+
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+
-- MySQL 8.0+
+- Python 3.13
+- MySQL Community Server 8.4 LTS
 - API keys for DeepSeek and VisualCrossing, if live LLM/weather paths are used
 
 ### Setup
 
-```bash
+```powershell
 git clone https://github.com/Curtis51522/git.git
 cd git
-pip install -r requirements.txt
-cp .env.example .env
+$venv = Join-Path $env:LOCALAPPDATA "BakeryAI\venv313"
+py -3.13 -m venv $venv
+& "$venv\Scripts\python.exe" -m pip install --upgrade pip
+& "$venv\Scripts\python.exe" -m pip install -r requirements.txt
+copy .env.example .env
 ```
 
 Edit `.env` with database credentials and API keys.
 
-Start the main server:
+Create the application database from the canonical structure-only schema before
+the first run. Import `schema.sql` through MySQL Workbench, or run this from
+Command Prompt when the MySQL client is available on `PATH`:
 
-```bash
-python main.py
+```bat
+mysql --host=127.0.0.1 --port=3307 --user=root -p < schema.sql
+```
+
+The schema creates the `bakery_ai` database and its 19 runtime tables. It does
+not contain operational records or seed data.
+
+Verify the isolated runtime before starting the system:
+
+```powershell
+& "$venv\Scripts\python.exe" -m pip check
+```
+
+Do not run the project with the system-wide Python interpreter. The launchers use
+the isolated Python 3.13 runtime and stop early when installed dependencies are
+inconsistent with the project manifest.
+
+Start the full local system:
+
+```powershell
+.\start_all.bat
 ```
 
 Open:
 
 ```text
-http://localhost:8002
+http://127.0.0.1:8002
 ```
 
 The main server proxies S5 requests from `/s5/*` to the S5 analysis service on port `8001`.
 
+## Offline Desktop Deployment
+
+The final deployment path uses one Docker Compose definition with MySQL 8.4,
+the main application, and the S5 service. Windows x64 packages contain native
+`linux/amd64` images. Apple Silicon packages contain native `linux/arm64`
+images and do not rely on x64 emulation.
+
+The packaged launcher selects an available loopback port, starts the three
+containers, waits for `/health` and `/s5-health`, and opens Microsoft Edge in
+App Mode. Only the main application port is published. MySQL and S5 remain on
+the private Compose network.
+
+Operational data is stored in a named MySQL Docker volume. Closing the desktop
+window stops the containers without deleting the volume. Standard uninstall
+keeps the database, configuration, and backups. Complete removal is a separate
+two-confirmation action that lists every exact file and Docker volume first.
+
+Platform instructions:
+
+- [Final installer entry](docs/deployment/FINAL_INSTALLATION.md)
+- [最终安装说明（中文）](docs/deployment/FINAL_INSTALLATION.zh-CN.md)
+- [Windows offline installation](docs/deployment/OFFLINE_INSTALL_WINDOWS.md)
+- [Apple Silicon offline installation](docs/deployment/OFFLINE_INSTALL_MACOS.md)
+- [Upgrade and recovery](docs/deployment/UPGRADE_AND_RECOVERY.md)
+- [Deployment acceptance checklist](docs/deployment/ACCEPTANCE_CHECKLIST.md)
+
+The source-tree batch files remain developer fallbacks. They are not the
+end-user installation path and are not included in the final offline ZIPs.
+
 ### S5 Service
 
-Start S5 separately when running the full dashboard analysis flow:
+The full dashboard analysis flow requires both servers:
 
-```bash
-python -m s5_agent.server
+| Script | Purpose |
+| --- | --- |
+| `start_all.bat` | Starts the S5 service on `127.0.0.1:8001` and the main server on `127.0.0.1:8002` |
+| `start.bat` | Starts only the main server with the Python 3.13 project runtime |
+| `start_s5.bat` | Starts only the S5 LangGraph service with the Python 3.13 project runtime |
+
+For manual startup, use the same project virtual environment:
+
+```powershell
+$venv = Join-Path $env:LOCALAPPDATA "BakeryAI\venv313"
+& "$venv\Scripts\python.exe" -m s5_agent.server
+& "$venv\Scripts\python.exe" main.py
 ```
 
 S5 endpoints:
@@ -73,7 +141,7 @@ S5 is a module-based analysis service used by the manager dashboard and POS reco
 ```text
 Dashboard or POS request
 -> FastAPI S5 endpoint
--> module-to-template mapping
+-> module-to-workflow registry
 -> LangGraph workflow
 -> deterministic specialist agents
 -> evidence graph and verification checks
@@ -81,9 +149,9 @@ Dashboard or POS request
 -> structured JSON response
 ```
 
-### Module Template Map
+### Module Workflow Map
 
-| Dashboard Module | LangGraph Template |
+| Dashboard Module | LangGraph Workflow ID |
 | --- | --- |
 | revenue | `profit_root_cause` |
 | wastage | `wastage_root_cause` |
@@ -93,7 +161,7 @@ Dashboard or POS request
 
 Schedule, attendance, and KPI ranking remain S3 dashboard functions. They do not currently expose S5 AI analysis endpoints.
 
-### LangGraph Templates
+### LangGraph Workflows
 
 S5 currently ships these module workflows:
 
@@ -121,8 +189,8 @@ The LangGraph runtime keeps module execution constrained:
 
 - Only explicitly supported dashboard modules can call `/analyze/module`.
 - Each workflow produces structured agent outputs.
-- Recommendations must link back to evidence IDs.
-- Verification reports expose missing evidence, unsupported recommendations, and data-quality warnings.
+- Recommendation records expose their supporting evidence IDs.
+- Verification reports surface missing evidence links and data-quality warnings.
 - Unsupported modules fail fast instead of falling back to legacy routes.
 
 This prevents silent execution of stale analysis paths.
@@ -136,12 +204,19 @@ The frontend uses:
 
 S5 analysis text is escaped before being inserted into HTML in the dashboard analysis component.
 
-## Default Accounts
+## Local Access Accounts
 
-| Role | Username | Password |
+The runtime never creates tables or seed records during import. `schema.sql` is
+the only authoritative database structure, and operational data is restored
+separately. The final local database stores BCrypt password hashes for these
+local access accounts:
+
+| Username | Password | Role |
 | --- | --- | --- |
-| Manager | manager | hash123 |
-| Staff | staff1 | hash123 |
+| `manager` | `BakeryAI@2026` | Manager |
+| `staff1` | `Staff@2026` | Staff |
+
+Production mode requires a non-empty `JWT_SECRET` containing at least 32 bytes.
 
 ## Key Design Decisions
 

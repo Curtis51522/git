@@ -1,34 +1,49 @@
-import os, sys, logging, httpx
-_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _PARENT not in sys.path: sys.path.insert(0, _PARENT)
+import logging
+from urllib.parse import urlencode
 from s5_agent.core.base import BaseAgent, AgentOpinion
+from s5_agent.core.dashboard_api import fetch_dashboard_json
 from s5_agent.core.tool import Tool
-from s5_agent.s5_config.settings import THRESHOLDS
+from s5_agent.s5_config.settings import THRESHOLDS, api_url
 logger = logging.getLogger("s5.agent.promo")
 
 class PromoAgent(BaseAgent):
     def _setup_tools(self):
         self.tools.register(Tool(name="get_active_promos", description="Get currently active promotions",
             parameters={}, primary=True, _handler=self._get_promos))
-        self.tools.register(Tool(name="get_discount_impact", description="Get discount impact on revenue",
-            parameters={"date": "string"}, primary=False, _handler=self._get_discount))
 
-    async def _get_promos(self, date: str = ""):
+    async def _get_promos(self, date: str = "", authorization: str = ""):
         try:
-            async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get("http://127.0.0.1:8002/s4/revenue/daily" + (f"?date={date}" if date else ""))
-                if r.status_code == 200:
-                    d = r.json()
-                    data = d.get("data", {})
-                    disc = data.get("today_discount", 0)
-                    rev = data.get("today_revenue", 1)
-                    return {"active_promos": 1 if disc > 0 else 0, "total_discount": disc, "discount_rate": disc/max(rev,1)}
+            base_url = api_url("s4/revenue/daily")
+            url = f"{base_url}?{urlencode({'date': date})}" if date else base_url
+            payload = fetch_dashboard_json(
+                url,
+                {"_authorization": authorization},
+            )
+            data = payload.get("data", {})
+            disc = data.get("today_discount", 0)
+            rev = data.get("today_revenue", 1)
+            return {
+                "active_promos": 1 if disc > 0 else 0,
+                "today_revenue": rev,
+                "total_discount": disc,
+                "discount_rate": disc / max(rev, 1),
+                "expired_cost": data.get("expired_cost", 0),
+                "expired_products": data.get("expired_products", []),
+                "sold_bread_sku_count": data.get("sold_bread_sku_count", 0),
+                "items_per_order": data.get("items_per_order"),
+                "items_per_order_change": data.get("items_per_order_change"),
+                "revenue_per_item": data.get("revenue_per_item"),
+                "revenue_per_item_change": data.get("revenue_per_item_change"),
+            }
         except Exception as e:
             logger.warning("Promo fetch failed: %s", e)
         return {"active_promos": 0, "total_discount": 0, "discount_rate": 0}
 
-    async def _get_discount(self, date: str = ""):
-        return await self._get_promos(date)
+    async def fetch(self, params):
+        date = str(params.get("date", "")) if isinstance(params, dict) else ""
+        authorization = str(params.get("_authorization", "")) if isinstance(params, dict) else ""
+        data = await self._get_promos(date, authorization)
+        return {"success": True, "data": data, "tool": "revenue_dashboard"}
 
     def analyze(self, raw, params, context="", history="", key_metrics=None):
         api_data = raw.get("data", {}) if isinstance(raw, dict) and "data" in raw else raw

@@ -1,7 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional
 from datetime import datetime
 from enum import Enum
+
+
+def is_positive_integer(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 class FreshnessStatus(str, Enum):
     FRESH = "Fresh"
@@ -31,8 +35,7 @@ class YOLOResult(BaseModel):
 
 class DeductRequest(BaseModel):
     items: list[dict] = Field(..., description="[{'product_name': 'Croissant', 'quantity': 2}, ...]")
-    unit_price: float = 0.0
-    discount_applied: bool = False
+    receipt_id: Optional[str] = None
 
 class DeductResponse(BaseModel):
     status: str

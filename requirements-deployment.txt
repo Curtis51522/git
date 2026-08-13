@@ -1,0 +1,3 @@
+# Tools used only to validate and assemble deployment packages.
+PyYAML==6.0.2
+pyinstaller==6.16.0

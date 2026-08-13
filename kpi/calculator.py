@@ -13,7 +13,6 @@ Dual-role support: employees with role2 are evaluated in both roles,
                     the higher BSC score is kept for final ranking.
 """
 
-import json
 import numpy as np
 from datetime import datetime
 from collections import defaultdict

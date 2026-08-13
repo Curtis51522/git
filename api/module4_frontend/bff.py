@@ -1,28 +1,274 @@
-﻿from fastapi import APIRouter, HTTPException, Depends, Request
-from jose import jwt, JWTError
+from fastapi import APIRouter, HTTPException, Depends, Query
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+import hmac
+import json
+import logging
+from uuid import uuid4
+
+import httpx
+
 from config import settings as cfg
 from db.mysql_client import get_db, q
-from models.schemas import (
-    LoginRequest, LoginResponse, ComboScore, UserRole,
-    DeductRequest, DeductResponse,
+from api.auth import create_access_token, get_current_user, require_manager
+from api.operation_clock import operation_now
+from models.schemas import LoginRequest, LoginResponse, is_positive_integer
+from api.module4_frontend.beverage_options import (
+    beverage_unit_price,
+    bundle_price_values,
+    discounted_unit_values,
+    is_beverage,
+    list_beverage_capabilities,
+    normalize_beverage_item,
+    round_pos_money,
 )
 
 router = APIRouter(prefix="/s4", tags=["Module 4 - BFF"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger("s4.bff")
 
-COFFEE_BREAD_PAIRS = {
-    "Latte": ["Croissant","Danish"],
-    "Americano": ["Muffin","Donut"],
-    "Cappuccino": ["Cinnamon Roll","Sourdough"],
-    "Cold Brew": ["Bagel","Croissant"],
-    "Espresso": ["Baguette"],
-    "Flat White": ["Croissant","Muffin"],
-    "Mocha": ["Donut","Cinnamon Roll"],
-}
+BEVERAGE_SERVICE_SUPPLIES = frozenset({"Cup Regular", "Cup Large"})
+GENERAL_PACKAGING_SUPPLIES = frozenset(
+    {"Box", "Packaging Bag", "Packaging Box"}
+)
+TAKEAWAY_BOX_MIN_BAKERY_UNITS = 3
+TAKEAWAY_BOX_CAPACITY = 6
+
+
+def _new_receipt_id(now):
+    return f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:12]}"
+
+
+def _group_inventory_material_rows(rows):
+    groups = {"baking": [], "beverage": [], "packaging": []}
+    for row in rows:
+        material_name = row["material_name"]
+        used_by_bakery = bool(row.get("used_by_bakery"))
+        used_by_beverage = bool(row.get("used_by_beverage"))
+        beverage_supply = material_name in BEVERAGE_SERVICE_SUPPLIES
+
+        if used_by_bakery and used_by_beverage:
+            usage_scope = "Both"
+        elif used_by_bakery:
+            usage_scope = "Bakery"
+        elif used_by_beverage or beverage_supply:
+            usage_scope = "Beverage"
+        else:
+            usage_scope = "Packaging"
+
+        material = {
+            key: value
+            for key, value in row.items()
+            if key not in {"used_by_bakery", "used_by_beverage"}
+        }
+        material["usage_scope"] = usage_scope
+
+        if used_by_bakery:
+            groups["baking"].append(dict(material))
+        if used_by_beverage or beverage_supply:
+            groups["beverage"].append(dict(material))
+        if (
+            material_name in GENERAL_PACKAGING_SUPPLIES
+            or (
+                row.get("category") == "packaging"
+                and not used_by_bakery
+                and not used_by_beverage
+                and not beverage_supply
+            )
+        ):
+            groups["packaging"].append(dict(material))
+
+    for materials in groups.values():
+        materials.sort(key=lambda item: item["material_name"])
+    return groups
+
+
+def _discount_rate(value):
+    try:
+        return min(max(float(value), 0.0), 0.5)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _recommendation_discount_evidence(order, product_name, freshness, get_discount_rate):
+    discount_overrides = order.get("discount_overrides", {})
+    if product_name in discount_overrides:
+        return (
+            discount_overrides[product_name] / 100.0,
+            "discount_override",
+            None,
+        )
+    discount_rate = get_discount_rate(freshness)
+    return (
+        discount_rate,
+        "freshness" if discount_rate else "none",
+        None,
+    )
+
+
+def _persist_recommendation_events(
+    cur,
+    request_id,
+    operation_now_value,
+    recommendations,
+):
+    for rank_position, recommendation in enumerate(recommendations, start=1):
+        cur.execute(
+            """
+            INSERT INTO recommendation_events (
+                request_id, operation_date, shown_at, rank_position,
+                bakery_product, beverage_product, score, discount_rate,
+                discount_source, discount_strategy
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (
+                request_id,
+                operation_now_value.date(),
+                operation_now_value,
+                rank_position,
+                recommendation["product_name"],
+                recommendation.get("coffee_key"),
+                recommendation.get("total_score"),
+                recommendation.get("discount_rate", 0),
+                recommendation.get("discount_source"),
+                recommendation.get("discount_strategy"),
+            ),
+        )
+        if not is_positive_integer(cur.lastrowid):
+            raise RuntimeError("Recommendation event insert did not return an ID")
+        recommendation["recommendation_event_id"] = cur.lastrowid
+
+
+def _link_recommendation_events(
+    cur,
+    recommendation_event_ids,
+    order_id,
+    operation_date,
+):
+    if not recommendation_event_ids:
+        return
+    placeholders = ", ".join("%s" for _ in recommendation_event_ids)
+    cur.execute(
+        f"""
+        UPDATE recommendation_events
+        SET purchased_order_id = %s
+        WHERE id IN ({placeholders})
+          AND selected_at IS NOT NULL
+          AND purchased_order_id IS NULL
+          AND operation_date = %s
+        """,
+        (order_id, *recommendation_event_ids, operation_date),
+    )
+    if cur.rowcount != len(recommendation_event_ids):
+        raise HTTPException(
+            409,
+            "Recommendation event not selected, already purchased, or outside operation date",
+        )
+
+
+def _resolve_checkout_discount(
+    item,
+    allowed_dynamic,
+    freshness_rate,
+    allowed_event=None,
+):
+    requested_rate = _discount_rate(item.get("discount_rate"))
+    allowed_rate = _discount_rate((allowed_dynamic or {}).get("discount_pct", 0) / 100)
+    dynamic_rate = min(requested_rate, allowed_rate)
+    event_rate = min(
+        requested_rate,
+        _discount_rate((allowed_event or {}).get("discount_pct", 0) / 100),
+    )
+    freshness_rate = _discount_rate(freshness_rate)
+    if event_rate > max(dynamic_rate, freshness_rate):
+        return {
+            "rate": event_rate,
+            "source": str((allowed_event or {}).get("source") or "business_event"),
+            "strategy": str((allowed_event or {}).get("strategy") or ""),
+            "reason": str(
+                (allowed_event or {}).get("reason")
+                or "Validated active business event"
+            ),
+        }
+    if dynamic_rate > freshness_rate:
+        return {
+            "rate": dynamic_rate,
+            "source": str((allowed_dynamic or {}).get("source") or "s5_dynamic"),
+            "strategy": str((allowed_dynamic or {}).get("strategy") or ""),
+            "reason": str((allowed_dynamic or {}).get("reason") or "Validated S5 discount"),
+        }
+    if freshness_rate > 0:
+        return {
+            "rate": freshness_rate,
+            "source": "freshness",
+            "strategy": "clearance",
+            "reason": "Freshness-based discount",
+        }
+    return {"rate": 0.0, "source": "none", "strategy": "", "reason": ""}
+
+
+def _load_active_business_event_discounts(cur, operation_date, product_names):
+    selected_products = set(product_names)
+    if not selected_products:
+        return {}
+    cur.execute(
+        """
+        SELECT id, event_type, products, discount_pct
+        FROM business_events
+        WHERE active = 1
+          AND start_date <= %s
+          AND end_date >= %s
+          AND discount_pct IS NOT NULL
+        ORDER BY discount_pct DESC, id ASC
+        """,
+        (operation_date, operation_date),
+    )
+    discounts = {}
+    for event_id, event_type, raw_products, discount_pct in cur.fetchall():
+        try:
+            products = (
+                json.loads(raw_products)
+                if isinstance(raw_products, str)
+                else list(raw_products or [])
+            )
+            rate = min(max(float(discount_pct), 0.0), 100.0)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            logger.warning("Ignoring malformed business event %s", event_id)
+            continue
+        for product_name in products:
+            if product_name not in selected_products:
+                continue
+            current = discounts.get(product_name)
+            if current is not None and current["discount_pct"] >= rate:
+                continue
+            label = str(event_type).replace("_", " ").title()
+            discounts[product_name] = {
+                "discount_pct": rate,
+                "source": "business_event",
+                "strategy": str(event_type),
+                "reason": f"Active {label}",
+                "event_id": int(event_id),
+            }
+    return discounts
+
+
+async def _fetch_validated_dynamic_discounts(items):
+    products = list(dict.fromkeys(
+        item.get("product_name", "")
+        for item in items
+        if item.get("product_name") and _discount_rate(item.get("discount_rate")) > 0
+    ))
+    if not products:
+        return {}
+    try:
+        async with httpx.AsyncClient(timeout=cfg.S5_DISCOUNT_TIMEOUT_SECONDS) as client:
+            response = await client.post(cfg.S5_DISCOUNT_URL, json={"products": products})
+            response.raise_for_status()
+            return response.json().get("discounts", {})
+    except Exception as exc:
+        logger.warning("Dynamic discount validation failed: %s", exc)
+        raise HTTPException(503, "Dynamic discount validation unavailable") from exc
 
 
 # ======================================================================
@@ -31,52 +277,47 @@ COFFEE_BREAD_PAIRS = {
 @router.post("/login")
 async def login(req: LoginRequest):
     db = get_db()
-    r = q(db, "users").select("*").eq("username", req.username).execute()
-    if not r.data:
-        raise HTTPException(401, "Invalid credentials")
-    user = r.data[0]
-    stored_hash = user.get("password_hash", "")
-    if stored_hash == "hash123" or stored_hash == "":
-        if req.password != "hash123":
-            raise HTTPException(401, "Invalid credentials")
-    else:
-        if not pwd_context.verify(req.password, stored_hash):
-            raise HTTPException(401, "Invalid credentials")
-    token = jwt.encode(
-        {
-            "sub": user["username"],
-            "role": user["role"],
-            "exp": datetime.utcnow() + timedelta(minutes=cfg.JWT_EXPIRE_MINUTES),
-        },
-        cfg.JWT_SECRET,
-        algorithm=cfg.JWT_ALGORITHM,
-    )
-    return LoginResponse(
-        access_token=token, username=user["username"], role=user["role"]
-    )
-
-
-async def get_current_user(request: Request):
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    if not token:
-        raise HTTPException(401, "Missing token")
     try:
-        return jwt.decode(token, cfg.JWT_SECRET, algorithms=[cfg.JWT_ALGORITHM])
-    except JWTError:
-        raise HTTPException(401, "Invalid token")
-
-
-async def require_manager(user=Depends(get_current_user)):
-    if user.get("role") != "manager":
-        raise HTTPException(403, "Manager only")
-    return user
+        r = q(db, "users").select("*").eq("username", req.username).execute()
+        if not r.data:
+            raise HTTPException(401, "Invalid credentials")
+        user = r.data[0]
+        stored_hash = str(user.get("password_hash", "") or "")
+        if pwd_context.identify(stored_hash) is None:
+            if (
+                not cfg.ALLOW_LEGACY_PLAINTEXT_LOGIN
+                or not stored_hash
+                or not hmac.compare_digest(req.password, stored_hash)
+            ):
+                raise HTTPException(401, "Invalid credentials")
+            q(db, "users").update(
+                {"password_hash": pwd_context.hash(req.password)}
+            ).eq("username", req.username).execute()
+        elif not pwd_context.verify(req.password, stored_hash):
+            raise HTTPException(401, "Invalid credentials")
+        token = create_access_token(user["username"], user["role"])
+        return LoginResponse(
+            access_token=token,
+            username=user["username"],
+            role=user["role"],
+        )
+    finally:
+        db.close()
 
 
 # ======================================================================
 # POST /s4/combo -- Product pairing recommendations
 # ======================================================================
 @router.post("/combo")
-async def get_combo(order: dict):
+async def get_combo(order: dict, _: dict = Depends(get_current_user)):
+    db = get_db(autocommit=False)
+    try:
+        return await _get_combo_with_connection(order, db)
+    finally:
+        db.close()
+
+
+async def _get_combo_with_connection(order, db):
     """5-dimension bundle recommendation scoring.
     
     Weights (configurable):
@@ -97,19 +338,21 @@ async def get_combo(order: dict):
     
     # Auto-update freshness before scoring
     update_all_freshness()
-    
-    db = get_db()
-    
+
     # Get all sellable bakery items (not coffee)
 
     # Get all sellable bakery items dynamically from DB
-    cur_bakery = db.cursor()
-    cur_bakery.execute("SELECT product_name FROM products WHERE category='bakery'")
-    BAKERY_PRODUCTS = {r[0] for r in cur_bakery.fetchall()}
-    cur_bakery.close()
+    cur_bakery = None
+    try:
+        cur_bakery = db.cursor()
+        cur_bakery.execute("SELECT product_name FROM products WHERE category='bakery'")
+        BAKERY_PRODUCTS = {r[0] for r in cur_bakery.fetchall()}
+    finally:
+        if cur_bakery is not None:
+            cur_bakery.close()
 
     
-    r = q(db, "batch_inventory").select("*").gt("quantity", 0).neq("freshness_status", "Expired").execute()
+    r = q(db, "batch_inventory").select("*").gt("quantity_remaining", 0).neq("freshness_status", "Expired").execute()
     bakery_batches = [b for b in (r.data or []) if b.get("product_name","") in BAKERY_PRODUCTS]
     
     if not bakery_batches:
@@ -120,7 +363,7 @@ async def get_combo(order: dict):
     inventory = defaultdict(lambda: {"total_qty": 0, "batches": [], "min_freshness": "Fresh"})
     for b in bakery_batches:
         pn = b["product_name"]
-        qty = b.get("quantity", 0)
+        qty = b.get("quantity_remaining", 0)
         inventory[pn]["total_qty"] += qty
         inventory[pn]["batches"].append(b)
         f = b.get("freshness_status", "Fresh")
@@ -143,13 +386,17 @@ async def get_combo(order: dict):
     PAIRING_MATRIX = get_pairing_matrix()
     
     # Get all beverages dynamically from DB
-    cur_coffee = db.cursor()
-    cur_coffee.execute("SELECT product_name, selling_price FROM products WHERE category='beverage' ORDER BY product_name")
-    COFFEE_DRINKS = [
-        {"name": r[0].replace('_', ' ').title(), "key": r[0], "price": float(r[1])}
-        for r in cur_coffee.fetchall()
-    ]
-    cur_coffee.close()
+    cur_coffee = None
+    try:
+        cur_coffee = db.cursor()
+        cur_coffee.execute("SELECT product_name, selling_price FROM products WHERE category='beverage' ORDER BY product_name")
+        COFFEE_DRINKS = [
+            {"name": r[0].replace('_', ' ').title(), "key": r[0], "price": float(r[1])}
+            for r in cur_coffee.fetchall()
+        ]
+    finally:
+        if cur_coffee is not None:
+            cur_coffee.close()
     
     # Cart context: which breads does the customer already have?
     order_items = order.get("items", [])
@@ -163,6 +410,34 @@ async def get_combo(order: dict):
         for c in COFFEE_DRINKS:
             if pn == c["key"] or pn == c["name"]:
                 cart_coffee_keys.add(c["key"])
+
+    def business_event_context_for(product_name):
+        for event in business_events:
+            if not event or not event.get("active", True):
+                continue
+            products = event.get("products") or []
+            if product_name not in products:
+                continue
+            return {
+                "id": event.get("id"),
+                "event_type": event.get("event_type"),
+                "label": event.get("label"),
+                "discount_pct": event.get("discount_pct"),
+                "start_date": event.get("start_date"),
+                "end_date": event.get("end_date"),
+            }
+        return None
+
+    def apply_business_event_discount(product_name, discount, source, strategy):
+        context = business_event_context_for(product_name)
+        event_rate = _discount_rate(
+            (context or {}).get("discount_pct", 0) / 100
+        )
+        if event_rate > discount:
+            return event_rate, "business_event", str(
+                (context or {}).get("event_type") or ""
+            )
+        return discount, source, strategy
 
     # Determine scoring direction:
     # Cart has bread -> recommend coffee pairings (bread->coffee)
@@ -183,8 +458,22 @@ async def get_combo(order: dict):
             pairings = PAIRING_MATRIX.get(pn, {})
             freshness = inv_data.get("min_freshness", "Fresh")
             # Use override discount if provided, otherwise fall back to freshness-based
-            discount_overrides = order.get("discount_overrides", {})
-            discount = (discount_overrides.get(pn, 0) / 100.0) if pn in discount_overrides else get_discount_rate(freshness)
+            discount, discount_source, discount_strategy = (
+                _recommendation_discount_evidence(
+                    order,
+                    pn,
+                    freshness,
+                    get_discount_rate,
+                )
+            )
+            discount, discount_source, discount_strategy = (
+                apply_business_event_discount(
+                    pn,
+                    discount,
+                    discount_source,
+                    discount_strategy,
+                )
+            )
             inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
             target_coffees = [c for c in COFFEE_DRINKS if not strict_mode or c["key"] in cart_coffee_keys]
             for coffee in target_coffees:
@@ -197,15 +486,18 @@ async def get_combo(order: dict):
                 context_score = 1.0 if ck not in cart_coffee_keys else 0.5
                 cart_boost = (0.20 if pn in cart_breads else 0.0) + (0.20 if ck in cart_coffee_keys else 0.0) + (0.10 if (pn in cart_breads and ck in cart_coffee_keys) else 0.0)
                 total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score + cart_boost)
-                bundle_price = (get_product_prices().get(pn, 5.0)*(1-discount)) + coffee["price"]
-                regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
-                savings = regular_price - bundle_price
+                pricing = bundle_price_values(get_product_prices().get(pn, 5.0), discount, coffee["price"], "regular")
+                bundle_price = float(pricing["total"])
+                savings = float(pricing["savings"])
                 all_scores.append({
                     "product_name": pn, "coffee_name": coffee["name"], "coffee_key": ck,
                     "products": f"{pn.replace('_',' ').title()} + {coffee['name']}",
                     "direction": "bread_to_coffee",
                     "total_score": round(total, 3), "total_price": round(bundle_price, 2),
                     "savings": round(savings, 2), "freshness_status": freshness,
+                    "discount_rate": discount,
+                    "discount_source": discount_source,
+                    "discount_strategy": discount_strategy,
                     "stock_qty": inv_data["total_qty"],
                     "scoring_breakdown": {
                         "flavor_pairing": round(W_FLAVOR*flavor_score, 3),
@@ -227,8 +519,22 @@ async def get_combo(order: dict):
             pairings = PAIRING_MATRIX.get(pn, {})
             freshness = inv_data.get("min_freshness", "Fresh")
             # Use override discount if provided, otherwise fall back to freshness-based
-            discount_overrides = order.get("discount_overrides", {})
-            discount = (discount_overrides.get(pn, 0) / 100.0) if pn in discount_overrides else get_discount_rate(freshness)
+            discount, discount_source, discount_strategy = (
+                _recommendation_discount_evidence(
+                    order,
+                    pn,
+                    freshness,
+                    get_discount_rate,
+                )
+            )
+            discount, discount_source, discount_strategy = (
+                apply_business_event_discount(
+                    pn,
+                    discount,
+                    discount_source,
+                    discount_strategy,
+                )
+            )
             inv_pressure = inv_data["total_qty"] / max(max_inv, 1)
             discount_score = discount * 3.33
             f_map = {"Fresh": 0.3, "Day-1": 0.8, "Expired": 1.0}
@@ -243,15 +549,18 @@ async def get_combo(order: dict):
                 context_score = 1.0 if pn not in cart_breads else 0.5
                 coffee_boost = (0.20 if ck in cart_coffee_keys else 0.0) + (0.20 if pn in cart_breads else 0.0) + (0.10 if (pn in cart_breads and ck in cart_coffee_keys) else 0.0)
                 total = (W_FLAVOR*flavor_score + W_DISCOUNT*discount_score + W_FRESH*freshness_score + W_INV*inv_score + W_CONTEXT*context_score + coffee_boost)
-                bundle_price = (get_product_prices().get(pn, 5.0)*(1-discount)) + coffee["price"]
-                regular_price = get_product_prices().get(pn, 5.0) + coffee["price"]
-                savings = regular_price - bundle_price
+                pricing = bundle_price_values(get_product_prices().get(pn, 5.0), discount, coffee["price"], "regular")
+                bundle_price = float(pricing["total"])
+                savings = float(pricing["savings"])
                 all_scores.append({
                     "product_name": pn, "coffee_name": coffee["name"], "coffee_key": ck,
                     "products": f"{pn.replace('_',' ').title()} + {coffee['name']}",
                     "direction": "coffee_to_bread",
                     "total_score": round(total, 3), "total_price": round(bundle_price, 2),
                     "savings": round(savings, 2), "freshness_status": freshness,
+                    "discount_rate": discount,
+                    "discount_source": discount_source,
+                    "discount_strategy": discount_strategy,
                     "stock_qty": inv_data["total_qty"],
                     "scoring_breakdown": {
                         "flavor_pairing": round(W_FLAVOR*flavor_score, 3),
@@ -279,23 +588,6 @@ async def get_combo(order: dict):
                     s["total_score"] = min(round(s["total_score"] + add_bonus, 3), 1.0)
                     s["priority_boost"] = add_bonus
                     break
-
-    def business_event_context_for(product_name):
-        for event in business_events:
-            if not event or not event.get("active", True):
-                continue
-            products = event.get("products") or []
-            if product_name not in products:
-                continue
-            return {
-                "id": event.get("id"),
-                "event_type": event.get("event_type"),
-                "label": event.get("label"),
-                "discount_pct": event.get("discount_pct"),
-                "start_date": event.get("start_date"),
-                "end_date": event.get("end_date"),
-            }
-        return None
 
     # Sort by score descending
     # Sort by savings when cart has only coffee (different bread discounts matter), otherwise by total_score
@@ -346,6 +638,20 @@ async def get_combo(order: dict):
             "fresh_qty": inv_data.get("fresh_qty", 0),
             "day1_ratio": round(day1 / max(total, 1), 2),
         }
+    now = operation_now(datetime.now)
+    request_id = f"REC-{now.strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:12]}"
+    cur_events = None
+    try:
+        cur_events = db.cursor()
+        _persist_recommendation_events(cur_events, request_id, now, top3)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Recommendation event persistence failed")
+        raise HTTPException(500, "Recommendation event persistence failed") from exc
+    finally:
+        if cur_events is not None:
+            cur_events.close()
     return {"status": "ok", "recommendations": top3, "freshness": freshness_breakdown, "weights": {
         "flavor_pairing": int(W_FLAVOR*100),
         "discount_value": int(W_DISCOUNT*100),
@@ -353,6 +659,31 @@ async def get_combo(order: dict):
         "inventory_pressure": int(W_INV*100),
         "order_context": int(W_CONTEXT*100),
     }}
+
+
+@router.post("/combo/select", dependencies=[Depends(get_current_user)])
+async def select_combo(payload: dict):
+    event_id = payload.get("recommendation_event_id")
+    if not is_positive_integer(event_id):
+        raise HTTPException(400, "Valid recommendation_event_id required")
+    now = operation_now(datetime.now)
+    db = get_db(autocommit=False)
+    cur = db.cursor()
+    try:
+        cur.execute(
+            "UPDATE recommendation_events SET selected_at = %s WHERE id = %s AND selected_at IS NULL",
+            (now, event_id),
+        )
+        if cur.rowcount != 1:
+            raise HTTPException(404, "Recommendation event not found or already selected")
+        db.commit()
+        return {"status": "ok", "recommendation_event_id": event_id}
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        cur.close()
+        db.close()
 
 # Product prices - read from DB (single source of truth)
 _product_prices_cache = None
@@ -366,6 +697,7 @@ _DEFAULT_PRICES = {
 def get_product_prices():
     """Return {product_name: unit_price} dict, cached after first successful DB read."""
     global _product_prices_cache
+    db = None
     if _product_prices_cache is not None and len(_product_prices_cache) > 0:
         return _product_prices_cache
     try:
@@ -378,6 +710,9 @@ def get_product_prices():
             return _product_prices_cache
     except Exception:
         pass
+    finally:
+        if db is not None and hasattr(db, "close"):
+            db.close()
     # DB not ready or empty -- use defaults (retry DB on next call)
     _product_prices_cache = None
     return dict(_DEFAULT_PRICES)
@@ -392,6 +727,7 @@ _DEFAULT_COSTS = {
 def get_product_costs():
     """Return {product_name: cost_price} dict, cached after first successful DB read."""
     global _product_costs_cache
+    db = None
     if _product_costs_cache is not None and len(_product_costs_cache) > 0:
         return _product_costs_cache
     try:
@@ -404,63 +740,307 @@ def get_product_costs():
             return _product_costs_cache
     except Exception:
         pass
+    finally:
+        if db is not None and hasattr(db, "close"):
+            db.close()
     _product_costs_cache = None
     return dict(_DEFAULT_COSTS)
 
-# Use get_product_prices() directly; this module-level reference is kept for backward compat
-# but will only be populated after first successful DB read
-PRODUCT_PRICES = {}
-
-
-
-
+# ======================================================================
 
 # ======================================================================
+# GET /s4/beverages/options -- Return beverage customization capabilities
+# ======================================================================
+@router.get("/beverages/options", dependencies=[Depends(get_current_user)])
+async def get_beverage_options():
+    return {
+        "status": "ok",
+        "beverages": list_beverage_capabilities(),
+    }
 
 # ======================================================================
 # GET /s4/products -- Return product prices from DB
 # ======================================================================
-@router.get("/products")
+@router.get("/products", dependencies=[Depends(get_current_user)])
 async def list_products():
     """Return all product prices from the database."""
+    global _product_prices_cache
+    db = None
     try:
         db = get_db()
-        r = q(db, "products").select("*").eq("category", "bakery").execute()
+        r = q(db, "products").select("*").execute()
         if r.data:
             products = []
+            refreshed_prices = {}
             for row in r.data:
+                product_price = float(row.get("selling_price", row.get("unit_price", 0)))
+                refreshed_prices[row["product_name"]] = product_price
                 products.append({
                     "product_name": row["product_name"],
-                    "unit_price": float(row.get("selling_price", row.get("unit_price", 0))),
-                    "cost_price": float(row.get("cost_price", 0)),
+                    "unit_price": product_price,
+                    "cost_price": float(row.get("material_cost", row.get("cost_price", 0))),
                 })
+            _product_prices_cache = refreshed_prices
             return {"status": "ok", "products": products}
     except Exception:
         pass
-    # Fallback: return only bakery from cached prices
-    bakery = {"donut","croissant","bread_coconut","bread_roll","chiffon","croissant_chocolate"}
+    finally:
+        if db is not None:
+            db.close()
+    # Fallback: return every cached product price.
     prices = get_product_prices()
     costs = get_product_costs()
     products = []
     for name, price in prices.items():
-        if name in bakery:
-            products.append({
-                "product_name": name,
-                "unit_price": float(price) if price else 0,
-                "cost_price": float(costs.get(name, 0)),
-            })
+        products.append({
+            "product_name": name,
+            "unit_price": float(price) if price else 0,
+            "cost_price": float(costs.get(name, 0)),
+        })
     return {"status": "ok", "products": products}
+
+
+def _load_checkout_products(cur, items):
+    product_names = list(dict.fromkeys(item["product_name"] for item in items))
+    placeholders = ",".join(["%s"] * len(product_names))
+    cur.execute(
+        f"""
+        SELECT product_name, selling_price, material_cost, wastage_pct
+        FROM products
+        WHERE product_name IN ({placeholders})
+        ORDER BY product_name
+        FOR UPDATE
+        """,
+        product_names,
+    )
+    products = {}
+    for product_name, selling_price, material_cost, wastage_pct in cur.fetchall():
+        if product_name in products:
+            raise HTTPException(409, f"Duplicate canonical product row: {product_name}")
+        if selling_price is None:
+            continue
+        price = Decimal(str(selling_price))
+        if price <= 0:
+            raise HTTPException(409, f"Invalid canonical price for: {product_name}")
+        products[product_name] = {
+            "selling_price": price,
+            "material_cost": Decimal(str(material_cost or 0)),
+            "wastage_pct": Decimal(
+                str(0.03 if wastage_pct is None else wastage_pct)
+            ),
+        }
+
+    missing = sorted(set(product_names) - set(products))
+    if missing:
+        raise HTTPException(409, f"Missing canonical price for: {', '.join(missing)}")
+    return products
+
+
+def _price_checkout_items(items, resolved_discounts, products):
+    priced_items = []
+    subtotal = Decimal("0.0")
+    discount_total = Decimal("0.0")
+    for item_index, item in enumerate(items):
+        product_name = item["product_name"]
+        quantity = item["quantity"]
+        base_price = products[product_name]["selling_price"]
+        if is_beverage(product_name):
+            base_price = beverage_unit_price(base_price, item["size"])
+        resolved_discount = resolved_discounts[item_index]
+        discount_rate = (
+            resolved_discount["rate"] if not is_beverage(product_name) else 0.0
+        )
+        unit_values = discounted_unit_values(base_price, discount_rate)
+        quantity_decimal = Decimal(quantity)
+        priced_item = {
+            "item": item,
+            "quantity": quantity,
+            "quantity_decimal": quantity_decimal,
+            "unit_price": unit_values["unit_price"],
+            "discount_rate": discount_rate,
+            "line_subtotal": unit_values["unit_price"] * quantity_decimal,
+            "line_discount": unit_values["unit_discount"] * quantity_decimal,
+            "line_final": unit_values["discounted_unit_price"] * quantity_decimal,
+            "resolved_discount": resolved_discount,
+        }
+        priced_items.append(priced_item)
+        subtotal += priced_item["line_subtotal"]
+        discount_total += priced_item["line_discount"]
+    return priced_items, subtotal, discount_total
+
+
+def _build_material_requirements(cur, items, products, dine_type):
+    quantities_by_product = {}
+    bakery_quantity = 0
+    for item in items:
+        if not is_beverage(item["product_name"]):
+            bakery_quantity += item["quantity"]
+            continue
+        product_name = item["product_name"]
+        quantities_by_product[product_name] = (
+            quantities_by_product.get(product_name, 0) + item["quantity"]
+        )
+
+    requirements = {}
+    recipe_products = set()
+    product_names = sorted(quantities_by_product)
+    if product_names:
+        placeholders = ",".join(["%s"] * len(product_names))
+        cur.execute(
+            f"""
+            SELECT pr.product_name, pr.material_name, pr.quantity_per_unit,
+                   rm.unit, rm.category
+            FROM product_recipes pr
+            LEFT JOIN raw_materials rm ON rm.material_name = pr.material_name
+            WHERE pr.product_name IN ({placeholders})
+            ORDER BY pr.product_name, pr.material_name
+            """,
+            product_names,
+        )
+        for product_name, material_name, per_unit, unit, category in cur.fetchall():
+            if product_name not in quantities_by_product or not material_name:
+                raise HTTPException(409, "Invalid product recipe row")
+            if not unit:
+                raise HTTPException(409, f"Missing raw material unit for {material_name}")
+            try:
+                quantity_per_unit = Decimal(str(per_unit))
+            except (ArithmeticError, TypeError, ValueError) as exc:
+                raise HTTPException(
+                    409,
+                    f"Invalid recipe quantity for {product_name}: {per_unit}",
+                ) from exc
+            if not quantity_per_unit.is_finite() or quantity_per_unit <= 0:
+                raise HTTPException(
+                    409,
+                    f"Invalid recipe quantity for {product_name}: {per_unit}",
+                )
+            recipe_products.add(product_name)
+            required = quantity_per_unit * Decimal(
+                quantities_by_product[product_name]
+            )
+            if unit != "pcs" and (category or "") != "packaging":
+                required *= Decimal("1") + products[product_name]["wastage_pct"]
+            required = required.quantize(Decimal("0.000001"))
+            requirements[material_name] = requirements.get(
+                material_name, Decimal("0")
+            ) + required
+
+        missing_recipes = sorted(set(product_names) - recipe_products)
+        if missing_recipes:
+            raise HTTPException(
+                409,
+                f"Missing product recipe: {', '.join(missing_recipes)}",
+            )
+
+    for item in items:
+        if not is_beverage(item["product_name"]):
+            continue
+        cup_name = "Cup Large" if item["size"] == "large" else "Cup Regular"
+        requirements[cup_name] = requirements.get(
+            cup_name, Decimal("0")
+        ) + Decimal(item["quantity"])
+
+    if dine_type == "takeaway":
+        requirements["Packaging Bag"] = requirements.get(
+            "Packaging Bag", Decimal("0")
+        ) + Decimal("1")
+        if bakery_quantity >= TAKEAWAY_BOX_MIN_BAKERY_UNITS:
+            box_quantity = (
+                bakery_quantity + TAKEAWAY_BOX_CAPACITY - 1
+            ) // TAKEAWAY_BOX_CAPACITY
+            requirements["Packaging Box"] = requirements.get(
+                "Packaging Box", Decimal("0")
+            ) + Decimal(box_quantity)
+    return requirements
+
+
+def _lock_and_validate_materials(cur, requirements):
+    if not requirements:
+        return {}
+    material_names = sorted(requirements)
+    placeholders = ",".join(["%s"] * len(material_names))
+    cur.execute(
+        f"""
+        SELECT material_name, stock_quantity, unit, unit_price
+        FROM raw_materials
+        WHERE material_name IN ({placeholders})
+        ORDER BY material_name
+        FOR UPDATE
+        """,
+        material_names,
+    )
+    rows = {
+        material_name: (
+            Decimal(str(stock_quantity)),
+            unit,
+            Decimal(str(unit_price or 0)),
+        )
+        for material_name, stock_quantity, unit, unit_price in cur.fetchall()
+    }
+    missing = sorted(set(material_names) - set(rows))
+    if missing:
+        raise HTTPException(409, f"Missing material stock: {', '.join(missing)}")
+
+    shortages = []
+    for material_name in material_names:
+        available = rows[material_name][0]
+        required = requirements[material_name]
+        if available < required:
+            shortages.append(
+                f"{material_name} (need {required}, available {available})"
+            )
+    if shortages:
+        raise HTTPException(409, f"Insufficient material stock: {'; '.join(shortages)}")
+    return {
+        name: {"unit": values[1], "unit_price": values[2]}
+        for name, values in rows.items()
+    }
+
+
+def _packaging_material_cost(requirements, material_info):
+    return sum(
+        (
+            requirements.get(material_name, Decimal("0"))
+            * material_info.get(material_name, {}).get("unit_price", Decimal("0"))
+        )
+        for material_name in ("Packaging Bag", "Packaging Box")
+    )
 
 # POST /s4/checkout/complete -- Complete payment + deduct inventory
 # ======================================================================
-@router.post("/checkout/complete")
+@router.post("/checkout/complete", dependencies=[Depends(get_current_user)])
 async def checkout_complete(payload: dict):
     """Process checkout: deduct inventory via FIFO, apply freshness discounts, generate receipt."""
     items = payload.get("items", [])
     if not items:
         raise HTTPException(400, "No items in cart")
+    recommendation_event_ids = payload.get("recommendation_event_ids", [])
+    if not isinstance(recommendation_event_ids, list):
+        raise HTTPException(400, "recommendation_event_ids must be a list")
+    if not all(is_positive_integer(event_id) for event_id in recommendation_event_ids):
+        raise HTTPException(400, "Valid recommendation_event_ids required")
+    if len(set(recommendation_event_ids)) != len(recommendation_event_ids):
+        raise HTTPException(400, "Duplicate recommendation_event_ids are not allowed")
 
-    db = get_db()
+    normalized_items = []
+    for raw_item in items:
+        if not isinstance(raw_item, dict):
+            raise HTTPException(400, "Each checkout item must be an object")
+        item = dict(raw_item)
+        product_name = item.get("product_name", "")
+        if not is_positive_integer(item.get("quantity")):
+            raise HTTPException(
+                400,
+                f"Invalid quantity for '{product_name}': expected a positive integer",
+            )
+        if is_beverage(product_name):
+            try:
+                item.update(normalize_beverage_item(product_name, item))
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        normalized_items.append(item)
+    items = normalized_items
+
     from api.module1_yolo import deduct_inventory
     from models.schemas import DeductRequest
 
@@ -468,13 +1048,12 @@ async def checkout_complete(payload: dict):
     bakery_items = []
     coffee_items = []
     BAKERY_KEYS = {"apple_pie","bagel","baguette","bread_coconut","bread_roll","brioche","brownie","chiffon","chocolate_cake","chocopie","cookie","cornbread","cream_horn","croissant","croissant_chocolate","donut","eggtart","flatbread","macaron","mantequilla","melon_bread","muffin","pancake","pandesal","pizza_bread","pullman","soboru_bread","sourdough","stickbread","tostada"}
-    COFFEE_KEYS = {"latte","americano","cappuccino","mocha","espresso","flat_white","caramel_macchiato","cold_brew","hot_chocolate","matcha_latte","milk_tea","chai_latte","earl_grey","english_breakfast","lemonade"}
     unknown_items = []
     for item in items:
         pn = item.get("product_name", "")
         if pn in BAKERY_KEYS:
             bakery_items.append(item)
-        elif pn in COFFEE_KEYS:
+        elif is_beverage(pn):
             coffee_items.append(item)
         else:
             unknown_items.append(pn)
@@ -487,256 +1066,314 @@ async def checkout_complete(payload: dict):
             "receipt": None,
             "message": f"Checkout rejected: unknown products {unknown_items}",
         }
-    # Deduct bakery items via FIFO
-    result = None
-    if bakery_items:
-        req = DeductRequest(items=bakery_items)
-        result = await deduct_inventory(req)
-    
-    # Record coffee items as direct outflow transactions (no inventory limit)
-    coffee_deducted = []
-    for item in coffee_items:
-        pn = item.get("product_name", "")
-        qty = item.get("quantity", 1)
-        price = get_product_prices().get(pn, 8.0)  # coffee price from products or default
-        q(db, "inventory_transactions").insert({
-            "transaction_type": "outflow",
-            "batch_id": None,  # coffee has no batch inventory
-            "product_name": pn,
-            "quantity": qty,
-            "unit_price": price,
-            "discount_applied": 0,
-            "freshness_status": "Fresh",
-            "beverage_size": item.get("size", None),
-            "beverage_temp": item.get("temperature", None),
-            "beverage_sweetness": item.get("sugar", None),
-            "beverage_ice": item.get("ice_level", None),
-        }).execute()
-        coffee_deducted.append({
-            "product_name": pn,
-            "batch_id": None,
-            "quantity_deducted": qty,
-            "remaining_after": 0,
-        })
-    
-    # Merge results
-    deducted = (result.deducted if result else []) + coffee_deducted
-    all_errors = (result.errors if result else [])
-    status = result.status if result else "ok"
 
-    # If deduction has errors, do NOT create an order - return errors to frontend
-    if all_errors:
-        return {
-            "status": status,
-            "deducted": deducted,
-            "errors": all_errors,
-            "receipt": None,
-            "message": f"{len(deducted)} items deducted, {len(all_errors)} items failed",
+    for item in bakery_items:
+        freshness = item.get("freshness")
+        if freshness not in {"Fresh", "Day-1"}:
+            raise HTTPException(
+                400,
+                f"Invalid bakery freshness for '{item.get('product_name', '')}': {freshness}",
+            )
+
+    from api.freshness_service import get_discount_rate
+
+    now = operation_now(datetime.now)
+    bakery_product_names = [
+        item.get("product_name", "") for item in bakery_items
+    ]
+    resolved_discounts = []
+
+    priced_items = []
+    receipt_items = []
+    subtotal = Decimal("0.0")
+    discount_total = Decimal("0.0")
+    total = Decimal("0.0")
+    savings = Decimal("0.0")
+    product_data = {}
+    material_requirements = {}
+    material_info = {}
+    
+    deducted = []
+    all_errors = []
+    status = "ok"
+    db = None
+    cur = None
+
+    try:
+        db = get_db(autocommit=False)
+        cur = db.cursor()
+        event_discounts = _load_active_business_event_discounts(
+            cur,
+            now.date(),
+            bakery_product_names,
+        )
+        dynamic_validation_items = []
+        for item in bakery_items:
+            product_name = item.get("product_name", "")
+            requested_rate = _discount_rate(item.get("discount_rate"))
+            freshness = item.get("freshness", "Fresh")
+            freshness_rate = (
+                get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+            )
+            event_rate = _discount_rate(
+                event_discounts.get(product_name, {}).get("discount_pct", 0)
+                / 100
+            )
+            if requested_rate > max(freshness_rate, event_rate):
+                dynamic_validation_items.append(item)
+        validated_dynamic_discounts = await _fetch_validated_dynamic_discounts(
+            dynamic_validation_items
+        )
+        for item in items:
+            product_name = item.get("product_name", "")
+            if is_beverage(product_name):
+                resolved_discounts.append(
+                    {
+                        "rate": 0.0,
+                        "source": "none",
+                        "strategy": "",
+                        "reason": "",
+                    }
+                )
+                continue
+            freshness = item.get("freshness", "Fresh")
+            freshness_rate = (
+                get_discount_rate(freshness) if freshness == "Day-1" else 0.0
+            )
+            resolved_discounts.append(
+                _resolve_checkout_discount(
+                    item=item,
+                    allowed_dynamic=validated_dynamic_discounts.get(
+                        product_name, {}
+                    ),
+                    freshness_rate=freshness_rate,
+                    allowed_event=event_discounts.get(product_name, {}),
+                )
+            )
+        product_data = _load_checkout_products(cur, items)
+        priced_items, subtotal, discount_total = _price_checkout_items(
+            items,
+            resolved_discounts,
+            product_data,
+        )
+        priced_by_item_id = {
+            id(priced_item["item"]): priced_item for priced_item in priced_items
         }
 
-    # ---- Build receipt ----
-    prices = get_product_prices()
-    costs = get_product_costs()
-    from api.freshness_service import get_discount_rate
-    
-    receipt_items = []
-    subtotal = 0.0
-    discount_total = 0.0
-    
-    for item in items:
-        pn = item.get("product_name", "")
-        qty = item.get("quantity", 1)
-        freshness = item.get("freshness", "Fresh")
-        unit_price = prices.get(pn, 5.0)
-        size = item.get("size", "Regular")
-        if size == "Large" and pn in COFFEE_KEYS:
-            unit_price += 3.0
-        discount_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
-        line_total = unit_price * qty
-        line_discount = line_total * discount_rate
-        line_final = line_total - line_discount
-        
-        receipt_items.append({
-            "product_name": pn,
-            "quantity": qty,
-            "unit_price": round(unit_price, 2),
-            "discount_pct": int(discount_rate * 100),
-            "discount_amount": round(line_discount, 2),
-            "line_total": round(line_final, 2),
-        })
-        subtotal += line_total
-        discount_total += line_discount
-    
-    total = subtotal - discount_total
-    savings = discount_total
-    
-    # Generate receipt ID
-        
-    try:
-            # ---- Record to orders / order_items / payments tables ----
-        now = datetime.now()
-        payment_method = payload.get("payment_method", "cash")
-        cash_received = payload.get("cash_received", None)
-    
-        # Packaging fee for takeaway
+        for priced_item in priced_items:
+            item = priced_item["item"]
+            resolved_discount = priced_item["resolved_discount"]
+            is_beverage_item = is_beverage(item["product_name"])
+            receipt_items.append({
+                "product_name": item["product_name"],
+                "quantity": priced_item["quantity"],
+                "unit_price": float(priced_item["unit_price"]),
+                "discount_pct": int(priced_item["discount_rate"] * 100),
+                "discount_amount": float(priced_item["line_discount"]),
+                "line_total": float(priced_item["line_final"]),
+                "discount_source": resolved_discount["source"],
+                "discount_strategy": resolved_discount["strategy"],
+                "discount_reason": resolved_discount["reason"],
+                "size": item.get("size") if is_beverage_item else None,
+                "temperature": item.get("temperature") if is_beverage_item else None,
+                "sugar": item.get("sugar") if is_beverage_item else None,
+                "ice_level": item.get("ice_level") if is_beverage_item else None,
+            })
+
+        total = round_pos_money(subtotal - discount_total)
+        savings = discount_total
         dine_type = payload.get("dine_type", "dine_in")
-        packaging_fee = 0.30 if dine_type == "takeaway" else 0.0
-        if packaging_fee > 0:
-            total += packaging_fee
-    
-    # Build product cost lookup
-        all_product_names = [it.get("product_name","") for it in items]
-        placeholders = ",".join(["%s"] * len(all_product_names))
-        cur = db.cursor()
-        cur.execute(f"SELECT product_name, material_cost, wastage_pct FROM products WHERE product_name IN ({placeholders})", all_product_names)
-        rows = cur.fetchall(); cost_map = {r[0]: float(r[1]) for r in rows}; wastage_map = {r[0]: float(r[2]) if r[2] else 0.03 for r in rows}
-    
+        material_requirements = _build_material_requirements(
+            cur,
+            items,
+            product_data,
+            dine_type,
+        )
+        material_info = _lock_and_validate_materials(
+            cur,
+            material_requirements,
+        )
+        packaging_material_cost = _packaging_material_cost(
+            material_requirements,
+            material_info,
+        )
+        payment_method = payload.get("payment_method", "cash")
+        receipt_id = _new_receipt_id(now)
+
+        # Deduct bakery items via FIFO on the checkout transaction.
+        result = None
+        if bakery_items:
+            deduction_items = []
+            for item in bakery_items:
+                priced_item = priced_by_item_id[id(item)]
+                deduction_items.append(
+                    {
+                        **item,
+                        "unit_price": float(priced_item["unit_price"]),
+                        "discount_applied": float(priced_item["discount_rate"]),
+                    }
+                )
+            req = DeductRequest(items=deduction_items, receipt_id=receipt_id)
+            result = await deduct_inventory(req, db=db)
+            deducted.extend(result.deducted)
+            all_errors.extend(result.errors)
+            status = result.status
+
+        if all_errors:
+            attempted_deductions = list(deducted)
+            db.rollback()
+            return {
+                "status": status,
+                "deducted": [],
+                "attempted_deductions": attempted_deductions,
+                "errors": all_errors,
+                "receipt": None,
+                "message": f"0 items deducted; transaction rolled back after {len(all_errors)} item failures",
+            }
+
+        # Beverages have no finished-goods stock limit, but their outflows are
+        # still part of the same checkout transaction.
+        for item in coffee_items:
+            pn = item.get("product_name", "")
+            qty = item["quantity"]
+            price = priced_by_item_id[id(item)]["unit_price"]
+            q(db, "inventory_transactions").insert({
+                "transaction_type": "outflow",
+                "batch_id": None,
+                "product_name": pn,
+                "quantity": qty,
+                "unit_price": float(price),
+                "discount_applied": 0,
+                "freshness_status": "Fresh",
+                "receipt_id": receipt_id,
+                "disposition": "sold",
+            }).execute()
+            deducted.append({
+                "product_name": pn,
+                "batch_id": None,
+                "quantity_deducted": qty,
+                "remaining_after": 0,
+            })
+
+        # ---- Record to orders / order_items / payments tables ----
         # Calculate order totals
         order_subtotal = subtotal
         order_discount = discount_total
         order_total = total
-        order_profit = 0.0
-        order_cost = 0.0
+        order_cost = packaging_material_cost
         order_item_count = 0
-    
-        for item in items:
-            pn = item.get("product_name","")
-            qty = item.get("quantity", 1)
-            uprice = prices.get(pn, 5.0)
-            mat_cost = cost_map.get(pn, uprice * 0.30)
-            wastage_pct = wastage_map.get(pn, 0.03)
-            actual_cost = mat_cost * (1 + wastage_pct)
-            freshness = item.get("freshness", "Fresh")
-            disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
-            line_total = uprice * qty
-            line_disc = line_total * disc_rate
-            line_final = line_total - line_disc
-            line_profit_raw = line_final - (actual_cost * qty)
-            order_cost += actual_cost * qty
-            order_profit += line_profit_raw
-            order_item_count += qty
-    
-        # Recalculate profit using final total (includes Top-3 dynamic discount)
-        if order_total > 0:
-            discount_ratio = order_total / order_subtotal if order_subtotal > 0 else 1.0
-        else:
-            discount_ratio = 1.0
-        order_profit = order_total - (order_cost * discount_ratio)
 
-        receipt_id = f"RCP-{now.strftime('%Y%m%d%H%M%S')}-{now.microsecond // 1000:03d}"
+        for priced_item in priced_items:
+            item = priced_item["item"]
+            pn = item.get("product_name","")
+            uprice = priced_item["unit_price"]
+            quantity_decimal = priced_item["quantity_decimal"]
+            mat_cost = product_data[pn]["material_cost"]
+            wastage_pct = product_data[pn]["wastage_pct"]
+            actual_cost = mat_cost * (Decimal("1") + wastage_pct)
+            order_cost += actual_cost * quantity_decimal
+            order_item_count += priced_item["quantity"]
+
+        order_profit = order_total - order_cost
 
         # INSERT orders
         cur.execute(
-            "INSERT INTO orders (ticket_id, order_date, order_time, subtotal, discount_total, total_amount, total_profit, item_count, state, dine_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (receipt_id, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S"), round(order_subtotal,2), round(order_discount,2), round(order_total,2), round(order_profit,2), order_item_count, "paid", dine_type)
+            "INSERT INTO orders (ticket_id, order_date, order_time, subtotal, discount_total, total_amount, total_profit, item_count, state, dine_type, payment_method) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (receipt_id, now.strftime("%Y-%m-%d"), now.strftime("%H:%M:%S"), float(order_subtotal), float(order_discount), float(order_total), float(order_profit), order_item_count, "paid", dine_type, payment_method)
         )
         order_id = cur.lastrowid
-    
+
         # INSERT order_items
-        for item in items:
+        for priced_item in priced_items:
+            item = priced_item["item"]
             pn = item.get("product_name","")
-            qty = item.get("quantity", 1)
-            uprice = prices.get(pn, 5.0)
-            mat_cost = cost_map.get(pn, uprice * 0.30)
-            wastage_pct = wastage_map.get(pn, 0.03)
-            actual_cost = mat_cost * (1 + wastage_pct)
+            qty = priced_item["quantity"]
+            uprice = priced_item["unit_price"]
+            mat_cost = product_data[pn]["material_cost"]
+            wastage_pct = product_data[pn]["wastage_pct"]
+            actual_cost = mat_cost * (Decimal("1") + wastage_pct)
             freshness = item.get("freshness", "Fresh")
-            disc_rate = get_discount_rate(freshness) if freshness == "Day-1" else 0.0
-            line_total = uprice * qty
-            line_disc = line_total * disc_rate
-            line_final = line_total - line_disc
-            line_profit = line_final - (actual_cost * qty)
-        
-            coffee_temp = item.get("temperature", None)
-            coffee_ice = item.get("ice_level", None)
-            coffee_sugar = item.get("sugar", None)
-        
+            disc_rate = priced_item["discount_rate"]
+            line_profit = float(priced_item["line_final"] - (actual_cost * priced_item["quantity_decimal"]))
+
             cur.execute(
-                "INSERT INTO order_items (order_id, product_name, quantity, unit_price, discount_rate, line_total, line_profit, freshness, coffee_temp, coffee_ice, coffee_sugar) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (order_id, pn, qty, uprice, disc_rate, round(line_final,2), round(line_profit,2), freshness, coffee_temp, coffee_ice, coffee_sugar)
+                "INSERT INTO order_items (order_id, product_name, quantity, unit_price, discount_rate, line_total, line_profit, freshness, coffee_size, coffee_temp, coffee_ice, coffee_sugar) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    order_id,
+                    pn,
+                    qty,
+                    float(uprice),
+                    disc_rate,
+                    float(priced_item["line_final"]), line_profit,
+                    freshness,
+                    item.get("size") if is_beverage(pn) else None,
+                    item.get("temperature") if is_beverage(pn) else None,
+                    item.get("ice_level") if is_beverage(pn) else None,
+                    item.get("sugar") if is_beverage(pn) else None,
+                )
             )
 
-            # Deduct raw materials
+        for material_name in sorted(material_requirements):
+            required = material_requirements[material_name]
             cur.execute(
-                "SELECT material_name, quantity_per_unit FROM product_recipes WHERE product_name = %s",
-                (pn,)
+                """
+                UPDATE raw_materials
+                SET stock_quantity = stock_quantity - %s
+                WHERE material_name = %s AND stock_quantity >= %s
+                """,
+                (required, material_name, required),
             )
-            for mat_row in cur.fetchall():
-                mat_name = mat_row[0]
-                used_qty = round(float(mat_row[1]) * qty, 6)
-                actual_used_qty = round(used_qty * (1 + wastage_pct), 6)
-                cur.execute(
-                    "UPDATE raw_materials SET stock_quantity = stock_quantity - %s WHERE material_name = %s",
-                    (actual_used_qty, mat_name)
+            if cur.rowcount != 1:
+                raise HTTPException(
+                    409,
+                    f"Material stock changed during checkout: {material_name}",
                 )
-                cur.execute(
-                    "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                    (mat_name, 'outflow', actual_used_qty, 'kg', receipt_id)
-                )
-
-        # Deduct packaging materials for takeaway
-        if packaging_fee > 0:
-            cur.execute(
-                "UPDATE raw_materials SET stock_quantity = stock_quantity - 1 WHERE material_name = %s",
-                ("Packaging Box",)
-            )
             cur.execute(
                 "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                ("Packaging Box", "outflow", 1, "pcs", receipt_id)
+                (
+                    material_name,
+                    "outflow",
+                    required,
+                    material_info[material_name]["unit"],
+                    receipt_id,
+                ),
             )
-            cur.execute(
-                "UPDATE raw_materials SET stock_quantity = stock_quantity - 1 WHERE material_name = %s",
-                ("Packaging Bag",)
-            )
-            cur.execute(
-                "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                ("Packaging Bag", "outflow", 1, "pcs", receipt_id)
-            )
-        # Deduct cup per drink based on size
-        for item in items:
-            pn = item.get("product_name", "")
-            if pn in COFFEE_KEYS:
-                qty = item.get("quantity", 1)
-                drink_size = item.get("size", "regular")
-                cup_name = "Cup Large" if drink_size == "large" else "Cup Regular"
-                cur.execute(
-                    "UPDATE raw_materials SET stock_quantity = stock_quantity - %s WHERE material_name = %s",
-                    (qty, cup_name)
-                )
-                cur.execute(
-                    "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                    (cup_name, "outflow", qty, "pcs", receipt_id)
-                )
     
         # INSERT payments
         cur.execute(
             "INSERT INTO payments (order_id, amount, payment_method, payment_date) VALUES (%s,%s,%s,%s)",
-            (order_id, round(order_total,2), payment_method, now.strftime("%Y-%m-%d"))
+            (order_id, float(order_total), payment_method, now.strftime("%Y-%m-%d"))
         )
-        db.commit()
-        
 
-        # Add packaging fee to receipt if applicable
-        if packaging_fee > 0:
-            receipt_items.append({
-                "product_name": "Packaging (Takeaway)",
-                "quantity": 1,
-                "unit_price": round(packaging_fee, 2),
-                "discount_pct": 0,
-                "discount_amount": 0,
-                "line_total": round(packaging_fee, 2),
-            })
-        
         receipt = {
             "receipt_id": receipt_id,
             "date": now.strftime("%Y-%m-%d %H:%M"),
             "items": receipt_items,
-            "subtotal": round(subtotal, 2),
-            "discount_total": round(discount_total, 2),
-            "total": round(total, 2),
-            "savings": round(savings, 2),
+            "subtotal": float(subtotal),
+            "discount_total": float(discount_total),
+            "total": float(total),
+            "savings": float(savings),
             "order_id": order_id,
         }
+
+        cur.execute(
+            "INSERT INTO receipts (receipt_id, items, subtotal, discount_total, total, savings) VALUES (%s,%s,%s,%s,%s,%s)",
+            (
+                receipt_id,
+                json.dumps(receipt_items, separators=(",", ":")),
+                float(subtotal),
+                float(discount_total),
+                float(total),
+                float(savings),
+            ),
+        )
+        _link_recommendation_events(
+            cur,
+            recommendation_event_ids=recommendation_event_ids,
+            order_id=order_id,
+            operation_date=now.date(),
+        )
+        db.commit()
 
         return {
             "status": status,
@@ -746,42 +1383,55 @@ async def checkout_complete(payload: dict):
             "message": f"{len(deducted)} items deducted" + (f", {len(all_errors)} items failed" if all_errors else ""),
         }
 
+    except HTTPException:
+        if db is not None:
+            db.rollback()
+        raise
     except Exception as e:
-        db.rollback()
-        import traceback
-        traceback.print_exc()
+        attempted_deductions = list(deducted)
+        if db is not None:
+            db.rollback()
+        logger.exception("Checkout transaction failed")
         return {
             "status": "error",
-            "deducted": deducted,
+            "deducted": [],
+            "attempted_deductions": attempted_deductions,
             "errors": [f"Database write failed: {str(e)}"],
             "receipt": None,
             "message": f"Checkout failed: {str(e)}",
         }
+
+    finally:
+        if cur is not None:
+            cur.close()
+        if db is not None:
+            db.close()
 # GET /s4/revenue/daily -- Revenue dashboard data from MySQL
 # ======================================================================
 # ======================================================================
 # GET /s4/orders/today -- List today's paid orders for refund
 # ======================================================================
-@router.get("/orders/today")
+@router.get("/orders/today", dependencies=[Depends(get_current_user)])
 async def orders_today(date: str = None):
     db = get_db()
     cur = db.cursor()
     if date is None:
-        date = datetime.now().strftime('%Y-%m-%d')
+        date = operation_now(datetime.now).strftime('%Y-%m-%d')
     cur.execute(
-        "SELECT ticket_id, order_time, total_amount, dine_type, state, item_count FROM orders WHERE order_date = %s AND state IN ('paid','refunded') ORDER BY order_time DESC LIMIT 50",
+        "SELECT id, ticket_id, order_time, total_amount, dine_type, state, item_count FROM orders WHERE order_date = %s AND state IN ('paid','refunded') ORDER BY order_time DESC LIMIT 50",
         (date,)
     )
     rows = cur.fetchall()
     orders = []
     for r in rows:
         orders.append({
-            "ticket_id": r[0],
-            "order_time": str(r[1]),
-            "total_amount": float(r[2]),
-            "dine_type": r[3],
-            "state": r[4],
-            "item_count": r[5],
+            "order_id": r[0],
+            "ticket_id": r[1],
+            "order_time": str(r[2]),
+            "total_amount": float(r[3]),
+            "dine_type": r[4],
+            "state": r[5],
+            "item_count": r[6],
         })
     cur.close()
     return {"orders": orders, "date": date}
@@ -791,7 +1441,7 @@ async def orders_today(date: str = None):
 # ======================================================================
 # GET /s4/orders/receipt -- Get receipt for an order
 # ======================================================================
-@router.get("/orders/receipt")
+@router.get("/orders/receipt", dependencies=[Depends(get_current_user)])
 async def order_receipt(ticket_id: str):
     db = get_db()
     cur = db.cursor()
@@ -823,115 +1473,627 @@ async def order_receipt(ticket_id: str):
     }
 
 @router.post("/orders/refund")
-async def refund_order(payload: dict):
-    """Refund an order: reverse inventory deductions, restock materials, mark refunded."""
+async def refund_order(payload: dict, user=Depends(require_manager)):
+    """Record a paid order return without restoring sellable inventory."""
     ticket_id = payload.get("ticket_id", "")
     if not ticket_id:
         raise HTTPException(400, "ticket_id required")
+    reason = payload.get("reason", "")
+    if not isinstance(reason, str) or not reason.strip():
+        raise HTTPException(400, "Refund reason required")
+    reason = reason.strip()
+    if len(reason) > 255:
+        raise HTTPException(400, "Refund reason is too long")
+    actor = str(user.get("sub") or "").strip()
+    if not actor:
+        raise HTTPException(401, "Invalid token")
+
+    db = get_db(autocommit=False)
+    cur = db.cursor()
+    try:
+        cur.execute(
+            "SELECT id, state, dine_type FROM orders WHERE ticket_id = %s FOR UPDATE",
+            (ticket_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(404, f"Order {ticket_id} not found")
+        order_id, state, dine_type = row
+        if state == "refunded":
+            raise HTTPException(400, "Order already refunded")
+        if state != "paid":
+            raise HTTPException(400, f"Cannot refund order in state: {state}")
+
+        cur.execute(
+            "SELECT product_name, quantity, freshness, coffee_size FROM order_items WHERE order_id = %s",
+            (order_id,),
+        )
+        items = cur.fetchall()
+        expected_by_product = {}
+        for product_name, quantity, _freshness, _coffee_size in items:
+            expected_by_product[product_name] = (
+                expected_by_product.get(product_name, 0) + quantity
+            )
+
+        cur.execute(
+            """
+            SELECT id, batch_id, product_name, quantity, unit_price,
+                   discount_applied, freshness_status
+            FROM inventory_transactions
+            WHERE receipt_id = %s AND transaction_type = 'outflow'
+            ORDER BY id
+            FOR UPDATE
+            """,
+            (ticket_id,),
+        )
+        outflows = cur.fetchall()
+        actual_by_product = {}
+        for _transaction_id, _batch_id, product_name, quantity, *_rest in outflows:
+            actual_by_product[product_name] = (
+                actual_by_product.get(product_name, 0) + quantity
+            )
+        if not outflows or actual_by_product != expected_by_product:
+            raise HTTPException(
+                409,
+                f"Original inventory allocation is unavailable for {ticket_id}",
+            )
+
+        returned_units = 0
+        for (
+            transaction_id,
+            batch_id,
+            product_name,
+            quantity,
+            unit_price,
+            discount_applied,
+            freshness_status,
+        ) in outflows:
+            cur.execute(
+                """
+                INSERT INTO inventory_transactions (
+                    transaction_type, batch_id, product_name, quantity,
+                    unit_price, discount_applied, freshness_status, receipt_id,
+                    reversal_of_transaction_id, disposition, reason, performed_by
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """,
+                (
+                    "return",
+                    batch_id,
+                    product_name,
+                    quantity,
+                    unit_price,
+                    discount_applied,
+                    freshness_status,
+                    ticket_id,
+                    transaction_id,
+                    "non_sellable",
+                    reason,
+                    actor,
+                ),
+            )
+            returned_units += quantity
+
+        cur.execute(
+            """
+            UPDATE orders
+            SET state = 'refunded', refund_reason = %s,
+                refunded_by = %s, refunded_at = %s
+            WHERE id = %s
+            """,
+            (reason, actor, operation_now(datetime.now), order_id),
+        )
+        db.commit()
+        return {
+            "status": "ok",
+            "message": f"Order {ticket_id} returned as non-sellable",
+            "returned_units": returned_units,
+            "disposition": "non_sellable",
+        }
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        cur.close()
+        db.close()
+
+def _get_non_sellable_return_cost(cur, start_date, end_date=None):
+    date_clause = "BETWEEN %s AND %s" if end_date else "= %s"
+    params = (start_date, end_date) if end_date else (start_date,)
+    cur.execute(
+        f"""
+        SELECT COALESCE(
+            SUM(
+                it.quantity
+                * p.material_cost
+                * (1 + COALESCE(p.wastage_pct, 0.03))
+            ),
+            0
+        )
+        FROM inventory_transactions it
+        JOIN products p ON it.product_name = p.product_name
+        WHERE it.transaction_type = 'return'
+          AND it.disposition = 'non_sellable'
+          AND DATE(it.transaction_time) {date_clause}
+        """,
+        params,
+    )
+    return round(float(cur.fetchone()[0] or 0), 2)
+
+
+def _get_expired_cost(cur, start_date, end_date=None):
+    date_clause = "BETWEEN %s AND %s" if end_date else "= %s"
+    params = (start_date, end_date) if end_date else (start_date,)
+    cur.execute(
+        f"""
+        SELECT COALESCE(
+            SUM(
+                it.quantity
+                * COALESCE(NULLIF(it.unit_price, 0), p.material_cost)
+            ),
+            0
+        )
+        FROM inventory_transactions it
+        JOIN products p ON it.product_name = p.product_name
+        WHERE it.transaction_type = 'outflow'
+          AND it.freshness_status = 'Expired'
+          AND p.category = 'bakery'
+          AND DATE(it.transaction_time) {date_clause}
+        """,
+        params,
+    )
+    return round(float(cur.fetchone()[0] or 0), 2)
+
+
+def _get_expired_product_breakdown(
+    cur,
+    start_date,
+    total_expired_cost=None,
+    end_date=None,
+    limit=5,
+):
+    end_date = end_date or start_date
+    cur.execute(
+        """
+        SELECT expired.product_name,
+               expired.expired_qty,
+               expired.expired_cost,
+               COALESCE(sold.sold_qty, 0) AS sold_qty,
+               COALESCE(sold.revenue, 0) AS revenue,
+               COALESCE(sold.profit, 0) AS profit
+        FROM (
+            SELECT it.product_name,
+                   SUM(ABS(it.quantity)) AS expired_qty,
+                   SUM(
+                       ABS(it.quantity)
+                       * COALESCE(NULLIF(it.unit_price, 0), p.material_cost)
+                   ) AS expired_cost
+            FROM inventory_transactions it
+            JOIN products p ON it.product_name = p.product_name
+            WHERE it.transaction_type = 'outflow'
+              AND it.freshness_status = 'Expired'
+              AND p.category = 'bakery'
+              AND DATE(it.transaction_time) BETWEEN %s AND %s
+            GROUP BY it.product_name
+        ) expired
+        LEFT JOIN (
+            SELECT oi.product_name,
+                   SUM(oi.quantity) AS sold_qty,
+                   SUM(oi.line_total) AS revenue,
+                   SUM(oi.line_profit) AS profit
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE o.order_date BETWEEN %s AND %s
+              AND o.state IN ('paid','completed')
+            GROUP BY oi.product_name
+        ) sold ON sold.product_name = expired.product_name
+        ORDER BY expired.expired_cost DESC, expired.product_name
+        """,
+        (start_date, end_date, start_date, end_date),
+    )
+    rows = cur.fetchall()
+    if total_expired_cost is None:
+        total_expired_cost = sum(float(row[2] or 0) for row in rows)
+    products = []
+    for row in rows:
+        expired_qty = int(row[1] or 0)
+        expired_cost = round(float(row[2] or 0), 2)
+        sold_qty = int(row[3] or 0)
+        revenue = round(float(row[4] or 0), 2)
+        profit = round(float(row[5] or 0), 2)
+        available_qty = sold_qty + expired_qty
+        products.append(
+            {
+                "name": str(row[0]).replace("_", " ").title(),
+                "expired_qty": expired_qty,
+                "expired_cost": expired_cost,
+                "sold_qty": sold_qty,
+                "revenue": revenue,
+                "profit": profit,
+                "margin_pct": round(profit / revenue * 100, 2) if revenue else 0.0,
+                "sell_through_pct": (
+                    round(sold_qty / available_qty * 100, 2)
+                    if available_qty
+                    else 0.0
+                ),
+                "loss_share_pct": (
+                    round(expired_cost / total_expired_cost * 100, 2)
+                    if total_expired_cost
+                    else 0.0
+                ),
+            }
+        )
+    return products if limit is None else products[:limit]
+
+
+@router.get("/revenue/closing-loss", dependencies=[Depends(require_manager)])
+async def revenue_closing_loss(start: str = None, end: str = None):
+    """Return finished-product closing losses for a selected date range."""
+    if start and not end:
+        end = start
+    elif end and not start:
+        start = end
+
+    if start is not None:
+        try:
+            start_value = datetime.strptime(start, "%Y-%m-%d").date()
+            end_value = datetime.strptime(end, "%Y-%m-%d").date()
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(400, "Dates must use YYYY-MM-DD format") from exc
+        if start_value > end_value:
+            raise HTTPException(400, "Start date must not be after end date")
 
     db = get_db()
     cur = db.cursor()
-
-    # Find the order
-    cur.execute("SELECT id, state, dine_type FROM orders WHERE ticket_id = %s", (ticket_id,))
-    row = cur.fetchone()
-    if not row:
-        raise HTTPException(404, f"Order {ticket_id} not found")
-    order_id, state, dine_type = row
-    if state == "refunded":
-        raise HTTPException(400, "Order already refunded")
-    if state != "paid":
-        raise HTTPException(400, f"Cannot refund order in state: {state}")
-
-    # Get order items
-    cur.execute("SELECT product_name, quantity, freshness, coffee_size FROM order_items WHERE order_id = %s", (order_id,))
-    items = cur.fetchall()
-
-    COFFEE_KEYS = {"latte","americano","cappuccino","mocha","espresso","flat_white","caramel_macchiato","cold_brew","hot_chocolate","matcha_latte","milk_tea","chai_latte","earl_grey","english_breakfast","lemonade"}
-
-    for item in items:
-        pn, qty, freshness, coffee_size = item
-        if pn in COFFEE_KEYS:
-            # Restock cup
-            cup_name = "Cup Large" if (coffee_size or "").lower() == "large" else "Cup Regular"
+    try:
+        if start is None:
             cur.execute(
-                "UPDATE raw_materials SET stock_quantity = stock_quantity + %s WHERE material_name = %s",
-                (qty, cup_name)
+                "SELECT MAX(order_date) FROM orders "
+                "WHERE state IN ('paid','completed')"
             )
-            cur.execute(
-                "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                (cup_name, "refund", qty, "pcs", ticket_id)
-            )
-        else:
-            # Bakery item: add back via inventory_transactions inflow
-            cur.execute(
-                "INSERT INTO inventory_transactions (transaction_type, product_name, quantity, freshness_status, receipt_id) VALUES (%s,%s,%s,%s,%s)",
-                ("inflow", pn, qty, freshness or "Fresh", ticket_id)
-            )
+            latest_date = cur.fetchone()[0]
+            start = end = str(latest_date or operation_now(datetime.now).date())
 
-    # Restock packaging if takeaway
-    if dine_type == "takeaway":
-        for pkg_name in ["Packaging Box", "Packaging Bag"]:
-            cur.execute(
-                "UPDATE raw_materials SET stock_quantity = stock_quantity + 1 WHERE material_name = %s",
-                (pkg_name,)
-            )
-            cur.execute(
-                "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-                (pkg_name, "refund", 1, "pcs", ticket_id)
-            )
+        products = _get_expired_product_breakdown(
+            cur,
+            start,
+            end_date=end,
+            limit=None,
+        )
+        total_expired_cost = round(
+            sum(float(item["expired_cost"]) for item in products),
+            2,
+        )
+        total_expired_qty = sum(int(item["expired_qty"]) for item in products)
+        return {
+            "status": "ok",
+            "data": {
+                "start": start,
+                "end": end,
+                "total_expired_cost": total_expired_cost,
+                "total_expired_qty": total_expired_qty,
+                "product_count": len(products),
+                "products": products,
+            },
+        }
+    finally:
+        cur.close()
+        db.close()
 
-    # Mark order refunded
-    cur.execute("UPDATE orders SET state = 'refunded' WHERE id = %s", (order_id,))
-    db.commit()
-    cur.close()
 
-    return {"status": "ok", "message": f"Order {ticket_id} refunded", "items_restored": len(items)}
+def _get_sold_bread_sku_count(cur, date):
+    cur.execute(
+        """
+        SELECT COUNT(DISTINCT oi.product_name)
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_name = p.product_name
+        WHERE o.order_date = %s
+          AND o.state IN ('paid','completed')
+          AND p.category = 'bakery'
+        """,
+        (date,),
+    )
+    return int(cur.fetchone()[0] or 0)
 
-# ======================================================================
+
+def _get_non_sellable_return_cost_by_hour(cur, date):
+    cur.execute(
+        """
+        SELECT HOUR(it.transaction_time),
+               COALESCE(
+                   SUM(
+                       it.quantity
+                       * p.material_cost
+                       * (1 + COALESCE(p.wastage_pct, 0.03))
+                   ),
+                   0
+               )
+        FROM inventory_transactions it
+        JOIN products p ON it.product_name = p.product_name
+        WHERE it.transaction_type = 'return'
+          AND it.disposition = 'non_sellable'
+          AND DATE(it.transaction_time) = %s
+        GROUP BY HOUR(it.transaction_time)
+        ORDER BY HOUR(it.transaction_time)
+        """,
+        (date,),
+    )
+    return {
+        int(hour): round(float(cost or 0), 2)
+        for hour, cost in cur.fetchall()
+        if hour is not None
+    }
+
+
+def _revenue_period_expressions(granularity, date_expression):
+    if granularity == "week":
+        return (
+            f"YEARWEEK({date_expression}, 1)",
+            f"CONCAT(YEAR({date_expression}), '-W', "
+            f"LPAD(WEEK({date_expression}, 1), 2, '0'))",
+        )
+    if granularity == "month":
+        expression = f"DATE_FORMAT({date_expression}, '%Y-%m')"
+        return expression, expression
+    if granularity == "year":
+        expression = f"YEAR({date_expression})"
+        return expression, expression
+    return date_expression, date_expression
+
+
+def _get_non_sellable_return_cost_by_period(
+    cur,
+    start,
+    end,
+    granularity,
+    category,
+):
+    group_expr, label_expr = _revenue_period_expressions(
+        granularity,
+        "DATE(it.transaction_time)",
+    )
+    cur.execute(
+        f"""
+        SELECT it.product_name, {label_expr} AS period_label,
+               {group_expr} AS period_val,
+               COALESCE(
+                   SUM(
+                       it.quantity
+                       * p.material_cost
+                       * (1 + COALESCE(p.wastage_pct, 0.03))
+                   ),
+                   0
+               ) AS return_cost
+        FROM inventory_transactions it
+        JOIN products p ON it.product_name = p.product_name
+        WHERE DATE(it.transaction_time) BETWEEN %s AND %s
+          AND it.transaction_type = 'return'
+          AND it.disposition = 'non_sellable'
+          AND (%s = 'total' OR p.category = CASE
+              WHEN %s = 'bread' THEN 'bakery'
+              WHEN %s = 'beverages' THEN 'beverages'
+          END)
+        GROUP BY it.product_name, period_val, period_label
+        ORDER BY period_val, it.product_name
+        """,
+        (start, end, category, category, category),
+    )
+    return cur.fetchall()
+
+
+def _get_expired_cost_by_period(cur, start, end, granularity, category):
+    group_expr, label_expr = _revenue_period_expressions(
+        granularity,
+        "DATE(it.transaction_time)",
+    )
+    cur.execute(
+        f"""
+        SELECT it.product_name, {label_expr} AS period_label,
+               {group_expr} AS period_val,
+               COALESCE(
+                   SUM(
+                       it.quantity
+                       * COALESCE(NULLIF(it.unit_price, 0), p.material_cost)
+                   ),
+                   0
+               ) AS expired_cost
+        FROM inventory_transactions it
+        JOIN products p ON it.product_name = p.product_name
+        WHERE DATE(it.transaction_time) BETWEEN %s AND %s
+          AND it.transaction_type = 'outflow'
+          AND it.freshness_status = 'Expired'
+          AND p.category = 'bakery'
+          AND (%s = 'total' OR p.category = CASE
+              WHEN %s = 'bread' THEN 'bakery'
+              WHEN %s = 'beverages' THEN 'beverages'
+          END)
+        GROUP BY it.product_name, period_val, period_label
+        ORDER BY period_val, it.product_name
+        """,
+        (start, end, category, category, category),
+    )
+    return cur.fetchall()
+
+
+def _get_order_adjustments_by_period(cur, start, end, granularity, category):
+    if category != "total":
+        return []
+    group_expr, label_expr = _revenue_period_expressions(
+        granularity,
+        "adjustments.order_date",
+    )
+    cur.execute(
+        f"""
+        SELECT {label_expr} AS period_label,
+               {group_expr} AS period_val,
+               COALESCE(SUM(adjustments.revenue_adjustment), 0),
+               COALESCE(SUM(adjustments.profit_adjustment), 0)
+        FROM (
+            SELECT o.id, o.order_date,
+                   o.total_amount - COALESCE(SUM(oi.line_total), 0)
+                       AS revenue_adjustment,
+                   o.total_profit - COALESCE(SUM(oi.line_profit), 0)
+                       AS profit_adjustment
+            FROM orders o
+            LEFT JOIN order_items oi ON oi.order_id = o.id
+            WHERE o.order_date BETWEEN %s AND %s
+              AND o.state IN ('paid','completed')
+            GROUP BY o.id, o.order_date, o.total_amount, o.total_profit
+        ) adjustments
+        GROUP BY period_val, period_label
+        ORDER BY period_val
+        """,
+        (start, end),
+    )
+    return cur.fetchall()
+
+
+# Revenue helpers
+def _get_dine_type_breakdown(cur, date):
+    cur.execute(
+        """
+        SELECT dine_type, COUNT(*)
+        FROM orders
+        WHERE order_date = %s
+          AND state IN ('paid','completed')
+        GROUP BY dine_type
+        """,
+        (date,),
+    )
+    breakdown = {"Dine-in": 0, "Takeaway": 0}
+    for dine_type, order_count in cur.fetchall():
+        if dine_type == "dine_in":
+            breakdown["Dine-in"] = int(order_count or 0)
+        elif dine_type == "takeaway":
+            breakdown["Takeaway"] = int(order_count or 0)
+    return breakdown
+
+
+def _revenue_change(current, baseline):
+    if baseline is None or float(baseline) <= 0:
+        return None
+    return round((float(current) - float(baseline)) / float(baseline) * 100, 1)
+
+
+def _order_basket_metrics(
+    revenue,
+    orders,
+    items,
+    previous_revenue=None,
+    previous_orders=None,
+    previous_items=None,
+):
+    items_per_order_raw = items / orders if orders else 0
+    revenue_per_item_raw = revenue / items if items else 0
+    items_per_order = round(items_per_order_raw, 2)
+    revenue_per_item = round(revenue_per_item_raw, 2)
+    previous_items_per_order = (
+        previous_items / previous_orders
+        if previous_orders and previous_items is not None
+        else None
+    )
+    previous_revenue_per_item = (
+        previous_revenue / previous_items
+        if previous_revenue is not None and previous_items
+        else None
+    )
+    return {
+        "today_items": int(items or 0),
+        "items_per_order": items_per_order,
+        "items_per_order_change": _revenue_change(
+            items_per_order_raw,
+            previous_items_per_order,
+        ),
+        "revenue_per_item": revenue_per_item,
+        "revenue_per_item_change": _revenue_change(
+            revenue_per_item_raw,
+            previous_revenue_per_item,
+        ),
+    }
+
+
+def _get_recent_revenue_baseline(cur, date, limit=7):
+    cur.execute(
+        """
+        SELECT o.order_date, COUNT(*) AS orders,
+               COALESCE(SUM(o.total_amount), 0) AS revenue
+        FROM orders o
+        WHERE o.order_date < %s
+          AND o.state IN ('paid','completed')
+        GROUP BY o.order_date
+        ORDER BY o.order_date DESC
+        LIMIT %s
+        """,
+        (date, limit),
+    )
+    rows = cur.fetchall()
+    if not rows:
+        return {
+            "day_count": 0,
+            "start_date": None,
+            "end_date": None,
+            "avg_revenue": None,
+            "avg_orders": None,
+            "avg_order_value": None,
+        }
+    dates = [str(row[0]) for row in rows]
+    total_orders = sum(int(row[1] or 0) for row in rows)
+    total_revenue = sum(float(row[2] or 0) for row in rows)
+    day_count = len(rows)
+    return {
+        "day_count": day_count,
+        "start_date": min(dates),
+        "end_date": max(dates),
+        "avg_revenue": round(total_revenue / day_count, 2),
+        "avg_orders": round(total_orders / day_count, 2),
+        "avg_order_value": (
+            round(total_revenue / total_orders, 2) if total_orders else None
+        ),
+    }
+
+
 @router.get("/revenue/daily")
-async def revenue_daily(date: str = None):
+async def revenue_daily(
+    date: str = None,
+    _: dict = Depends(require_manager),
+):
     """Return revenue dashboard data from MySQL orders/order_items/products tables."""
-    from datetime import datetime as dt, timedelta
+    from datetime import datetime as dt
     
     db = get_db()
     cur = db.cursor()
     
     # Default to latest order date
     if date is None:
-        cur.execute("SELECT MAX(order_date) FROM orders")
+        cur.execute("SELECT MAX(order_date) FROM orders WHERE state IN ('paid','completed')")
         date = str(cur.fetchone()[0])
     
     # Today KPIs
     cur.execute("""
-        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit, COALESCE(SUM(discount_total),0) as discount
-        FROM orders WHERE order_date = %s
+        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit,
+               COALESCE(SUM(discount_total),0) as discount, COALESCE(SUM(item_count),0) as items
+        FROM orders WHERE order_date = %s AND state IN ('paid','completed')
     """, (date,))
     row = cur.fetchone()
+
+    expired_cost = _get_expired_cost(cur, date)
+    expired_products = _get_expired_product_breakdown(cur, date, expired_cost)
+    sold_bread_sku_count = _get_sold_bread_sku_count(cur, date)
+    non_sellable_return_cost = _get_non_sellable_return_cost(cur, date)
+
     if not row or not row[0]:
-        return {"status": "ok", "data": None, "message": f"No sales data for {date}"}
-    
+        if expired_cost <= 0 and non_sellable_return_cost <= 0:
+            return {"status": "ok", "data": None, "message": f"No sales data for {date}"}
+        row = (0, 0, 0, 0, 0)
+
     today_orders = int(row[0])
     today_revenue = round(float(row[1] or 0), 2)
     today_profit = round(float(row[2] or 0), 2)
     avg_order = round(today_revenue / today_orders, 2) if today_orders else 0
     today_discount = round(float(row[3] or 0), 2)
-    
-    # Deduct expired bakery cost (Day-2+ unsold bread written off)
-    cur.execute("""
-        SELECT COALESCE(SUM(t.cost), 0)
-        FROM (
-            SELECT it.batch_id, MAX(it.quantity * p.material_cost) as cost
-            FROM inventory_transactions it
-            JOIN products p ON it.product_name = p.product_name
-            WHERE it.freshness_status = 'Expired'
-              AND DATE(it.transaction_time) = %s
-              AND p.category = 'bakery'
-            GROUP BY it.batch_id
-        ) t
-    """, (date,))
-    expired_cost = round(float(cur.fetchone()[0] or 0), 2)
-    today_profit = round(today_profit - expired_cost, 2)
+    today_items = int(row[4] or 0)
+
+    today_profit = round(today_profit - expired_cost - non_sellable_return_cost, 2)
     
     # Profit margin
     profit_margin = round(today_profit / today_revenue * 100, 1) if today_revenue else 0
@@ -940,54 +2102,69 @@ async def revenue_daily(date: str = None):
     month_start = date[:8] + "01"
     cur.execute("""
         SELECT COALESCE(SUM(total_amount),0), COALESCE(SUM(total_profit),0), COUNT(*)
-        FROM orders WHERE order_date >= %s AND order_date <= %s
+        FROM orders
+        WHERE order_date >= %s AND order_date <= %s
+          AND state IN ('paid','completed')
     """, (month_start, date))
     mtd_row = cur.fetchone()
     mtd_revenue = round(float(mtd_row[0] or 0), 2)
     mtd_profit = round(float(mtd_row[1] or 0), 2)
     mtd_orders = int(mtd_row[2] or 0)
     
-    # Deduct expired bakery cost from MTD
-    cur.execute("""
-        SELECT COALESCE(SUM(t.cost), 0)
-        FROM (
-            SELECT it.batch_id, MAX(it.quantity * p.material_cost) as cost
-            FROM inventory_transactions it
-            JOIN products p ON it.product_name = p.product_name
-            WHERE it.freshness_status = 'Expired'
-              AND DATE(it.transaction_time) >= %s
-              AND DATE(it.transaction_time) <= %s
-              AND p.category = 'bakery'
-            GROUP BY it.batch_id
-        ) t
-    """, (month_start, date))
-    mtd_expired_cost = round(float(cur.fetchone()[0] or 0), 2)
-    mtd_profit = round(mtd_profit - mtd_expired_cost, 2)
+    mtd_expired_cost = _get_expired_cost(cur, month_start, date)
+    mtd_non_sellable_return_cost = _get_non_sellable_return_cost(
+        cur,
+        month_start,
+        date,
+    )
+    mtd_profit = round(
+        mtd_profit - mtd_expired_cost - mtd_non_sellable_return_cost,
+        2,
+    )
     
     # Yesterday comparison
     yesterday = (dt.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
     cur.execute("""
-        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit, COALESCE(SUM(discount_total),0) as discount
-        FROM orders WHERE order_date = %s
+        SELECT COUNT(*) as orders, SUM(total_amount) as revenue, SUM(total_profit) as profit,
+               COALESCE(SUM(discount_total),0) as discount, COALESCE(SUM(item_count),0) as items
+        FROM orders WHERE order_date = %s AND state IN ('paid','completed')
     """, (yesterday,))
     yrow = cur.fetchone()
-    if yrow and yrow[0]:
+    previous_day_available = bool(yrow and yrow[0])
+    if previous_day_available:
         y_orders = int(yrow[0])
         y_revenue = round(float(yrow[1] or 0), 2)
-        y_profit = round(float(yrow[2] or 0), 2)
+        y_profit = round(
+            float(yrow[2] or 0)
+            - _get_expired_cost(cur, yesterday)
+            - _get_non_sellable_return_cost(cur, yesterday),
+            2,
+        )
         y_avg = round(y_revenue / y_orders, 2) if y_orders else 0
-        rev_change = round((today_revenue - y_revenue) / y_revenue * 100, 1) if y_revenue else 0
-        prof_change = round((today_profit - y_profit) / y_profit * 100, 1) if y_profit else 0
-        ord_change = round((today_orders - y_orders) / y_orders * 100, 1) if y_orders else 0
-        avg_change = round((avg_order - y_avg) / y_avg * 100, 1) if y_avg else 0
+        y_items = int(yrow[4] or 0)
+        rev_change = _revenue_change(today_revenue, y_revenue)
+        prof_change = _revenue_change(today_profit, y_profit)
+        ord_change = _revenue_change(today_orders, y_orders)
+        avg_change = _revenue_change(avg_order, y_avg)
     else:
-        rev_change = prof_change = ord_change = avg_change = 0
+        y_orders = y_revenue = y_items = None
+        rev_change = prof_change = ord_change = avg_change = None
+
+    basket_metrics = _order_basket_metrics(
+        revenue=today_revenue,
+        orders=today_orders,
+        items=today_items,
+        previous_revenue=y_revenue,
+        previous_orders=y_orders,
+        previous_items=y_items,
+    )
+    recent_baseline = _get_recent_revenue_baseline(cur, date)
     
         # Payment breakdown (real data from payments table)
     cur.execute("""
         SELECT p.payment_method, COUNT(*) as cnt
         FROM payments p JOIN orders o ON p.order_id = o.id
-        WHERE o.order_date = %s AND o.state IN ('paid','draft')
+        WHERE o.order_date = %s AND o.state IN ('paid','completed')
         GROUP BY p.payment_method
     """, (date,))
     payment = {"Cash": 0, "Card": 0, "QR": 0}
@@ -1002,6 +2179,8 @@ async def revenue_daily(date: str = None):
             continue  # skip unknown payment methods
         if key in payment:
             payment[key] = int(prow[1] or 0)
+
+    dine_type_breakdown = _get_dine_type_breakdown(cur, date)
     
     # Category breakdown (bread vs beverages)
     cur.execute("""
@@ -1009,12 +2188,12 @@ async def revenue_daily(date: str = None):
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
         JOIN products p ON oi.product_name = p.product_name
-        WHERE o.order_date = %s
+        WHERE o.order_date = %s AND o.state IN ('paid','completed')
         GROUP BY p.category
     """, (date,))
     cat_data = {"Bread": 0, "Beverages": 0}
     for crow in cur.fetchall():
-        cat_key = "Bread" if crow[0] == "bakery" else "Coffee"
+        cat_key = "Bread" if crow[0] == "bakery" else "Beverages"
         cat_data[cat_key] = round(float(crow[1] or 0), 2)
     
     # Split ranking: bread vs beverages
@@ -1028,7 +2207,9 @@ async def revenue_daily(date: str = None):
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
         JOIN products p ON oi.product_name = p.product_name
-        WHERE o.order_date = %s AND oi.product_name NOT IN ({beverage_placeholders})
+        WHERE o.order_date = %s
+          AND o.state IN ('paid','completed')
+          AND oi.product_name NOT IN ({beverage_placeholders})
         GROUP BY oi.product_name
         ORDER BY revenue DESC LIMIT 5
     """, [date] + list(BEVERAGE_NAMES))
@@ -1048,7 +2229,9 @@ async def revenue_daily(date: str = None):
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
         JOIN products p ON oi.product_name = p.product_name
-        WHERE o.order_date = %s AND oi.product_name IN ({beverage_placeholders})
+        WHERE o.order_date = %s
+          AND o.state IN ('paid','completed')
+          AND oi.product_name IN ({beverage_placeholders})
         GROUP BY oi.product_name
         ORDER BY revenue DESC LIMIT 5
     """, [date] + list(BEVERAGE_NAMES))
@@ -1075,15 +2258,18 @@ async def revenue_daily(date: str = None):
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.id
             JOIN products p ON oi.product_name = p.product_name
-            WHERE o.order_date = %s
+            WHERE o.order_date = %s AND o.state IN ('paid','completed')
             GROUP BY p.category
         """, (d,))
-        day_cat = {"bakery": 0, "beverages": 0}
+        day_cat = {"bakery": 0, "beverage": 0}
         for crow in cur.fetchall():
             day_cat[crow[0]] = round(float(crow[1]), 2)
         trend_bread.append(day_cat["bakery"])
-        trend_beverages.append(day_cat["beverages"])
-        cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM orders WHERE order_date = %s", (d,))
+        trend_beverages.append(day_cat["beverage"])
+        cur.execute(
+            "SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM orders WHERE order_date = %s AND state IN ('paid','completed')",
+            (d,),
+        )
         orow = cur.fetchone()
         day_orders = int(orow[0] or 0)
         day_rev = float(orow[1] or 0)
@@ -1098,16 +2284,27 @@ async def revenue_daily(date: str = None):
             "today_profit": today_profit,
             "today_orders": today_orders,
             "avg_order": avg_order,
+            **basket_metrics,
             "today_discount": today_discount,
+            "expired_cost": expired_cost,
+            "expired_products": expired_products,
+            "sold_bread_sku_count": sold_bread_sku_count,
+            "non_sellable_return_cost": non_sellable_return_cost,
             "profit_margin": profit_margin,
             "mtd_revenue": mtd_revenue,
             "mtd_profit": mtd_profit,
             "mtd_orders": mtd_orders,
+            "mtd_expired_cost": mtd_expired_cost,
+            "mtd_non_sellable_return_cost": mtd_non_sellable_return_cost,
             "revenue_change": rev_change,
             "profit_change": prof_change,
             "orders_change": ord_change,
             "avg_change": avg_change,
+            "previous_day_available": previous_day_available,
+            "previous_day_date": yesterday,
+            "recent_baseline": recent_baseline,
             "payment": payment,
+            "dine_type": dine_type_breakdown,
             "category": cat_data,
             "trend": {"dates": trend_dates, "bread": trend_bread, "beverages": trend_beverages, "orders": trend_orders, "avg_order": trend_avg},
             "bread_ranking": bread_ranking,
@@ -1117,7 +2314,7 @@ async def revenue_daily(date: str = None):
 
 
 # GET /s4/revenue/hourly -- Hourly breakdown of bread vs beverages sales
-@router.get("/revenue/hourly")
+@router.get("/revenue/hourly", dependencies=[Depends(require_manager)])
 async def revenue_hourly(date: str = None):
     """Return hourly revenue, profit, order behavior, and category split for a date."""
 
@@ -1125,7 +2322,7 @@ async def revenue_hourly(date: str = None):
     cur = db.cursor()
 
     if date is None:
-        cur.execute("SELECT MAX(order_date) FROM orders")
+        cur.execute("SELECT MAX(order_date) FROM orders WHERE state IN ('paid','completed')")
         date = str(cur.fetchone()[0])
 
     cur.execute("""
@@ -1134,7 +2331,7 @@ async def revenue_hourly(date: str = None):
                COALESCE(SUM(total_amount), 0) as revenue,
                COALESCE(SUM(total_profit), 0) as profit
         FROM orders
-        WHERE order_date = %s
+        WHERE order_date = %s AND state IN ('paid','completed')
         GROUP BY hr
         ORDER BY hr
     """, (date,))
@@ -1145,12 +2342,17 @@ async def revenue_hourly(date: str = None):
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
         JOIN products p ON oi.product_name = p.product_name
-        WHERE o.order_date = %s
+        WHERE o.order_date = %s AND o.state IN ('paid','completed')
         GROUP BY hr, p.category
         ORDER BY hr
     """, (date,))
     rows = [r for r in cur]
-    all_hours = sorted(set(int(r[0]) for r in rows + order_rows if r[0] is not None))
+    return_cost_by_hour = _get_non_sellable_return_cost_by_hour(cur, date)
+    expired_cost = _get_expired_cost(cur, date)
+    all_hours = sorted(
+        set(int(r[0]) for r in rows + order_rows if r[0] is not None)
+        | set(return_cost_by_hour)
+    )
     if all_hours:
         raw_min = min(all_hours)
         raw_max = max(all_hours)
@@ -1160,7 +2362,10 @@ async def revenue_hourly(date: str = None):
             min_hr = 6
             max_hr = 22
     else:
-        cur.execute("""SELECT COALESCE(MIN(HOUR(order_time)), 8), COALESCE(MAX(HOUR(order_time)), 21) FROM orders WHERE order_date >= DATE_SUB(%s, INTERVAL 30 DAY)""", (date,))
+        cur.execute(
+            """SELECT COALESCE(MIN(HOUR(order_time)), 8), COALESCE(MAX(HOUR(order_time)), 21) FROM orders WHERE order_date >= DATE_SUB(%s, INTERVAL 30 DAY) AND state IN ('paid','completed')""",
+            (date,),
+        )
         range_row = cur.fetchone()
         min_hr = max(6, int(range_row[0] or 8) - 1)
         max_hr = min(23, int(range_row[1] or 21) + 1)
@@ -1171,9 +2376,11 @@ async def revenue_hourly(date: str = None):
     beverage_data = [0.0] * num_hours
     revenue_data = [0.0] * num_hours
     profit_data = [0.0] * num_hours
+    return_cost_data = [0.0] * num_hours
     order_data = [0] * num_hours
     avg_order_data = [0.0] * num_hours
     margin_data = [0.0] * num_hours
+    expired_cost_data = [0.0] * num_hours
 
     for row in rows:
         hr = int(row[0])
@@ -1199,6 +2406,28 @@ async def revenue_hourly(date: str = None):
             avg_order_data[idx] = round(revenue / orders, 2) if orders else 0.0
             margin_data[idx] = round(profit / revenue * 100, 1) if revenue else 0.0
 
+    for hour, return_cost in return_cost_by_hour.items():
+        idx = hour - min_hr
+        if 0 <= idx < num_hours:
+            return_cost_data[idx] = return_cost
+            profit_data[idx] = round(profit_data[idx] - return_cost, 2)
+            revenue = revenue_data[idx]
+            margin_data[idx] = (
+                round(profit_data[idx] / revenue * 100, 1) if revenue else 0.0
+            )
+
+    if expired_cost > 0:
+        hours.append("Closing adjustment")
+        bread_data.append(0.0)
+        beverage_data.append(0.0)
+        revenue_data.append(0.0)
+        profit_data.append(-expired_cost)
+        return_cost_data.append(0.0)
+        expired_cost_data.append(expired_cost)
+        order_data.append(0)
+        avg_order_data.append(0.0)
+        margin_data.append(0.0)
+
     return {
         "status": "ok",
         "data": {
@@ -1208,6 +2437,8 @@ async def revenue_hourly(date: str = None):
             "beverages": beverage_data,
             "revenue": revenue_data,
             "profit": profit_data,
+            "non_sellable_return_cost": return_cost_data,
+            "expired_cost": expired_cost_data,
             "orders": order_data,
             "avg_order": avg_order_data,
             "margin": margin_data,
@@ -1216,33 +2447,25 @@ async def revenue_hourly(date: str = None):
 
 
 # GET /s4/revenue/historical -- Sales query by date range + granularity
-@router.get("/revenue/historical")
+@router.get("/revenue/historical", dependencies=[Depends(require_manager)])
 async def revenue_historical(start: str = None, end: str = None, granularity: str = "day", category: str = "total"):
     """Return per-product sales per period (for time-slider chart)."""
-    from datetime import datetime as dt, timedelta
+    from datetime import datetime as dt
 
     db = get_db()
     cur = db.cursor()
 
     if end is None:
-        cur.execute("SELECT MAX(order_date) FROM orders")
+        cur.execute("SELECT MAX(order_date) FROM orders WHERE state IN ('paid','completed')")
         end = str(cur.fetchone()[0])
     if start is None:
         end_dt = dt.strptime(end, "%Y-%m-%d")
         start = (end_dt - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    if granularity == "week":
-        group_expr = "YEARWEEK(o.order_date, 1)"
-        label_expr = "CONCAT(YEAR(o.order_date), '-W', LPAD(WEEK(o.order_date, 1), 2, '0'))"
-    elif granularity == "month":
-        group_expr = "DATE_FORMAT(o.order_date, '%Y-%m')"
-        label_expr = group_expr
-    elif granularity == "year":
-        group_expr = "YEAR(o.order_date)"
-        label_expr = "YEAR(o.order_date)"
-    else:
-        group_expr = "o.order_date"
-        label_expr = "o.order_date"
+    group_expr, label_expr = _revenue_period_expressions(
+        granularity,
+        "o.order_date",
+    )
 
     cur.execute(f"""
         SELECT oi.product_name, {label_expr} as period_label, {group_expr} as period_val,
@@ -1251,6 +2474,7 @@ async def revenue_historical(start: str = None, end: str = None, granularity: st
         JOIN orders o ON oi.order_id = o.id
         JOIN products p ON oi.product_name = p.product_name
         WHERE o.order_date BETWEEN %s AND %s
+        AND o.state IN ('paid','completed')
         AND (%s = 'total' OR p.category = CASE WHEN %s = 'bread' THEN 'bakery' WHEN %s = 'beverages' THEN 'beverages' END)
         GROUP BY oi.product_name, period_val, period_label
         ORDER BY period_val, oi.product_name
@@ -1275,6 +2499,82 @@ async def revenue_historical(start: str = None, end: str = None, granularity: st
         products[pname]["total_profit"] = round(products[pname]["total_profit"] + prof, 2)
         products[pname]["periods"][period] = {"revenue": rev, "profit": prof}
 
+    adjustment_rows = _get_order_adjustments_by_period(
+        cur,
+        start,
+        end,
+        granularity,
+        category,
+    )
+    order_adjustments = {
+        "total_revenue": 0.0,
+        "total_profit": 0.0,
+        "periods": {},
+    }
+    for period_label, _period_value, raw_revenue, raw_profit in adjustment_rows:
+        period = str(period_label)
+        revenue_adjustment = round(float(raw_revenue or 0), 2)
+        profit_adjustment = round(float(raw_profit or 0), 2)
+        if abs(revenue_adjustment) < 0.005 and abs(profit_adjustment) < 0.005:
+            continue
+        period_set.add(period)
+        order_adjustments["total_revenue"] = round(
+            order_adjustments["total_revenue"] + revenue_adjustment,
+            2,
+        )
+        order_adjustments["total_profit"] = round(
+            order_adjustments["total_profit"] + profit_adjustment,
+            2,
+        )
+        period_adjustment = order_adjustments["periods"].setdefault(
+            period,
+            {"revenue": 0.0, "profit": 0.0},
+        )
+        period_adjustment["revenue"] = round(
+            period_adjustment["revenue"] + revenue_adjustment,
+            2,
+        )
+        period_adjustment["profit"] = round(
+            period_adjustment["profit"] + profit_adjustment,
+            2,
+        )
+
+    return_rows = _get_non_sellable_return_cost_by_period(
+        cur,
+        start,
+        end,
+        granularity,
+        category,
+    )
+    expired_rows = _get_expired_cost_by_period(
+        cur,
+        start,
+        end,
+        granularity,
+        category,
+    )
+    for product_name, period_label, _period_value, raw_cost in return_rows + expired_rows:
+        period = str(period_label)
+        return_cost = round(float(raw_cost or 0), 2)
+        period_set.add(period)
+        if product_name not in products:
+            products[product_name] = {
+                "name": product_name.replace("_", " ").title(),
+                "total_revenue": 0.0,
+                "total_profit": 0.0,
+                "periods": {},
+            }
+        product = products[product_name]
+        product["total_profit"] = round(
+            product["total_profit"] - return_cost,
+            2,
+        )
+        period_data = product["periods"].setdefault(
+            period,
+            {"revenue": 0.0, "profit": 0.0},
+        )
+        period_data["profit"] = round(period_data["profit"] - return_cost, 2)
+
     all_periods = sorted(period_set)
     product_list = sorted(products.values(), key=lambda x: x["total_revenue"], reverse=True)
 
@@ -1287,6 +2587,7 @@ async def revenue_historical(start: str = None, end: str = None, granularity: st
             "category": category,
             "periods": all_periods,
             "products": product_list,
+            "order_adjustments": order_adjustments,
         }
     }
 
@@ -1296,6 +2597,95 @@ async def revenue_historical(start: str = None, end: str = None, granularity: st
 # ======================================================================
 # S4 Raw Material Inventory Wastage API
 # ======================================================================
+
+_MATERIAL_QUANTITY_PRECISION = Decimal("0.001")
+_MATERIAL_RATE_PRECISION = Decimal("0.0001")
+
+
+def _calculate_material_wastage(
+    reference_stock,
+    restocked,
+    actual_stock,
+    theoretical_consumed,
+):
+    actual = (
+        Decimal(str(reference_stock))
+        + Decimal(str(restocked))
+        - Decimal(str(actual_stock))
+    ).quantize(_MATERIAL_QUANTITY_PRECISION, rounding=ROUND_HALF_UP)
+    theoretical = Decimal(str(theoretical_consumed)).quantize(
+        _MATERIAL_QUANTITY_PRECISION,
+        rounding=ROUND_HALF_UP,
+    )
+    if theoretical == 0 and abs(actual) <= _MATERIAL_QUANTITY_PRECISION:
+        actual = Decimal("0")
+    else:
+        actual = max(actual, Decimal("0"))
+    wastage = max(actual - theoretical, Decimal("0"))
+    rate = (
+        (wastage / theoretical).quantize(
+            _MATERIAL_RATE_PRECISION,
+            rounding=ROUND_HALF_UP,
+        )
+        if theoretical > 0
+        else Decimal("0")
+    )
+    return float(actual), float(theoretical), float(wastage), float(rate)
+
+
+def _normalize_actual_consumed(actual_consumed, theoretical_consumed):
+    actual = max(float(actual_consumed or 0), 0.0)
+    theoretical = max(float(theoretical_consumed or 0), 0.0)
+    if theoretical <= float(_MATERIAL_QUANTITY_PRECISION) and actual <= float(
+        _MATERIAL_QUANTITY_PRECISION
+    ):
+        return 0.0
+    return actual
+
+
+def _normalize_material_wastage(
+    wastage_qty, wastage_rate, theoretical_consumed=None
+):
+    quantity = max(float(wastage_qty or 0), 0.0)
+    rate = max(float(wastage_rate or 0), 0.0)
+    if theoretical_consumed is not None:
+        theoretical = max(float(theoretical_consumed or 0), 0.0)
+        if theoretical <= float(_MATERIAL_QUANTITY_PRECISION) and quantity <= float(
+            _MATERIAL_QUANTITY_PRECISION
+        ):
+            quantity = 0.0
+    return quantity, rate
+
+
+def _effective_wastage_check_date(cursor, requested_date=None):
+    if requested_date:
+        try:
+            datetime.strptime(requested_date, "%Y-%m-%d")
+        except ValueError as exc:
+            raise HTTPException(400, "Date must use YYYY-MM-DD format") from exc
+        cursor.execute(
+            "SELECT MAX(check_date) FROM material_wastage_log "
+            "WHERE check_date <= %s",
+            (requested_date,),
+        )
+    else:
+        cursor.execute("SELECT MAX(check_date) FROM material_wastage_log")
+    row = cursor.fetchone()
+    return str(row[0]) if row and row[0] else None
+
+
+def _validate_material_quantity_for_unit(unit, quantity):
+    if isinstance(quantity, bool):
+        raise HTTPException(400, "Invalid material quantity")
+    try:
+        value = Decimal(str(quantity))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise HTTPException(400, "Invalid material quantity") from exc
+    if not value.is_finite() or value < 0:
+        raise HTTPException(400, "Invalid material quantity")
+    if unit == "pcs" and value != value.to_integral_value():
+        raise HTTPException(400, "Piece quantities must be whole numbers")
+    return value
 
 def _get_theoretical(material_name):
     """Shared: return (theo_stock, consumed, restocked, ref_actual, ref_ts)."""
@@ -1310,29 +2700,28 @@ def _get_theoretical(material_name):
         ref_actual = float(last[1])
         ref_ts = str(last[2])
     else:
-        cur.execute("SELECT stock_quantity FROM raw_materials WHERE material_name = %s", (material_name,))
-        stock = float(cur.fetchone()[0])
-        today_start = datetime.now().strftime("%Y-%m-%d") + " 00:00:00"
         cur.execute(
-            "SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s",
-            (material_name, today_start)
+            "SELECT stock_quantity FROM raw_materials "
+            "WHERE material_name = %s AND track_inventory = 1",
+            (material_name,),
         )
-        consumed_today = float(cur.fetchone()[0])
-        ref_actual = stock + consumed_today
-        cur.execute(
-            "INSERT INTO material_wastage_log (material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate) VALUES (%s,%s,%s,%s,0,0,0,0)",
-            (material_name, datetime.now().strftime("%Y-%m-%d"), stock, stock)
-        )
-        db.commit()
+        stock_row = cur.fetchone()
+        if not stock_row:
+            raise HTTPException(409, "Material is not stock-tracked")
+        current_stock = float(stock_row[0])
+        today_start = operation_now(datetime.now).strftime("%Y-%m-%d") + " 00:00:00"
         ref_ts = today_start
 
-    cur.execute("""
-        SELECT COALESCE(SUM(pr.quantity_per_unit * oi.quantity), 0)
-        FROM order_items oi
-        JOIN orders o ON oi.order_id = o.id
-        JOIN product_recipes pr ON oi.product_name = pr.product_name AND pr.material_name = %s
-        WHERE CONCAT(o.order_date, ' ', o.order_time) >= %s
-    """, (material_name, ref_ts))
+    cur.execute(
+        """
+        SELECT COALESCE(SUM(quantity), 0)
+        FROM material_transactions
+        WHERE material_name = %s
+          AND transaction_type = 'outflow'
+          AND created_at >= %s
+        """,
+        (material_name, ref_ts),
+    )
     consumed = float(cur.fetchone()[0])
 
     cur.execute(
@@ -1341,16 +2730,21 @@ def _get_theoretical(material_name):
     )
     restocked = float(cur.fetchone()[0])
 
+    if not last:
+        ref_actual = current_stock + consumed - restocked
     theoretical_stock = ref_actual - consumed + restocked
     return theoretical_stock, consumed, restocked, ref_actual, ref_ts
 
 
-@router.get("/inventory/materials")
+@router.get("/inventory/materials", dependencies=[Depends(require_manager)])
 async def get_materials():
     """Get all raw materials with current stock."""
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT material_name, stock_quantity, unit, unit_price FROM raw_materials ORDER BY material_name")
+    cur.execute(
+        "SELECT material_name, stock_quantity, unit, unit_price "
+        "FROM raw_materials WHERE track_inventory = 1 ORDER BY material_name"
+    )
     rows = cur.fetchall()
     materials = []
     for r in rows:
@@ -1363,12 +2757,18 @@ async def get_materials():
     return {"status": "ok", "materials": materials}
 
 
-@router.get("/inventory/materials/theoretical")
+@router.get(
+    "/inventory/materials/theoretical",
+    dependencies=[Depends(require_manager)],
+)
 async def get_materials_theoretical():
     """Get theoretical stock for each material based on last check."""
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT material_name, stock_quantity, unit, unit_price FROM raw_materials ORDER BY material_name")
+    cur.execute(
+        "SELECT material_name, stock_quantity, unit, unit_price "
+        "FROM raw_materials WHERE track_inventory = 1 ORDER BY material_name"
+    )
     rows = cur.fetchall()
     materials = []
     for r in rows:
@@ -1388,10 +2788,13 @@ async def get_materials_theoretical():
     return {"status": "ok", "materials": materials}
 
 
-@router.post("/inventory/check")
+@router.post("/inventory/check", dependencies=[Depends(require_manager)])
 async def inventory_check(payload: dict):
     """Submit inventory check. Compare actual vs theoretical stock."""
-    check_date = payload.get("check_date", datetime.now().strftime("%Y-%m-%d"))
+    check_date = payload.get(
+        "check_date",
+        operation_now(datetime.now).strftime("%Y-%m-%d"),
+    )
     counts = payload.get("counts", [])
     if not counts:
         raise HTTPException(400, "No material counts provided")
@@ -1401,30 +2804,64 @@ async def inventory_check(payload: dict):
     results = []
 
     for item in counts:
-        mn = item.get("material_name", "")
-        user_actual = float(item.get("actual_stock", 0))
+        mn = str(item.get("material_name", "")).strip()
+        if not mn:
+            raise HTTPException(400, "Invalid material name")
+        cur.execute(
+            "SELECT unit, track_inventory FROM raw_materials "
+            "WHERE material_name = %s",
+            (mn,),
+        )
+        material_row = cur.fetchone()
+        if not material_row:
+            raise HTTPException(404, f"Material '{mn}' not found")
+        if not bool(material_row[1]):
+            raise HTTPException(409, "Material is not stock-tracked")
+        user_actual = float(
+            _validate_material_quantity_for_unit(
+                material_row[0], item.get("actual_stock", 0)
+            )
+        )
 
-        theo_stock, theo_consumed, restocked, ref_actual, ref_ts = _get_theoretical(mn)
+        theo_stock, theo_consumed, _restocked, _ref_actual, _ref_ts = (
+            _get_theoretical(mn)
+        )
+        stored_theoretical_stock = Decimal(str(theo_stock)).quantize(
+            _MATERIAL_QUANTITY_PRECISION,
+            rounding=ROUND_HALF_UP,
+        )
+        stored_theoretical_consumed = Decimal(str(theo_consumed)).quantize(
+            _MATERIAL_QUANTITY_PRECISION,
+            rounding=ROUND_HALF_UP,
+        )
+        reconstructed_reference = (
+            stored_theoretical_stock + stored_theoretical_consumed
+        )
 
-        actual_consumed = round(ref_actual + restocked - user_actual, 3)
-        wastage_qty = round(actual_consumed - theo_consumed, 3)
-
-        if theo_consumed > 0.0001:
-            wastage_rate = round(wastage_qty / theo_consumed, 4)
-        else:
-            wastage_rate = 0.0
+        actual_consumed, theoretical_consumed, wastage_qty, wastage_rate = (
+            _calculate_material_wastage(
+                reference_stock=reconstructed_reference,
+                restocked=0,
+                actual_stock=user_actual,
+                theoretical_consumed=stored_theoretical_consumed,
+            )
+        )
 
         cur.execute(
             "INSERT INTO material_wastage_log (material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-            (mn, check_date, round(theo_stock, 3), user_actual, round(theo_consumed, 3), actual_consumed, wastage_qty, wastage_rate)
+            (mn, check_date, float(stored_theoretical_stock), user_actual, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate)
         )
-        cur.execute("UPDATE raw_materials SET stock_quantity = %s WHERE material_name = %s", (user_actual, mn))
+        cur.execute(
+            "UPDATE raw_materials SET stock_quantity = %s "
+            "WHERE material_name = %s AND track_inventory = 1",
+            (user_actual, mn),
+        )
 
         results.append({
             "material_name": mn,
-            "theoretical_stock": round(theo_stock, 3),
+            "theoretical_stock": float(stored_theoretical_stock),
             "actual_stock": user_actual,
-            "theoretical_consumed": round(theo_consumed, 3),
+            "theoretical_consumed": theoretical_consumed,
             "actual_consumed": actual_consumed,
             "wastage_qty": wastage_qty,
             "wastage_rate": wastage_rate,
@@ -1434,24 +2871,63 @@ async def inventory_check(payload: dict):
     return {"status": "ok", "check_date": check_date, "results": results}
 
 
-@router.get("/inventory/check/history")
-async def inventory_check_history(material_name: str = None, limit: int = 30):
-    """Get material wastage log history."""
+@router.get("/inventory/check/history", dependencies=[Depends(require_manager)])
+async def inventory_check_history(
+    date: str = Query(None),
+    material_name: str = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """Get the complete wastage check at or before the requested date."""
     db = get_db()
     cur = db.cursor()
-    if material_name:
+    effective_check_date = _effective_wastage_check_date(cur, date)
+    if not effective_check_date:
+        rows = []
+    elif material_name:
         cur.execute(
-            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log WHERE material_name = %s ORDER BY id DESC LIMIT %s",
-            (material_name, limit)
+            """
+            SELECT mw.id, mw.material_name, mw.check_date, mw.theoretical_stock, mw.actual_stock,
+                   mw.theoretical_consumed, mw.actual_consumed, mw.wastage_qty, mw.wastage_rate,
+                   mw.created_at, rm.unit
+            FROM material_wastage_log mw
+            JOIN raw_materials rm ON rm.material_name = mw.material_name
+                AND rm.track_inventory = 1
+            INNER JOIN (
+                SELECT material_name, MAX(id) AS max_id
+                FROM material_wastage_log
+                WHERE check_date = %s
+                GROUP BY material_name
+            ) latest ON mw.id = latest.max_id
+            WHERE mw.material_name = %s
+            ORDER BY mw.material_name, mw.id DESC LIMIT %s
+            """,
+            (effective_check_date, material_name, limit),
         )
+        rows = cur.fetchall()
     else:
         cur.execute(
-            "SELECT id, material_name, check_date, theoretical_stock, actual_stock, theoretical_consumed, actual_consumed, wastage_qty, wastage_rate, created_at FROM material_wastage_log ORDER BY id DESC LIMIT %s",
-            (limit,)
+            """
+            SELECT mw.id, mw.material_name, mw.check_date, mw.theoretical_stock, mw.actual_stock,
+                   mw.theoretical_consumed, mw.actual_consumed, mw.wastage_qty, mw.wastage_rate,
+                   mw.created_at, rm.unit
+            FROM material_wastage_log mw
+            JOIN raw_materials rm ON rm.material_name = mw.material_name
+                AND rm.track_inventory = 1
+            INNER JOIN (
+                SELECT material_name, MAX(id) AS max_id
+                FROM material_wastage_log
+                WHERE check_date = %s
+                GROUP BY material_name
+            ) latest ON mw.id = latest.max_id
+            ORDER BY mw.material_name, mw.id DESC LIMIT %s
+            """,
+            (effective_check_date, limit),
         )
-    rows = cur.fetchall()
+        rows = cur.fetchall()
     history = []
     for r in rows:
+        actual_consumed = _normalize_actual_consumed(r[6], r[5])
+        wastage_qty, wastage_rate = _normalize_material_wastage(r[7], r[8], r[5])
         history.append({
             "id": r[0],
             "material_name": r[1],
@@ -1459,46 +2935,110 @@ async def inventory_check_history(material_name: str = None, limit: int = 30):
             "theoretical_stock": float(r[3]),
             "actual_stock": float(r[4]),
             "theoretical_consumed": float(r[5]),
-            "actual_consumed": float(r[6]),
-            "wastage_qty": float(r[7]),
-            "wastage_rate": float(r[8]),
+            "actual_consumed": actual_consumed,
+            "wastage_qty": wastage_qty,
+            "wastage_rate": wastage_rate,
             "created_at": str(r[9]) if r[9] else "",
+            "unit": r[10],
         })
-    return {"status": "ok", "history": history}
+    return {
+        "status": "ok",
+        "requested_date": date,
+        "effective_check_date": effective_check_date,
+        "history": history,
+    }
 
 
-@router.get("/inventory/dashboard")
+@router.get("/inventory/dashboard", dependencies=[Depends(require_manager)])
 async def inventory_dashboard(date: str = None):
-    """Return bread stock + baking materials + coffee materials + BI metrics for dashboard."""
+    """Return finished stock, recipe-based material groups, and BI metrics."""
     db = get_db()
     cur = db.cursor()
 
     # ---- Bread finished goods (date-aware) ----
-    from datetime import datetime as dt, timedelta
     if date is None:
-        date = dt.now().strftime("%Y-%m-%d")
+        date = operation_now(datetime.now).strftime("%Y-%m-%d")
 
-    # Get current stock as baseline
-    cur.execute("""SELECT bi.product_name, bi.freshness_status, SUM(bi.quantity_remaining) as qty FROM batch_inventory bi JOIN products p ON bi.product_name = p.product_name WHERE p.category = %s GROUP BY bi.product_name, bi.freshness_status""", ("bakery",))
-    current_map = {}
-    for r in cur.fetchall():
-        current_map[(r[0], r[1])] = int(r[2] or 0)
-
-    # Get sales AFTER the given date (to add back for earlier dates)
-    cur.execute("""SELECT oi.product_name, oi.freshness, SUM(oi.quantity) as sold FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.order_date > %s AND o.order_date <= %s GROUP BY oi.product_name, oi.freshness""", (date, dt.now().strftime("%Y-%m-%d")))
-    addback_map = {}
-    for r in cur.fetchall():
-        addback_map[(r[0], r[1])] = int(r[2] or 0)
-
+    selected_date = datetime.strptime(date, "%Y-%m-%d").date()
+    now = operation_now(datetime.now)
+    if selected_date == now.date():
+        balance_time = now
+        snapshot_basis = "current_live"
+        snapshot_label = "Current Bread Stock"
+    else:
+        balance_time = datetime.combine(
+            selected_date + timedelta(days=1), datetime.min.time()
+        )
+        snapshot_basis = "historical_close"
+        snapshot_label = f"Closing Bread Stock ({selected_date.isoformat()})"
+    balance_time_text = balance_time.strftime("%Y-%m-%d %H:%M:%S")
+    if snapshot_basis == "current_live":
+        # Live POS reads quantity_remaining directly.  Use the same source here
+        # so preloaded/demo batches cannot appear in POS while being hidden by
+        # a wall-clock cutoff on the inventory dashboard.
+        cur.execute(
+            """
+            SELECT bi.product_name, bi.production_time, bi.quantity_remaining
+            FROM batch_inventory bi
+            JOIN products p ON p.product_name = bi.product_name
+            WHERE p.category = 'bakery'
+              AND bi.quantity_remaining > 0
+              AND bi.freshness_status IN ('Fresh', 'Day-1')
+            ORDER BY bi.product_name, bi.production_time
+            """
+        )
+    else:
+        cur.execute(
+            """
+            SELECT bi.product_name, bi.production_time,
+                   COALESCE(SUM(
+                       CASE
+                           WHEN it.transaction_type = 'inflow' THEN it.quantity
+                           WHEN it.transaction_type = 'outflow' THEN -it.quantity
+                           ELSE 0
+                       END
+                   ), 0) AS quantity_at_close
+            FROM batch_inventory bi
+            JOIN products p ON p.product_name = bi.product_name
+            LEFT JOIN inventory_transactions it
+              ON it.batch_id = bi.batch_id
+             AND it.transaction_time < %s
+            WHERE p.category = 'bakery'
+              AND bi.production_time < %s
+            GROUP BY bi.batch_id, bi.product_name, bi.production_time
+            HAVING quantity_at_close > 0
+            ORDER BY bi.product_name, bi.production_time
+            """,
+            (balance_time_text, balance_time_text),
+        )
     bread_map = {}
-    for (pn, status), current in current_map.items():
-        addback = addback_map.get((pn, status), 0)
-        remaining = current + addback
+    overdue_map = {}
+    for pn, production_time, remaining in cur.fetchall():
+        remaining = int(remaining or 0)
+        if remaining <= 0:
+            continue
+        production_date = production_time.date()
+        age_days = (selected_date - production_date).days
+        if age_days >= 2:
+            overdue = overdue_map.setdefault(
+                pn,
+                {
+                    "product_name": pn,
+                    "overdue_qty": 0,
+                    "oldest_production_date": production_date,
+                },
+            )
+            overdue["overdue_qty"] += remaining
+            overdue["oldest_production_date"] = min(
+                overdue["oldest_production_date"],
+                production_date,
+            )
+            continue
         if pn not in bread_map:
             bread_map[pn] = {"product_name": pn, "fresh_qty": 0, "day1_qty": 0, "total_qty": 0}
-        if status == "Fresh":
+        if age_days == 0:
             bread_map[pn]["fresh_qty"] += remaining
-        else:
+        elif age_days == 1:
             bread_map[pn]["day1_qty"] += remaining
         bread_map[pn]["total_qty"] += remaining
 
@@ -1510,15 +3050,35 @@ async def inventory_dashboard(date: str = None):
         fresh_total += b["fresh_qty"]
         day1_total += b["day1_qty"]
         bread_stock.append(b)
+    overdue_stock = []
+    overdue_total = 0
+    for pn in sorted(overdue_map):
+        item = overdue_map[pn]
+        overdue_total += item["overdue_qty"]
+        overdue_stock.append(
+            {
+                **item,
+                "oldest_production_date": item[
+                    "oldest_production_date"
+                ].isoformat(),
+            }
+        )
 
-    # ---- Baking materials ----
+    # ---- Recipe-based raw-material groups ----
     cur.execute("""
-        SELECT material_name, category, unit, stock_quantity, reorder_point
-        FROM raw_materials
-        WHERE category IN ('flour','baking','dairy','sugar','packaging')
-        ORDER BY category, material_name
+        SELECT rm.material_name, rm.category, rm.unit,
+               rm.stock_quantity, rm.reorder_point,
+               COALESCE(MAX(CASE WHEN p.category = 'bakery' THEN 1 ELSE 0 END), 0),
+               COALESCE(MAX(CASE WHEN p.category = 'beverage' THEN 1 ELSE 0 END), 0)
+        FROM raw_materials rm
+        LEFT JOIN product_recipes pr ON pr.material_name = rm.material_name
+        LEFT JOIN products p ON p.product_name = pr.product_name
+        WHERE rm.track_inventory = 1
+        GROUP BY rm.material_name, rm.category, rm.unit,
+                 rm.stock_quantity, rm.reorder_point
+        ORDER BY rm.material_name
     """)
-    baking_materials = []
+    material_rows = []
     for r in cur.fetchall():
         mn = r[0]
         stock = float(r[3] or 0)
@@ -1530,36 +3090,17 @@ async def inventory_dashboard(date: str = None):
             baseline = round(stock + float(cur.fetchone()[0]), 3)
         else:
             baseline = round(stock, 3)
-        baking_materials.append({
+        material_rows.append({
             "material_name": mn, "category": r[1], "unit": r[2],
             "stock": round(stock, 3), "reorder_point": reorder,
             "baseline": baseline,
+            "used_by_bakery": bool(r[5]),
+            "used_by_beverage": bool(r[6]),
         })
-
-    # ---- Coffee materials ----
-    cur.execute("""
-        SELECT material_name, category, unit, stock_quantity, reorder_point
-        FROM raw_materials
-        WHERE category IN ('coffee')
-        ORDER BY material_name
-    """)
-    coffee_materials = []
-    for r in cur.fetchall():
-        mn = r[0]
-        stock = float(r[3] or 0)
-        reorder = float(r[4] or 0)
-        cur.execute("SELECT MAX(created_at) FROM material_transactions WHERE material_name = %s AND transaction_type = 'restock'", (mn,))
-        lr = cur.fetchone()[0]
-        if lr:
-            cur.execute("SELECT COALESCE(SUM(quantity),0) FROM material_transactions WHERE material_name = %s AND transaction_type = 'outflow' AND created_at >= %s", (mn, lr))
-            baseline = round(stock + float(cur.fetchone()[0]), 3)
-        else:
-            baseline = round(stock, 3)
-        coffee_materials.append({
-            "material_name": mn, "category": r[1], "unit": r[2],
-            "stock": round(stock, 3), "reorder_point": reorder,
-            "baseline": baseline,
-        })
+    material_groups = _group_inventory_material_rows(material_rows)
+    baking_materials = material_groups["baking"]
+    beverage_materials = material_groups["beverage"]
+    packaging_materials = material_groups["packaging"]
 
     # ---- 1. Inventory Value ----
     # Bread finished goods value (quantity x price, Day-1 at 80%)
@@ -1575,7 +3116,10 @@ async def inventory_dashboard(date: str = None):
     """)
     bread_value = round(float(cur.fetchone()[0]), 2)
     # Raw materials value (stock x unit_price)
-    cur.execute("SELECT COALESCE(SUM(stock_quantity * unit_price), 0) FROM raw_materials")
+    cur.execute(
+        "SELECT COALESCE(SUM(stock_quantity * unit_price), 0) "
+        "FROM raw_materials WHERE track_inventory = 1"
+    )
     material_value = round(float(cur.fetchone()[0]), 2)
     inventory_value = round(bread_value + material_value, 2)
 
@@ -1589,6 +3133,7 @@ async def inventory_dashboard(date: str = None):
     cur.execute("""
         SELECT material_name, stock_quantity, unit
         FROM raw_materials
+        WHERE track_inventory = 1
         ORDER BY material_name
     """)
     stock_days = []
@@ -1637,9 +3182,16 @@ async def inventory_dashboard(date: str = None):
 
     return {
         "status": "ok",
+        "date": selected_date.isoformat(),
+        "snapshot_basis": snapshot_basis,
+        "snapshot_label": snapshot_label,
+        "balance_time": balance_time_text,
         "bread_stock": bread_stock,
+        "overdue_stock": overdue_stock,
+        "overdue_total": overdue_total,
         "baking_materials": baking_materials,
-        "coffee_materials": coffee_materials,
+        "beverage_materials": beverage_materials,
+        "packaging_materials": packaging_materials,
         "inventory_value": inventory_value,
         "fresh_day1_pie": pie_data,
         "fresh_total": fresh_total,
@@ -1649,12 +3201,15 @@ async def inventory_dashboard(date: str = None):
     }
 
 
-@router.get("/inventory/stock-days-history")
+@router.get(
+    "/inventory/stock-days-history",
+    dependencies=[Depends(require_manager)],
+)
 async def stock_days_history(date: str = None):
     """Return historical stock days remaining for a given date.
     Computes stock position at end of the target date and daily average
     consumption up to that date."""
-    from datetime import datetime as dt, timedelta
+    from datetime import datetime as dt
     
     db = get_db()
     cur = db.cursor()
@@ -1667,7 +3222,10 @@ async def stock_days_history(date: str = None):
     stock_days = []
     
     # Get all materials
-    cur.execute("SELECT material_name, stock_quantity, unit FROM raw_materials ORDER BY material_name")
+    cur.execute(
+        "SELECT material_name, stock_quantity, unit FROM raw_materials "
+        "WHERE track_inventory = 1 ORDER BY material_name"
+    )
     materials = cur.fetchall()
     
     for r in materials:
@@ -1724,84 +3282,181 @@ async def stock_days_history(date: str = None):
         "stock_days": stock_days,
     }
 
-@router.get("/inventory/wastage/summary")
+@router.get(
+    "/inventory/wastage/summary",
+    dependencies=[Depends(require_manager)],
+)
 async def wastage_summary(date: str = ""):
-    """Get latest wastage rates per material up to the selected date."""
+    """Get one complete wastage check at or before the selected date."""
     db = get_db()
     cur = db.cursor()
-    if date:
+    effective_check_date = _effective_wastage_check_date(cur, date or None)
+    if effective_check_date:
         cur.execute("""
-            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
+            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date, rm.unit
             FROM material_wastage_log m1
+            JOIN raw_materials rm ON rm.material_name = m1.material_name
+                AND rm.track_inventory = 1
             INNER JOIN (
                 SELECT mw.material_name, MAX(mw.id) as max_id
                 FROM material_wastage_log mw
-                WHERE mw.check_date = (
-                    SELECT MAX(mw2.check_date)
-                    FROM material_wastage_log mw2
-                    WHERE mw2.material_name = mw.material_name
-                      AND mw2.check_date <= %s
-                )
+                WHERE mw.check_date = %s
                 GROUP BY mw.material_name
             ) m2 ON m1.id = m2.max_id
-        """, (date,))
+            ORDER BY m1.material_name
+        """, (effective_check_date,))
+        rows = cur.fetchall()
     else:
-        cur.execute("""
-            SELECT m1.material_name, m1.theoretical_consumed, m1.wastage_qty, m1.wastage_rate, m1.check_date
-            FROM material_wastage_log m1
-            INNER JOIN (
-                SELECT material_name, MAX(id) as max_id
-                FROM material_wastage_log
-                GROUP BY material_name
-            ) m2 ON m1.id = m2.max_id
-        """)
-    rows = cur.fetchall()
+        rows = []
     summary = []
     for r in rows:
+        wastage_qty, wastage_rate = _normalize_material_wastage(r[2], r[3], r[1])
         summary.append({
             "material_name": r[0],
             "theoretical_consumed": float(r[1]),
-            "wastage_qty": float(r[2]),
-            "wastage_rate": float(r[3]),
+            "wastage_qty": wastage_qty,
+            "wastage_rate": wastage_rate,
             "check_date": str(r[4]),
+            "unit": r[5],
         })
-    return {"status": "ok", "date": date, "summary": summary}
-@router.post("/inventory/restock")
-async def inventory_restock(payload: dict):
-    """Restock raw materials. Adds quantity to stock_quantity and records transaction."""
-    material_name = payload.get("material_name", "")
-    add_qty = float(payload.get("quantity", 0))
-    if not material_name or add_qty <= 0:
-        raise HTTPException(400, "Invalid material or quantity")
-
-    db = get_db()
-    cur = db.cursor()
-
-    # Get current stock
-    cur.execute("SELECT stock_quantity, unit FROM raw_materials WHERE material_name = %s", (material_name,))
-    row = cur.fetchone()
-    if not row:
-        raise HTTPException(404, f"Material '{material_name}' not found")
-
-    current = float(row[0])
-    unit = row[1]
-    new_stock = round(current + add_qty, 6)
-
-    cur.execute("UPDATE raw_materials SET stock_quantity = %s WHERE material_name = %s", (new_stock, material_name))
-    cur.execute(
-        "INSERT INTO material_transactions (material_name, transaction_type, quantity, unit, reference) VALUES (%s,%s,%s,%s,%s)",
-        (material_name, "restock", add_qty, unit, "manual_restock")
-    )
-    db.commit()
-
     return {
         "status": "ok",
-        "material_name": material_name,
-        "previous_stock": round(current, 3),
-        "added": add_qty,
-        "new_stock": round(new_stock, 3),
-        "unit": unit,
+        "date": date,
+        "effective_check_date": effective_check_date,
+        "summary": summary,
     }
 
 
+@router.get("/inventory/restock/history", dependencies=[Depends(require_manager)])
+async def inventory_restock_history(
+    date: str = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+):
+    selected_date = date or operation_now(datetime.now).strftime("%Y-%m-%d")
+    try:
+        start = datetime.strptime(selected_date, "%Y-%m-%d")
+    except ValueError as exc:
+        raise HTTPException(400, "Date must use YYYY-MM-DD format") from exc
+    end = start + timedelta(days=1)
 
+    db = get_db()
+    cur = db.cursor(dictionary=True)
+    try:
+        cur.execute(
+            """
+            SELECT id, material_name, quantity, unit, reference, created_at
+            FROM material_transactions
+            WHERE transaction_type = 'restock'
+              AND created_at >= %s
+              AND created_at < %s
+            ORDER BY created_at, id
+            LIMIT %s
+            """,
+            (
+                start.strftime("%Y-%m-%d %H:%M:%S"),
+                end.strftime("%Y-%m-%d %H:%M:%S"),
+                limit,
+            ),
+        )
+        records = cur.fetchall()
+        latest_record_date = None
+        latest_record_count = 0
+        if not records:
+            cur.execute(
+                """
+                SELECT DATE(created_at) AS latest_date, COUNT(*) AS record_count
+                FROM material_transactions
+                WHERE transaction_type = 'restock'
+                  AND created_at < %s
+                GROUP BY DATE(created_at)
+                ORDER BY latest_date DESC
+                LIMIT 1
+                """,
+                (end.strftime("%Y-%m-%d %H:%M:%S"),),
+            )
+            latest = cur.fetchone()
+            if latest:
+                latest_record_date = str(latest.get("latest_date") or "") or None
+                latest_record_count = int(latest.get("record_count") or 0)
+    finally:
+        cur.close()
+        db.close()
+
+    for record in records:
+        created_at = record.get("created_at")
+        if isinstance(created_at, datetime):
+            record["created_at"] = created_at.strftime("%Y-%m-%d %H:%M:%S")
+        record["quantity"] = float(record.get("quantity") or 0)
+    return {
+        "status": "ok",
+        "date": selected_date,
+        "count": len(records),
+        "records": records,
+        "latest_record_date": latest_record_date,
+        "latest_record_count": latest_record_count,
+    }
+
+
+@router.post("/inventory/restock", dependencies=[Depends(require_manager)])
+async def inventory_restock(payload: dict):
+    """Restock raw materials. Adds quantity to stock_quantity and records transaction."""
+    material_name = payload.get("material_name", "")
+    raw_quantity = payload.get("quantity")
+    if (
+        not isinstance(material_name, str)
+        or not material_name.strip()
+        or isinstance(raw_quantity, bool)
+        or not isinstance(raw_quantity, (int, float, Decimal))
+    ):
+        raise HTTPException(400, "Invalid material or quantity")
+    add_quantity = Decimal(str(raw_quantity))
+    if not add_quantity.is_finite() or add_quantity <= 0:
+        raise HTTPException(400, "Invalid material or quantity")
+    material_name = material_name.strip()
+    db = get_db(autocommit=False)
+    cur = db.cursor()
+    try:
+        cur.execute(
+            "SELECT stock_quantity, unit, track_inventory FROM raw_materials "
+            "WHERE material_name = %s FOR UPDATE",
+            (material_name,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(404, f"Material '{material_name}' not found")
+        if not bool(row[2]):
+            raise HTTPException(409, "Material is not stock-tracked")
+
+        current = float(row[0])
+        unit = row[1]
+        add_quantity = _validate_material_quantity_for_unit(unit, add_quantity)
+        add_qty = float(add_quantity)
+        new_stock = round(current + add_qty, 6)
+        cur.execute(
+            "UPDATE raw_materials SET stock_quantity = stock_quantity + %s "
+            "WHERE material_name = %s",
+            (add_qty, material_name),
+        )
+        if cur.rowcount != 1:
+            raise HTTPException(409, f"Material stock changed: {material_name}")
+        cur.execute(
+            "INSERT INTO material_transactions "
+            "(material_name, transaction_type, quantity, unit, reference) "
+            "VALUES (%s,%s,%s,%s,%s)",
+            (material_name, "restock", add_qty, unit, "manual_restock"),
+        )
+        db.commit()
+        return {
+            "status": "ok",
+            "material_name": material_name,
+            "previous_stock": round(current, 3),
+            "added": add_qty,
+            "new_stock": round(new_stock, 3),
+            "unit": unit,
+        }
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        cur.close()
+        db.close()

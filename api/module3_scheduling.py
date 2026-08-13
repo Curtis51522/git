@@ -1,29 +1,35 @@
 """
-S3 Shift Scheduling -- Demand-driven CP-SAT solver (9 employees, 4 roles (1 dual-role)).
+S3 Shift Scheduling -- Demand-driven CP-SAT solver.
 
 Connects to S2 forecast to determine required staff per shift.
-- Baker: 4 bakers, 2 per slot, 6:00-19:00
-- Cashier: 3 cashiers, coverage-driven  
+- Baker: 2 per slot for routine demand, 3 per slot for high demand
+- Cashier: 1 per slot
 - Barista: 2 baristas, 1 per slot
 - Manager: 1 manager, optional per slot
 
-Model: 10 employees, each with exactly ONE role. 2 shifts/day (7h each).
+Model: 9 operational employees plus 1 manager, with primary and approved
+secondary roles.
+Two overlapping 7-hour shifts cover 06:00-19:00.
 """
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
-import json
+import asyncio
+import concurrent.futures
 import hashlib
-from ortools.sat.python import cp_model
+import json
 import logging
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
+from typing import Dict, List, Optional
+from contextvars import copy_context
+from ortools.sat.python import cp_model
 from datetime import datetime, timedelta
-import sys, os, logging
-logger = logging.getLogger(__name__)
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import COFFEE_DEMAND_RATIO
+from uuid import uuid4
+
 from db.mysql_client import get_db, q
-import asyncio, concurrent.futures
+from api.auth import get_current_user, require_manager
+from api.operation_clock import operation_now
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/s3", tags=["Module 3 - Shift Scheduling"])
 _s3_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
@@ -40,9 +46,9 @@ class Employee(BaseModel):
     min_hours_per_week: float = 14.0
     max_hours_per_week: float = 42.0
     available: bool = True
-    unavailable_dates: List[str] = []
+    unavailable_dates: List[str] = Field(default_factory=list)
     is_deputy: bool = False  # deputy manager (baker who covers manager off-shift)
-    secondary_roles: List[str] = []  # e.g. barista who can also cashier
+    secondary_roles: List[str] = Field(default_factory=list)  # e.g. barista who can also cashier
 
 
 class ShiftResult(BaseModel):
@@ -57,7 +63,7 @@ class ShiftResult(BaseModel):
 
 
 # ======================================================================
-# Default employees -- 8 people, 4 roles x 2
+# Default employees -- 9 operational employees plus 1 manager
 # ======================================================================
 
 DEFAULT_EMPLOYEES = [
@@ -76,8 +82,258 @@ DEFAULT_EMPLOYEES = [
 TIME_SLOTS = ["06:00-13:00", "12:00-19:00"]
 ROLES = ["baker", "cashier", "barista", "manager"]
 SLOT_HOURS = {"06:00-13:00": 7, "12:00-19:00": 7}
-def _baseline_path(week_start):
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models", f"schedule_baseline_{week_start}.json")
+
+
+_SCHEDULE_HISTORY_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS schedule_history (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  change_group VARCHAR(36) NOT NULL,
+  snapshot_type VARCHAR(24) NOT NULL,
+  change_type VARCHAR(32) NOT NULL,
+  change_reason VARCHAR(255) NOT NULL,
+  source_schedule_id INT DEFAULT NULL,
+  schedule_date DATE NOT NULL,
+  time_slot VARCHAR(20) NOT NULL,
+  employee_id VARCHAR(10) DEFAULT NULL,
+  employee_name VARCHAR(50) DEFAULT NULL,
+  role VARCHAR(30) DEFAULT NULL,
+  staff_count INT NOT NULL DEFAULT 1,
+  demand_level VARCHAR(10) DEFAULT 'normal',
+  production_target INT DEFAULT NULL,
+  recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_schedule_history_date (schedule_date, recorded_at),
+  KEY idx_schedule_history_baseline (snapshot_type, schedule_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+"""
+
+
+def _schedule_date_text(value) -> str:
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d")
+    return str(value)
+
+
+def _ensure_schedule_history_table(db) -> None:
+    cursor = db.cursor()
+    try:
+        cursor.execute(_SCHEDULE_HISTORY_TABLE_SQL)
+    finally:
+        cursor.close()
+    if not getattr(db, "autocommit", True):
+        db.commit()
+
+
+def _schedule_snapshot_payloads(
+    rows: list,
+    *,
+    snapshot_type: str,
+    change_type: str,
+    reason: str,
+    change_group: str,
+) -> list:
+    payloads = []
+    for row in rows:
+        payloads.append({
+            "change_group": change_group,
+            "snapshot_type": snapshot_type,
+            "change_type": change_type,
+            "change_reason": reason,
+            "source_schedule_id": row.get("id"),
+            "schedule_date": _schedule_date_text(row.get("schedule_date", "")),
+            "time_slot": row.get("time_slot", ""),
+            "employee_id": row.get("employee_id"),
+            "employee_name": row.get("employee_name"),
+            "role": row.get("role"),
+            "staff_count": row.get("staff_count", 1),
+            "demand_level": row.get("demand_level", "normal"),
+            "production_target": row.get("production_target"),
+        })
+    return payloads
+
+
+def _baseline_shift_counts(history_rows: list, schedule_dates: set) -> tuple:
+    baseline_dates = {
+        _schedule_date_text(row.get("schedule_date", ""))
+        for row in history_rows
+    }
+    complete = bool(schedule_dates) and schedule_dates.issubset(baseline_dates)
+    if not complete:
+        return {}, False
+
+    counts = {}
+    for row in history_rows:
+        employee_id = row.get("employee_id")
+        if employee_id:
+            counts[employee_id] = counts.get(employee_id, 0) + 1
+    return counts, True
+
+
+def _insert_schedule_snapshot(
+    db,
+    rows: list,
+    *,
+    snapshot_type: str,
+    change_type: str,
+    reason: str,
+    change_group: str,
+) -> None:
+    payloads = _schedule_snapshot_payloads(
+        rows,
+        snapshot_type=snapshot_type,
+        change_type=change_type,
+        reason=reason,
+        change_group=change_group,
+    )
+    if payloads:
+        q(db, "schedule_history").insert(payloads).execute()
+
+
+def _ensure_schedule_baseline(
+    db,
+    rows: list,
+    *,
+    change_type: str,
+    reason: str,
+    change_group: str,
+) -> None:
+    if not rows:
+        return
+    _ensure_schedule_history_table(db)
+    row_dates = {_schedule_date_text(row.get("schedule_date", "")) for row in rows}
+    existing = q(db, "schedule_history").select("schedule_date")\
+        .eq("snapshot_type", "baseline")\
+        .gte("schedule_date", min(row_dates))\
+        .lte("schedule_date", max(row_dates)).execute()
+    existing_dates = {
+        _schedule_date_text(row.get("schedule_date", ""))
+        for row in (existing.data or [])
+    }
+    missing_dates = row_dates - existing_dates
+    if not missing_dates:
+        return
+    baseline_rows = [
+        row for row in rows
+        if _schedule_date_text(row.get("schedule_date", "")) in missing_dates
+    ]
+    _insert_schedule_snapshot(
+        db,
+        baseline_rows,
+        snapshot_type="baseline",
+        change_type=change_type,
+        reason=reason,
+        change_group=change_group,
+    )
+
+
+def _capture_schedule_change(db, rows: list, change_type: str, reason: str) -> None:
+    if not rows:
+        return
+    change_group = str(uuid4())
+    _ensure_schedule_baseline(
+        db,
+        rows,
+        change_type=change_type,
+        reason=reason,
+        change_group=change_group,
+    )
+    _insert_schedule_snapshot(
+        db,
+        rows,
+        snapshot_type="before_change",
+        change_type=change_type,
+        reason=reason,
+        change_group=change_group,
+    )
+
+
+def _load_schedule_baseline(db, start_date: str, end_date: str, schedule_dates: set) -> tuple:
+    _ensure_schedule_history_table(db)
+    result = q(db, "schedule_history").select("schedule_date,employee_id")\
+        .eq("snapshot_type", "baseline")\
+        .gte("schedule_date", start_date)\
+        .lte("schedule_date", end_date).execute()
+    return _baseline_shift_counts(result.data or [], schedule_dates)
+
+
+def _coverage_values(actual: int, baseline: Optional[int]) -> dict:
+    """Return coverage values without treating a missing baseline as zero."""
+    if baseline is None:
+        return {
+            "expected": actual,
+            "rate_pct": 100.0,
+            "extra_shifts": None,
+            "baseline_available": False,
+        }
+
+    expected = max(0, baseline)
+    if expected == 0:
+        rate = 100.0
+    else:
+        rate = min(100.0, round(actual / expected * 100, 1))
+    return {
+        "expected": expected,
+        "rate_pct": rate,
+        "extra_shifts": max(0, actual - expected),
+        "baseline_available": True,
+    }
+
+
+def _schedule_compliance_violations(rows: list, employees: List[Employee], days: int) -> list:
+    """Evaluate hour, availability, and consecutive-day schedule constraints."""
+    employee_lookup = {employee.id: employee for employee in employees}
+    hours_by_employee = {}
+    dates_by_employee = {}
+    violations = []
+
+    for row in rows:
+        employee_id = row.get("employee_id")
+        if not employee_id:
+            continue
+        hours_by_employee[employee_id] = hours_by_employee.get(employee_id, 0) + SLOT_HOURS.get(
+            row.get("time_slot", ""), 7
+        )
+        schedule_date = _schedule_date_text(row.get("schedule_date", ""))
+        dates_by_employee.setdefault(employee_id, set()).add(schedule_date)
+
+        employee = employee_lookup.get(employee_id)
+        if employee and schedule_date in employee.unavailable_dates:
+            violations.append({
+                "employee": employee.name,
+                "type": f"Scheduled on unavailable date {schedule_date}",
+            })
+
+    covered_weeks = max(1, (days + 6) // 7)
+    complete_weeks = days // 7
+    for employee_id, employee in employee_lookup.items():
+        hours = hours_by_employee.get(employee_id, 0)
+        maximum = employee.max_hours_per_week * covered_weeks
+        minimum = employee.min_hours_per_week * complete_weeks
+        if hours > maximum:
+            violations.append({
+                "employee": employee.name,
+                "type": f"Scheduled {hours:g}h above the {maximum:g}h period limit",
+            })
+        if complete_weeks and employee.available and employee.role != "manager" and hours < minimum:
+            violations.append({
+                "employee": employee.name,
+                "type": f"Scheduled {hours:g}h below the {minimum:g}h period minimum",
+            })
+
+        consecutive_days = 0
+        previous_date = None
+        for date_text in sorted(dates_by_employee.get(employee_id, set())):
+            current_date = datetime.strptime(date_text, "%Y-%m-%d").date()
+            consecutive_days = consecutive_days + 1 if previous_date and (current_date - previous_date).days == 1 else 1
+            previous_date = current_date
+            if consecutive_days > 5:
+                violations.append({
+                    "employee": employee.name,
+                    "type": "Scheduled for more than 5 consecutive days",
+                })
+                break
+
+    return violations
 
 
 def _stable_seed(value: str) -> int:
@@ -155,12 +411,13 @@ def _fetch_weekday_demand_baselines(start_date: str, lookback_days: int = 180) -
         c.execute(
             "SELECT WEEKDAY(dt) AS weekday, AVG(day_units) AS avg_units "
             "FROM ("
-            "  SELECT DATE(transaction_time) AS dt, SUM(quantity) AS day_units "
-            "  FROM inventory_transactions "
-            "  WHERE transaction_type='outflow' "
-            "    AND DATE(transaction_time) >= %s "
-            "    AND DATE(transaction_time) < %s "
-            "  GROUP BY DATE(transaction_time)"
+            "  SELECT o.order_date AS dt, SUM(oi.quantity) AS day_units "
+            "  FROM orders o "
+            "  JOIN order_items oi ON oi.order_id = o.id "
+            "  WHERE o.order_date >= %s "
+            "    AND o.order_date < %s "
+            "    AND LOWER(COALESCE(o.state, 'completed')) NOT IN ('refunded', 'cancelled') "
+            "  GROUP BY o.order_date"
             ") daily "
             "GROUP BY WEEKDAY(dt)",
             (history_start, start_date),
@@ -175,39 +432,70 @@ def _fetch_weekday_demand_baselines(start_date: str, lookback_days: int = 180) -
         return {}
 
 
+def _fetch_product_categories() -> Dict[str, str]:
+    db = get_db()
+    c = db.cursor(dictionary=True)
+    c.execute("SELECT product_name, category FROM products")
+    return {
+        str(row["product_name"]).strip().lower(): str(row["category"]).strip().lower()
+        for row in c.fetchall()
+        if row.get("product_name") and row.get("category")
+    }
+
+
+def _aggregate_forecast_rows(
+    forecasts: List[dict],
+    start_date: str,
+    product_categories: Dict[str, str],
+) -> Dict[str, dict]:
+    daily = {}
+    for forecast in forecasts:
+        forecast_date = forecast.get("forecast_date", "")
+        if forecast_date < start_date:
+            continue
+
+        freshness = forecast.get("freshness_status", "Fresh")
+        if freshness not in ("Fresh", "Total"):
+            continue
+
+        if forecast_date not in daily:
+            daily[forecast_date] = {
+                "total_units": 0,
+                "baker_units": 0,
+                "coffee_units": 0,
+            }
+
+        demand = int(forecast.get("predicted_demand", 0))
+        product_name = str(forecast.get("product_name", "")).strip().lower()
+        category = product_categories.get(product_name)
+        if category == "beverage":
+            daily[forecast_date]["coffee_units"] += demand
+        elif category == "bakery":
+            daily[forecast_date]["baker_units"] += demand
+        else:
+            logger.warning("S3 forecast product has no category mapping: %s", product_name)
+        daily[forecast_date]["total_units"] += demand
+
+    return daily
+
+
 def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
     """Fetch S2 forecast, aggregate by date, and compute data-driven demand levels.
 
     Within-week relative ranking via S2 forecast: top 1/3 = high, bottom 1/3 = low, middle = normal.
 
-    Returns: {date: {"total_units": int, "coffee_units": int, "demand_level": str}}
+    Returns: {date: {"total_units": int, "baker_units": int,
+    "coffee_units": int, "demand_level": str}}
     """
     try:
         from api.module2_forecast import _do_forecast
         forecast_data = _do_forecast(None, days, start_date=start_date)
         forecasts = forecast_data.get("forecasts", [])
-
-        daily = {}
-        for f in forecasts:
-            d = f.get("forecast_date", "")
-            if d < start_date:
-                continue
-            if d not in daily:
-                daily[d] = {"total_units": 0, "baker_units": 0, "coffee_units": 0}
-
-            demand = int(f.get("predicted_demand", 0))
-            freshness = f.get("freshness_status", "Fresh")
-
-            # Only count Fresh demand for production planning
-            if freshness in ("Fresh", "Total"):
-                daily[d]["baker_units"] += demand
-
-            daily[d]["total_units"] += demand if freshness in ("Fresh", "Total") else 0
-
-            # Estimate coffee demand as proportional to total bakery demand
-            # ~60% of bakery customers also buy coffee
-            if freshness in ("Fresh", "Total"):
-                daily[d]["coffee_units"] += int(demand * COFFEE_DEMAND_RATIO)
+        daily = _aggregate_forecast_rows(
+            forecasts,
+            start_date,
+            _fetch_product_categories(),
+        )
 
         weekday_baselines = _fetch_weekday_demand_baselines(start_date)
         for d, item in daily.items():
@@ -221,7 +509,7 @@ def _fetch_demand_forecast(start_date: str, days: int = 7) -> Dict[str, dict]:
         return daily
 
     except Exception as e:
-        print(f"S2 forecast fetch failed: {e}")
+        logger.error("S2 forecast fetch failed: %s", e, exc_info=True)
         return {}
 
 
@@ -243,7 +531,7 @@ def solve_shift_schedule(
       5. Maximum 5 consecutive working days
       6. Weekly hours: 7h min, 56h max
       7. Unavailable dates honoured
-      8. Per-slot coverage minimums met
+      8. Per-slot staffing matches the demand requirement
 
     Soft objective: minimize (max_weekly_hours - min_weekly_hours) spread.
     """
@@ -254,18 +542,8 @@ def solve_shift_schedule(
 
     base = datetime.strptime(start_date, "%Y-%m-%d")
 
-    # Fallback forecast
     if not demand_forecast:
-        for d in range(num_days):
-            dt = base + timedelta(days=d)
-            dow = dt.weekday()
-            date_str = dt.strftime("%Y-%m-%d")
-            if dow in (5, 6):
-                demand_forecast[date_str] = {"total_units": 300, "demand_level": "high"}
-            elif dow in (3, 4):
-                demand_forecast[date_str] = {"total_units": 220, "demand_level": "normal"}
-            else:
-                demand_forecast[date_str] = {"total_units": 100, "demand_level": "low"}
+        raise ValueError("A complete S2 demand forecast is required")
 
     emp_list = [e for e in employees if e.available and e.role != "manager"]
     if not emp_list:
@@ -289,8 +567,6 @@ def solve_shift_schedule(
     cashier_r = ROLES.index("cashier")
     barista_r = ROLES.index("barista")
     baker_count = sum(1 for i in range(N) if emp_of[i].role == "baker")
-    dual_baristas = [i for i in range(N) if "cashier" in (getattr(emp_of[i], "secondary_roles", []) or [])]
-
     # ---------- Build daily demand ----------
     high_day_count = 0
     daily_demand = {}
@@ -306,12 +582,12 @@ def solve_shift_schedule(
         level = fc.get("demand_level", "normal")
 
         if level == "high":
-            req = {"baker": 4, "cashier": 2, "barista": 1, "_level": "high"}
+            req = {"baker": 3, "cashier": 1, "barista": 1, "_level": "high"}
             high_day_count += 1
         elif level == "low":
             req = {"baker": 2, "cashier": 1, "barista": 1, "_level": "low"}
         else:
-            req = {"baker": 3, "cashier": 1, "barista": 1, "_level": "normal"}
+            req = {"baker": 2, "cashier": 1, "barista": 1, "_level": "normal"}
 
         daily_demand[d] = req
 
@@ -351,13 +627,10 @@ def solve_shift_schedule(
         for s in range(S):
             # Baker coverage
             if bn > 0:
-                model.Add(sum(shift[(e, d, s, baker_r)] for e in range(N)) >= bn)
-            # Cashier coverage (dedicated + dual-role)
+                model.Add(sum(shift[(e, d, s, baker_r)] for e in range(N)) == bn)
+            # Cashier coverage, including employees assigned through a secondary role
             if cn > 0:
-                dedicated = sum(shift[(e, d, s, cashier_r)] for e in range(N))
-                dual = sum(shift[(e, d, s, barista_r)] for e in dual_baristas)
-                model.Add(dedicated + dual >= cn)
-                model.Add(dedicated >= 1)
+                model.Add(sum(shift[(e, d, s, cashier_r)] for e in range(N)) == cn)
             # Barista coverage
             if barn > 0:
                 model.Add(sum(shift[(e, d, s, barista_r)] for e in range(N)) == barn)
@@ -389,7 +662,7 @@ def solve_shift_schedule(
         for d in range(num_days - 5):
             model.Add(sum(works[(e, d + k)] for k in range(6)) <= 5)
 
-    # ---- C6: Weekly hours 7-56h ----
+    # ---- C6: Weekly hours 7-56h for a full-week schedule ----
     slot_hours = [SLOT_HOURS.get(TIME_SLOTS[s], 7) for s in range(S)]
     sick_by_role = {}
     for e in range(N):
@@ -411,7 +684,7 @@ def solve_shift_schedule(
             shift[(e, d, s, r)] * slot_hours[s]
             for d in range(num_days) for s in range(S) for r in range(R)
         )
-        model.Add(weekly_hours >= 7)
+        model.Add(weekly_hours >= (7 if num_days >= 7 else 0))
         max_h = 56
         sick_in_role = sick_by_role.get(emp.role, 0)
         if sick_in_role > 0:
@@ -504,7 +777,7 @@ def solve_shift_schedule(
 # ======================================================================
 # GET /s3/schedule
 # ======================================================================
-@router.get("/schedule")
+@router.get("/schedule", dependencies=[Depends(require_manager)])
 async def get_schedule(
     date: str = Query(None),
     days: int = Query(7, ge=1, le=14),
@@ -556,26 +829,30 @@ async def get_schedule(
     }
 
 
+@router.get("/schedule/history", dependencies=[Depends(require_manager)])
+async def get_schedule_history(
+    date: str = Query(...),
+    days: int = Query(1, ge=1, le=14),
+):
+    """Return recorded schedule baselines and pre-change snapshots."""
+    base = datetime.strptime(date, "%Y-%m-%d")
+    end_date = (base + timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    db = get_db()
+    _ensure_schedule_history_table(db)
+    result = q(db, "schedule_history").select("*")\
+        .gte("schedule_date", date)\
+        .lte("schedule_date", end_date)\
+        .order("recorded_at,id").execute()
+    return {
+        "status": "ok",
+        "period": {"start": date, "end": end_date, "days": days},
+        "history": result.data or [],
+    }
+
+
 # ======================================================================
 # POST /s3/solve -- Demand-driven generation
 # ======================================================================
-
-
-def _save_baseline(results, week_start_str=None):
-    """Save per-employee shift counts as baseline after solve."""
-    baseline = {}
-    for r in results:
-        eid = r.employee_id
-        if eid not in baseline:
-            baseline[eid] = {"name": r.employee_name, "role": r.role, "shifts": 0}
-        baseline[eid]["shifts"] += 1
-    try:
-        bp = _baseline_path(week_start_str or "unknown")
-        os.makedirs(os.path.dirname(os.path.abspath(bp)), exist_ok=True)
-        with open(os.path.abspath(bp), 'w') as f:
-            json.dump({"week_start": week_start_str or "", "employees": baseline}, f, indent=2)
-    except Exception:
-        pass
 
 def _save_kpi_snapshot(week_start, kpi_data, snapshot_type, trigger_event):
     """Save KPI snapshot to DB."""
@@ -607,12 +884,29 @@ def _is_past_date(date_str):
     """Check if a date is in the past (before today)."""
     try:
         d = datetime.strptime(date_str, "%Y-%m-%d").date()
-        return d < datetime.now().date()
+        return d < operation_now().date()
     except Exception:
         return False
 
-def _persist_schedule(results, base, num_days):
+
+async def _run_s3_task(task, payload):
+    loop = asyncio.get_running_loop()
+    context = copy_context()
+    return await loop.run_in_executor(_s3_executor, context.run, task, payload)
+
+def _persist_schedule(results, base, num_days, change_type):
     db = get_db()
+    start_date = base.strftime("%Y-%m-%d")
+    end_date = (base + timedelta(days=num_days - 1)).strftime("%Y-%m-%d")
+    existing = q(db, "shift_schedule").select("*")\
+        .gte("schedule_date", start_date)\
+        .lte("schedule_date", end_date).execute()
+    _capture_schedule_change(
+        db,
+        existing.data or [],
+        change_type,
+        f"Schedule replaced for {start_date} through {end_date}",
+    )
     for i in range(num_days):
         d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
         q(db, "shift_schedule").delete().eq("schedule_date", d).execute()
@@ -627,11 +921,30 @@ def _persist_schedule(results, base, num_days):
             "demand_level": r.demand_level,
             "production_target": r.production_target,
         }).execute()
+    current = q(db, "shift_schedule").select("*")\
+        .gte("schedule_date", start_date)\
+        .lte("schedule_date", end_date).execute()
+    _ensure_schedule_baseline(
+        db,
+        current.data or [],
+        change_type=change_type,
+        reason=f"Initial schedule recorded for {start_date} through {end_date}",
+        change_group=str(uuid4()),
+    )
 
 
-def _rebuild_from_employees(start_date, num_days, employees):
+def _rebuild_from_employees(start_date, num_days, employees, change_type):
     base = datetime.strptime(start_date, "%Y-%m-%d")
     demand_forecast = _fetch_demand_forecast(start_date, num_days)
+    expected_dates = {
+        (base + timedelta(days=offset)).strftime("%Y-%m-%d")
+        for offset in range(num_days)
+    }
+    missing_dates = sorted(expected_dates - set(demand_forecast))
+    if missing_dates:
+        raise RuntimeError(
+            "S2 forecast is unavailable for: " + ", ".join(missing_dates)
+        )
     results = solve_shift_schedule(
         employees, start_date, num_days,
         demand_forecast=demand_forecast,
@@ -640,10 +953,9 @@ def _rebuild_from_employees(start_date, num_days, employees):
     requested_end = base + timedelta(days=num_days)
     results = [r for r in results if r.date >= start_date and r.date < requested_end.strftime("%Y-%m-%d")]
     try:
-        _persist_schedule(results, base, num_days)
-        _save_baseline(results, start_date)
+        _persist_schedule(results, base, num_days, change_type)
     except Exception:
-        logger.error("Failed to persist schedule: %s", sys.exc_info())
+        logger.exception("Failed to persist schedule")
         raise
     return results
 def _build_schedule_response(results):
@@ -663,8 +975,15 @@ def _build_schedule_response(results):
         "employee_summary": emp_summary,
     }
 
+
+def _open_schedule_dates(base: datetime, days: int) -> set:
+    return {
+        (base + timedelta(days=offset)).strftime("%Y-%m-%d")
+        for offset in range(days)
+    }
+
 def _solve_impl(payload: dict) -> dict:
-    start_date = payload.get("start_date", datetime.now().strftime("%Y-%m-%d"))
+    start_date = payload.get("start_date", operation_now().strftime("%Y-%m-%d"))
     if _is_past_date(start_date):
         return {"status": "error", "message": "Cannot modify past schedules. Select today or a future date."}
     num_days = min(payload.get("days", 7), 14)
@@ -675,7 +994,7 @@ def _solve_impl(payload: dict) -> dict:
         if e.id in unavailable_map:
             e.unavailable_dates = unavailable_map[e.id]
 
-    results = _rebuild_from_employees(start_date, num_days, employees)
+    _rebuild_from_employees(start_date, num_days, employees, "solve")
     # Auto-replace sick employees after generation
     base = datetime.strptime(start_date, "%Y-%m-%d")
     db2 = get_db()
@@ -708,10 +1027,9 @@ def _solve_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/solve")
+@router.post("/solve", dependencies=[Depends(require_manager)])
 async def solve_schedule(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _solve_impl, payload)
+    return await _run_s3_task(_solve_impl, payload)
 
 
 
@@ -727,7 +1045,7 @@ def _date_str(v):
 # ======================================================================
 # POST /s3/swap -- Same-role only, cross-date supported
 # ======================================================================
-@router.post("/swap")
+@router.post("/swap", dependencies=[Depends(require_manager)])
 async def swap_employees(payload: dict):
     date = payload.get("date", "")
     time_slot = payload.get("time_slot", "")
@@ -783,6 +1101,12 @@ async def swap_employees(payload: dict):
 
     try:
         db = get_db()
+        _capture_schedule_change(
+            db,
+            all_shifts,
+            "swap",
+            f"{from_id} swapped with {to_id}",
+        )
         cur = db.cursor()
         cur.execute("START TRANSACTION")
         try:
@@ -858,13 +1182,13 @@ def _clear_all_sick_dates():
 # POST /s3/resync
 # ======================================================================
 def _resync_impl(payload: dict) -> dict:
-    start_date = payload.get("start_date", datetime.now().strftime("%Y-%m-%d"))
+    start_date = payload.get("start_date", operation_now().strftime("%Y-%m-%d"))
     if _is_past_date(start_date):
         return {"status": "error", "message": "Cannot modify past schedules. Select today or a future date."}
     num_days = min(payload.get("days", 7), 14)
     _clear_all_sick_dates()
     employees = load_employees()
-    results = _rebuild_from_employees(start_date, num_days, employees)
+    _rebuild_from_employees(start_date, num_days, employees, "resync")
     # Auto-replace sick employees after generation
     base = datetime.strptime(start_date, "%Y-%m-%d")
     db2 = get_db()
@@ -897,10 +1221,9 @@ def _resync_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/resync")
+@router.post("/resync", dependencies=[Depends(require_manager)])
 async def resync_schedule(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _resync_impl, payload)
+    return await _run_s3_task(_resync_impl, payload)
 
 
 # ======================================================================
@@ -914,6 +1237,14 @@ def _replace_sick_shifts(db, employee_id: str, date: str, role: str, employees: 
     if time_slot:
         query = query.eq("time_slot", time_slot)
     sick_shifts = query.execute()
+    if sick_shifts.data:
+        day_rows = q(db, "shift_schedule").select("*").eq("schedule_date", date).execute()
+        _capture_schedule_change(
+            db,
+            day_rows.data or [],
+            "sick_leave",
+            f"Sick leave recorded for {employee_id}",
+        )
     removed_slots = []
     for row in (sick_shifts.data or []):
         # Save original to sick_replacements for undo
@@ -926,7 +1257,7 @@ def _replace_sick_shifts(db, employee_id: str, date: str, role: str, employees: 
                 "role": row.get("role", role),
                 "demand_level": row.get("demand_level", "normal"),
                 "production_target": row.get("production_target"),
-                "replaced_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "replaced_at": operation_now().strftime("%Y-%m-%d %H:%M:%S"),
                 "replacement_employee_id": "",
                 "is_undone": 0,
             }).execute()
@@ -970,7 +1301,7 @@ def _replace_sick_shifts(db, employee_id: str, date: str, role: str, employees: 
 def _sick_impl(payload: dict) -> dict:
     employee_id = payload.get("employee_id", "")
     date = payload.get("date", "")
-    start_date = payload.get("start_date", date or datetime.now().strftime("%Y-%m-%d"))
+    start_date = payload.get("start_date", date or operation_now().strftime("%Y-%m-%d"))
     if not employee_id or not date:
         return {"status": "error", "message": "employee_id and date required"}
     if _is_past_date(date):
@@ -1009,10 +1340,9 @@ def _sick_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/sick")
+@router.post("/sick", dependencies=[Depends(require_manager)])
 async def mark_sick(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _sick_impl, payload)
+    return await _run_s3_task(_sick_impl, payload)
 
 
 # ======================================================================
@@ -1021,7 +1351,7 @@ async def mark_sick(payload: dict):
 def _unsick_impl(payload: dict) -> dict:
     employee_id = payload.get("employee_id", "")
     date = payload.get("date", "")
-    start_date = payload.get("start_date", date or datetime.now().strftime("%Y-%m-%d"))
+    start_date = payload.get("start_date", date or operation_now().strftime("%Y-%m-%d"))
     if not employee_id or not date:
         return {"status": "error", "message": "employee_id and date required"}
     if _is_past_date(date):
@@ -1033,6 +1363,14 @@ def _unsick_impl(payload: dict) -> dict:
     # Restore original shifts from sick_replacements
     try:
         replacements = q(db, "sick_replacements").select("*").eq("original_employee_id", employee_id).eq("schedule_date", date).eq("is_undone", 0).execute()
+        if replacements.data:
+            day_rows = q(db, "shift_schedule").select("*").eq("schedule_date", date).execute()
+            _capture_schedule_change(
+                db,
+                day_rows.data or [],
+                "sick_leave_removed",
+                f"Sick leave removed for {employee_id}",
+            )
         for rep in (replacements.data or []):
             rep_id = rep.get("replacement_employee_id", "")
             # Delete replacement shift
@@ -1077,16 +1415,15 @@ def _unsick_impl(payload: dict) -> dict:
     return _build_schedule_response(schedule_list)
 
 
-@router.post("/unsick")
+@router.post("/unsick", dependencies=[Depends(require_manager)])
 async def unmark_sick(payload: dict):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_s3_executor, _unsick_impl, payload)
+    return await _run_s3_task(_unsick_impl, payload)
 
 # ======================================================================
 # GET /s3/kpi -- Scheduling KPIs
 # ======================================================================
 
-@router.get("/kpi")
+@router.get("/kpi", dependencies=[Depends(require_manager)])
 async def get_kpi(
     start_date: str = Query(None),
     days: int = Query(7, ge=1, le=14),
@@ -1094,9 +1431,9 @@ async def get_kpi(
     """Compute coverage, fairness, and compliance KPIs for the schedule."""
     try:
         if not start_date:
-            start_date = (datetime.now() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+            start_date = (operation_now() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
         base = datetime.strptime(start_date, "%Y-%m-%d")
-        # Allow KPI queries for any date range (simulated timeline)
+        # Allow KPI queries across the retained historical date range.
         end_date = (base + timedelta(days=days - 1)).strftime("%Y-%m-%d")
 
         db = get_db()
@@ -1107,23 +1444,19 @@ async def get_kpi(
         rows = r.data if r.data else []
 
         if not rows:
-            n_working = sum(1 for i in range(days) if (base + timedelta(days=i)).weekday() != 0)
+            n_working = len(_open_schedule_dates(base, days))
             return {
                 "status": "ok",
                 "period": {"start": start_date, "end": end_date, "days": days, "working_days": n_working},
                 "summary": {"total_shifts": 0, "total_hours": 0, "avg_hours_per_emp": 0, "employees_scheduled": 0},
                 "coverage": [],
                 "fairness": {},
-                "compliance": {"violations": [], "all_pass": True},
+                "compliance": {"violations": [], "all_pass": None, "evaluated": False},
                 "message": "No schedule for this period. Run /s3/solve first.",
             }
 
-        # ---- working days (exclude Monday) ----
-        expected_dates = set()
-        for i in range(days):
-            d = base + timedelta(days=i)
-            if d.weekday() != 0:
-                expected_dates.add(d.strftime("%Y-%m-%d"))
+        # ---- open business days ----
+        expected_dates = _open_schedule_dates(base, days)
         n_working = len(expected_dates)
 
         # ---- Employee hours ----
@@ -1143,48 +1476,29 @@ async def get_kpi(
         # ---- Coverage (per-employee, real-time from schedule) ----
         coverage = []
         all_emps = load_employees()
-        # Check if anyone has unavailable_dates in this period
-        start_date_obj = base.date()
-        end_date_obj = (base + timedelta(days=days - 1)).date()
-        # Build per-employee coverage: Expected = baseline, Actual = current schedule
-        # Load baseline (original schedule) for expected shift counts
-        baseline_map = {}
-        baseline_path = _baseline_path(start_date)
-        if os.path.exists(baseline_path):
-            try:
-                with open(baseline_path) as f:
-                    bl = json.load(f)
-                for eid, edata in bl.get("employees", {}).items():
-                    baseline_map[eid] = edata.get("shifts", 0)
-            except Exception:
-                pass
+        schedule_dates = {
+            _schedule_date_text(row.get("schedule_date", ""))
+            for row in rows
+        }
+        baseline_map, baseline_complete = _load_schedule_baseline(
+            db,
+            start_date,
+            end_date,
+            schedule_dates,
+        )
         for e in all_emps:
             eid = e.id
             info = emp_hours.get(eid, {"shifts": 0})
             actual = info.get("shifts", 0)
             if actual < 0:
                 actual = 0
-            # Has unavailable dates this week? expected = baseline, rate shows gap
-            # Otherwise: expected = actual, rate always 100%
-            has_unavail = any(
-                start_date_obj <= datetime.strptime(d, "%Y-%m-%d").date() <= end_date_obj
-                for d in (e.unavailable_dates or [])
-            ) if e.unavailable_dates else False
-            baseline_shifts = baseline_map.get(eid, 0)
-            if has_unavail:
-                expected = baseline_shifts
-                rate = round(actual / expected * 100, 1) if expected > 0 else 0.0
-            else:
-                expected = actual
-                rate = 100.0
-            extra = max(0, actual - baseline_shifts)
+            baseline_shifts = baseline_map.get(eid, 0) if baseline_complete else None
+            coverage_values = _coverage_values(actual, baseline_shifts)
             coverage.append({
                 "employee": e.name,
                 "role": e.role,
                 "filled": actual,
-                "expected": expected,
-                "rate_pct": rate,
-                "extra_shifts": extra,
+                **coverage_values,
             })
 
         DUAL_ROLE_IDS = {'E005'}  # Ahmad baker+deputy  # Raj (barista+cashier), Ahmad (baker+deputy)
@@ -1211,23 +1525,7 @@ async def get_kpi(
                 }
 
         # ---- 4. Compliance ----
-        employees = load_employees()
-        emp_lookup = {e.id: e for e in employees}
-        violations = []
-
-        # Count high-demand days for hour relaxation (same logic as solver)
-        high_dates = set()
-        for row2 in rows:
-            if row2.get("demand_level") == "high":
-                d = row2["schedule_date"]
-                high_dates.add(d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d))
-        kpi_high_days = len(high_dates)
-
-        for eid, info in emp_hours.items():
-            emp = emp_lookup.get(eid)
-            if not emp:
-                continue
-
+        violations = _schedule_compliance_violations(rows, all_emps, days)
 
         total_hours = sum(info["hours"] for info in emp_hours.values())
         n_emps = len(emp_hours)
@@ -1245,6 +1543,7 @@ async def get_kpi(
             "compliance": {
                 "violations": violations,
                 "all_pass": len(violations) == 0,
+                "evaluated": True,
             },
             "summary": {
                 "total_shifts": len(rows),
@@ -1261,92 +1560,78 @@ async def get_kpi(
         return {"status": "error", "message": str(e)}
 
 # ======================================================================
-# GET /s3/prep_checklist -- Morning preparation checklist
-# ======================================================================
-@router.get("/prep_checklist")
-async def get_prep_checklist():
-    """Return Day-1 batches that still need to be moved from Fresh Area to Discount Area."""
-    db = get_db()
-    r = q(db, "batch_inventory").select("*").eq("freshness_status", "Day-1").gt("quantity", 0).execute()
-    items = []
-    for row in (r.data or []):
-        if row.get("sales_area", "Fresh Area") != "Day-1 Area":
-            items.append({
-                "batch_id": row.get("batch_id"),
-                "product_name": row.get("product_name"),
-                "quantity": row.get("quantity", 0),
-                "production_time": row.get("production_time", ""),
-                "action": "Move to Discount Area (cashier display cabinet)",
-            })
-    return {
-        "status": "ok",
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "items": items,
-        "acknowledged": False,
-    }
-
-
-# ======================================================================
-# POST /s3/prep_acknowledge -- Acknowledge preparation checklist complete
-# ======================================================================
-@router.post("/prep_acknowledge")
-async def acknowledge_prep():
-    """Mark all Day-1 batches as moved to Discount Area."""
-    db = get_db()
-    day1_batches = q(db, "batch_inventory").select("*").eq("freshness_status", "Day-1").gt("quantity", 0).execute()
-    updated = 0
-    for row in (day1_batches.data or []):
-        if row.get("sales_area", "Fresh Area") != "Day-1 Area":
-            q(db, "batch_inventory").update({"sales_area": "Day-1 Area"}).eq("batch_id", row["batch_id"]).execute()
-            updated += 1
-    return {
-        "status": "ok",
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "batches_updated": updated,
-        "message": f"Prep checklist acknowledged. {updated} batches moved to Discount Area.",
-    }
-
-
-
-# ======================================================================
 # S3 Production Scheduler endpoints (from s3_scheduling/scheduler.py)
 # ======================================================================
-@router.get("/plan/7day")
+def _load_day1_stock(breads, start_date):
+    day1_stock = {product_name: 0 for product_name in breads}
+    db = None
+    cursor = None
+    try:
+        selected_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        now = operation_now()
+        balance_time = (
+            now
+            if selected_date == now.date()
+            else datetime.combine(selected_date, datetime.min.time())
+        )
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT bi.product_name,
+                   COALESCE(SUM(
+                       CASE
+                           WHEN it.transaction_type = 'inflow'
+                               THEN ABS(it.quantity)
+                           WHEN it.transaction_type = 'outflow'
+                               THEN -ABS(it.quantity)
+                           ELSE 0
+                       END
+                   ), 0) AS units
+            FROM batch_inventory bi
+            JOIN products p ON p.product_name = bi.product_name
+            LEFT JOIN inventory_transactions it
+                   ON it.batch_id = bi.batch_id
+                  AND it.transaction_time < %s
+            WHERE p.category = 'bakery'
+              AND DATE(bi.production_time) = DATE(%s) - INTERVAL 1 DAY
+            GROUP BY bi.product_name
+            HAVING units > 0
+            """,
+            (
+                balance_time.strftime("%Y-%m-%d %H:%M:%S"),
+                start_date,
+            ),
+        )
+        for product_name, units in cursor.fetchall():
+            if product_name in day1_stock:
+                day1_stock[product_name] = int(units or 0)
+    except Exception:
+        logger.exception("Failed to load Day-1 batch inventory")
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if db is not None:
+            db.close()
+    return day1_stock
+
+
+@router.get("/plan/7day", dependencies=[Depends(require_manager)])
 async def get_7day_production_plan(date: str = None):
     """
     Forecasting Dashboard Panel 2: 7-day production plan grid.
     Uses real S2 quantile models for demand prediction.
     Query: GET /s3/plan/7day?date=2026-06-30
     """
-    import os as _os3, sys as _sys3, json as _json3
-    _base3 = _os3.path.dirname(_os3.path.dirname(_os3.path.abspath(__file__)))
-    if _base3 not in _sys3.path:
-        _sys3.path.insert(0, _base3)
     from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
-    import numpy as np
-    from datetime import datetime as _dt, timedelta as _td
+    from datetime import datetime as _dt
 
     if date is None:
         date = _dt.now().strftime("%Y-%m-%d")
-    start_dt = _dt.strptime(date, "%Y-%m-%d")
-    if start_dt.weekday() != 0:
-        start_dt -= _td(days=start_dt.weekday())
-    start_date = start_dt.strftime("%Y-%m-%d")
+    start_date = _dt.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
 
     s = Scheduler()
-    # Fetch real day-1 stock from products table
-    try:
-        stock_rows = q(get_db(), "products").select("product_name,stock_day1").eq("category", "bakery").execute()
-        day1_stock = {}
-        if stock_rows.data:
-            for row in stock_rows.data:
-                day1_stock[row["product_name"]] = int(row.get("stock_day1") or 0)
-        # Fill any missing breads with 0
-        for p in s.breads:
-            if p not in day1_stock:
-                day1_stock[p] = 0
-    except Exception:
-        day1_stock = {p: 0 for p in s.breads}
+    day1_stock = _load_day1_stock(s.breads, start_date)
     forecast = generate_7day_s2_forecast(start_date)
     result = s.generate_7day_plan(start_date, day1_stock, forecast)
     day1_stock_total = sum(day1_stock.values())
@@ -1369,41 +1654,21 @@ async def get_7day_production_plan(date: str = None):
     }
 
 
-@router.get("/materials")
+@router.get("/materials", dependencies=[Depends(require_manager)])
 async def get_materials_procurement(date: str = None):
     """
     Forecasting Dashboard Panel 3: Raw material procurement list.
     Query: GET /s3/materials?date=2026-06-30
     """
-    import os as _os4, sys as _sys4
-    _base4 = _os4.path.dirname(_os4.path.dirname(_os4.path.abspath(__file__)))
-    if _base4 not in _sys4.path:
-        _sys4.path.insert(0, _base4)
     from s3_scheduling.scheduler import Scheduler, generate_7day_s2_forecast
-    import numpy as np
-    from datetime import datetime as _dt2, timedelta as _td2
+    from datetime import datetime as _dt2
 
     if date is None:
         date = _dt2.now().strftime("%Y-%m-%d")
-    start_dt = _dt2.strptime(date, "%Y-%m-%d")
-    if start_dt.weekday() != 0:
-        start_dt -= _td2(days=start_dt.weekday())
-    start_date = start_dt.strftime("%Y-%m-%d")
+    start_date = _dt2.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
 
     s = Scheduler()
-    # Fetch real day-1 stock from products table
-    try:
-        stock_rows = q(get_db(), "products").select("product_name,stock_day1").eq("category", "bakery").execute()
-        day1_stock = {}
-        if stock_rows.data:
-            for row in stock_rows.data:
-                day1_stock[row["product_name"]] = int(row.get("stock_day1") or 0)
-        # Fill any missing breads with 0
-        for p in s.breads:
-            if p not in day1_stock:
-                day1_stock[p] = 0
-    except Exception:
-        day1_stock = {p: 0 for p in s.breads}
+    day1_stock = _load_day1_stock(s.breads, start_date)
     forecast = generate_7day_s2_forecast(start_date)
     result = s.generate_7day_plan(start_date, day1_stock, forecast)
 
@@ -1412,35 +1677,6 @@ async def get_materials_procurement(date: str = None):
         "generated_at": _dt2.now().isoformat(),
         "dashboard_materials": result["dashboard_materials"],
     }
-
-
-@router.get("/eval")
-async def get_paper_evaluation():
-    """
-    Paper evaluation: S3 on test set with real lag features.
-    Query: GET /s3/eval
-    Note: Takes ~30 seconds, caches result for subsequent calls.
-    """
-    import os as _os5, sys as _sys5, json as _json5
-    _base5 = _os5.path.dirname(_os5.path.dirname(_os5.path.abspath(__file__)))
-    if _base5 not in _sys5.path:
-        _sys5.path.insert(0, _base5)
-
-    _eval_cache = _os5.path.join(_base5, "s3_scheduling", "outputs", "paper_eval.json")
-
-    # Return cached result if available
-    if _os5.path.exists(_eval_cache):
-        with open(_eval_cache, "r") as f:
-            cached = _json5.load(f)
-        return {"status": "ok", "cached": True, **cached}
-
-    # Run fresh evaluation
-    from s3_scheduling.scheduler import run_paper_evaluation
-    result = run_paper_evaluation(save_path=_eval_cache)
-    if result is None:
-        return {"status": "error", "message": "Evaluation failed. Check S2 models."}
-    return {"status": "ok", "cached": False, **result}
-
 
 # ======================================================================
 # KPI Attendance endpoints
@@ -1457,45 +1693,97 @@ def _get_attendance():
     return _attendance_system
 
 
-@router.get("/attendance")
+def _attendance_summary(employees):
+    attended_statuses = {
+        "on_time",
+        "late",
+        "early_leave",
+        "late_and_early_leave",
+        "present",
+    }
+    return {
+        "total": len(employees),
+        "present": sum(row["status"] in attended_statuses for row in employees),
+        "absent": sum(row["status"] == "absent" for row in employees),
+        "late": sum(
+            row["status"] in {"late", "late_and_early_leave"}
+            for row in employees
+        ),
+        "early_leave": sum(
+            row["status"] in {"early_leave", "late_and_early_leave"}
+            for row in employees
+        ),
+        "scheduled": sum(row["status"] == "scheduled" for row in employees),
+    }
+
+
+def _attach_attendance_metrics(employees, metrics):
+    metric_fields = (
+        "scheduled_days",
+        "attended_days",
+        "attendance_rate",
+        "attendance_display",
+        "punctuality_rate",
+        "shift_completion_rate",
+        "late_count",
+        "early_leave_count",
+        "absent_days",
+    )
+    result = []
+    for employee in employees:
+        row = dict(employee)
+        employee_metrics = metrics.get(employee["id"], {})
+        for field in metric_fields:
+            if field in employee_metrics:
+                row[field] = employee_metrics[field]
+        result.append(row)
+    return result
+
+
+@router.get("/attendance", dependencies=[Depends(require_manager)])
 async def get_attendance_dashboard(date: str = ""):
-    """Shift+KPI Dashboard Panel 1: Today attendance + weekly grid + monthly summary.
+    """Return schedule-based attendance and month-to-date employee metrics.
     If date is provided and not today, returns historical attendance for that date."""
     att = _get_attendance()
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    selected_time = operation_now()
+    today_str = selected_time.strftime("%Y-%m-%d")
     target_date = date if date else today_str
 
-    # Try to get schedule for the target date
     schedule = []
     try:
-        sched_resp = await get_schedule(date=target_date, days=7)
+        sched_resp = await get_schedule(date=target_date, days=1)
         schedule = sched_resp.get("schedule", [])
     except Exception:
         pass
 
-    result = att.dashboard_format()
-
-    # If requesting a historical date, use get_date_attendance
     if date and date != today_str:
         employees = att.get_date_attendance(date, schedule)
-        result["today_attendance"] = {
-            "date": date,
-            "employees": employees,
-        }
+        selected = datetime.strptime(date, "%Y-%m-%d")
+        period_end = selected + timedelta(days=1, seconds=-1)
     else:
-        result["today_attendance"] = {
-            "date": today_str,
-            "employees": att.get_today_attendance(schedule),
-        }
+        employees = att.get_today_attendance(schedule)
+        selected = datetime.strptime(today_str, "%Y-%m-%d")
+        period_end = selected_time
 
-    result["today_attendance"]["total"] = len(result["today_attendance"]["employees"])
-    result["today_attendance"]["present"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] in ("on_time", "late", "present"))
-    result["today_attendance"]["absent"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] == "absent")
-    result["today_attendance"]["late"] = sum(1 for e in result["today_attendance"]["employees"] if e["status"] == "late")
-    return {"status": "ok", **result}
+    metrics = att.get_monthly_metrics(
+        selected.year,
+        selected.month,
+        period_end=period_end,
+    )
+    employees = _attach_attendance_metrics(employees, metrics)
+    summary = _attendance_summary(employees)
+    return {
+        "status": "ok",
+        "today_attendance": {
+            "date": target_date,
+            "employees": employees,
+            **summary,
+        },
+        "monthly_summary": metrics,
+    }
 
 
-@router.post("/attendance/punch")
+@router.post("/attendance/punch", dependencies=[Depends(get_current_user)])
 async def punch_attendance(emp_id: str = "", pin: str = ""):
     """Record a punch-in or punch-out for an employee."""
     global _kpi_cache
@@ -1506,13 +1794,100 @@ async def punch_attendance(emp_id: str = "", pin: str = ""):
     return {"status": "ok" if success else "error", "message": msg, "record": record}
 
 
+@router.get("/attendance/self")
+async def get_staff_attendance_status(
+    emp_id: str = "",
+    user=Depends(get_current_user),
+):
+    """Return the selected employee's attendance snapshot for the business date."""
+    employee_id = str(emp_id or "").strip()
+    selected_time = operation_now()
+    today_str = selected_time.strftime("%Y-%m-%d")
+    if not employee_id:
+        return {
+            "status": "error",
+            "message": "Employee ID is required",
+            "date": today_str,
+        }
+
+    db = get_db()
+    try:
+        employee_result = (
+            q(db, "employees")
+            .select("id,name,role,available")
+            .eq("id", employee_id)
+            .execute()
+        )
+        if not employee_result.data:
+            return {
+                "status": "error",
+                "message": f"Employee {employee_id} not found",
+                "date": today_str,
+            }
+        employee = employee_result.data[0]
+    finally:
+        db.close()
+
+    try:
+        schedule_response = await get_schedule(date=today_str, days=1)
+        schedule = [
+            row
+            for row in schedule_response.get("schedule", [])
+            if row.get("employee_id") == employee_id
+        ]
+    except Exception:
+        schedule = []
+
+    attendance_rows = _get_attendance().get_today_attendance(schedule)
+    attendance = attendance_rows[0] if attendance_rows else None
+    if attendance and attendance.get("punch_out"):
+        next_action = "complete"
+    elif attendance and attendance.get("punch_in"):
+        next_action = "punch_out"
+    elif attendance:
+        next_action = "punch_in"
+    else:
+        next_action = "none"
+
+    return {
+        "status": "ok",
+        "account": user.get("sub", ""),
+        "date": today_str,
+        "employee": {
+            "id": employee.get("id"),
+            "name": employee.get("name"),
+            "role": employee.get("role"),
+        },
+        "attendance": attendance,
+        "next_action": next_action,
+    }
+
+
+@router.post("/attendance/correct")
+async def correct_attendance(payload: dict, user=Depends(require_manager)):
+    """Correct a scheduled attendance record with manager audit metadata."""
+    global _kpi_cache
+    att = _get_attendance()
+    success, msg, record = att.correct_punch(
+        payload.get("employee_id", ""),
+        payload.get("date", ""),
+        payload.get("punch_in", ""),
+        payload.get("punch_out", ""),
+        payload.get("reason", ""),
+        user.get("sub", "manager"),
+    )
+    if success:
+        _kpi_cache = None
+    return {"status": "ok" if success else "error", "message": msg, "record": record}
+
+
 # ======================================================================
 
-@router.get("/attendance/history")
+@router.get("/attendance/history", dependencies=[Depends(require_manager)])
 async def get_attendance_history(date: str = ""):
     """Get attendance for a specific historical date."""
     if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = operation_now().strftime("%Y-%m-%d")
     att = _get_attendance()
     schedule = []
     try:
@@ -1521,17 +1896,21 @@ async def get_attendance_history(date: str = ""):
     except Exception:
         pass
     employees = att.get_date_attendance(date, schedule)
-    present = sum(1 for e in employees if e["status"] in ("on_time", "late", "present"))
-    absent = sum(1 for e in employees if e["status"] == "absent")
-    late = sum(1 for e in employees if e["status"] == "late")
+    selected = datetime.strptime(date, "%Y-%m-%d")
+    period_end = selected + timedelta(days=1, seconds=-1)
+    metrics = att.get_monthly_metrics(
+        selected.year,
+        selected.month,
+        period_end=period_end,
+    )
+    employees = _attach_attendance_metrics(employees, metrics)
+    summary = _attendance_summary(employees)
     return {
         "status": "ok",
         "date": date,
-        "total": len(employees),
-        "present": present,
-        "absent": absent,
-        "late": late,
         "employees": employees,
+        "monthly_summary": metrics,
+        **summary,
     }
 
 # KPI Ranking endpoint (Z-Score + BSC + Cross-Role)
@@ -1540,18 +1919,13 @@ async def get_attendance_history(date: str = ""):
 import numpy as _np_kpi
 _kpi_cache = None
 
-@router.get("/kpi/ranking")
+@router.get("/kpi/ranking", dependencies=[Depends(require_manager)])
 async def get_kpi_ranking(month: str = ""):
     """Shift+KPI Dashboard Panel 3: Cross-role KPI ranking with Z-Score + BSC."""
     global _kpi_cache
     cache_key = month if month else "current"
     if _kpi_cache and _kpi_cache.get("cache_key") == cache_key:
         return {"status": "ok", "cached": True, "data": _kpi_cache["data"]}
-
-    import sys as _sys_kpi, os as _os_kpi
-    _base_kpi = _os_kpi.path.dirname(_os_kpi.path.dirname(_os_kpi.path.abspath(__file__)))
-    if _base_kpi not in _sys_kpi.path:
-        _sys_kpi.path.insert(0, _base_kpi)
 
     from kpi.calculator import KPICalculator
     from kpi.collector import KPIDataCollector

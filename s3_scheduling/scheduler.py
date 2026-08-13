@@ -24,29 +24,29 @@ Formulation:
             all vars >= 0, integer
 
 Usage:
-  python s3_scheduling/scheduler.py                    # demo with sample data
-  python s3_scheduling/scheduler.py --full             # full 30-product solve
-  python s3_scheduling/scheduler.py --save plan.json   # save to file
+  python s3_scheduling/scheduler.py --7day --date 2026-06-30 --save plan.json
+  python s3_scheduling/scheduler.py --eval --save paper_eval.json
 """
 
-import os, sys, json, argparse
+import argparse
+import json
+import logging
+import os as _os
+import sys
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-import os as _os, sys as _sys
-_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 from ortools.sat.python import cp_model
+from s2_forecasting.feature_contract import FORECAST_FEATURES
 
 # ============================================================
 # CONFIG
 # ============================================================
-import os as _os
 _BASE_DIR = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 DATA_DIR = _os.path.join(_BASE_DIR, "data")
 OUT_DIR = _os.path.join(_BASE_DIR, "s3_scheduling", "outputs")
 _os.makedirs(OUT_DIR, exist_ok=True)
-
-RAW_CSV = _os.path.join(DATA_DIR, "bakery_sales_raw.csv")
 
 BREAD_CAPACITY = 800
 DRINK_CAPACITY = 300
@@ -82,32 +82,7 @@ def load_products():
             "price": round(price, 2),
             "is_drink": category == "beverage",
         }
-    # Fill any missing breads from DRINK_NAMES
-    for drink in DRINK_NAMES:
-        if drink not in result:
-            result[drink] = {"price": 12.0, "is_drink": True}
     return result
-
-
-def load_s2_predictions(date_str=None):
-    """
-    Load S2 XGBoost quantile predictions for a given date.
-
-    Uses the trained quantile models from s2_forecasting/outputs/.
-    Falls back to sampling from training data if models unavailable.
-
-    Returns: {product_name: {"q10": int, "q50": int, "q90": int}}
-    """
-    if date_str is None:
-        date_str = datetime.now().strftime("%Y-%m-%d")
-
-    # Try real S2 models first
-    preds = _predict_from_api(date_str)
-    if preds:
-        return preds
-
-    # Fallback: sample from training data
-    return _predict_from_training(date_str)
 
 
 def generate_7day_s2_forecast(start_date):
@@ -120,11 +95,36 @@ def generate_7day_s2_forecast(start_date):
     Returns:
         dict {date: {product_name: {"q50": int, "lower": int, "upper": int}}}
     """
+    from api.module2_forecast import _do_forecast
+
     d0 = datetime.strptime(start_date, "%Y-%m-%d")
-    forecast = {}
-    for i in range(7):
-        ds = (d0 + timedelta(days=i)).strftime("%Y-%m-%d")
-        forecast[ds] = load_s2_predictions(ds)
+    forecast = {
+        (d0 + timedelta(days=offset)).strftime("%Y-%m-%d"): {}
+        for offset in range(7)
+    }
+    try:
+        response = _do_forecast(None, 7, True, start_date)
+    except Exception as exc:
+        raise RuntimeError("S2 forecast generation failed") from exc
+
+    rows = response.get("forecasts", []) if response.get("status") == "ok" else []
+    if not rows:
+        raise RuntimeError("S2 forecast returned no rows")
+
+    for row in rows:
+        forecast_date = str(row.get("forecast_date", ""))
+        product_name = str(row.get("product_name", ""))
+        if forecast_date not in forecast or not product_name:
+            continue
+        forecast[forecast_date][product_name] = {
+            "q10": int(row.get("lower_bound", 0) or 0),
+            "q50": int(row.get("predicted_demand", 0) or 0),
+            "q90": int(row.get("upper_bound", 0) or 0),
+        }
+
+    missing_dates = [date for date, products in forecast.items() if not products]
+    if missing_dates:
+        raise RuntimeError("S2 forecast missing dates: " + ", ".join(missing_dates))
     return forecast
 
 
@@ -149,152 +149,21 @@ def _init_s2_models():
     if not all(_os.path.exists(p) for p in [_MODEL_Q10, _MODEL_Q50, _MODEL_Q90]):
         return False
 
-    _S2_MODELS = {
-        "q10": _pk.load(open(_MODEL_Q10, "rb")),
-        "q50": _pk.load(open(_MODEL_Q50, "rb")),
-        "q90": _pk.load(open(_MODEL_Q90, "rb")),
-    }
-
-    # Build product mapping + weather means from training data
-    _TRAIN_CSV = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "data", "xgboost_train.csv")
-    train = pd.read_csv(_TRAIN_CSV)
-    train["date"] = pd.to_datetime(train["date"])
-
-    # Product name mapping
-    _RAW = pd.read_csv(RAW_CSV)
-    id_name = _RAW[["product_id", "product_name"]].drop_duplicates()
-    _S2_META = {
-        "pid_to_name": dict(zip(id_name["product_id"], id_name["product_name"])),
-        "name_to_pid": dict(zip(id_name["product_name"], id_name["product_id"])),
-        "weather_monthly": train.groupby("month")[["temp_mean", "temp_range", "is_cold_day", "is_hot_day"]].mean().to_dict("index"),
-        "last_day": train[train["date"] == train["date"].max()][["product_id", "category", "daily_tickets", "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7", "quantity"]].copy(),
-        "feature_cols": ["product_id", "category", "daily_tickets", "day_of_week", "month", "is_weekend", "is_holiday", "lag_1", "lag_7_avg", "lag_30_avg", "roll_std_7", "roll_std_14", "trend_7", "is_day1", "is_top3", "discount_pct", "is_member_day", "is_rainy", "temp_mean", "temp_range", "is_cold_day", "is_hot_day", "large_ratio", "cold_ratio", "sweetness_avg", "ice_avg", "temp_hot_ratio"],
-    }
+    with open(_MODEL_Q10, "rb") as model_file:
+        q10_model = _pk.load(model_file)
+    with open(_MODEL_Q50, "rb") as model_file:
+        q50_model = _pk.load(model_file)
+    with open(_MODEL_Q90, "rb") as model_file:
+        q90_model = _pk.load(model_file)
+    _S2_MODELS = {"q10": q10_model, "q50": q50_model, "q90": q90_model}
+    _S2_META = {"feature_cols": list(FORECAST_FEATURES)}
     return True
-
-
-def _predict_from_models(date_str):
-    """Generate predictions using trained XGBoost quantile models."""
-    if not _init_s2_models():
-        return None
-
-    dt = pd.Timestamp(date_str)
-    m = dt.month
-    w = dt.weekday()
-    wm = _S2_META["weather_monthly"].get(m)
-    if wm is None:
-        return None
-
-    # Build feature rows for all product_ids
-    rows = []
-    product_ids = sorted(_S2_META["last_day"]["product_id"].unique())
-    for pid in product_ids:
-        ld = _S2_META["last_day"][_S2_META["last_day"]["product_id"] == pid]
-        if len(ld) > 0:
-            l1 = ld["quantity"].values[0]
-            l7 = ld["lag_7_avg"].values[0]
-            l30 = ld["lag_30_avg"].values[0]
-        else:
-            l1 = l7 = l30 = 0
-
-        rows.append({
-            "product_id": pid,
-            "temp_mean": wm.get("temp_mean", 20),
-            "temp_range": wm.get("temp_range", 0),
-            "is_cold_day": wm.get("is_cold_day", 0),
-            "is_hot_day": wm.get("is_hot_day", 0),
-            
-            "day_of_week": w,
-            "month": m,
-            "is_weekend": 1 if w >= 5 else 0,
-            "is_holiday": 0,
-            "lag_1": l1,
-            "lag_7_avg": l7,
-            "lag_30_avg": l30,
-        })
-
-    X = pd.DataFrame(rows)[_S2_META["feature_cols"]]
-
-    predictions = {}
-    for pid in product_ids:
-        name = _S2_META["pid_to_name"].get(pid, str(pid))
-        row = X[X["product_id"] == pid]
-        q10_val = max(0, int(round(_S2_MODELS["q10"].predict(row)[0])))
-        q50_val = max(0, int(round(_S2_MODELS["q50"].predict(row)[0])))
-        q90_val = max(0, int(round(_S2_MODELS["q90"].predict(row)[0])))
-        predictions[name] = {"q10": q10_val, "q50": q50_val, "q90": q90_val}
-
-    return predictions
-
-
-def _predict_from_api(date_str):
-    """Get S2 predictions by importing the forecast module directly."""
-    try:
-        import sys as _sys
-        _base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-        if _base not in _sys.path:
-            _sys.path.insert(0, _base)
-        from api.module2_forecast import _do_forecast
-        from datetime import datetime as _dt
-        data = _do_forecast(None, 1, False, date_str)
-        if data.get("status") != "ok":
-            return None
-        result = {}
-        for f in data.get("forecasts", []):
-            result[f["product_name"]] = {
-                "q50": f["predicted_demand"],
-                "q10": f["lower_bound"],
-                "q90": f["upper_bound"],
-            }
-        return result if result else None
-    except Exception:
-        return None
-
-def _predict_from_training(date_str):
-    """Fallback: sample predictions from historical training data."""
-    train = pd.read_csv(_os.path.join(DATA_DIR, "xgboost_train.csv"))
-    train["date"] = pd.to_datetime(train["date"])
-    target_date = pd.Timestamp(date_str)
-
-    mask = (train["date"].dt.month.isin([
-        max(1, target_date.month - 1),
-        target_date.month,
-        min(12, target_date.month + 1)
-    ]))
-    subset = train[mask]
-
-    # Build product name mapping
-    try:
-        _RAW2 = pd.read_csv(RAW_CSV)
-        all_products2 = sorted(_RAW2["product_name"].unique())
-        pid2name = {i: p for i, p in enumerate(all_products2)}
-    except Exception:
-        pid2name = {}
-
-    predictions = {}
-    for pid in sorted(subset["product_id"].unique()):
-        sub = subset[subset["product_id"] == pid]
-        if len(sub) < 5:
-            continue
-        vals = sub["quantity"].values
-        name = pid2name.get(pid, str(pid))
-        predictions[name] = {
-            "q10": int(np.percentile(vals, 10)),
-            "q50": int(np.percentile(vals, 50)),
-            "q90": int(np.percentile(vals, 90)),
-        }
-
-    return predictions
 
 
 # ============================================================
 # RAW MATERIAL ESTIMATION
 # ============================================================
 # Loads recipes from MySQL product_recipes table
-# Derives secondary materials (baking powder, salt, yeast) from flour ratio
-
-# Cake products (use Cake Flour instead of Bread Flour)
-_CAKE_PRODUCTS = {"chiffon", "chocolate_cake", "brownie", "chocopie", "tiramisu", "muffin"}
 
 def load_recipe_from_db(product_name):
     """Query product_recipes table for a single product's materials (kg/pcs/L per unit)."""
@@ -309,23 +178,15 @@ def load_recipe_from_db(product_name):
         rows = cur.fetchall()
         cur.close()
         return {r[0]: float(r[1]) for r in rows} if rows else {}
-    except Exception as e:
-        # Fallback: empty recipe (product will be skipped)
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to load recipe for %s", product_name)
         return {}
 
-def estimate_raw_materials(bake_plan, products):
+def estimate_raw_materials(bake_plan):
     """
     Estimate raw material needs from a bake plan using DB product_recipes.
 
     Returns dict: {material_name: total_kg_or_pcs}
-
-    Secondary materials (not in product_recipes) derived from flour:
-      - Baking Powder: 2% of total flour weight
-      - Salt: 1.5% of total flour weight
-      - Yeast: 1% of total flour weight
-
-    Cake products (chiffon, chocolate_cake, brownie, chocopie, muffins)
-    use Cake Flour instead of Bread Flour for the flour component.
     """
     materials = {}  # material_name -> total (kg for dry, L for liquid, pcs for items)
 
@@ -340,20 +201,6 @@ def estimate_raw_materials(bake_plan, products):
         for mat_name, qty_per_unit in recipe.items():
             total = quantity * qty_per_unit
             materials[mat_name] = materials.get(mat_name, 0) + total
-
-    # Derive secondary materials from total flour
-    bread_flour = materials.get("Bread Flour", 0)
-    cake_flour = materials.get("Cake Flour", 0)
-    total_flour = bread_flour + cake_flour
-
-    if total_flour > 0:
-        materials["Baking Powder"] = round(total_flour * 0.02, 3)
-        materials["Salt"] = round(total_flour * 0.015, 3)
-        materials["Yeast"] = round(total_flour * 0.01, 3)
-
-    # For cake products, flour should be Cake Flour not Bread Flour
-    # (product_recipes already has the right material_name from DB)
-    # We keep both columns for dashboard display
 
     # Round all values
     return {k: round(v, 3) for k, v in materials.items() if v > 0}
@@ -451,7 +298,7 @@ class Scheduler:
         result["profit"] = round(result["profit"], 2)
         result["revenue"] = round(result["revenue"], 2)
         result["capacity_used_pct"] = round(result["total_bake"] / capacity * 100, 1)
-        result["materials"] = estimate_raw_materials(result["bake_plan"], self.products)
+        result["materials"] = estimate_raw_materials(result["bake_plan"])
         return result
 
     def solve_scenarios(self, day1_stock, q10, q50, q90, capacity=None):
@@ -616,11 +463,6 @@ class Scheduler:
                     q50_demand[p] = max(0, int(raw_q50 * DEMAND_BUFFER))
                     q10_demand[p] = max(0, int(pred.get("q10", raw_q50) * DEMAND_BUFFER))
                     q90_demand[p] = max(0, int(pred.get("q90", raw_q50) * DEMAND_BUFFER))
-            else:
-                for p in self.breads:
-                    q50_demand[p] = 10
-                    q10_demand[p] = 5
-                    q90_demand[p] = 16
             result = self.solve_scenarios(stock, q10_demand, q50_demand, q90_demand)
             plans.append({"date": date_str, **result})
             next_stock = {}
@@ -643,6 +485,7 @@ class Scheduler:
         """Aggregate 7 daily plans into a weekly summary."""
         agg = {
             "total_bake": 0, "total_profit": 0.0, "total_revenue": 0.0,
+            "profit_definition": "after_waste_and_shortage_risk_allowances",
             "total_waste": 0, "total_shortage": 0, "total_sales": 0,
             "daily_profits": [],
             "scenarios": {"q10": {"profit": 0, "waste": 0, "shortage": 0},
@@ -701,23 +544,45 @@ class Scheduler:
     def dashboard_format_materials(self, weekly_summary, plans=None, forecast=None):
         """Format for Forecasting Dashboard Panel 3: Raw Material Procurement."""
         # Fetch real stock from database
-        # Fetch real stock from database
         db_stock = {}
+        untracked_materials = set()
+        stock_data_available = False
+        db = None
         try:
             from db.mysql_client import get_db, q
             db = get_db()
-            rows = q(db, "raw_materials").select("material_name, stock_quantity, unit").execute()
+            rows = (
+                q(db, "raw_materials")
+                .select("material_name, stock_quantity, unit, track_inventory")
+                .execute()
+            )
             if rows.data:
                 for r in rows.data:
+                    if not bool(r.get("track_inventory", True)):
+                        untracked_materials.add(r["material_name"])
+                        continue
                     db_stock[r["material_name"]] = {
                         "qty": float(r["stock_quantity"] or 0),
                         "unit": r.get("unit", "kg"),
                     }
+                stock_data_available = True
         except Exception as e:
             logger = logging.getLogger(__name__)
             logger.warning("dashboard_format_materials: DB query failed: %s", e)
+        finally:
+            if db is not None:
+                db.close()
 
         DEFAULT_WASTE = 0.05
+        if not stock_data_available:
+            return {
+                "week": f"{weekly_summary.get('week_start', '-')} ~ {weekly_summary.get('week_end', '-')}",
+                "waste_rate_default": DEFAULT_WASTE,
+                "stock_data_available": False,
+                "error": "raw_material_stock_unavailable",
+                "items": {},
+            }
+
         # Materials now use DB names directly (kg for dry/liquid, pcs for items)
         agg = {}
         for mat_name, weekly_need in weekly_summary.get("materials", {}).items():
@@ -752,6 +617,8 @@ class Scheduler:
 
         procurement = {}
         for db_name, a in agg.items():
+            if db_name in untracked_materials:
+                continue
             weekly_need_db = round(a["weekly_need"], 2)
             info = db_stock.get(db_name, {"qty": 0, "unit": "kg"})
             stock_db_units = info["qty"]
@@ -779,6 +646,7 @@ class Scheduler:
         return {
             "week": f"{weekly_summary.get('week_start', '-')} ~ {weekly_summary.get('week_end', '-')}",
             "waste_rate_default": DEFAULT_WASTE,
+            "stock_data_available": True,
             "items": procurement,
         }
 
@@ -787,7 +655,7 @@ def run_paper_evaluation(save_path=None):
     """
     Paper experiment mode: evaluate S3 scheduler on test set with real lag features.
 
-    Uses S2 8/1/1 split test period (2023-07-01 to 2023-12-31).
+    Uses the test period defined by the current S2 preprocessing outputs.
     For each 7-day window:
       1. S2 models predict demand using real lag features from test data
       2. S3 scheduler generates bake plan
@@ -810,8 +678,6 @@ def run_paper_evaluation(save_path=None):
     raw = pd.read_csv(_EVAL_META_CSV)
     id_name = raw[["product_id", "product_name"]].drop_duplicates()
     pid_to_name = dict(zip(id_name["product_id"], id_name["product_name"]))
-    name_to_pid = dict(zip(id_name["product_name"], id_name["product_id"]))
-
     # Load S2 models
     if not _init_s2_models():
         print("S2 models not available. Cannot run evaluation.")
@@ -870,7 +736,7 @@ def run_paper_evaluation(save_path=None):
                 pid = int(row["product_id"])
                 name = pid_to_name.get(pid, str(pid))
 
-                                # Build feature row with real lag values from test data
+                # Build feature row with real lag values from test data
                 row_df = pd.DataFrame([{
                     "product_id": pid,
                     "category": row.get("category", 1),
@@ -1105,7 +971,7 @@ def run_paper_evaluation(save_path=None):
         save_dir = _os.path.dirname(save_path)
         if save_dir:
             _os.makedirs(save_dir, exist_ok=True)
-        with open(save_path, "w") as f:
+        with open(save_path, "w", encoding="utf-8") as f:
             json.dump(eval_report, f, indent=2, default=str)
         print(f"\n  Saved to {save_path}")
 
@@ -1115,7 +981,6 @@ def run_paper_evaluation(save_path=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="S3 CP-SAT Production Scheduler")
-    parser.add_argument("--full", action="store_true", help="Solve for all 30 bread products")
     parser.add_argument("--7day", action="store_true", help="Run 7-day rolling plan with dashboard output")
     parser.add_argument("--eval", action="store_true", help="Paper evaluation mode: test set with real lag features")
     parser.add_argument("--save", type=str, help="Save result to JSON file")
@@ -1138,9 +1003,9 @@ if __name__ == "__main__":
             start_date = start_dt.strftime("%Y-%m-%d")
             print(f"Adjusted to Monday: {start_date}")
 
-        day1_stock = {p: np.random.randint(0, 5) for p in s.breads}
+        day1_stock = {p: 0 for p in s.breads}
         forecast = generate_7day_s2_forecast(start_date)
-        print(f"Using real S2 quantile models for demand forecast")
+        print("Using real S2 quantile models for demand forecast")
 
         result = s.generate_7day_plan(start_date, day1_stock, forecast)
         ws = result["weekly_summary"]
@@ -1149,24 +1014,24 @@ if __name__ == "__main__":
         print(f"  7-Day Rolling Plan: {start_date} ~ {result['dashboard_7day']['week_end']}")
         print(f"  Buffer applied: {DEMAND_BUFFER}x demand")
         print("=" * 60)
-        print(f"\n  Weekly Summary:")
+        print("\n  Weekly Summary:")
         print(f"    Total bake:    {ws['total_bake']:>5d} units")
         print(f"    Total profit:  CNY {ws['total_profit']:>10,.2f}")
         print(f"    Total revenue: CNY {ws['total_revenue']:>10,.2f}")
         print(f"    Total waste:   {ws['total_waste']:>5d} units")
         print(f"    Total shortage:{ws['total_shortage']:>5d} units")
 
-        print(f"\n  Scenario Analysis:")
+        print("\n  Scenario Analysis:")
         for scen in SCENARIO_LABELS:
             sc = ws["scenarios"][scen]
             print(f"    {scen.upper()}: profit CNY {sc['profit']:>10,.2f}  waste {sc['waste']:4d}  shortage {sc['shortage']:4d}")
 
-        print(f"\n  Daily Breakdown:")
+        print("\n  Daily Breakdown:")
         for plan in result["plans"]:
             p = plan
             print(f"    {p['date']}: bake {p['total_bake']:3d} ({p['capacity_used_pct']:5.1f}%)  profit CNY {p['profit']:>8,.2f}")
 
-        print(f"\n  Top 10 Products (weekly bake):")
+        print("\n  Top 10 Products (weekly bake):")
         for p, q in ws["top_products"]:
             print(f"    {p:30s}: {q:4d}")
 
@@ -1182,71 +1047,10 @@ if __name__ == "__main__":
             save_dir = _os.path.dirname(args.save)
             if save_dir:
                 _os.makedirs(save_dir, exist_ok=True)
-            with open(args.save, "w") as f:
+            with open(args.save, "w", encoding="utf-8") as f:
                 json.dump(output, f, indent=2, default=str)
             print(f"\n  Saved to {args.save}")
 
-    elif args.full:
-        # Full 30-product solve with synthetic stock/demand
-        day1_stock = {}
-        demand = {}
-        for p in s.breads:
-            day1_stock[p] = np.random.randint(0, 5)
-            demand[p] = np.random.randint(5, 40)
-        
-        q10 = {p: max(0, demand[p] - np.random.randint(3, 8)) for p in demand}
-        q90 = {p: demand[p] + np.random.randint(3, 12) for p in demand}
-        
-        result = s.solve_scenarios(day1_stock, q10, demand, q90)
     else:
-        # Demo with 6 products
-        day1_stock = {
-            "croissant": 3, "baguette": 1, "donut": 0,
-            "sourdough": 0, "croissant_chocolate": 2, "bread_roll": 5,
-        }
-        q50 = {
-            "croissant": 22, "baguette": 5, "donut": 15,
-            "sourdough": 4, "croissant_chocolate": 18, "bread_roll": 20,
-        }
-        q10 = {p: max(0, int(v * 0.55)) for p, v in q50.items()}
-        q90 = {p: int(v * 1.55) for p, v in q50.items()}
-        
-        result = s.solve_scenarios(day1_stock, q10, q50, q90)
-
-    if not getattr(args, "7day", False) and not getattr(args, "eval", False):
-        print("=" * 60)
-        print(f"  Status: {result['status']}")
-        print(f"  Total bake: {result['total_bake']} / {BREAD_CAPACITY} ({result['capacity_used_pct']}%)")
-        print(f"  Expected profit: CNY {result['profit']:,.2f}")
-        print(f"  Expected revenue: CNY {result['revenue']:,.2f}")
-    
-        print(f"\n  Bake Plan (top 15 by quantity):")
-        sorted_plan = sorted(result["bake_plan"].items(), key=lambda x: -x[1])
-        for p, b in sorted_plan[:15]:
-            fs = result["fresh_sold"].get(p, 0)
-            ds = result["day1_sold"].get(p, 0)
-            w = result["waste"].get(p, 0)
-            sh = result["shortage"].get(p, 0)
-            print(f"    {p:25s}: bake {b:3d}  sell_fresh {fs:3d}  sell_d1 {ds:2d}  waste {w:2d}  short {sh:2d}")
-    
-        if "scenario_q10" in result:
-            print(f"\n  Scenario Analysis:")
-            for scen in ["scenario_q10", "scenario_q50", "scenario_q90"]:
-                sc = result.get(scen, {})
-                print(f"    {scen[-3:]}: profit CNY {sc['profit']:>8,.2f}  "
-                      f"waste {sc['waste_units']:3d}  shortage {sc['shortage_units']:3d}  "
-                      f"sales {sc['sales_units']:3d}")
-    
-        if result.get("materials"):
-            print(f"\n  Raw Materials Needed:")
-            for mat, amount in result["materials"].items():
-                print(f"    {mat:15s}: {amount:>8.1f}")
-
-        if args.save:
-            save_dir = _os.path.dirname(args.save)
-            if save_dir:
-                _os.makedirs(save_dir, exist_ok=True)
-            with open(args.save, "w") as f:
-                json.dump(result, f, indent=2, default=str)
-            print(f"\n  Saved to {args.save}")
+        parser.error("select either --7day or --eval")
 

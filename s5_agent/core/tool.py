@@ -1,5 +1,5 @@
-﻿# s5_agent/core/tool.py
-import asyncio, logging, time
+# s5_agent/core/tool.py
+import logging, time
 from typing import Dict, Any, Optional, Callable, List
 from dataclasses import dataclass, field
 
@@ -59,8 +59,7 @@ class ToolRegistry:
     def get(self, name: str) -> Optional[Tool]:
         return self._tools.get(name)
 
-    async def execute_with_fallback(self, tool_name: str, params: Dict,
-                                     llm_fallback_fn: Optional[Callable] = None) -> ToolResult:
+    async def execute_with_fallback(self, tool_name: str, params: Dict) -> ToolResult:
         tool = self._tools.get(tool_name)
         if not tool:
             return ToolResult(success=False, error=f"Tool {tool_name} not found")
@@ -74,11 +73,4 @@ class ToolRegistry:
                 if r.success:
                     r.fallback_used = True
                     return r
-        if llm_fallback_fn:
-            try:
-                data = await llm_fallback_fn(tool_name, params, result.error)
-                return ToolResult(success=True, data=data, tool_name=f"{tool_name}_llm_fallback",
-                                fallback_used=True, latency_ms=0)
-            except Exception as e:
-                logger.error("LLM fallback also failed: %s", e)
         return result

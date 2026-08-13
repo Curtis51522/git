@@ -1,17 +1,14 @@
 # s5_agent/server.py - S5 dashboard analysis server (port 8001)
 import asyncio, logging, sys, os
 from contextlib import asynccontextmanager
+from datetime import date as date_type
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _PARENT not in sys.path:
-    sys.path.insert(0, _PARENT)
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -19,6 +16,7 @@ from s5_agent.graph.registry import module_to_template
 from s5_agent.graph.runner import run_s5_graph
 from s5_agent.graph.state import S5Request
 from s5_agent.agents.recommendation import RecommendationAgent
+from s5_agent.discount_policy import STRATEGY_DISCOUNT_PCT, get_live_discounts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("s5.server")
@@ -58,10 +56,13 @@ def _response_cache_key(intent: str, params: dict, lang: str = "en") -> str:
     module = str(params.get("module", "")) if params else ""
     return f"{intent}:{date}:{module}:{_normalize_lang(lang)}"
 
-def _latest_cached_synthesis(intent: str) -> dict:
+def _latest_cached_synthesis(intent: str, selected_date: str = "") -> dict:
     for value in reversed(list(_response_cache.values())):
-        if value.get("intent") == intent:
-            return value
+        if value.get("intent") != intent:
+            continue
+        if selected_date and value.get("date") != selected_date:
+            continue
+        return value
     return {}
 
 def _priority_context(cached: dict) -> str:
@@ -86,56 +87,13 @@ def _build_priority_recommendations(context: str) -> list:
             return priorities[:3]
     except Exception as exc:
         logger.debug("RecommendationAgent direct analysis unavailable: %s", exc)
-
-    signals = agent._parse_signals(context)
-    priorities = []
-
-    def add_priority(product: str, coffee: str, reason: str, boost: float, strategy: str) -> None:
-        if product and product not in [item["product"] for item in priorities]:
-            priorities.append({
-                "product": product,
-                "coffee": coffee,
-                "reason": reason,
-                "boost": boost,
-                "strategy": strategy,
-            })
-
-    for product in signals.get("day1_products", [])[:3]:
-        add_priority(
-            product,
-            agent._best_coffee_for(product, signals),
-            f"Day-1 clearance: {product} needs to move before expiry",
-            2.5,
-            "clearance",
-        )
-    for product in signals.get("rising_products", [])[:2]:
-        add_priority(
-            product,
-            agent._best_coffee_for(product, signals),
-            f"Momentum: {product} volume rising, amplify with bundle",
-            2.0,
-            "amplify",
-        )
-    for product in signals.get("high_margin_products", [])[:2]:
-        add_priority(
-            product,
-            signals.get("high_margin_coffee", "cold_brew"),
-            f"Margin play: {product} has strong profit margin",
-            1.8,
-            "margin",
-        )
-    for product in signals.get("concentration_risk_products", [])[:2]:
-        add_priority(
-            product,
-            agent._best_coffee_for(product, signals),
-            f"Diversification: reduce reliance on {signals.get('top_seller', 'hero item')}",
-            1.5,
-            "diversify",
-        )
-    return priorities[:3]
+    return []
 
 @app.post("/analyze/module")
-async def analyze_module(req: ModuleAnalyzeRequest):
+async def analyze_module(
+    req: ModuleAnalyzeRequest,
+    authorization: str | None = Header(default=None),
+):
     lang = _normalize_lang(req.lang)
     module = (req.module or "").strip().lower()
     if module not in LANGGRAPH_MODULES:
@@ -149,6 +107,9 @@ async def analyze_module(req: ModuleAnalyzeRequest):
         "product": "all",
         **(req.params or {}),
     }
+    graph_params.pop("_authorization", None)
+    if authorization:
+        graph_params["_authorization"] = authorization
     graph_request = S5Request(
         query=module,
         module=module,
@@ -159,7 +120,12 @@ async def analyze_module(req: ModuleAnalyzeRequest):
     graph_response = await run_s5_graph(template_id, graph_request)
     response_payload = graph_response.model_dump()
     cache_key = _response_cache_key(template_id, graph_params, lang)
-    _response_cache[cache_key] = {"intent": template_id, **response_payload}
+    analysis_date = str(req.date or "").strip() or date_type.today().isoformat()
+    _response_cache[cache_key] = {
+        "intent": template_id,
+        "date": analysis_date,
+        **response_payload,
+    }
     if len(_response_cache) > _response_cache_max:
         oldest = next(iter(_response_cache))
         del _response_cache[oldest]
@@ -173,7 +139,10 @@ async def analyze_module(req: ModuleAnalyzeRequest):
 async def get_priorities():
     """Return cached bundle priority recommendations from RecommendationAgent."""
     try:
-        cached = _latest_cached_synthesis("profit_root_cause")
+        cached = _latest_cached_synthesis(
+            "profit_root_cause",
+            date_type.today().isoformat(),
+        )
         priorities = _build_priority_recommendations(_priority_context(cached))
         if priorities:
             return {"status": "ok", "priorities": priorities, "cached": True}
@@ -186,83 +155,39 @@ class DiscountRequest(BaseModel):
 
 @app.post("/discounts")
 async def get_discounts(req: DiscountRequest):
-    """Return dynamic discount rates combining freshness + RecommendationAgent signals.
+    """Return validated discounts from live operations and cached revenue evidence.
     
     Priority strategy -> discount mapping:
     - clearance: 40% (aggressive, must move stock)
     - amplify: 15% (ride momentum with mild promo)
     - margin: 25% (high margin can absorb deeper discount)
     - diversify: 12% (small nudge to spread demand)
-    - no signal: freshness-based (20% Day-1, 0% Fresh)
+    - no signal: 0% for fresh stock
     """
-    from api.freshness_service import get_discount_rate, get_sellable_batches
-    
-    STRATEGY_DISCOUNT = {
-        "clearance": 40,
-        "amplify": 15,
-        "margin": 25,
-        "diversify": 12,
-    }
-    
     try:
-        batches = get_sellable_batches()
-        freshness_map = {}
-        for b in (batches.data or []):
-            pn = b.get("product_name", "")
-            f = b.get("freshness_status", "Fresh")
-            if pn not in freshness_map or f == "Day-1":
-                freshness_map[pn] = f
-        
-        # Try to get RecommendationAgent priorities for dynamic discounts
         priority_map = {}
         try:
-            cached = _latest_cached_synthesis("profit_root_cause")
+            cached = _latest_cached_synthesis(
+                "profit_root_cause",
+                date_type.today().isoformat(),
+            )
             for p in _build_priority_recommendations(_priority_context(cached)):
                 prod = p.get("product", "").lower().replace(" ", "_")
                 strategy = p.get("strategy", "")
                 priority_map[prod] = {
                     "strategy": strategy,
-                    "discount_pct": STRATEGY_DISCOUNT.get(strategy, 20),
+                    "discount_pct": STRATEGY_DISCOUNT_PCT.get(strategy, 0),
                     "reason": p.get("reason", ""),
                 }
         except Exception:
-            pass  # Fall through to freshness-based
-        
-        # Auto-clearance: Day-1 items get clearance strategy even without S5 cache
-        discounts = {}
-        for pn in req.products:
-            freshness = freshness_map.get(pn, "Fresh")
-            base_discount = int(get_discount_rate(freshness) * 100)
-            
-            if pn in priority_map:
-                priority = priority_map[pn]
-                final_pct = min(max(base_discount, priority["discount_pct"]), 50)
-                discounts[pn] = {
-                    "discount_pct": final_pct,
-                    "freshness": freshness,
-                    "strategy": priority["strategy"],
-                    "reason": priority["reason"],
-                    "dynamic": True,
-                }
-            elif freshness == "Day-1":
-                discounts[pn] = {
-                    "discount_pct": min(max(base_discount, 40), 50),
-                    "freshness": freshness,
-                    "strategy": "clearance",
-                    "reason": "Day-1 stock: automatic clearance discount",
-                    "dynamic": True,
-                }
-            else:
-                discounts[pn] = {
-                    "discount_pct": base_discount,
-                    "freshness": freshness,
-                    "dynamic": False,
-                }
-        
-        return {"discounts": discounts}
+            priority_map = {}
+
+        return {"discounts": get_live_discounts(req.products, priority_map=priority_map)}
     except Exception as e:
         logger.warning("Discount lookup failed: %s", e)
         return {"discounts": {pn: {"discount_pct": 0, "freshness": "Fresh", "dynamic": False} for pn in req.products}}
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8001, log_level="info")
+    from s5_agent.s5_config.settings import HOST, PORT
+
+    uvicorn.run(app, host=HOST, port=PORT, log_level="info")
